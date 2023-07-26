@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import "../interfaces/ICollateralModule.sol";
 import "../storage/Account.sol";
+import "../storage/CollateralPool.sol";
 import "../storage/CollateralConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 import "../storage/Collateral.sol";
@@ -22,6 +23,7 @@ contract CollateralModule is ICollateralModule {
     using ERC20Helper for address;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
+    using CollateralPool for CollateralPool.Data;
     using AccountRBAC for AccountRBAC.Data;
     using Collateral for Collateral.Data;
     using SafeCastI256 for int256;

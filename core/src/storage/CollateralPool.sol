@@ -8,9 +8,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 
 pragma solidity >=0.8.19;
 
-// todo: make sure it is safe to reuse Collateral.sol library (mainly thinking about storage collisions)
-import "./Collateral.sol";
-
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -38,9 +35,9 @@ library CollateralPool {
         bool isInitialized;
 
         /**
-        * @dev Address set of collaterals that are being used in the protocols by this collateral pool
+        * @dev Address set of collaterals alongside net balances that are held by the collateral pool
          */
-        mapping(address => Collateral.Data) collaterals;
+        mapping(address => uint256) collateralBalances;
 
     }
 
@@ -82,7 +79,14 @@ library CollateralPool {
     view
     returns (uint256 collateralBalance)
     {
-        collateralBalance = self.collaterals[collateralType].balance;
+        collateralBalance = self.collateralBalances[collateralType];
+    }
+
+    /**
+     * @dev Increments the collateral pool balance for a given collateral type
+     */
+    function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        self.collateralBalances[collateralType] += amount;
     }
 
 }
