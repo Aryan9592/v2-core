@@ -19,6 +19,12 @@ library CollateralPool {
      */
     error CollateralPoolNotFound(uint128 trustlessInstrumentId);
 
+
+    /**
+    * @dev Thrown when a collateral pool does not have sufficient collateral.
+     */
+    error InsufficientCollateralInCollateralPool(uint256 requestedAmount);
+
     struct Data {
 
         /**
@@ -87,6 +93,17 @@ library CollateralPool {
      */
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         self.collateralBalances[collateralType] += amount;
+    }
+
+    /**
+     * @dev Decrements the collateral pool balance for a given collateral type
+     */
+    function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        if (self.collateralBalances[collateralType] < amount) {
+            revert InsufficientCollateralInCollateralPool(amount);
+        }
+
+        self.collateralBalances[collateralType] -= amount;
     }
 
 }
