@@ -1680,6 +1680,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@voltz-protocol/oracle-manager@workspace:oracle-manager":
+  version: 0.0.0-use.local
+  resolution: "@voltz-protocol/oracle-manager@workspace:oracle-manager"
+  dependencies:
+    "@openzeppelin/contracts": 4.9.2
+    "@prb/math": 3.3.0
+    "@prb/test": ^0.6.0
+    "@semantic-release/git": ^10.0.1
+    "@semantic-release/github": ^8.0.7
+    "@voltz-protocol/util-contracts": "workspace:^"
+    lcov-badge-generator: 1.0.5
+    prettier: 2.8.4
+    semantic-release: ^20.1.1
+    solhint: 3.4.0
+  languageName: unknown
+  linkType: soft
+
 "@voltz-protocol/periphery@workspace:^, @voltz-protocol/periphery@workspace:periphery":
   version: 0.0.0-use.local
   resolution: "@voltz-protocol/periphery@workspace:periphery"
