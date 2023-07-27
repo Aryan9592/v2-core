@@ -22,7 +22,7 @@ interface IRateOracle is IERC165 {
     /// at which the state can be (re-)updated.
     error StateUpdateTooEarly();
     /// @notice Returns true if the rate oracle holds state; returns false otherwise.
-    function hasState() external view returns (bool);
+    function hasState() external pure returns (bool);
     /// @notice Returns the earliest timestamp at which the state can be (re-)updated. 
     /// Reverts if oracle has no state.
     function earliestStateUpdate() external view returns (uint256);
