@@ -6,4 +6,3 @@ You may obtain a copy of the License at
 https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
-
