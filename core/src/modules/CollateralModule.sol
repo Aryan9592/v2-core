@@ -38,6 +38,7 @@ contract CollateralModule is ICollateralModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         CollateralConfiguration.collateralEnabled(collateralType);
         Account.Data storage account = Account.exists(accountId);
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(account.trustlessProductIdTrustedByAccount);
         address depositFrom = msg.sender;
         address self = address(this);
 
@@ -48,7 +49,10 @@ contract CollateralModule is ICollateralModule {
             uint256 liquidationBoosterTopUp =
                 liquidationBooster - account.collaterals[collateralType].liquidationBoosterBalance;
             actualTokenAmount += liquidationBoosterTopUp;
+            // todo: note, it looks like the increaseLiquidationBoosterBalance happens before the transfer,
+            // is this safe?
             account.collaterals[collateralType].increaseLiquidationBoosterBalance(liquidationBoosterTopUp);
+            collateralPool.increaseCollateralBalance(collateralType, liquidationBoosterTopUp);
             emit Collateral.LiquidatorBoosterUpdate(
                 accountId, collateralType, liquidationBoosterTopUp.toInt(), block.timestamp
             );
@@ -68,8 +72,8 @@ contract CollateralModule is ICollateralModule {
         }
 
         collateralType.safeTransferFrom(depositFrom, self, actualTokenAmount);
-
         account.collaterals[collateralType].increaseCollateralBalance(tokenAmount);
+        collateralPool.increaseCollateralBalance(collateralType, tokenAmount);
         emit Collateral.CollateralUpdate(accountId, collateralType, tokenAmount.toInt(), block.timestamp);
 
         emit Deposited(accountId, collateralType, actualTokenAmount, msg.sender, block.timestamp);
@@ -82,6 +86,7 @@ contract CollateralModule is ICollateralModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account =
             Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(account.trustlessProductIdTrustedByAccount);
 
         uint256 collateralBalance = account.collaterals[collateralType].balance;
         if (tokenAmount > collateralBalance) {
@@ -92,9 +97,11 @@ contract CollateralModule is ICollateralModule {
             );
 
             account.collaterals[collateralType].decreaseCollateralBalance(collateralBalance);
+            collateralPool.decreaseCollateralBalance(collateralType, collateralBalance + liquidatorBoosterWithdrawal);
             emit Collateral.CollateralUpdate(accountId, collateralType, -collateralBalance.toInt(), block.timestamp);
         } else {
             account.collaterals[collateralType].decreaseCollateralBalance(tokenAmount);
+            collateralPool.decreaseCollateralBalance(collateralType, tokenAmount);
             emit Collateral.CollateralUpdate(accountId, collateralType, -tokenAmount.toInt(), block.timestamp);
         }
 
