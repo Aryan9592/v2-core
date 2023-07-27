@@ -1,0 +1,10 @@
+[contract.MockXGlpRateOracle]
+artifact = "MockXRateOracle"
+args=[
+  "<%= settings.xChainId %>",
+  "<%= imports.datedIrs.contracts.GlpRateOracle.address %>",
+  "<%= settings.operatorAddress %>"
+]
+depends = [
+  "import.datedIrs",
+]

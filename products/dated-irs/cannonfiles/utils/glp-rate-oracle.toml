@@ -1,0 +1,12 @@
+[setting.rewardRouter]
+description = "Address of the GLP Reward Router"
+
+[setting.weth]
+description = "Address of WETH"
+
+[contract.GlpRateOracle]
+artifact = "GlpRateOracle"
+args=[
+  "<%= settings.rewardRouter %>",
+  "<%= settings.weth %>", # underlying
+]

@@ -1,8 +1,9 @@
 include = [
   "utils/commons.toml",
-  # "utils/dated-irs-router.toml",
-  # "utils/dated-irs-proxy-upgrade.toml",
+  "utils/dated-irs-router.toml",
+  "utils/dated-irs-proxy-upgrade.toml",
   "utils/aave-rate-oracles.toml",
+  "utils/glp-rate-oracle.toml",
 ]
 
 [setting.owner]
@@ -16,3 +17,9 @@ defaultValue = "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
 
 [setting.usdc]
 defaultValue = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+
+[setting.rewardRouter]
+defaultValue = "0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1"
+
+[setting.weth]
+defaultValue = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"

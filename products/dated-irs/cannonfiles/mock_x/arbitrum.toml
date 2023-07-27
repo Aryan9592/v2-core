@@ -1,7 +1,8 @@
 # This cannonfile is meant to be run on Arbitrum testnets.
 include = [
   "utils/commons.toml",
-  "utils/aave-rate-oracles.toml"
+  "utils/aave-rate-oracles.toml",
+  "utils/glp-rate-oracle.toml",
 ]
 
 [setting.xChainId]
