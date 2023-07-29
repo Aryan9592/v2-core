@@ -14,8 +14,8 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
 
 contract ExposedMarketFeeConfiguration {
     constructor() {
-        Account.create(13, address(1), type(uint128).max);
-        Account.create(15, address(1), type(uint128).max);
+        Account.create(13, address(1), type(uint128).max, false);
+        Account.create(15, address(1), type(uint128).max, false);
     }
     // Mock support
 

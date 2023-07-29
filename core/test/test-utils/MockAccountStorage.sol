@@ -30,7 +30,8 @@ contract MockAccountStorage {
     ) public {
         // Mock account
         // todo: consider extending this function such that it also supports custom trustlessProductTrustedByAccount
-        Account.create(accountId, owner, type(uint128).max);
+        // todo: consider extending this function such that it also supports isMultiToken setting
+        Account.create(accountId, owner, type(uint128).max, false);
 
         for (uint256 i = 0; i < balances.length; i++) {
             changeAccountBalance(accountId, balances[i]);

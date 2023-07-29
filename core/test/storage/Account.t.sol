@@ -26,7 +26,7 @@ contract ExposedAccounts is CoreState {
     }
 
     function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount) external returns (bytes32 s) {
-        Account.Data storage account = Account.create(id, owner, trustlessProductIdTrustedByAccount);
+        Account.Data storage account = Account.create(id, owner, trustlessProductIdTrustedByAccount, false);
         assembly {
             s := account.slot
         }

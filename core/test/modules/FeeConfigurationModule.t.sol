@@ -16,7 +16,7 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
 contract ExposedFeeConfigurationModule is FeeConfigurationModule {
     constructor() {
         // todo: consider extending this function such that it also supports custom trustlessProductTrustedByAccount
-        Account.create(13, address(1), type(uint128).max);
+        Account.create(13, address(1), type(uint128).max, false);
     }
 }
 

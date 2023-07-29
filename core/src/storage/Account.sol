@@ -75,9 +75,15 @@ library Account {
 
         /**
          * @dev If this value is set to max uint128, then the account is only able to interact with trusted instruments
-         * @dev
          */
         uint128 trustlessProductIdTrustedByAccount;
+
+        /**
+         * @dev If this boolean is set to true then the account is able to cross-collateral margin
+         * @dev If this boolean is set to false then the account uses a single-token mode
+         * @dev Single token mode means the account has a separate health factor for each collateral type
+         */
+        bool isMultiToken;
     }
 
 
@@ -106,7 +112,7 @@ library Account {
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
      *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount) internal returns (Data storage account) {
+    function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) internal returns (Data storage account) {
         // Disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
         // todo: consider layering in validation of trustlessProductIdTrustedByAccount
         require(id != 0);
@@ -115,6 +121,7 @@ library Account {
         account.id = id;
         account.rbac.owner = owner;
         account.trustlessProductIdTrustedByAccount = trustlessProductIdTrustedByAccount;
+        account.isMultiToken = isMultiToken;
     }
 
     /**
