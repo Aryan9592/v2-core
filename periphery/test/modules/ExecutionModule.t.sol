@@ -636,7 +636,10 @@ contract ExecutionModuleTest is Test {
                     depositingEnabled: true,
                     liquidationBooster: 10e6,
                     tokenAddress: address(erc20Token),
-                    cap: 20e6
+                    cap: 20e6,
+                    oracleNodeId: "0x",
+                    weight: 1e18,
+                    autoExchangeReward: 0
                 });
         
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_CORE_DEPOSIT)));

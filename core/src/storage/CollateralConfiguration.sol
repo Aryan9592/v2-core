@@ -59,7 +59,7 @@ library CollateralConfiguration {
         bytes32 oracleNodeId;
 
         /**
-         * @dev Collateral haircut factor used in margin requirement calculations when determining the collateral value
+         * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
          */
         uint256 weight;
 

@@ -20,7 +20,10 @@ contract EnhancedCollateralModule is CollateralModule, CoreState {
                 depositingEnabled: true,
                 liquidationBooster: config.liquidationBooster,
                 tokenAddress: tokenAddress,
-                cap: config.cap
+                cap: config.cap,
+                oracleNodeId: "0x",
+                weight: 1e18,
+                autoExchangeReward: 0
             })
         );
     }

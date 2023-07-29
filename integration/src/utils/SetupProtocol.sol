@@ -249,7 +249,10 @@ contract SetupProtocol is BatchScript {
         depositingEnabled: true,
         liquidationBooster: liquidationBooster,
         tokenAddress: tokenAddress,
-        cap: cap
+        cap: cap,
+        oracleNodeId: "0x",
+        weight: 1e18,
+        autoExchangeReward: 0
       })
     );
 

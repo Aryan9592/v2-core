@@ -163,7 +163,10 @@ contract CoreState is MockCoreStorage, Ownable {
                 depositingEnabled: true,
                 liquidationBooster: Constants.TOKEN_0_LIQUIDATION_BOOSTER,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: 1e18,
+                autoExchangeReward: 0
             })
         );
 
@@ -173,7 +176,10 @@ contract CoreState is MockCoreStorage, Ownable {
                 depositingEnabled: false,
                 liquidationBooster: Constants.TOKEN_1_LIQUIDATION_BOOSTER,
                 tokenAddress: Constants.TOKEN_1,
-                cap: Constants.TOKEN_1_CAP
+                cap: Constants.TOKEN_1_CAP,
+                oracleNodeId: "0x",
+                weight: 1e18,
+                autoExchangeReward: 0
             })
         );
 
