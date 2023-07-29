@@ -1651,6 +1651,7 @@ __metadata:
     "@prb/test": ^0.6.0
     "@semantic-release/git": ^10.0.1
     "@semantic-release/github": ^8.0.7
+    "@voltz-protocol/oracle-manager": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
     lcov-badge-generator: 1.0.5
@@ -1680,7 +1681,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@voltz-protocol/oracle-manager@workspace:oracle-manager":
+"@voltz-protocol/oracle-manager@workspace:^, @voltz-protocol/oracle-manager@workspace:oracle-manager":
   version: 0.0.0-use.local
   resolution: "@voltz-protocol/oracle-manager@workspace:oracle-manager"
   dependencies:

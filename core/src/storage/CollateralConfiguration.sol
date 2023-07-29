@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "./OracleManager.sol";
 
 /**
@@ -18,6 +19,7 @@ import "./OracleManager.sol";
  */
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
+    using SafeCastI256 for int256;
 
     bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
         keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
