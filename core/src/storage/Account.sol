@@ -396,7 +396,7 @@ library Account {
             Exposure[] memory productMakerExposuresUpper
             ) = self.getProductTakerAndMakerExposuresAllCollaterals(productId);
 
-            (uint256 lmTakerPositionInUSD, uint256 unrealizedLossTakerPositionsInUSD) =
+            (uint256 lmTakerPositionsInUSD, uint256 unrealizedLossTakerPositionsInUSD) =
             computeLMAndUnrealizedLossFromExposuresAllCollaterals(
                 productTakerExposures
             );
@@ -407,7 +407,7 @@ library Account {
         }
 
         UD60x18 imMultiplier = getIMMultiplier();
-        initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirementInUSD, imMultiplier);
+        initialMarginRequirementInUSD = computeInitialMarginRequirement(liquidationMarginRequirementInUSD, imMultiplier);
     }
 
     function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
