@@ -443,6 +443,44 @@ library Account {
         }
     }
 
+    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposuresAllCollaterals(
+        Exposure[] memory exposuresLower,
+        Exposure[] memory exposuresUpper
+    ) internal view
+    returns (uint256 liquidationMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD)
+    {
+
+        require(exposuresLower.length == exposuresUpper.length);
+
+        for (uint256 i=0; i < exposuresLower.length; i++) {
+            require(exposuresLower[i].productId == exposuresUpper[i].productId);
+            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
+            require(exposuresLower[i].collateralType == exposuresUpper[i].collateralType);
+            Exposure memory exposureLower = exposuresLower[i];
+            Exposure memory exposureUpper = exposuresUpper[i];
+            UD60x18 collateralPriceInUSD = CollateralConfiguration.load(exposureLower.collateralType)
+            .getCollateralPrice();
+            UD60x18 riskParameter = getRiskParameter(exposureLower.productId, exposureLower.marketId);
+            uint256 liquidationMarginRequirementExposureLower =
+            computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
+            uint256 liquidationMarginRequirementExposureUpper =
+            computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
+
+            if (
+                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
+                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
+            ) {
+                liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD,
+                    liquidationMarginRequirementExposureLower);
+                highestUnrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposureLower.unrealizedLoss);
+            } else {
+                liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD,
+                    liquidationMarginRequirementExposureUpper);
+                highestUnrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposureUpper.unrealizedLoss);
+            }
+        }
+    }
+
 
     /**
     * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
