@@ -19,6 +19,9 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable
+// todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support
+// position transferring liquidations where the incentive of the liquidator is not in terms of a given collateral token
+// but rather represented as a discount on the liquidated position's price based on the twap
 
 /**
  * @title Module for liquidated accounts
@@ -101,9 +104,13 @@ contract LiquidationModule is ILiquidationModule {
         external
         returns (uint256 liquidatorRewardAmount)
     {
-        // todo: needs review alongside Artur A + IR flagged a potential issue with the liquidation flow
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(liquidatedAccountId);
+
+        if (account.isMultiToken) {
+            revert AccountIsMultiToken(liquidatedAccountId);
+        }
+
         (bool liquidatable, uint256 imPreClose,,uint256 highestUnrealizedLossPreClose) = account.isLiquidatable(collateralType);
 
         if (!liquidatable) {

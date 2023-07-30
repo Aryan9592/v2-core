@@ -102,7 +102,7 @@ interface ILiquidationModule {
     );
 
     /**
-     * @notice Liquidates an account
+     * @notice Liquidates a single-token account
      * @param liquidatedAccountId The id of the account that is being liquidated
      * @param liquidatorAccountId Account id that will receive the rewards from the liquidation.
      * @return liquidatorRewardAmount Liquidator reward amount in terms of the account's settlement token
