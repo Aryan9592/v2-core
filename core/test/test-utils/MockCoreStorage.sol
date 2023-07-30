@@ -165,8 +165,8 @@ contract CoreState is MockCoreStorage, Ownable {
                 tokenAddress: Constants.TOKEN_0,
                 cap: Constants.TOKEN_0_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -178,8 +178,8 @@ contract CoreState is MockCoreStorage, Ownable {
                 tokenAddress: Constants.TOKEN_1,
                 cap: Constants.TOKEN_1_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 

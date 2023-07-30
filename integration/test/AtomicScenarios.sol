@@ -57,8 +57,8 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
         tokenAddress: address(token),
         cap: 1000000e18,
         oracleNodeId: "0x",
-        weight: 1e18,
-        autoExchangeReward: 0
+        weight: UD60x18.wrap(1e18),
+        autoExchangeReward: UD60x18.wrap(0)
       })
     );
     coreProxy.configureProtocolRisk(

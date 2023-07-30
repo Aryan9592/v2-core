@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import "forge-std/Test.sol";
 import "../../src/modules/CollateralConfigurationModule.sol";
 import "../test-utils/Constants.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 contract CollateralConfigurationModuleTest is Test {
     event CollateralConfigured(address indexed collateralType, CollateralConfiguration.Data config, uint256 blockTimestamp);
@@ -34,8 +35,8 @@ contract CollateralConfigurationModuleTest is Test {
             tokenAddress: Constants.TOKEN_0,
             cap: Constants.TOKEN_0_CAP,
             oracleNodeId: "0x",
-            weight: 1e18,
-            autoExchangeReward: 0
+            weight: UD60x18.wrap(1e18),
+            autoExchangeReward: UD60x18.wrap(0)
         });
 
         // Expect CollateralConfigured event
@@ -63,8 +64,8 @@ contract CollateralConfigurationModuleTest is Test {
             tokenAddress: Constants.TOKEN_0,
             cap: Constants.TOKEN_0_CAP,
             oracleNodeId: "0x",
-            weight: 1e18,
-            autoExchangeReward: 0
+            weight: UD60x18.wrap(1e18),
+            autoExchangeReward: UD60x18.wrap(0)
         });
 
         vm.expectRevert(abi.encodeWithSelector(AccessError.Unauthorized.selector, otherAddress));
@@ -81,8 +82,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_0,
                 cap: Constants.TOKEN_0_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -94,8 +95,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_1,
                 cap: Constants.TOKEN_1_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -126,8 +127,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_0,
                 cap: Constants.TOKEN_0_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -139,8 +140,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_1,
                 cap: Constants.TOKEN_1_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -168,8 +169,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_0,
                 cap: Constants.TOKEN_0_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -181,8 +182,8 @@ contract CollateralConfigurationModuleTest is Test {
                 tokenAddress: Constants.TOKEN_1,
                 cap: Constants.TOKEN_1_CAP,
                 oracleNodeId: "0x",
-                weight: 1e18,
-                autoExchangeReward: 0
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 

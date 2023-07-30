@@ -638,8 +638,8 @@ contract ExecutionModuleTest is Test {
                     tokenAddress: address(erc20Token),
                     cap: 20e6,
                     oracleNodeId: "0x",
-                    weight: 1e18,
-                    autoExchangeReward: 0
+                    weight: UD60x18.wrap(1e18),
+                    autoExchangeReward: UD60x18.wrap(0)
                 });
         
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_CORE_DEPOSIT)));

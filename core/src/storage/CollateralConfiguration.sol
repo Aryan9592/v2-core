@@ -12,6 +12,7 @@ import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "./OracleManager.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
@@ -61,12 +62,14 @@ library CollateralConfiguration {
         /**
          * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
          */
-        uint256 weight;
+        // todo: turn into a UD asap
+        UD60x18 weight;
 
         /**
          * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
          */
-        uint256 autoExchangeReward;
+        // todo: turn into a UD asap
+        UD60x18 autoExchangeReward;
     }
 
     /**
