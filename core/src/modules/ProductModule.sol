@@ -165,7 +165,12 @@ contract ProductModule is IProductModule {
             account.activeProducts.add(productId);
         }
 
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        if (account.isMultiToken) {
+            (im, highestUnrealizedLoss) = account.imCheckAllCollaterals();
+        } else {
+            (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        }
+
     }
 
     function propagateMakerOrder(
@@ -174,7 +179,7 @@ contract ProductModule is IProductModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedPnL) {
+    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Product.onlyProductAddress(productId, msg.sender);
 
@@ -200,7 +205,11 @@ contract ProductModule is IProductModule {
             account.activeProducts.add(productId);
         }
 
-        (im, highestUnrealizedPnL) = account.imCheck(collateralType);
+        if (account.isMultiToken) {
+            (im, highestUnrealizedLoss) = account.imCheckAllCollaterals();
+        } else {
+            (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        }
     }
 
     function propagateSettlementCashflow(uint128 accountId, uint128 productId, address collateralType, int256 amount)
