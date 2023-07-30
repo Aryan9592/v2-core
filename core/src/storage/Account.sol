@@ -27,7 +27,6 @@ import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18}
 // todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries
 // todo: note, a few of the functions in this library have two representations (one for a single collateral
 // and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away
-
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -444,8 +443,9 @@ library Account {
         }
     }
 
+
     /**
- * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
+    * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
      */
     function computeLMAndUnrealizedLossFromExposures(Exposure[] memory exposures)
     internal
@@ -461,6 +461,26 @@ library Account {
             unrealizedLoss += exposure.unrealizedLoss;
         }
 
+    }
+
+    /**
+     * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
+     * with varying collateral types and computes the result in USD
+     */
+    function computeLMAndUnrealizedLossFromExposuresAllCollaterals(Exposure[] memory exposures)
+    internal
+    view
+    returns (uint256 liquidationMarginRequirementInUSD, uint256 unrealizedLossInUSD)
+    {
+        for (uint256 i=0; i < exposures.length; i++) {
+            Exposure memory exposure = exposures[i];
+            UD60x18 collateralPriceInUSD = CollateralConfiguration.load(exposure.collateralType).getCollateralPrice();
+            UD60x18 riskParameter = getRiskParameter(exposure.productId, exposure.marketId);
+            uint256 liquidationMarginRequirementExposure =
+            computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
+            liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD, liquidationMarginRequirementExposure);
+            unrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposure.unrealizedLoss);
+        }
     }
 
     function getWeightedCollateralBalanceInUSD(Data storage self) internal view
