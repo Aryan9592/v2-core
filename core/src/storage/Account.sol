@@ -25,6 +25,8 @@ import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18}
     from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries
+// todo: note, a few of the functions in this library have two representations (one for a single collateral
+// and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -341,6 +343,7 @@ library Account {
 
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
+     * for a given collateral type
      */
 
     function getMarginRequirementsAndHighestUnrealizedLoss(Data storage self, address collateralType)
@@ -370,6 +373,42 @@ library Account {
 
         UD60x18 imMultiplier = getIMMultiplier();
         initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+    }
+
+    /**
+    * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
+     * across all collateral types
+     */
+
+    function getMarginRequirementsAndHighestUnrealizedLossAllCollateralsInUSD(Data storage self)
+    internal
+    view
+    returns (uint256 initialMarginRequirementInUSD, uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD)
+    {
+        SetUtil.UintSet storage _activeProducts = self.activeProducts;
+
+        for (uint256 i = 1; i <= _activeProducts.length(); i++) {
+            uint128 productId = _activeProducts.valueAt(i).to128();
+
+            (
+            Exposure[] memory productTakerExposures,
+            Exposure[] memory productMakerExposuresLower,
+            Exposure[] memory productMakerExposuresUpper
+            ) = self.getProductTakerAndMakerExposuresAllCollaterals(productId);
+
+            (uint256 lmTakerPositionInUSD, uint256 unrealizedLossTakerPositionsInUSD) =
+            computeLMAndUnrealizedLossFromExposuresAllCollaterals(
+                productTakerExposures
+            );
+            (uint256 lmMakerPositionsInUSD, uint256 highestUnrealizedLossMakerPositionsInUSD) =
+            computeLMAndHighestUnrealizedLossFromLowerAndUpperExposuresAllCollaterals(productMakerExposuresLower, productMakerExposuresUpper);
+            liquidationMarginRequirementInUSD += (lmTakerPositionsInUSD + lmMakerPositionsInUSD);
+            highestUnrealizedLossInUSD += (unrealizedLossTakerPositionsInUSD + highestUnrealizedLossMakerPositionsInUSD);
+        }
+
+        UD60x18 imMultiplier = getIMMultiplier();
+        initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirementInUSD, imMultiplier);
     }
 
     function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
