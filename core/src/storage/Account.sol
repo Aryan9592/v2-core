@@ -309,7 +309,8 @@ library Account {
     }
 
     /**
-     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and the initial margin requirement
+     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
+     * the initial margin requirement for a given collateral type (single token account)
      */
     function isIMSatisfied(Data storage self, address collateralType)
         internal
@@ -318,6 +319,20 @@ library Account {
         (initialMarginRequirement,,highestUnrealizedLoss) = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
         imSatisfied = collateralBalance >= initialMarginRequirement + highestUnrealizedLoss;
+    }
+
+    /**
+     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
+     * the initial margin requirement across collateral types (multi-token account)
+     */
+    function isIMSatisfiedAllCollaterals(Data storage self)
+    internal
+    view
+    returns (bool imSatisfied, uint256 initialMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD) {
+        (initialMarginRequirementInUSD,,highestUnrealizedLossInUSD) = self.
+        getMarginRequirementsAndHighestUnrealizedLossAllCollaterals();
+        uint256 weightedCollateralBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
+        imSatisfied = weightedCollateralBalanceInUSD >= initialMarginRequirementInUSD + highestUnrealizedLossInUSD;
     }
 
     /**
