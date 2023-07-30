@@ -105,7 +105,11 @@ contract CollateralModule is ICollateralModule {
             emit Collateral.CollateralUpdate(accountId, collateralType, -tokenAmount.toInt(), block.timestamp);
         }
 
-        account.imCheck(collateralType);
+        if (account.isMultiToken) {
+            account.imCheckAllCollaterals();
+        } else {
+            account.imCheck(collateralType);
+        }
 
         collateralType.safeTransfer(msg.sender, tokenAmount);
 
