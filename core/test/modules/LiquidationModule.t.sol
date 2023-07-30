@@ -104,10 +104,10 @@ contract LiquidationModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](2);
 
                 mockExposures[0] = Account.Exposure(
-                    {productId: 1, marketId: 10, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 1, marketId: 10, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
                 mockExposures[1] = Account.Exposure(
-                    {productId: 1, marketId: 11, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 1, marketId: 11, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 products[0].mockGetAccountTakerAndMakerExposures(
@@ -120,7 +120,7 @@ contract LiquidationModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](1);
 
                 mockExposures[0] = Account.Exposure(
-                    {productId: 2, marketId: 20, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 2, marketId: 20, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 products[1].mockGetAccountTakerAndMakerExposures(100, Constants.TOKEN_0, mockExposures, mockExposures, mockExposures);
@@ -140,10 +140,10 @@ contract LiquidationModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](2);
 
                 mockExposures[0] = Account.Exposure(
-                     {productId: 1, marketId: 10, annualizedNotional: 20e18, unrealizedLoss: 0}
+                     {productId: 1, marketId: 10, annualizedNotional: 20e18, unrealizedLoss: 0, collateralType: address(1000)}
                 );
                 mockExposures[1] = Account.Exposure(
-                    {productId: 1, marketId: 11, annualizedNotional: 2e18, unrealizedLoss: 0}
+                    {productId: 1, marketId: 11, annualizedNotional: 2e18, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 products[0].mockGetAccountTakerAndMakerExposures(100, Constants.TOKEN_0, mockExposures, mockExposures, mockExposures);
@@ -155,7 +155,7 @@ contract LiquidationModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](1);
 
                 mockExposures[0] = Account.Exposure(
-                    {productId: 2, marketId: 20, annualizedNotional: -5e18, unrealizedLoss: 0}
+                    {productId: 2, marketId: 20, annualizedNotional: -5e18, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 products[1].mockGetAccountTakerAndMakerExposures(100, Constants.TOKEN_0, mockExposures, mockExposures, mockExposures);

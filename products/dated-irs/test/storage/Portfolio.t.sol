@@ -704,10 +704,10 @@ contract PortfolioTest is Test {
     function test_RemoveEmptySlotsFromExposuresArray() public {
         Account.Exposure[] memory exposures = new Account.Exposure[](3);
         exposures[0] = Account.Exposure(
-            {productId: 1, marketId: 11, annualizedNotional: 2e18, unrealizedLoss: 0}
+            {productId: 1, marketId: 11, annualizedNotional: 2e18, unrealizedLoss: 0, collateralType: address(1000)}
         );
         exposures[1] = Account.Exposure(
-            {productId: 1, marketId: 12, annualizedNotional: 2e18, unrealizedLoss: 0}
+            {productId: 1, marketId: 12, annualizedNotional: 2e18, unrealizedLoss: 0, collateralType: address(1000)}
         );
 
         Account.Exposure[] memory exposuresWithoutEmotySlots = portfolio.removeEmptySlotsFromExposuresArray(exposures, 2);

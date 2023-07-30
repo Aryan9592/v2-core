@@ -338,13 +338,17 @@ contract CoreState is MockCoreStorage, Ownable {
             Account.Exposure[] memory mockExposuresMakerUpper = new Account.Exposure[](2);
 
             mockExposuresMakerLower[0] =
-                Account.Exposure({productId: 1, marketId: 10, annualizedNotional: -100e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 1, marketId: 10, annualizedNotional: -100e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
             mockExposuresMakerUpper[0] =
-            Account.Exposure({productId: 1, marketId: 10, annualizedNotional: 300e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 1, marketId: 10, annualizedNotional: 300e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
             mockExposuresMakerLower[1] =
-                Account.Exposure({productId: 1, marketId: 11, annualizedNotional: -200e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 1, marketId: 11, annualizedNotional: -200e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
             mockExposuresMakerUpper[1] =
-            Account.Exposure({productId: 1, marketId: 11, annualizedNotional: 500e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 1, marketId: 11, annualizedNotional: 500e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
 
             products[0].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_0, mockExposuresTaker, mockExposuresMakerLower, mockExposuresMakerUpper
@@ -367,10 +371,12 @@ contract CoreState is MockCoreStorage, Ownable {
             Account.Exposure[] memory mockExposuresMakerUpper = new Account.Exposure[](1);
 
             mockExposuresMakerLower[0] =
-                Account.Exposure({productId: 2, marketId: 20, annualizedNotional: -200e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 2, marketId: 20, annualizedNotional: -200e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
 
             mockExposuresMakerUpper[0] =
-            Account.Exposure({productId: 2, marketId: 20, annualizedNotional: 100e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 2, marketId: 20, annualizedNotional: 100e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
 
             products[1].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_0, mockExposuresTaker, mockExposuresMakerLower, mockExposuresMakerUpper

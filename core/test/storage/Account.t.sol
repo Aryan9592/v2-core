@@ -421,7 +421,8 @@ contract AccountTest is Test {
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 100),
-                unrealizedLoss: i * 50
+                unrealizedLoss: i * 50,
+                collateralType: address(1000)
             });
 
             expectedUnrealizedLoss += exposures[i].unrealizedLoss;
@@ -445,14 +446,16 @@ contract AccountTest is Test {
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 1000),
-                unrealizedLoss: i * 500
+                unrealizedLoss: i * 500,
+                collateralType: address(1000)
             });
 
             upperExposures[i] = Account.Exposure({
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 100),
-                unrealizedLoss: i * 50
+                unrealizedLoss: i * 50,
+                collateralType: address(1000)
             });
 
             // note, in here we're only taking into account lower exposures because they pose the highest risk

@@ -24,6 +24,8 @@ import {UD60x18, sub as subSD59x18} from "@prb/math/SD59x18.sol";
 import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18} 
     from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
+// todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries
+
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -115,6 +117,7 @@ library Account {
         int256 annualizedNotional;
         // note, in context of dated irs with the current accounting logic it also includes accruedInterest
         uint256 unrealizedLoss;
+        address collateralType;
     }
 
     //// STATE CHANGING FUNCTIONS ////
@@ -176,6 +179,8 @@ library Account {
         collateralBalance = self.collaterals[collateralType].balance;
     }
 
+
+    // todo: introduce a multi-token counterpart for this function
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
@@ -405,6 +410,7 @@ library Account {
 
     function getWeightedCollateralBalanceInUSD(Data storage self) internal view
     returns (uint256 weightedCollateralBalanceInUSD) {
+        // todo: consider breaking this function into a combination of a pure + view function
         SetUtil.AddressSet storage _activeCollateralTokenAddresses = self.activeCollateralTokenAddresses;
         for (uint256 i = 1; i <= _activeCollateralTokenAddresses.length(); i++) {
             address collateralTokenAddress = _activeCollateralTokenAddresses.valueAt(i);

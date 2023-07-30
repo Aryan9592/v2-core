@@ -70,10 +70,10 @@ contract CollateralModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](2);
 
                 mockExposures[0] = Account.Exposure(
-                    {productId: 1, marketId: 10, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 1, marketId: 10, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
                 mockExposures[1] = Account.Exposure(
-                    {productId: 1, marketId: 11, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 1, marketId: 11, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 // todo: currently using mockExposures for mockTakerExposures, mockMakerExposuresLower and mockMakerExposuresUpper
@@ -87,7 +87,7 @@ contract CollateralModuleTest is Test {
                 Account.Exposure[] memory mockExposures = new Account.Exposure[](1);
 
                 mockExposures[0] = Account.Exposure(
-                    {productId: 2, marketId: 20, annualizedNotional: 0, unrealizedLoss: 0}
+                    {productId: 2, marketId: 20, annualizedNotional: 0, unrealizedLoss: 0, collateralType: address(1000)}
                 );
 
                 products[1].mockGetAccountTakerAndMakerExposures(100, Constants.TOKEN_0, mockExposures, mockExposures, mockExposures);
