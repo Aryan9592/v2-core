@@ -40,6 +40,16 @@ interface IProduct is IERC165 {
             Account.Exposure[] memory makerExposuresUpper
         );
 
+    /// @notice returns account taker and maker exposures for a given account across all collateral types
+    function getAccountTakerAndMakerExposuresAllCollaterals(uint128 accountId)
+    external
+    view
+    returns (
+        Account.Exposure[] memory takerExposures,
+        Account.Exposure[] memory makerExposuresLower,
+        Account.Exposure[] memory makerExposuresUpper
+    );
+
     //// STATE CHANGING FUNCTIONS ////
 
     /// @notice attempts to close all the unfilled and filled positions of a given account in the product

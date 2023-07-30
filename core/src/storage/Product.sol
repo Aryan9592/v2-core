@@ -85,6 +85,7 @@ library Product {
 
     /**
      * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
+     * for a given collateralType
      */
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId, address collateralType)
         internal
@@ -97,6 +98,23 @@ library Product {
     {
         return IProduct(self.productAddress).getAccountTakerAndMakerExposures(accountId, collateralType);
     }
+
+    /**
+     * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
+     * for a given collateralType
+     */
+    function getAccountTakerAndMakerExposuresAllCollaterals(Data storage self, uint128 accountId)
+    internal
+    view
+    returns (
+        Account.Exposure[] memory takerExposures,
+        Account.Exposure[] memory makerExposuresLower,
+        Account.Exposure[] memory makerExposuresUpper
+    )
+    {
+        return IProduct(self.productAddress).getAccountTakerAndMakerExposuresAllCollaterals(accountId);
+    }
+
 
     /**
      * @dev The product at self.productAddress is expected to close filled and unfilled positions for all maturities and pools
