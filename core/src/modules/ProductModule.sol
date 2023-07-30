@@ -65,7 +65,7 @@ contract ProductModule is IProductModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
 
         if (isTrusted) {
-            // todo: consider removing the below feature flag in favour of an ownerOnly check
+            // todo: consider removing the below feature flag in favour of an ownerOnly check (AN)
             /// unless there's a good reason to use a feature flag
             FeatureFlag.ensureAccessToFeature(_REGISTER_PRODUCT_FEATURE_FLAG);
         }
@@ -141,7 +141,7 @@ contract ProductModule is IProductModule {
         int256 annualizedNotional
     ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        // todo: consider checking if the product exists or is it implicitly done in .onlyProductAddress() call
+        // todo: consider checking if the product exists or is it implicitly done in .onlyProductAddress() call (AN)
         Product.onlyProductAddress(productId, msg.sender);
 
         Account.Data storage account = Account.exists(accountId);

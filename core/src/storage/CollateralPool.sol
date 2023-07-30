@@ -25,7 +25,7 @@ library CollateralPool {
      */
     error InsufficientCollateralInCollateralPool(uint256 requestedAmount);
 
-    // todo: consider introducing a CollateralPoolBalanceUpdate event similar to what we have in Collateral.sols
+    // todo: consider introducing a CollateralPoolBalanceUpdate event similar to what we have in Collateral.sols (AN)
 
     struct Data {
 

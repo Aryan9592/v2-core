@@ -50,7 +50,7 @@ contract CollateralModule is ICollateralModule {
                 liquidationBooster - account.collaterals[collateralType].liquidationBoosterBalance;
             actualTokenAmount += liquidationBoosterTopUp;
             // todo: note, it looks like the increaseLiquidationBoosterBalance happens before the transfer,
-            // is this safe?
+            // is this safe? (CR)
             account.collaterals[collateralType].increaseLiquidationBoosterBalance(liquidationBoosterTopUp);
             collateralPool.increaseCollateralBalance(collateralType, liquidationBoosterTopUp);
             emit Collateral.LiquidatorBoosterUpdate(

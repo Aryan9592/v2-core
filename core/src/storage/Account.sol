@@ -24,10 +24,10 @@ import {UD60x18, sub as subSD59x18} from "@prb/math/SD59x18.sol";
 import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18} 
     from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-// todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries
+// todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries (CR)
 // todo: note, a few of the functions in this library have two representations (one for a single collateral
-// and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away
-// todo: consider replacing the AllCollaterals suffix with MultiToken?
+// and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away (CR)
+// todo: consider replacing the AllCollaterals suffix with MultiToken? (CR)
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -103,10 +103,10 @@ library Account {
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
          */
-        // todo: layer in logic that updates this set upon collateral deposits and withdrawals
+        // todo: layer in logic that updates this set upon collateral deposits and withdrawals (CR)
         SetUtil.AddressSet activeCollateralTokenAddresses;
 
-        // todo: consider introducing empty slots for future use (also applies to other storage objects)
+        // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
         // synthetix/contracts/storage/Account.sol#L58
 
@@ -141,7 +141,7 @@ library Account {
      */
     function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) internal returns (Data storage account) {
         // Disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
-        // todo: consider layering in validation of trustlessProductIdTrustedByAccount
+        // todo: consider layering in validation of trustlessProductIdTrustedByAccount (AN)
         require(id != 0);
         account = load(id);
 
@@ -190,7 +190,7 @@ library Account {
     }
 
 
-    // todo: consider introducing a multi-token counterpart for this function?
+    // todo: consider introducing a multi-token counterpart for this function? (CR)
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
@@ -583,7 +583,7 @@ library Account {
 
     function getWeightedCollateralBalanceInUSD(Data storage self) internal view
     returns (uint256 weightedCollateralBalanceInUSD) {
-        // todo: consider breaking this function into a combination of a pure + view function
+        // todo: consider breaking this function into a combination of a pure + view function (CR)
         SetUtil.AddressSet storage _activeCollateralTokenAddresses = self.activeCollateralTokenAddresses;
         for (uint256 i = 1; i <= _activeCollateralTokenAddresses.length(); i++) {
             address collateralTokenAddress = _activeCollateralTokenAddresses.valueAt(i);

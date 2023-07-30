@@ -18,8 +18,8 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-// todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable
-// todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support
+// todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable (AB)
+// todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support (AB)
 // position transferring liquidations where the incentive of the liquidator is not in terms of a given collateral token
 // but rather represented as a discount on the liquidated position's price based on the twap
 
