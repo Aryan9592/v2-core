@@ -27,6 +27,7 @@ import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18}
 // todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries
 // todo: note, a few of the functions in this library have two representations (one for a single collateral
 // and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away
+// todo: consider replacing the AllCollaterals suffix with MultiToken?
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -320,8 +321,8 @@ library Account {
     }
 
     /**
-     * @dev Returns a booleans liquidatable (true if the account is below liquidation margin requirement) 
-     * and the initial and liquidation margin requirements
+     * @dev Returns a booleans liquidatable (true if a single-token account is below liquidation margin requirement)
+     * and the initial and liquidation margin requirements alongside highest unrealized loss
      */
     function isLiquidatable(Data storage self, address collateralType)
         internal
@@ -337,6 +338,26 @@ library Account {
             self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
         liquidatable = collateralBalance < liquidationMarginRequirement + highestUnrealizedLoss;
+    }
+
+    /**
+     * @dev Returns a boolean isLiquidatable (true if the account is below liquidation margin requirement)
+     * and the initial and liquidation margin requirements alongside highest unrealized loss (all in USD)
+     */
+    function isLiquidatableAllCollaterals(Data storage self)
+    internal
+    view
+    returns (
+        bool liquidatable,
+        uint256 initialMarginRequirementInUSD,
+        uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD
+    )
+    {
+        (initialMarginRequirementInUSD, liquidationMarginRequirementInUSD, highestUnrealizedLossInUSD) =
+        self.getMarginRequirementsAndHighestUnrealizedLossAllCollaterals();
+        uint256 weightedCollateralBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
+        liquidatable = weightedCollateralBalanceInUSD < liquidationMarginRequirementInUSD + highestUnrealizedLossInUSD;
     }
 
 
@@ -379,7 +400,7 @@ library Account {
      * across all collateral types
      */
 
-    function getMarginRequirementsAndHighestUnrealizedLossAllCollateralsInUSD(Data storage self)
+    function getMarginRequirementsAndHighestUnrealizedLossAllCollaterals(Data storage self)
     internal
     view
     returns (uint256 initialMarginRequirementInUSD, uint256 liquidationMarginRequirementInUSD,
@@ -573,8 +594,6 @@ library Account {
     {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
     }
-
-
 
 
 }
