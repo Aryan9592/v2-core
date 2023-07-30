@@ -249,8 +249,7 @@ library Account {
 
     /**
      * @dev Returns the aggregate exposures of the account in all products in which the account is active (
-     * exposures are per product)
-     * note, the exposures are expected to be in notional terms and in terms of the settlement token of this account
+     * exposures are per product) given a collateral type
      */
     function getProductTakerAndMakerExposures(Data storage self, uint128 productId, address collateralType)
         internal
@@ -266,6 +265,23 @@ library Account {
             _product.getAccountTakerAndMakerExposures(self.id, collateralType);
     }
 
+    /**
+    * @dev Returns the aggregate exposures of the account in all products in which the account is active (
+     * exposures are per product) for all collateral types
+     */
+    function getProductTakerAndMakerExposuresAllCollaterals(Data storage self, uint128 productId)
+    internal
+    view
+    returns (
+        Exposure[] memory productTakerExposures,
+        Exposure[] memory productMakerExposuresLower,
+        Exposure[] memory productMakerExposuresUpper
+    )
+    {
+        Product.Data storage _product = Product.load(productId);
+        (productTakerExposures, productMakerExposuresLower, productMakerExposuresUpper) =
+        _product.getAccountTakerAndMakerExposuresAllCollaterals(self.id);
+    }
 
 
     function getRiskParameter(uint128 productId, uint128 marketId) internal view returns (UD60x18 riskParameter) {
