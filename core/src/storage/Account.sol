@@ -52,9 +52,17 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given account's total value is below the initial margin requirement
+     * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
+     * + the highest unrealized loss
      */
     error AccountBelowIM(uint128 accountId, address collateralType, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss);
+
+    /**
+     * @dev Thrown when a given multi-token account's total value is below the initial margin requirement
+     * + the highest unrealized loss in USD
+     */
+    error AccountBelowIMAllCollaterals(uint128 accountId, uint256 initialMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -182,7 +190,7 @@ library Account {
     }
 
 
-    // todo: introduce a multi-token counterpart for this function
+    // todo: consider introducing a multi-token counterpart for this function?
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
@@ -298,7 +306,8 @@ library Account {
     }
 
     /**
-     * @dev Checks if the account is below initial margin requirement and reverts if so, other returns the initial margin requirement
+     * @dev Checks if the account is below initial margin requirement and reverts if so,
+     * otherwise  returns the initial margin requirement (single token account)
      */
     function imCheck(Data storage self, address collateralType) internal view returns (uint256, uint256) {
         (bool isSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) = self.isIMSatisfied(collateralType);
@@ -307,6 +316,21 @@ library Account {
         }
         return (initialMarginRequirement, highestUnrealizedLoss);
     }
+
+
+    /**
+     * @dev Checks if the account is below initial margin requirement and reverts if so,
+     * otherwise returns the initial margin requirement in USD (multi token account)
+     */
+    function imCheckAllCollaterals(Data storage self) internal view returns (uint256, uint256) {
+        (bool isSatisfied, uint256 initialMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD) = self.
+        isIMSatisfiedAllCollaterals();
+        if (!isSatisfied) {
+            revert AccountBelowIMAllCollaterals(self.id, initialMarginRequirementInUSD, highestUnrealizedLossInUSD);
+        }
+        return (initialMarginRequirementInUSD, highestUnrealizedLossInUSD);
+    }
+
 
     /**
      * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
