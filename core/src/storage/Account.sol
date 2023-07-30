@@ -38,6 +38,7 @@ library Account {
     using SafeCastU128 for uint128;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
+    using CollateralConfiguration for CollateralConfiguration.Data;
 
     //// ERRORS and STRUCTS ////
 
@@ -402,21 +403,18 @@ library Account {
 
     }
 
-//    function getWeightedCollateralBalanceInUSD(Data storage self) internal view
-//    returns (uint256 weightedCollateralBalance) {
-//        SetUtil.AddressSet storage _activeCollateralTokenAddresses = self.activeCollateralTokenAddresses;
-//        for (uint256 i = 1; i <= _activeCollateralTokenAddresses.length(); i++) {
-//            address collateralTokenAddress = _activeCollateralTokenAddresses.valueAt(i);
-//            uint256 collateralBalance = self.getCollateralBalance(collateralTokenAddress);
-//            CollateralConfiguration.Data storage collateralConfiguration = CollateralConfiguration.load(collateralTokenAddress);
-//            uint256 collateralBalanceInUSD =  collateralConfiguration.getCollateralPrice();
-//
-//
-//
-//
-//        }
-//    }
-
+    function getWeightedCollateralBalanceInUSD(Data storage self) internal view
+    returns (uint256 weightedCollateralBalanceInUSD) {
+        SetUtil.AddressSet storage _activeCollateralTokenAddresses = self.activeCollateralTokenAddresses;
+        for (uint256 i = 1; i <= _activeCollateralTokenAddresses.length(); i++) {
+            address collateralTokenAddress = _activeCollateralTokenAddresses.valueAt(i);
+            uint256 collateralBalance = self.getCollateralBalance(collateralTokenAddress);
+            CollateralConfiguration.Data storage collateralConfiguration = CollateralConfiguration.load(collateralTokenAddress);
+            uint256 collateralBalanceInUSD = mulUDxUint(collateralConfiguration.getCollateralPrice(), collateralBalance);
+            uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(collateralConfiguration.weight, collateralBalanceInUSD);
+            weightedCollateralBalanceInUSD += collateralBalanceInUSDWithHaircut;
+        }
+    }
 
     //// PURE FUNCTIONS ////
 

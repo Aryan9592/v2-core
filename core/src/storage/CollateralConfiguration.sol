@@ -41,11 +41,6 @@ library CollateralConfiguration {
          */
         uint256 liquidationBooster;
         /**
-         * @dev The oracle manager node id which reports the current price for this collateral type.
-         */
-        // bytes32 oracleNodeId;
-        // + function getCollateralPrice function
-        /**
          * @dev The token address for this collateral type.
          */
         address tokenAddress;
@@ -62,13 +57,11 @@ library CollateralConfiguration {
         /**
          * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
          */
-        // todo: turn into a UD asap
         UD60x18 weight;
 
         /**
          * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
          */
-        // todo: turn into a UD asap
         UD60x18 autoExchangeReward;
     }
 
@@ -133,12 +126,12 @@ library CollateralConfiguration {
      * @param self The CollateralConfiguration object.
      * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralPrice(Data storage self) internal view returns (uint256) {
+    function getCollateralPrice(Data storage self) internal view returns (UD60x18) {
         OracleManager.Data memory oracleManager = OracleManager.load();
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
             self.oracleNodeId
         );
 
-        return node.price.toUint();
+        return UD60x18.wrap(node.price.toUint());
     }
 }
