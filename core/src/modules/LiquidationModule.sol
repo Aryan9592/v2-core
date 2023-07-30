@@ -18,6 +18,8 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
+// todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable
+
 /**
  * @title Module for liquidated accounts
  * @dev See ILiquidationModule
@@ -45,6 +47,20 @@ contract LiquidationModule is ILiquidationModule {
     ) {
         Account.Data storage account = Account.load(accountId);
         return account.isLiquidatable(collateralType);
+    }
+
+
+    /**
+     * @inheritdoc ILiquidationModule
+     */
+    function isLiquidatableAllCollaterals(uint128 accountId) external view override returns (
+        bool liquidatable,
+        uint256 initialMarginRequirementInUSD,
+        uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD
+    ) {
+        Account.Data storage account = Account.load(accountId);
+        return account.isLiquidatableAllCollaterals();
     }
 
 
