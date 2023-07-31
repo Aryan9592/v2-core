@@ -143,7 +143,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
             })
         );
 
-        productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product");
+        productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product", true);
 
         datedIrsProxy.configureMarket(
             MarketConfiguration.Data({
@@ -701,7 +701,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
-    coreProxy.createAccount(4, vm.addr(4));
+    coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
     coreProxy.liquidate(1, 4, address(token));
     vm.stopPrank();
 
@@ -831,7 +831,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
-    coreProxy.createAccount(4, vm.addr(4));
+    coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
     coreProxy.liquidate(2, 4, address(token));
     vm.stopPrank();
 

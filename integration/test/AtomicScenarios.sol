@@ -68,7 +68,7 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
       })
     );
 
-    productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product");
+    productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product", true);
 
     datedIrsProxy.configureMarket(
       MarketConfiguration.Data({

@@ -36,7 +36,7 @@ contract ScenarioCloseAccount is ScenarioHelper {
             feeCollectorAccountId: 999
         });
     
-        registerDatedIrsProduct(1);
+        registerDatedIrsProduct(1, true);
     
         configureMarket({
             rateOracleAddress: address(contracts.aaveV3RateOracle),

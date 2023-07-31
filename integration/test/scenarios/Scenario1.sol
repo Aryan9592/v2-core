@@ -41,7 +41,7 @@ contract Scenario1 is ScenarioHelper {
             liquidatorRewardParameter: ud60x18(0.05e18),
             feeCollectorAccountId: 999
         });
-        registerDatedIrsProduct(1);
+        registerDatedIrsProduct(1, true);
         configureMarket({
             rateOracleAddress: address(contracts.aaveV3RateOracle),
             // note, let's keep as bridged usdc for now
