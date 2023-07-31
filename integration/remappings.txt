@@ -13,3 +13,4 @@ oz=../node_modules/@openzeppelin/contracts/
 @prb/math/=../node_modules/@prb/math/src/
 @prb/test/=../node_modules/@prb/test/src/
 solmate=../node_modules/solmate
+@voltz-protocol/oracle-manager/=../node_modules/@voltz-protocol/oracle-manager/
