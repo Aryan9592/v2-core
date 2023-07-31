@@ -223,6 +223,165 @@ contract ProductIRSModuleTest is Test {
         vm.stopPrank();
     }
 
+    function test_InitiateTakerOrder_NoState() public {
+        address thisAddress = address(this);
+
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IAccountModule.onlyAuthorized.selector, MOCK_ACCOUNT_ID, AccountRBAC._ADMIN_PERMISSION, MOCK_USER
+            ),
+            abi.encode()
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, 100, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateTakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 10
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(false)
+        );
+        // todo: bump forge-std and uncomment
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+        //     abi.encode("error")
+        // );
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
+
+        vm.prank(MOCK_USER);
+        productIrs.initiateTakerOrder(
+            IProductIRSModule.TakerOrderParams({
+                accountId: MOCK_ACCOUNT_ID,
+                marketId: MOCK_MARKET_ID,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: 100,
+                priceLimit: 0
+            })
+        );
+    }
+
+    function test_InitiateTakerOrder_HasState() public {
+        address thisAddress = address(this);
+
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IAccountModule.onlyAuthorized.selector, MOCK_ACCOUNT_ID, AccountRBAC._ADMIN_PERMISSION, MOCK_USER
+            ),
+            abi.encode()
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, 100, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateTakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 10
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp - 1)
+        );
+        vm.expectCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ())
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ()),
+            abi.encode()
+        );
+
+        vm.prank(MOCK_USER);
+        productIrs.initiateTakerOrder(
+            IProductIRSModule.TakerOrderParams({
+                accountId: MOCK_ACCOUNT_ID,
+                marketId: MOCK_MARKET_ID,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: 100,
+                priceLimit: 0
+            })
+        );
+    }
+
+    function test_InitiateTakerOrder_NoStateUpdateTooEarly() public {
+        address thisAddress = address(this);
+
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IAccountModule.onlyAuthorized.selector, MOCK_ACCOUNT_ID, AccountRBAC._ADMIN_PERMISSION, MOCK_USER
+            ),
+            abi.encode()
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, 100, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateTakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 10
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp + 1)
+        );
+        // todo: bump forge-std and uncomment
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
+
+        vm.prank(MOCK_USER);
+        productIrs.initiateTakerOrder(
+            IProductIRSModule.TakerOrderParams({
+                accountId: MOCK_ACCOUNT_ID,
+                marketId: MOCK_MARKET_ID,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: 100,
+                priceLimit: 0
+            })
+        );
+    }
+
     function test_RevertWhen_InitiateTakerOrder_NotAllowed() public {
         address thisAddress = address(this);
 
@@ -239,6 +398,114 @@ contract ProductIRSModuleTest is Test {
                 priceLimit: 0
             })
         );
+    }
+
+    function test_InitiateMakerOrder_NoState() public {
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateMakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 100
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(false)
+        );
+        // todo: bump forge-std and uncomment
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+        //     abi.encode("error")
+        // );
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
+
+        vm.prank(address(2)); // pranking the product
+        productIrs.propagateMakerOrder({
+            accountId: MOCK_ACCOUNT_ID,
+            marketId: MOCK_MARKET_ID,
+            maturityTimestamp: maturityTimestamp,
+            baseAmount: 100
+        });
+    }
+
+    function test_InitiateMakerOrder_HasState() public {
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateMakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 100
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp - 1)
+        );
+        vm.expectCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ())
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ()),
+            abi.encode()
+        );
+
+        vm.prank(address(2)); // pranking the product
+        productIrs.propagateMakerOrder({
+            accountId: MOCK_ACCOUNT_ID,
+            marketId: MOCK_MARKET_ID,
+            maturityTimestamp: maturityTimestamp,
+            baseAmount: 100
+        });
+    }
+
+    function test_InitiateMakerOrder_NoStateUpdateToEarly() public {
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateMakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID, MOCK_QUOTE_TOKEN, 100
+            ),
+            abi.encode(0, 0, 0)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp + 1)
+        );
+        // todo: bump forge-std and uncomment
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
+
+        vm.prank(address(2)); // pranking the product
+        productIrs.propagateMakerOrder({
+            accountId: MOCK_ACCOUNT_ID,
+            marketId: MOCK_MARKET_ID,
+            maturityTimestamp: maturityTimestamp,
+            baseAmount: 100
+        });
     }
 
     function test_CloseExistingAccount() public {
@@ -260,6 +527,132 @@ contract ProductIRSModuleTest is Test {
             abi.encodeWithSelector(IPool.closeUnfilledBase.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
             abi.encode(10)
         );
+
+        vm.prank(address(mockCoreStorage));
+        productIrs.closeAccount(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);
+    }
+
+    function test_CloseExistingAccount_NoState() public {
+        productIrs.loadOrCreatePortfolio(MOCK_ACCOUNT_ID);
+        test_InitiateTakerOrder();
+
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, -20, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountFilledBalances.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.closeUnfilledBase.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(false)
+        );
+        // todo: bump forge-std and uncommen
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+        //     abi.encode("error")
+        // );
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
+
+        vm.prank(address(mockCoreStorage));
+        productIrs.closeAccount(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);
+    }
+
+    function test_CloseExistingAccount_HasState() public {
+        productIrs.loadOrCreatePortfolio(MOCK_ACCOUNT_ID);
+        test_InitiateTakerOrder();
+
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, -20, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountFilledBalances.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.closeUnfilledBase.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp - 1)
+        );
+        vm.expectCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ())
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.updateState, ()),
+            abi.encode()
+        );
+
+        vm.prank(address(mockCoreStorage));
+        productIrs.closeAccount(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);
+    }
+
+    function test_CloseExistingAccount_NoStateUpdateToEarly() public {
+        productIrs.loadOrCreatePortfolio(MOCK_ACCOUNT_ID);
+        test_InitiateTakerOrder();
+
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID, maturityTimestamp, -20, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountFilledBalances.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.closeUnfilledBase.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10)
+        );
+
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.hasState, ()),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            address(mockRateOracle),
+            abi.encodeCall(mockRateOracle.earliestStateUpdate, ()),
+            abi.encode(block.timestamp + 1)
+        );
+        // todo: bump forge-std and uncommen
+        // vm.mockCallRevert(
+        //     address(mockRateOracle),
+        //     abi.encodeCall(mockRateOracle.updateState, ()),
+        //     abi.encode("error")
+        // );
 
         vm.prank(address(mockCoreStorage));
         productIrs.closeAccount(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);

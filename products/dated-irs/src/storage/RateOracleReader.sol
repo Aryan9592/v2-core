@@ -135,4 +135,10 @@ library RateOracleReader {
 
         return self.rateIndexAtMaturity[maturityTimestamp];
     }
+
+    function updateOracleStateIfNeeded(Data storage self) internal {
+        if (IRateOracle(self.oracleAddress).hasState() && IRateOracle(self.oracleAddress).earliestStateUpdate() <= block.timestamp) {
+            IRateOracle(self.oracleAddress).updateState();
+        }
+    }
 }

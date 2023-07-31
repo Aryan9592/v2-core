@@ -40,6 +40,64 @@ contract ConfigProtocol is SetupProtocol {
 
   }
 
+  function run_rollover_goerli() public {
+    // Populate with transactions
+    backfillRateIndexAtMaturityCache({
+      marketId: 1, 
+      maturityTimestamp: 1690545600, 
+      rateIndexAtMaturity: ud60x18(1002367514412561319)
+    });
+
+    setVariableOracle({
+      marketId: 1,
+      oracleAddress: address(contracts.aaveV3RateOracle),
+      maturityIndexCachingWindowInSeconds: 3600
+    });
+
+    uint32[] memory times = new uint32[](2);
+     times[0] = uint32(block.timestamp - 86400*4); // note goes back 4 days, while lookback is 3 days, so should be fine?
+     times[1] = uint32(block.timestamp - 86400*3);
+    int24[] memory observedTicks = new int24[](2);
+     observedTicks[0] = -12240; // 3.4% note worth double checking
+     observedTicks[1] = -12240; // 3.4%
+    deployPool({
+      immutableConfig: VammConfiguration.Immutable({
+        maturityTimestamp: 1691150400,                                // 	Fri Aug 04 2023 12:00:00 GMT+0000
+        _maxLiquidityPerTick: type(uint128).max,
+        _tickSpacing: 60,
+        marketId: 1
+      }),
+      mutableConfig: VammConfiguration.Mutable({
+        priceImpactPhi: ud60x18(0),
+        priceImpactBeta: ud60x18(0),
+        spread: ud60x18(0.001e18),
+        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
+        minTick: -15780,  // 4.85%
+        maxTick: 15780    // 0.2%
+      }),
+      initTick: -12240, // 3.4%
+      // todo: note, is this sufficient, or should we increase? what's the min gap between consecutive observations?
+      observationCardinalityNext: 744, // sufficient for 1 month of data
+      makerPositionsPerAccountLimit: 1,
+      times: times,
+      observedTicks: observedTicks
+    });
+    mintOrBurn(MintOrBurnParams({
+      marketId: 1,
+      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
+      accountId: 445,
+      maturityTimestamp: 1691150400,
+      marginAmount: 1000e6,
+      notionalAmount: 1000e6 * 10,
+      tickLower: -15420, // 4.67%
+      tickUpper: -8580, // 2.35%
+      rateOracleAddress: address(contracts.aaveV3RateOracle),
+      peripheryExecuteDeadline: block.timestamp + 360
+    }));
+
+    execute_multisig_batch();
+  }
+
   function run_goerli() public {
     address[] memory pausers = new address[](0);
       // pausers[0] = 0x140d001689979ee77C2FB4c8d4B5F3E209135776;
@@ -56,7 +114,9 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
 
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct({
+      takerPositionsPerAccountLimit: 1
+    });
 
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
@@ -145,7 +205,9 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
 
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct({
+      takerPositionsPerAccountLimit: 1
+    });
 
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
@@ -223,7 +285,9 @@ contract ConfigProtocol is SetupProtocol {
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999
     });
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct({
+      takerPositionsPerAccountLimit: 1
+    });
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),

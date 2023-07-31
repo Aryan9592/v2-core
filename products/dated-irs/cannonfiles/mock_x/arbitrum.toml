@@ -1,0 +1,9 @@
+# This cannonfile is meant to be run on Arbitrum testnets.
+include = [
+  "utils/commons.toml",
+  "utils/aave-rate-oracles.toml"
+]
+
+[setting.xChainId]
+defaultValue=42161
+

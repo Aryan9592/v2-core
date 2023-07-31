@@ -1,0 +1,18 @@
+name = "voltz-dated-irs-mock-x"
+version = "2.0.0"
+description = "Voltz V2 Dated IRS Mock X"
+
+[setting.xChainId]
+description="X Chain Id"
+
+[setting.datedIrsPackage]
+description="Name of cannon deployment package"
+defaultValue="voltz-instrument-dated-irs"
+
+[setting.operatorAddress]
+description="Address of operator wallet"
+defaultValue="0xeeee364aBEaeEF2A3ddF09e0c02ae7d1d27cc4bD"
+
+[import.datedIrs]
+source="<%= settings.datedIrsPackage %>"
+chainId=42161 # todo: "<%= settings.xChainId %>"
