@@ -192,7 +192,7 @@ contract SetupProtocol is BatchScript {
       })
     );
 
-    // todo: fee collector account is an intresting edge case when it comes to collateral pool segmentation (AN)
+    // todo: fee collector account is an interesting edge case when it comes to collateral pool segmentation (AN)
     // create fee collector account owned by protocol owner
     createAccount({
       requestedAccountId: feeCollectorAccountId, 

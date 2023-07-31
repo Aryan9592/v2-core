@@ -56,7 +56,7 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
 
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct(1, true);
 
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
@@ -145,7 +145,7 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
 
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct(1, true);
 
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
@@ -223,7 +223,7 @@ contract ConfigProtocol is SetupProtocol {
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999
     });
-    registerDatedIrsProduct(1);
+    registerDatedIrsProduct(1, true);
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
