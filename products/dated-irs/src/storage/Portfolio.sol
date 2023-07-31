@@ -127,7 +127,7 @@ library Portfolio {
         int256 unrealizedPnL = quoteBalance + unwindQuote;
 
         if (unrealizedPnL < 0) {
-            // todo: check if safecasting with .Uint() is necessary
+            // todo: check if safecasting with .Uint() is necessary (CR)
             unrealizedLoss = uint256(-unrealizedPnL);
         }
     }
@@ -189,7 +189,7 @@ library Portfolio {
         Account.Exposure[] memory exposures,
         uint256 length
     ) internal pure returns (Account.Exposure[] memory exposuresWithoutEmptySlots) {
-        // todo: consider into a utility library
+        // todo: consider into a utility library (CR)
         require(exposures.length >= length);
         exposuresWithoutEmptySlots = new Account.Exposure[](length);
         for (uint256 i = 0; i < length; i++) {
@@ -229,7 +229,7 @@ library Portfolio {
 
         CollateralExposureState memory ces = CollateralExposureState({
             productId: ProductConfiguration.getProductId(),
-            // todo: consider renaming poolsCoint to activeMarketsAndMaturitiesCount
+            // todo: consider renaming poolsCount to activeMarketsAndMaturitiesCount (AB)
             poolsCount: self.activeMarketsAndMaturities[collateralType].length(),
             takerExposuresLength: 0,
             makerExposuresLowerAndUpperLength: 0,
@@ -259,7 +259,8 @@ library Portfolio {
                     productId: ces.productId,
                     marketId: pes.marketId,
                     annualizedNotional: mulUDxInt(pes._annualizedExposureFactor, pes.baseBalance + pes.baseBalancePool),
-                    unrealizedLoss: unrealizedLoss
+                    unrealizedLoss: unrealizedLoss,
+                    collateralType: collateralType
                 });
                 ces.takerExposuresLength = ces.takerExposuresLength + 1;
             } else {
@@ -278,7 +279,8 @@ library Portfolio {
                         pes._annualizedExposureFactor, 
                         pes.baseBalance + pes.baseBalancePool - pes.unfilledBaseShort.toInt()
                     ),
-                    unrealizedLoss: unrealizedLossLower
+                    unrealizedLoss: unrealizedLossLower,
+                    collateralType: collateralType
                 });
 
                 uint256 unrealizedLossUpper = computeUnrealizedLoss(
@@ -295,7 +297,8 @@ library Portfolio {
                         pes._annualizedExposureFactor,
                         pes.baseBalance + pes.baseBalancePool + pes.unfilledBaseLong.toInt()
                     ),
-                    unrealizedLoss: unrealizedLossUpper
+                    unrealizedLoss: unrealizedLossUpper,
+                    collateralType: collateralType
                 });
                 ces.makerExposuresLowerAndUpperLength = ces.makerExposuresLowerAndUpperLength + 1;
             }
