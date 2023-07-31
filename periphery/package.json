@@ -10,6 +10,7 @@
     "@prb/math": "3.3.0",
     "@prb/test": "^0.6.0",
     "@voltz-protocol/core": "workspace:^",
+    "@voltz-protocol/oracle-manager": "workspace:^",
     "@voltz-protocol/products-dated-irs": "workspace:^",
     "@voltz-protocol/util-contracts": "workspace:^",
     "@voltz-protocol/util-modules": "workspace:^",
