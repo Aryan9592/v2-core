@@ -701,9 +701,10 @@ contract ExecutionModuleTest is Test {
     }
 
     function testExecCommand_CreateAccount() public {
+        // todo: this test is currently failing, needs fixing
         // Setup
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)));
-        bytes[] memory inputs = new bytes[](1);
+        bytes[] memory inputs = new bytes[](3);
 
         uint128 accountId = 127637236;
         uint128 trustlessProductIdTrustedByAccount = type(uint128).max;
