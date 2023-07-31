@@ -1669,6 +1669,7 @@ __metadata:
     "@semantic-release/git": ^10.0.1
     "@semantic-release/github": ^8.0.7
     "@voltz-protocol/core": "workspace:^"
+    "@voltz-protocol/oracle-manager": "workspace:^"
     "@voltz-protocol/periphery": "workspace:^"
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
@@ -1708,6 +1709,7 @@ __metadata:
     "@semantic-release/git": ^10.0.1
     "@semantic-release/github": ^8.0.7
     "@voltz-protocol/core": "workspace:^"
+    "@voltz-protocol/oracle-manager": "workspace:^"
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
