@@ -167,6 +167,24 @@ contract ProductIRSModule is IProductIRSModule {
     /**
      * @inheritdoc IProduct
      */
+    function getAccountTakerAndMakerExposuresAllCollaterals(
+        uint128 accountId
+    )
+    external
+    view
+    override
+    returns (
+        Account.Exposure[] memory takerExposures,
+        Account.Exposure[] memory makerExposuresLower,
+        Account.Exposure[] memory makerExposuresUpper
+    )
+    {
+        // todo: needs implementation (IR)
+    }
+
+    /**
+     * @inheritdoc IProduct
+     */
     function closeAccount(uint128 accountId, address collateralType) external override {
         address coreProxy = ProductConfiguration.getCoreProxyAddress();
 
