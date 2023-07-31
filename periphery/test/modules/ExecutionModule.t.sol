@@ -706,19 +706,25 @@ contract ExecutionModuleTest is Test {
         bytes[] memory inputs = new bytes[](1);
 
         uint128 accountId = 127637236;
+        uint128 trustlessProductIdTrustedByAccount = type(uint128).max;
+        bool isMultiToken = false;
 
         inputs[0] = abi.encode(accountId);
+        inputs[1] = abi.encode(trustlessProductIdTrustedByAccount);
+        inputs[2] = abi.encode(isMultiToken);
 
         vm.mockCall(
             core,
-            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this))),
+            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this),
+                trustlessProductIdTrustedByAccount, isMultiToken)),
             abi.encode()
         );
 
         // Expect calls
         vm.expectCall(
             core,
-            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this)))
+            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this),
+                trustlessProductIdTrustedByAccount, isMultiToken))
         );
 
         exec.execute(commands, inputs, block.timestamp + 1);
