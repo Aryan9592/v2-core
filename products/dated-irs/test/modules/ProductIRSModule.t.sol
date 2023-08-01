@@ -741,7 +741,9 @@ contract ProductIRSModuleTest is Test {
         );
         vm.mockCall(
             address(2),
-            abi.encodeWithSelector(IPool.getAccountUnfilledBaseAndQuote.selector, MOCK_MARKET_ID2, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encodeWithSelector(
+                IPool.getAccountUnfilledBaseAndQuote.selector, MOCK_MARKET_ID2, maturityTimestamp, MOCK_ACCOUNT_ID
+            ),
             abi.encode(10, 10, 11, 11)
         );
         vm.mockCall(

@@ -214,7 +214,10 @@ library Portfolio {
             poolState.marketId, poolState.maturityTimestamp, self.accountId);
         (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(poolState.marketId, poolState.maturityTimestamp, self.accountId);
-        poolState._annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(poolState.marketId, poolState.maturityTimestamp);
+        poolState._annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
+            poolState.marketId,
+            poolState.maturityTimestamp
+        );
     }
 
     function getAccountTakerAndMakerExposures(
@@ -252,9 +255,18 @@ library Portfolio {
             })
         );
 
-        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);
-        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresLowerPadded, makerExposuresLowerAndUpperLength);
-        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresUpperPadded, makerExposuresLowerAndUpperLength);
+        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            takerExposuresPadded,
+            takerExposuresLength
+        );
+        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            makerExposuresLowerPadded,
+            makerExposuresLowerAndUpperLength
+        );
+        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            makerExposuresUpperPadded,
+            makerExposuresLowerAndUpperLength
+        );
 
         return (takerExposures, makerExposuresLower, makerExposuresUpper);
     }
@@ -306,9 +318,18 @@ library Portfolio {
             );
         }
 
-        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);
-        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresLowerPadded, makerExposuresLowerAndUpperLength);
-        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresUpperPadded, makerExposuresLowerAndUpperLength);
+        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            takerExposuresPadded,
+            takerExposuresLength
+        );
+        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            makerExposuresLowerPadded,
+            makerExposuresLowerAndUpperLength
+        );
+        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
+            makerExposuresUpperPadded,
+            makerExposuresLowerAndUpperLength
+        );
 
         return (takerExposures, makerExposuresLower, makerExposuresUpper);
     }
