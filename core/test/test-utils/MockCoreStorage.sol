@@ -359,9 +359,6 @@ contract CoreState is MockCoreStorage, Ownable {
             products[0].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_UNKNOWN, emptyExposures, emptyExposures, emptyExposures
             );
-
-            products[0].mockBaseToAnnualizedExposure(10, 123000, 5e17);
-            products[0].mockBaseToAnnualizedExposure(11, 120000, 25e16);
         }
 
         // Mock account (id:100) exposures to product (id:2) and markets (ids: 20) (TOKEN_0)
@@ -388,8 +385,6 @@ contract CoreState is MockCoreStorage, Ownable {
             products[1].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_UNKNOWN, emptyExposures, emptyExposures, emptyExposures
             );
-
-            products[1].mockBaseToAnnualizedExposure(20, 145000, 2e18);
         }
 
         // todo: test single account single-token mode (AN)

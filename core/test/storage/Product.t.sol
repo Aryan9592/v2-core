@@ -31,16 +31,6 @@ contract ExposedProduct is CoreState {
         Product.onlyProductAddress(productId, caller);
     }
 
-    function baseToAnnualizedExposure(
-        uint128 productId,
-        int256[] memory baseAmounts,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) external view returns (int256[] memory) {
-        Product.Data storage product = Product.load(productId);
-        return product.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
-    }
-
     function getAccountTakerAndMakerExposures(uint128 productId, uint128 accountId, address collateralType)
         external
     returns (
@@ -84,20 +74,6 @@ contract ProductTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(AccessError.Unauthorized.selector, otherAddress));
         product.onlyProductAddress(productId, otherAddress);
-    }
-
-    function test_BaseToAnnualizedExposure() public {
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = 100;
-
-        int256[] memory exposures = product.baseToAnnualizedExposure(productId, baseAmounts, 10, 123000);
-        assertEq(exposures.length, 1);
-        assertEq(exposures[0], 50);
-
-        baseAmounts[0] = 1000;
-        exposures = product.baseToAnnualizedExposure(productId, baseAmounts, 11, 120000);
-        assertEq(exposures.length, 1);
-        assertEq(exposures[0], 250);
     }
 
     function test_GetAccountTakerAndMakerExposures() public {

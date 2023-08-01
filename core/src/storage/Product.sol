@@ -69,21 +69,6 @@ library Product {
     }
 
     /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function baseToAnnualizedExposure(
-        Data storage self,
-        int256[] memory baseAmounts,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (int256[] memory exposures) {
-        return IProduct(self.productAddress).baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
-    }
-
-    /**
      * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
      * for a given collateralType
      */
