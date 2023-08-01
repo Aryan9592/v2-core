@@ -12,8 +12,6 @@ import {ERC20Mock} from "../utils/ERC20Mock.sol";
 import {UD60x18, ud60x18} from "@prb/math/UD60x18.sol";
 import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 
-import "forge-std/console2.sol";
-
 contract Scenario1 is ScenarioHelper {
     uint32 maturityTimestamp; // 1 year pool
     uint128 marketId = 1;
@@ -151,7 +149,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent))
-             = 0.013 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 73_289_773
              LMR Short = riskParam * (filledB - liq * (sqrtCurrent - sqrtLow)) = 56_710_226
             */
@@ -236,7 +236,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent))
-             = 0.013 * 1/2 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 36_644_886
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -28_355_113
@@ -321,7 +323,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent)) * li * timeFact
-             = 0.013 * 1/2 * 1.05 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.05 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 38477131
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -29772868
@@ -439,16 +443,15 @@ contract Scenario1 is ScenarioHelper {
         }
 
         // NEW positions check
-        uint256 twap = UD60x18.unwrap(contracts.vammProxy.getDatedIRSTwap(marketId, maturityTimestamp, 0, 259200, false, false));
-        console2.log("TWAP after second trades", twap); // 34643945147052780
         {
             //LP 
             // currentTick = -12519
-             console2.log(contracts.vammProxy.getVammTick(marketId, maturityTimestamp));
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent)) * li * timeFact
-             = 0.013 * 1/2 * 1.05 * (-250e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.05 * (-250e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 41882382
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -26367617
@@ -516,7 +519,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent))
-             = 0.013 * 1/2 * 1.05 * (-750e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.05 * (-750e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 38469882
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -19542617
@@ -591,7 +596,6 @@ contract Scenario1 is ScenarioHelper {
             int256[] memory cashflows = new int256[](6);
 
             // LP 1
-            console2.log(makers[0].fee);
             cashflows[0] = checkSettle(
                 marketId,
                 maturityTimestamp,
@@ -814,7 +818,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent)) * li * timeFact
-             = 0.013 * 1/2 * 1.005 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.005 * (-500e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12426)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 36828111
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -28496888
@@ -931,20 +937,21 @@ contract Scenario1 is ScenarioHelper {
         }
 
         // NEW positions check
-        uint256 twap = UD60x18.unwrap(contracts.vammProxy.getDatedIRSTwap(marketId, maturityTimestamp, 0, 259200, false, false));
-        console2.log("TWAP after second trades", twap); // 34643945147052780
         {
             //LP 
             // currentTick = -12519
-             console2.log(contracts.vammProxy.getVammTick(marketId, maturityTimestamp));
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent)) * li * timeFact
-             = 0.013 * 1/2 * 1.005 * (-250e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.005 * (-250e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) 
+                /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 40 087 423
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
-             = 0.013 * 1/2 * 1.005 * (-250e6 - 10000e6 * (sqrt(1.0001^-12519) - sqrt(1.0001^-13920 )) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
-                = -25237576
+             = 
+                0.013 * 1/2 * 1.005 * (-250e6 - 10000e6 * (sqrt(1.0001^-12519) - sqrt(1.0001^-13920 )) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = -25237576
             */
 
             // unfilledBaseShort 4112423206
@@ -1012,7 +1019,9 @@ contract Scenario1 is ScenarioHelper {
 
             /* LMR Long= riskParam * (filledB + unfilledBLong) * li * timeFact
              = riskParam * (filledB + liq * (sqrtHigh - sqrtCurrent))
-             = 0.013 * 1/2 * 1.005 * (-750e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
+             = 
+                0.013 * 1/2 * 1.005 * (-750e6 + 10000e6 * (sqrt(1.0001^-10260) - sqrt(1.0001^-12519)) /  
+                (sqrt(1.0001^-10260) - sqrt(1.0001^-13920 )))
              LMR Long = 36821172
              LMR Short = riskParam * li * t * (filledB - liq * (sqrtCurrent - sqrtLow))
                 = -18705076
