@@ -72,7 +72,7 @@ contract ExposePortfolio {
 
 
     function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) external returns (UD60x18) {
-        return Portfolio.annualizedExposureFactor(marketId, maturityTimestamp);
+        return ExposureHelpers.annualizedExposureFactor(marketId, maturityTimestamp);
     }
 
     function baseToAnnualizedExposure(
@@ -83,7 +83,7 @@ contract ExposePortfolio {
         external
         returns (int256[] memory)
     {
-        return Portfolio.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
+        return ExposureHelpers.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
     }
 
     function activateMarketMaturity(uint128 id, uint128 marketId, uint32 maturityTimestamp) external {
@@ -138,7 +138,7 @@ contract ExposePortfolio {
         view
         returns (int256 unwindQuote)
     {
-        unwindQuote = Portfolio.computeUnwindQuote(marketId, maturityTimestamp, poolAddress, baseAmount);
+        unwindQuote = ExposureHelpers.computeUnwindQuote(marketId, maturityTimestamp, poolAddress, baseAmount);
     }
 
     function updateRateIndexAtMaturityCache(uint128 id, uint32 maturityTimestamp) external {
@@ -160,7 +160,7 @@ contract ExposePortfolio {
         int256 baseBalance,
         int256 quoteBalance
     ) external view returns (uint256 unrealizedLoss) {
-        unrealizedLoss = Portfolio.computeUnrealizedLoss(
+        unrealizedLoss = ExposureHelpers.computeUnrealizedLoss(
             marketId,
             maturityTimestamp,
             poolAddress,
@@ -173,15 +173,7 @@ contract ExposePortfolio {
         Account.Exposure[] memory exposures,
         uint256 length
     ) external pure returns (Account.Exposure[] memory exposuresWithoutEmptySlots) {
-        exposuresWithoutEmptySlots = Portfolio.removeEmptySlotsFromExposuresArray(exposures, length);
-    }
-
-    function getAccountTakerAndMakerExposuresWithEmptySlots(
-        uint128 id,
-        address poolAddress,
-        address collateralType
-    ) external view returns (Account.Exposure[] memory, Account.Exposure[] memory, Account.Exposure[] memory, uint256, uint256)  {
-        return Portfolio.load(id).getAccountTakerAndMakerExposuresWithEmptySlots(poolAddress, collateralType);
+        exposuresWithoutEmptySlots = ExposureHelpers.removeEmptySlotsFromExposuresArray(exposures, length);
     }
 
     // EXTRA GETTERS
