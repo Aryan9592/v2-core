@@ -286,14 +286,12 @@ library Portfolio {
         for (uint256 i = 0; i < self.activeCollateralTypes.length(); i++) {
             address collateralType = self.activeCollateralTypes.valueAt(i+1);
 
-            uint256 _takerExposuresLength;
-            uint256 _makerExposuresLowerAndUpperLength;
             (
                 takerExposuresPadded,
                 makerExposuresLowerPadded,
                 makerExposuresUpperPadded,
-                _takerExposuresLength,
-                _makerExposuresLowerAndUpperLength
+                takerExposuresLength,
+                makerExposuresLowerAndUpperLength
             ) = getAccountTakerAndMakerExposuresWithEmptySlots(
                 self,
                 poolAddress,
@@ -306,8 +304,6 @@ library Portfolio {
                     makerIndex: makerExposuresLowerAndUpperLength
                 })
             );
-            takerExposuresLength += _takerExposuresLength;
-            makerExposuresLowerAndUpperLength += _makerExposuresLowerAndUpperLength;
         }
 
         takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);

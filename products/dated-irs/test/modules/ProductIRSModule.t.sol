@@ -61,8 +61,10 @@ contract ProductIRSModuleTest is Test {
     event ProductConfigured(ProductConfiguration.Data config, uint256 blockTimestamp);
 
     address constant MOCK_QUOTE_TOKEN = 0x1122334455667788990011223344556677889900;
+    address constant MOCK_QUOTE_TOKEN2 = 0x1122334455667788990011223344556677889901;
     uint32 maturityTimestamp;
     uint128 constant MOCK_MARKET_ID = 100;
+    uint128 constant MOCK_MARKET_ID2 = 101;
     uint128 constant MOCK_PRODUCT_ID = 123;
     address constant MOCK_USER = address(1234);
     uint128 constant MOCK_ACCOUNT_ID = 1234;
@@ -83,9 +85,12 @@ contract ProductIRSModuleTest is Test {
         mockRateOracle = new MockRateOracle();
         mockRateOracle.setLastUpdatedIndex(1e18 * 1e9);
         productIrs.createRateOracle(MOCK_MARKET_ID, address(mockRateOracle), 3600);
+        productIrs.createRateOracle(MOCK_MARKET_ID2, address(mockRateOracle), 3600);
 
         // create market
         productIrs.createMarket(MOCK_MARKET_ID, MOCK_QUOTE_TOKEN);
+        // create market
+        productIrs.createMarket(MOCK_MARKET_ID2, MOCK_QUOTE_TOKEN2);
 
         // create product
         productIrs.configureProduct(
@@ -215,6 +220,42 @@ contract ProductIRSModuleTest is Test {
             IProductIRSModule.TakerOrderParams({
                 accountId: MOCK_ACCOUNT_ID,
                 marketId: MOCK_MARKET_ID,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: 100,
+                priceLimit: 0
+            })
+        );
+        vm.stopPrank();
+    }
+
+    function test_InitiateTakerOrder_market2() public {
+        address thisAddress = address(this);
+
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IAccountModule.onlyAuthorized.selector, MOCK_ACCOUNT_ID, AccountRBAC._ADMIN_PERMISSION, MOCK_USER
+            ),
+            abi.encode()
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.executeDatedTakerOrder.selector, MOCK_MARKET_ID2, maturityTimestamp, 100, 0),
+            abi.encode(10, -10)
+        );
+        vm.mockCall(
+            address(mockCoreStorage),
+            abi.encodeWithSelector(
+                IProductModule.propagateTakerOrder.selector, MOCK_ACCOUNT_ID, MOCK_PRODUCT_ID, MOCK_MARKET_ID2, MOCK_QUOTE_TOKEN2, 10
+            ),
+            abi.encode(0, 0, 0)
+        );
+        vm.startPrank(MOCK_USER);
+
+        productIrs.initiateTakerOrder(
+            IProductIRSModule.TakerOrderParams({
+                accountId: MOCK_ACCOUNT_ID,
+                marketId: MOCK_MARKET_ID2,
                 maturityTimestamp: maturityTimestamp,
                 baseAmount: 100,
                 priceLimit: 0
@@ -681,11 +722,44 @@ contract ProductIRSModuleTest is Test {
         ) = productIrs.getAccountTakerAndMakerExposures(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);
 
         // todo: layer in asserts (AB)
-//        assertEq(exposures.length, 1);
-//        assertEq(exposures[0].marketId, MOCK_MARKET_ID);
-//        assertEq(exposures[0].filled, 20);
-//        assertEq(exposures[0].unfilledLong, 10);
-//        assertEq(exposures[0].unfilledShort, 11);
+        //    assertEq(exposures.length, 1);
+        //    assertEq(exposures[0].marketId, MOCK_MARKET_ID);
+        //    assertEq(exposures[0].filled, 20);
+        //    assertEq(exposures[0].unfilledLong, 10);
+        //    assertEq(exposures[0].unfilledShort, 11);
+    }
+
+    function test_AccountAnnualizedExposuresAllCollaterals() public {
+        productIrs.loadOrCreatePortfolio(MOCK_ACCOUNT_ID);
+        test_InitiateTakerOrder();
+        test_InitiateTakerOrder_market2();
+
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountUnfilledBaseAndQuote.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, 10, 11, 11)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountUnfilledBaseAndQuote.selector, MOCK_MARKET_ID2, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, 10, 11, 11)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountFilledBalances.selector, MOCK_MARKET_ID, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, 12)
+        );
+        vm.mockCall(
+            address(2),
+            abi.encodeWithSelector(IPool.getAccountFilledBalances.selector, MOCK_MARKET_ID2, maturityTimestamp, MOCK_ACCOUNT_ID),
+            abi.encode(10, 12)
+        );
+
+        (
+            Account.Exposure[] memory takerExposures,
+            Account.Exposure[] memory makerExposuresLower,
+            Account.Exposure[] memory makerExposuresUpper
+        ) = productIrs.getAccountTakerAndMakerExposuresAllCollaterals(MOCK_ACCOUNT_ID);
     }
 
     function test_BaseToAnnualizedExposure() public {

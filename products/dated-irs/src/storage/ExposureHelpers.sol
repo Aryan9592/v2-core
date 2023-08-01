@@ -98,7 +98,7 @@ library ExposureHelpers {
         uint256 length
     ) internal pure returns (Account.Exposure[] memory exposuresWithoutEmptySlots) {
         // todo: consider into a utility library (CR)
-        require(exposures.length >= length);
+        require(exposures.length >= length, "Exp len");
         exposuresWithoutEmptySlots = new Account.Exposure[](length);
         for (uint256 i = 0; i < length; i++) {
             exposuresWithoutEmptySlots[i] = exposures[i];
