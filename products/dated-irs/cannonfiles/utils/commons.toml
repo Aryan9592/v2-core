@@ -1,4 +1,4 @@
-name = "voltz-instrument-dated-irs"
+name = "voltz-instrument-dated-irs" # if changed, you must change it mock-x as well
 version = "2.0.0"
 description = "Voltz V2 Dated IRS"
 

@@ -202,7 +202,7 @@ contract SetupProtocol is BatchScript {
     });
   }
 
-  function registerDatedIrsProduct(uint256 _takerPositionsPerAccountLimit, bool isTrusted) public {
+  function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit, bool isTrusted) public {
     // predict product id
     uint128 productId;
     try contracts.coreProxy.getLastCreatedProductId() returns (uint128 lastProductId) { // todo: alex remove try once mainent contracts are upgraded
@@ -224,7 +224,7 @@ contract SetupProtocol is BatchScript {
         productId: productId,
         coreProxy: address(contracts.coreProxy),
         poolAddress: address(contracts.vammProxy),
-        takerPositionsPerAccountLimit: _takerPositionsPerAccountLimit
+        takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
       })
     );
 
@@ -737,6 +737,25 @@ contract SetupProtocol is BatchScript {
         abi.encodeCall(
           contracts.datedIrsProxy.setVariableOracle,
           (marketId, oracleAddress, maturityIndexCachingWindowInSeconds)
+        )
+      );
+    }
+  }
+
+  function backfillRateIndexAtMaturityCache(
+    uint128 marketId, 
+    uint32 maturityTimestamp,
+    UD60x18 rateIndexAtMaturity
+  ) public {
+    if (!settings.multisig) {
+      broadcastOrPrank();
+      contracts.datedIrsProxy.backfillRateIndexAtMaturityCache(marketId, maturityTimestamp, rateIndexAtMaturity);
+    } else {
+      addToBatch(
+        address(contracts.datedIrsProxy),
+        abi.encodeCall(
+          contracts.datedIrsProxy.backfillRateIndexAtMaturityCache,
+          (marketId, maturityTimestamp, rateIndexAtMaturity)
         )
       );
     }

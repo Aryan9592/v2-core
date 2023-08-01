@@ -40,6 +40,14 @@ contract AaveV3RateOracleTest is Test {
         );
     }
 
+    function test_State() public {
+        assertEq(rateOracle.hasState(), false);
+        vm.expectRevert(IRateOracle.NoState.selector);
+        rateOracle.earliestStateUpdate();
+        vm.expectRevert(IRateOracle.NoState.selector);
+        rateOracle.updateState();
+    }
+
     function test_SetIndexInMock() public {
         assertEq(mockLendingPool.getReserveNormalizedVariableDebt(TEST_UNDERLYING_ADDRESS), initValue.unwrap() * 1e9);
     }
@@ -47,15 +55,6 @@ contract AaveV3RateOracleTest is Test {
     function test_InitCurrentIndex() public {
         assertEq(rateOracle.getCurrentIndex().unwrap(), initValue.unwrap());
     }
-
-    function test_InitLastUpdatedIndex() public {
-        (uint32 time, UD60x18 index) = rateOracle.getLastUpdatedIndex();
-        assertEq(index.unwrap(), initValue.unwrap());
-        assertEq(time, Time.blockTimestampTruncated());
-    }
-
-
-
 
     function test_SetNonZeroIndexInMock() public {
         mockLendingPool.setFactorPerSecond(TEST_UNDERLYING, ud(FACTOR_PER_SECOND));
@@ -71,16 +70,6 @@ contract AaveV3RateOracleTest is Test {
         mockLendingPool.setFactorPerSecond(TEST_UNDERLYING, ud(FACTOR_PER_SECOND));
         vm.warp(Time.blockTimestampTruncated() + 10000);
         assertApproxEqAbs(rateOracle.getCurrentIndex().unwrap(), INDEX_AFTER_SET_TIME, 1e7);
-    }
-
-    function test_NonZeroLastUpdatedIndex() public {
-        mockLendingPool.setFactorPerSecond(TEST_UNDERLYING, ud(FACTOR_PER_SECOND));
-        vm.warp(Time.blockTimestampTruncated() + 10000);
-
-        (uint32 time, UD60x18 index) = rateOracle.getLastUpdatedIndex();
-
-        assertApproxEqRel(index.unwrap(), INDEX_AFTER_SET_TIME, 1e17);
-        assertEq(time, Time.blockTimestampTruncated());
     }
 
     function test_SupportsInterfaceIERC165() public {
@@ -117,18 +106,4 @@ contract AaveV3RateOracleTest is Test {
 
         assertTrue(index.gte(initValue));
     }
-
-    function testFuzz_NonZeroLatestUpdateAfterTimePasses(uint256 factorPerSecond, uint16 timePassed) public {
-        mockLendingPool.setFactorPerSecond(TEST_UNDERLYING, ud(FACTOR_PER_SECOND));
-        // not bigger than 72% apy per year
-        vm.assume(factorPerSecond <= 1.0015e18 && factorPerSecond >= 1e18);
-        mockLendingPool.setFactorPerSecond(TEST_UNDERLYING, ud(factorPerSecond));
-        vm.warp(Time.blockTimestampTruncated() + timePassed);
-
-        (uint32 time, UD60x18 index) = rateOracle.getLastUpdatedIndex();
-
-        assertTrue(index.gte(initValue));
-        assertEq(time, Time.blockTimestampTruncated());
-    }
-
 }

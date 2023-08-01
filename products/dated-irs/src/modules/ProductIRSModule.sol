@@ -67,6 +67,8 @@ contract ProductIRSModule is IProductIRSModule {
             annualizedNotionalAmount
         );
 
+        RateOracleReader.load(params.marketId).updateOracleStateIfNeeded();
+
         emit TakerOrder(
             params.accountId,
             productId,
@@ -241,6 +243,7 @@ contract ProductIRSModule is IProductIRSModule {
             annualizedNotionalAmount
         );
 
+        RateOracleReader.load(marketId).updateOracleStateIfNeeded();
     }
 
     /**

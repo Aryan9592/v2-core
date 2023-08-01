@@ -18,8 +18,18 @@ contract MockRateOracle is IRateOracle {
     uint256 public lastUpdatedLiquidityIndex;
 
     /// @inheritdoc IRateOracle
-    function getLastUpdatedIndex() public view override returns (uint32 timestamp, UD60x18 liquidityIndex) {
-        return (Time.blockTimestampTruncated(), ud(lastUpdatedLiquidityIndex / 1e9));
+    function hasState() external override pure returns (bool) {
+        return false;
+    }
+
+    /// @inheritdoc IRateOracle
+    function earliestStateUpdate() external override pure returns (uint256) {
+        revert NoState();
+    }
+    
+    /// @inheritdoc IRateOracle
+    function updateState() external override pure {
+        revert NoState();
     }
 
     function setLastUpdatedIndex(uint256 _lastUpdatedLiquidityIndex) public {
@@ -29,21 +39,6 @@ contract MockRateOracle is IRateOracle {
     /// @inheritdoc IRateOracle
     function getCurrentIndex() external view override returns (UD60x18 liquidityIndex) {
         return ud(lastUpdatedLiquidityIndex / 1e9);
-    }
-
-    // why is this public?
-    function interpolateIndexValue(
-        UD60x18 beforeIndex,
-        uint256 beforeTimestamp,
-        UD60x18 atOrAfterIndex,
-        uint256 atOrAfterTimestamp,
-        uint256 queryTimestamp
-    )
-        public
-        pure
-        returns (UD60x18 interpolatedIndex)
-    {
-        interpolatedIndex = beforeIndex.add(atOrAfterIndex).div(ud(2e18));
     }
 
     /**

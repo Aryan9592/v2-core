@@ -1,0 +1,21 @@
+[contract.MockXAaveV3RateOracle_USDC]
+artifact = "MockXRateOracle"
+args=[
+  "<%= settings.xChainId %>",
+  "<%= imports.datedIrs.contracts.AaveV3RateOracle_USDC.address %>",
+  "<%= settings.operatorAddress %>"
+]
+depends = [
+  "import.datedIrs",
+]
+
+[contract.MockXAaveV3BorrowRateOracle_USDC]
+artifact = "MockXRateOracle"
+args=[
+  "<%= settings.xChainId %>",
+  "<%= imports.datedIrs.contracts.AaveV3BorrowRateOracle_USDC.address %>",
+  "<%= settings.operatorAddress %>"
+]
+depends = [
+  "import.datedIrs",
+]

@@ -25,9 +25,18 @@ contract AaveV3BorrowRateOracle is IRateOracle {
     }
 
     /// @inheritdoc IRateOracle
-    function getLastUpdatedIndex() public view override returns (uint32 timestamp, UD60x18 liquidityIndex) {
-        uint256 liquidityIndexInRay = aaveLendingPool.getReserveNormalizedVariableDebt(underlying);
-        return (Time.blockTimestampTruncated(), ud(liquidityIndexInRay / 1e9));
+    function hasState() external override pure returns (bool) {
+        return false;
+    }
+
+    /// @inheritdoc IRateOracle
+    function earliestStateUpdate() external override pure returns (uint256) {
+        revert NoState();
+    }
+    
+    /// @inheritdoc IRateOracle
+    function updateState() external override pure {
+        revert NoState();
     }
 
     /// @inheritdoc IRateOracle

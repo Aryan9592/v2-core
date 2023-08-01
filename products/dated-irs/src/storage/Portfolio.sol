@@ -392,6 +392,8 @@ library Portfolio {
                 mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
             );
 
+            RateOracleReader.load(marketId).updateOracleStateIfNeeded();
+
             emit ProductPositionUpdated(
                 self.accountId, marketId, maturityTimestamp, executedBaseAmount, executedQuoteAmount, block.timestamp
                 );
