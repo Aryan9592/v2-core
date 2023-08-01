@@ -680,7 +680,7 @@ contract ProductIRSModuleTest is Test {
             Account.Exposure[] memory makerExposuresUpper
         ) = productIrs.getAccountTakerAndMakerExposures(MOCK_ACCOUNT_ID, MOCK_QUOTE_TOKEN);
 
-        // todo: layer in asserts
+        // todo: layer in asserts (AB)
 //        assertEq(exposures.length, 1);
 //        assertEq(exposures[0].marketId, MOCK_MARKET_ID);
 //        assertEq(exposures[0].filled, 20);

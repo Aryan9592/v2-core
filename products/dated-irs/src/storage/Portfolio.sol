@@ -17,6 +17,7 @@ import "./RateOracleReader.sol";
 import "./MarketConfiguration.sol";
 import "./ProductConfiguration.sol";
 import "../interfaces/IPool.sol";
+import "./ExposureHelpers.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
 import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
@@ -30,6 +31,7 @@ library Portfolio {
     using Portfolio for Portfolio.Data;
     using Position for Position.Data;
     using SetUtil for SetUtil.UintSet;
+    using SetUtil for SetUtil.AddressSet;
     using SafeCastU256 for uint256;
     using RateOracleReader for RateOracleReader.Data;
 
@@ -86,6 +88,11 @@ library Portfolio {
          * in which the account has active positions
          */
         mapping(address => SetUtil.UintSet) activeMarketsAndMaturities;
+
+        /**
+         * @dev List of active collateralTypes
+         */
+        SetUtil.AddressSet activeCollateralTypes;
     }
 
     /**
@@ -116,95 +123,11 @@ library Portfolio {
         }
     }
 
-    function computeUnrealizedLoss(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        address poolAddress,
-        int256 baseBalance,
-        int256 quoteBalance
-    ) internal view returns (uint256 unrealizedLoss) {
-        int256 unwindQuote = computeUnwindQuote(marketId, maturityTimestamp, poolAddress, baseBalance);
-        int256 unrealizedPnL = quoteBalance + unwindQuote;
-
-        if (unrealizedPnL < 0) {
-            // todo: check if safecasting with .Uint() is necessary (CR)
-            unrealizedLoss = uint256(-unrealizedPnL);
-        }
-    }
-
-    function computeUnwindQuote(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        address poolAddress,
-        int256 baseAmount
-    )
-        internal
-        view
-        returns (int256 unwindQuote)
-    {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-
-        UD60x18 currentLiquidityIndex = RateOracleReader.load(marketId).getRateIndexCurrent();
-
-        address coreProxy = ProductConfiguration.getCoreProxyAddress();
-        uint128 productId = ProductConfiguration.getProductId();
-        uint32 lookbackWindow =
-            IRiskConfigurationModule(coreProxy).getMarketRiskConfiguration(productId, marketId).twapLookbackWindow;
-
-        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(marketId, maturityTimestamp, -baseAmount, lookbackWindow);
-
-        unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
-    }
-
-    /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18 factor) {
-        UD60x18 currentLiquidityIndex = RateOracleReader.load(marketId).getRateIndexCurrent();
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        factor = currentLiquidityIndex.mul(timeDeltaAnnualized);
-    }
-
-    function baseToAnnualizedExposure(
-        int256[] memory baseAmounts,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    )
-        internal
-        view
-        returns (int256[] memory exposures)
-    {
-        exposures = new int256[](baseAmounts.length);
-        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
-
-        for (uint256 i = 0; i < baseAmounts.length; i++) {
-            exposures[i] = mulUDxInt(factor, baseAmounts[i]);
-        }
-    }
-
-    function removeEmptySlotsFromExposuresArray(
-        Account.Exposure[] memory exposures,
-        uint256 length
-    ) internal pure returns (Account.Exposure[] memory exposuresWithoutEmptySlots) {
-        // todo: consider into a utility library (CR)
-        require(exposures.length >= length);
-        exposuresWithoutEmptySlots = new Account.Exposure[](length);
-        for (uint256 i = 0; i < length; i++) {
-            exposuresWithoutEmptySlots[i] = exposures[i];
-        }
-    }
-
     struct CollateralExposureState {
         uint128 productId;
         uint256 poolsCount;
         uint256 takerExposuresLength;
         uint256 makerExposuresLowerAndUpperLength;
-        Account.Exposure[] takerExposuresWithEmptySlots;
-        Account.Exposure[] makerExposuresLowerWithEmptySlots;
-       Account.Exposure[] makerExposuresUpperWithEmptySlots;
     }
 
     struct PoolExposureState {
@@ -221,96 +144,59 @@ library Portfolio {
         UD60x18 _annualizedExposureFactor;
     }
 
+    struct Exposures {
+        Account.Exposure[] taker;
+        uint256 takerIndex;
+        Account.Exposure[] makerLower;
+        Account.Exposure[] makerUpper;
+        uint256 makerIndex;
+    }
+
     function getAccountTakerAndMakerExposuresWithEmptySlots(
         Data storage self,
         address poolAddress,
-        address collateralType
+        address collateralType,
+        Exposures memory initExposures
     ) internal view returns (Account.Exposure[] memory, Account.Exposure[] memory, Account.Exposure[] memory, uint256, uint256) {
 
-        CollateralExposureState memory ces = CollateralExposureState({
+        CollateralExposureState memory collateralState = CollateralExposureState({
             productId: ProductConfiguration.getProductId(),
             // todo: consider renaming poolsCount to activeMarketsAndMaturitiesCount (AB)
             poolsCount: self.activeMarketsAndMaturities[collateralType].length(),
-            takerExposuresLength: 0,
-            makerExposuresLowerAndUpperLength: 0,
-            takerExposuresWithEmptySlots: new Account.Exposure[](self.activeMarketsAndMaturities[collateralType].length()),
-            makerExposuresLowerWithEmptySlots: new Account.Exposure[](self.activeMarketsAndMaturities[collateralType].length()),
-            makerExposuresUpperWithEmptySlots: new Account.Exposure[](self.activeMarketsAndMaturities[collateralType].length())
+            takerExposuresLength: initExposures.takerIndex,
+            makerExposuresLowerAndUpperLength: initExposures.makerIndex
         });
 
 
-        for (uint256 i = 0; i < ces.poolsCount; i++) {
-            PoolExposureState memory pes = self.getPoolExposureState(
+        for (uint256 i = 0; i < collateralState.poolsCount; i++) {
+            PoolExposureState memory poolState = self.getPoolExposureState(
                 i + 1,
                 collateralType,
                 poolAddress
             );
 
-            if (pes.unfilledBaseLong == 0 && pes.unfilledBaseShort == 0) {
+            if (poolState.unfilledBaseLong == 0 && poolState.unfilledBaseShort == 0) {
                 // no unfilled exposures => only consider taker exposures
-                uint256 unrealizedLoss = computeUnrealizedLoss(
-                    pes.marketId,
-                    pes.maturityTimestamp,
-                    poolAddress,
-                    pes.baseBalance + pes.baseBalancePool,
-                    pes.quoteBalance + pes.quoteBalancePool
-                );
-                ces.takerExposuresWithEmptySlots[ces.takerExposuresLength] = Account.Exposure({
-                    productId: ces.productId,
-                    marketId: pes.marketId,
-                    annualizedNotional: mulUDxInt(pes._annualizedExposureFactor, pes.baseBalance + pes.baseBalancePool),
-                    unrealizedLoss: unrealizedLoss,
-                    collateralType: collateralType
-                });
-                ces.takerExposuresLength = ces.takerExposuresLength + 1;
+                initExposures.taker[collateralState.takerExposuresLength] = 
+                    ExposureHelpers.getTraderExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                collateralState.takerExposuresLength = collateralState.takerExposuresLength + 1;
             } else {
                 // unfilled exposures => consider maker lower
-                uint256 unrealizedLossLower = computeUnrealizedLoss(
-                    pes.marketId,
-                    pes.maturityTimestamp,
-                    poolAddress,
-                    pes.baseBalance + pes.baseBalancePool - pes.unfilledBaseShort.toInt(),
-                    pes.quoteBalance + pes.quoteBalancePool + pes.unfilledQuoteShort.toInt()
-                );
-                ces.makerExposuresLowerWithEmptySlots[ces.makerExposuresLowerAndUpperLength] = Account.Exposure({
-                    productId: ces.productId,
-                    marketId: pes.marketId,
-                    annualizedNotional: mulUDxInt(
-                        pes._annualizedExposureFactor, 
-                        pes.baseBalance + pes.baseBalancePool - pes.unfilledBaseShort.toInt()
-                    ),
-                    unrealizedLoss: unrealizedLossLower,
-                    collateralType: collateralType
-                });
+                initExposures.makerLower[collateralState.makerExposuresLowerAndUpperLength] = 
+                    ExposureHelpers.getMakerShortExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                initExposures.makerUpper[collateralState.makerExposuresLowerAndUpperLength] = 
+                    ExposureHelpers.getMakerLongExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
 
-                uint256 unrealizedLossUpper = computeUnrealizedLoss(
-                    pes.marketId,
-                    pes.maturityTimestamp,
-                    poolAddress,
-                    pes.baseBalance + pes.baseBalancePool + pes.unfilledBaseLong.toInt(),
-                    pes.quoteBalance + pes.quoteBalancePool - pes.unfilledQuoteLong.toInt()
-                );
-                ces.makerExposuresUpperWithEmptySlots[ces.makerExposuresLowerAndUpperLength] = Account.Exposure({
-                    productId: ces.productId,
-                    marketId: pes.marketId,
-                    annualizedNotional: mulUDxInt(
-                        pes._annualizedExposureFactor,
-                        pes.baseBalance + pes.baseBalancePool + pes.unfilledBaseLong.toInt()
-                    ),
-                    unrealizedLoss: unrealizedLossUpper,
-                    collateralType: collateralType
-                });
-                ces.makerExposuresLowerAndUpperLength = ces.makerExposuresLowerAndUpperLength + 1;
+                collateralState.makerExposuresLowerAndUpperLength = collateralState.makerExposuresLowerAndUpperLength + 1;
             }
-
         }
 
         return (
-            ces.takerExposuresWithEmptySlots,
-            ces.makerExposuresLowerWithEmptySlots,
-            ces.makerExposuresUpperWithEmptySlots,
-            ces.takerExposuresLength,
-            ces.makerExposuresLowerAndUpperLength
+            initExposures.taker,
+            initExposures.makerLower,
+            initExposures.makerUpper,
+            collateralState.takerExposuresLength,
+            collateralState.makerExposuresLowerAndUpperLength
         );
     }
 
@@ -319,16 +205,16 @@ library Portfolio {
         uint256 index,
         address collateralType,
         address poolAddress
-    ) internal view returns (PoolExposureState memory pes) {
-        (pes.marketId, pes.maturityTimestamp) = self.getMarketAndMaturity(index, collateralType);
+    ) internal view returns (PoolExposureState memory poolState) {
+        (poolState.marketId, poolState.maturityTimestamp) = self.getMarketAndMaturity(index, collateralType);
 
-        pes.baseBalance = self.positions[pes.marketId][pes.maturityTimestamp].baseBalance;
-        pes.quoteBalance = self.positions[pes.marketId][pes.maturityTimestamp].quoteBalance;
-        (pes.baseBalancePool,pes.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
-            pes.marketId, pes.maturityTimestamp, self.accountId);
-        (pes.unfilledBaseLong, pes.unfilledBaseShort, pes.unfilledQuoteLong, pes.unfilledQuoteShort) =
-            IPool(poolAddress).getAccountUnfilledBaseAndQuote(pes.marketId, pes.maturityTimestamp, self.accountId);
-        pes._annualizedExposureFactor = annualizedExposureFactor(pes.marketId, pes.maturityTimestamp);
+        poolState.baseBalance = self.positions[poolState.marketId][poolState.maturityTimestamp].baseBalance;
+        poolState.quoteBalance = self.positions[poolState.marketId][poolState.maturityTimestamp].quoteBalance;
+        (poolState.baseBalancePool,poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
+            poolState.marketId, poolState.maturityTimestamp, self.accountId);
+        (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
+            IPool(poolAddress).getAccountUnfilledBaseAndQuote(poolState.marketId, poolState.maturityTimestamp, self.accountId);
+        poolState._annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(poolState.marketId, poolState.maturityTimestamp);
     }
 
     function getAccountTakerAndMakerExposures(
@@ -345,17 +231,88 @@ library Portfolio {
         )
     {
 
+        uint256 marketsAndMaturitiesCount = self.activeMarketsAndMaturities[collateralType].length();
+
         (
             Account.Exposure[] memory takerExposuresPadded,
             Account.Exposure[] memory makerExposuresLowerPadded,
             Account.Exposure[] memory makerExposuresUpperPadded,
             uint256 takerExposuresLength,
             uint256 makerExposuresLowerAndUpperLength
-        ) = getAccountTakerAndMakerExposuresWithEmptySlots(self, poolAddress, collateralType);
+        ) = getAccountTakerAndMakerExposuresWithEmptySlots(
+            self,
+            poolAddress,
+            collateralType,
+            Exposures({
+                taker: new Account.Exposure[](marketsAndMaturitiesCount),
+                takerIndex: 0,
+                makerLower: new Account.Exposure[](marketsAndMaturitiesCount),
+                makerUpper: new Account.Exposure[](marketsAndMaturitiesCount),
+                makerIndex: 0
+            })
+        );
 
-        takerExposures = removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);
-        makerExposuresLower = removeEmptySlotsFromExposuresArray(makerExposuresLowerPadded, makerExposuresLowerAndUpperLength);
-        makerExposuresUpper = removeEmptySlotsFromExposuresArray(makerExposuresUpperPadded, makerExposuresLowerAndUpperLength);
+        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);
+        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresLowerPadded, makerExposuresLowerAndUpperLength);
+        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresUpperPadded, makerExposuresLowerAndUpperLength);
+
+        return (takerExposures, makerExposuresLower, makerExposuresUpper);
+    }
+
+    function getAccountTakerAndMakerExposuresAllCollaterals(
+        Data storage self,
+        address poolAddress
+    )
+        internal
+        view
+        returns (
+            Account.Exposure[] memory takerExposures,
+            Account.Exposure[] memory makerExposuresLower,
+            Account.Exposure[] memory makerExposuresUpper
+        )
+    {
+
+        uint256 exposuresCount = 0;
+        for(uint256 i = 0; i < self.activeCollateralTypes.length(); i++){
+            exposuresCount += self.activeMarketsAndMaturities[self.activeCollateralTypes.valueAt(i+1)].length();
+        }
+
+        Account.Exposure[] memory takerExposuresPadded = new Account.Exposure[](exposuresCount);
+        Account.Exposure[] memory makerExposuresLowerPadded = new Account.Exposure[](exposuresCount);
+        Account.Exposure[] memory makerExposuresUpperPadded = new Account.Exposure[](exposuresCount);
+
+        uint256 takerExposuresLength = 0;
+        uint256 makerExposuresLowerAndUpperLength = 0;
+        for (uint256 i = 0; i < self.activeCollateralTypes.length(); i++) {
+            address collateralType = self.activeCollateralTypes.valueAt(i+1);
+
+            uint256 _takerExposuresLength;
+            uint256 _makerExposuresLowerAndUpperLength;
+            (
+                takerExposuresPadded,
+                makerExposuresLowerPadded,
+                makerExposuresUpperPadded,
+                _takerExposuresLength,
+                _makerExposuresLowerAndUpperLength
+            ) = getAccountTakerAndMakerExposuresWithEmptySlots(
+                self,
+                poolAddress,
+                collateralType,
+                Exposures({
+                    taker: takerExposuresPadded,
+                    takerIndex: takerExposuresLength,
+                    makerLower: makerExposuresLowerPadded,
+                    makerUpper: makerExposuresUpperPadded,
+                    makerIndex: makerExposuresLowerAndUpperLength
+                })
+            );
+            takerExposuresLength += _takerExposuresLength;
+            makerExposuresLowerAndUpperLength += _makerExposuresLowerAndUpperLength;
+        }
+
+        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(takerExposuresPadded, takerExposuresLength);
+        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresLowerPadded, makerExposuresLowerAndUpperLength);
+        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(makerExposuresUpperPadded, makerExposuresLowerAndUpperLength);
 
         return (takerExposures, makerExposuresLower, makerExposuresUpper);
     }
@@ -383,7 +340,7 @@ library Portfolio {
 
             position.update(executedBaseAmount, executedQuoteAmount);
 
-            UD60x18 _annualizedExposureFactor = annualizedExposureFactor(marketId, maturityTimestamp);
+            UD60x18 _annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(marketId, maturityTimestamp);
             IProductModule(ProductConfiguration.getCoreProxyAddress()).propagateTakerOrder(
                 self.accountId,
                 ProductConfiguration.getProductId(),
@@ -477,6 +434,9 @@ library Portfolio {
                 revert TooManyTakerPositions(self.accountId);
             }
             self.activeMarketsAndMaturities[collateralType].add(marketMaturityPacked);
+        }
+        if (!self.activeCollateralTypes.contains(collateralType)) {
+            self.activeCollateralTypes.add(collateralType);
         }
     }
 
