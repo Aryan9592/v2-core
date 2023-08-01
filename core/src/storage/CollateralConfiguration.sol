@@ -8,6 +8,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
+import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import "./OracleManager.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
@@ -15,6 +20,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
  */
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
+    using SafeCastI256 for int256;
 
     bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
         keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
@@ -35,11 +41,6 @@ library CollateralConfiguration {
          */
         uint256 liquidationBooster;
         /**
-         * @dev The oracle manager node id which reports the current price for this collateral type.
-         */
-        // bytes32 oracleNodeId;
-        // + function getCollateralPrice function
-        /**
          * @dev The token address for this collateral type.
          */
         address tokenAddress;
@@ -47,6 +48,21 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
+
+        /**
+         * @dev The oracle manager node id which reports the current price for this collateral type.
+         */
+        bytes32 oracleNodeId;
+
+        /**
+         * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
+         */
+        UD60x18 weight;
+
+        /**
+         * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
+         */
+        UD60x18 autoExchangeReward;
     }
 
     /**
@@ -89,6 +105,9 @@ library CollateralConfiguration {
         storedConfig.liquidationBooster = config.liquidationBooster;
         storedConfig.depositingEnabled = config.depositingEnabled;
         storedConfig.cap = config.cap;
+        storedConfig.oracleNodeId = config.oracleNodeId;
+        storedConfig.weight = config.weight;
+        storedConfig.autoExchangeReward = config.autoExchangeReward;
     }
 
     /**
@@ -99,5 +118,20 @@ library CollateralConfiguration {
         if (!load(token).depositingEnabled) {
             revert CollateralDepositDisabled(token);
         }
+    }
+
+
+    /**
+     * @dev Returns the price of this collateral configuration object.
+     * @param self The CollateralConfiguration object.
+     * @return The price of the collateral with 18 decimals of precision.
+     */
+    function getCollateralPrice(Data storage self) internal view returns (UD60x18) {
+        OracleManager.Data memory oracleManager = OracleManager.load();
+        NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
+            self.oracleNodeId
+        );
+
+        return UD60x18.wrap(node.price.toUint());
     }
 }

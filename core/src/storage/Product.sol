@@ -39,6 +39,14 @@ library Product {
          * @dev Creator of the product, which has configuration access rights for the product.
          */
         address owner;
+        /**
+        * @dev Whether the product is trusted or not.
+        * @dev Margin accounts can either engage with a trustless instrument or any of the trusted instruments.
+        * @dev A margin account that engages with any trustless instrument cannot engage with any other trusted or
+        * trustless instrument. A margin account that engages with any trusted instrument can engage with any other
+        * trusted instrument but cannot engage with a trustless instrument.
+        */
+        bool isTrusted;
     }
 
     /**
@@ -77,6 +85,7 @@ library Product {
 
     /**
      * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
+     * for a given collateralType
      */
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId, address collateralType)
         internal
@@ -89,6 +98,23 @@ library Product {
     {
         return IProduct(self.productAddress).getAccountTakerAndMakerExposures(accountId, collateralType);
     }
+
+    /**
+     * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
+     * for a given collateralType
+     */
+    function getAccountTakerAndMakerExposuresAllCollaterals(Data storage self, uint128 accountId)
+    internal
+    view
+    returns (
+        Account.Exposure[] memory takerExposures,
+        Account.Exposure[] memory makerExposuresLower,
+        Account.Exposure[] memory makerExposuresUpper
+    )
+    {
+        return IProduct(self.productAddress).getAccountTakerAndMakerExposuresAllCollaterals(accountId);
+    }
+
 
     /**
      * @dev The product at self.productAddress is expected to close filled and unfilled positions for all maturities and pools

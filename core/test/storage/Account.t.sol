@@ -25,8 +25,8 @@ contract ExposedAccounts is CoreState {
         }
     }
 
-    function create(uint128 id, address owner) external returns (bytes32 s) {
-        Account.Data storage account = Account.create(id, owner);
+    function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount) external returns (bytes32 s) {
+        Account.Data storage account = Account.create(id, owner, trustlessProductIdTrustedByAccount, false);
         assembly {
             s := account.slot
         }
@@ -200,7 +200,7 @@ contract AccountTest is Test {
     }
 
     function testFail_create_ZeroAccount() public {
-        accounts.create(0, address(1));
+        accounts.create(0, address(1), type(uint128).max);
     }
 
     function test_RevertWhen_AccountDoesNotExist() public {
@@ -421,7 +421,8 @@ contract AccountTest is Test {
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 100),
-                unrealizedLoss: i * 50
+                unrealizedLoss: i * 50,
+                collateralType: address(1000)
             });
 
             expectedUnrealizedLoss += exposures[i].unrealizedLoss;
@@ -445,14 +446,16 @@ contract AccountTest is Test {
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 1000),
-                unrealizedLoss: i * 500
+                unrealizedLoss: i * 500,
+                collateralType: address(1000)
             });
 
             upperExposures[i] = Account.Exposure({
                 productId: 1,
                 marketId: (i % 2 == 0) ? 10 : 11,
                 annualizedNotional: int256(i * 100),
-                unrealizedLoss: i * 50
+                unrealizedLoss: i * 50,
+                collateralType: address(1000)
             });
 
             // note, in here we're only taking into account lower exposures because they pose the highest risk

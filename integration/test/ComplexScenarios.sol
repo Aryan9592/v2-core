@@ -67,7 +67,10 @@ contract ComplexScenarios is BaseScenario, TestUtils {
         depositingEnabled: true,
         liquidationBooster: 1e18,
         tokenAddress: address(token),
-        cap: 1000000e18
+        cap: 1000000e18,
+          oracleNodeId: "0x",
+          weight: UD60x18.wrap(1e18),
+          autoExchangeReward: UD60x18.wrap(0)
       })
     );
     coreProxy.configureProtocolRisk(
@@ -77,7 +80,7 @@ contract ComplexScenarios is BaseScenario, TestUtils {
       })
     );
 
-    productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product");
+    productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product", true);
 
     datedIrsProxy.configureMarket(
       MarketConfiguration.Data({

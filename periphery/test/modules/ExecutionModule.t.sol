@@ -636,7 +636,10 @@ contract ExecutionModuleTest is Test {
                     depositingEnabled: true,
                     liquidationBooster: 10e6,
                     tokenAddress: address(erc20Token),
-                    cap: 20e6
+                    cap: 20e6,
+                    oracleNodeId: "0x",
+                    weight: UD60x18.wrap(1e18),
+                    autoExchangeReward: UD60x18.wrap(0)
                 });
         
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_CORE_DEPOSIT)));
@@ -698,24 +701,31 @@ contract ExecutionModuleTest is Test {
     }
 
     function testExecCommand_CreateAccount() public {
+        // todo: this test is currently failing, needs fixing
         // Setup
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)));
-        bytes[] memory inputs = new bytes[](1);
+        bytes[] memory inputs = new bytes[](3);
 
         uint128 accountId = 127637236;
+        uint128 trustlessProductIdTrustedByAccount = type(uint128).max;
+        bool isMultiToken = false;
 
         inputs[0] = abi.encode(accountId);
+        inputs[1] = abi.encode(trustlessProductIdTrustedByAccount);
+        inputs[2] = abi.encode(isMultiToken);
 
         vm.mockCall(
             core,
-            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this))),
+            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this),
+                trustlessProductIdTrustedByAccount, isMultiToken)),
             abi.encode()
         );
 
         // Expect calls
         vm.expectCall(
             core,
-            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this)))
+            abi.encodeCall(IAccountModule(core).createAccount, (accountId, address(this),
+                trustlessProductIdTrustedByAccount, isMultiToken))
         );
 
         exec.execute(commands, inputs, block.timestamp + 1);

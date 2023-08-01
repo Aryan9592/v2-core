@@ -163,7 +163,10 @@ contract CoreState is MockCoreStorage, Ownable {
                 depositingEnabled: true,
                 liquidationBooster: Constants.TOKEN_0_LIQUIDATION_BOOSTER,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -173,7 +176,10 @@ contract CoreState is MockCoreStorage, Ownable {
                 depositingEnabled: false,
                 liquidationBooster: Constants.TOKEN_1_LIQUIDATION_BOOSTER,
                 tokenAddress: Constants.TOKEN_1,
-                cap: Constants.TOKEN_1_CAP
+                cap: Constants.TOKEN_1_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -183,14 +189,14 @@ contract CoreState is MockCoreStorage, Ownable {
         // Create product (id: 1)
         {
             products.push(new MockProduct("Product 1"));
-            uint128 productId = mockProduct(address(products[0]), "Product 1", Constants.PRODUCT_OWNER);
+            uint128 productId = mockProduct(address(products[0]), "Product 1", Constants.PRODUCT_OWNER, true);
             require(productId == 1, "Mock Core: PrdId (1)");
         }
 
         // Create product (id: 2)
         {
             products.push(new MockProduct("Product 2"));
-            uint128 productId = mockProduct(address(products[1]), "Product 2", Constants.PRODUCT_OWNER);
+            uint128 productId = mockProduct(address(products[1]), "Product 2", Constants.PRODUCT_OWNER, true);
             require(productId == 2, "Mock Core: PrdId (2)");
         }
 
@@ -332,13 +338,17 @@ contract CoreState is MockCoreStorage, Ownable {
             Account.Exposure[] memory mockExposuresMakerUpper = new Account.Exposure[](2);
 
             mockExposuresMakerLower[0] =
-                Account.Exposure({productId: 1, marketId: 10, annualizedNotional: -100e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 1, marketId: 10, annualizedNotional: -100e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
             mockExposuresMakerUpper[0] =
-            Account.Exposure({productId: 1, marketId: 10, annualizedNotional: 300e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 1, marketId: 10, annualizedNotional: 300e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
             mockExposuresMakerLower[1] =
-                Account.Exposure({productId: 1, marketId: 11, annualizedNotional: -200e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 1, marketId: 11, annualizedNotional: -200e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
             mockExposuresMakerUpper[1] =
-            Account.Exposure({productId: 1, marketId: 11, annualizedNotional: 500e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 1, marketId: 11, annualizedNotional: 500e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
 
             products[0].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_0, mockExposuresTaker, mockExposuresMakerLower, mockExposuresMakerUpper
@@ -361,10 +371,12 @@ contract CoreState is MockCoreStorage, Ownable {
             Account.Exposure[] memory mockExposuresMakerUpper = new Account.Exposure[](1);
 
             mockExposuresMakerLower[0] =
-                Account.Exposure({productId: 2, marketId: 20, annualizedNotional: -200e18, unrealizedLoss: 0});
+                Account.Exposure({productId: 2, marketId: 20, annualizedNotional: -200e18, unrealizedLoss: 0,
+                    collateralType: address(1000)});
 
             mockExposuresMakerUpper[0] =
-            Account.Exposure({productId: 2, marketId: 20, annualizedNotional: 100e18, unrealizedLoss: 0});
+            Account.Exposure({productId: 2, marketId: 20, annualizedNotional: 100e18, unrealizedLoss: 0,
+                collateralType: address(1000)});
 
             products[1].mockGetAccountTakerAndMakerExposures(
                 100, Constants.TOKEN_0, mockExposuresTaker, mockExposuresMakerLower, mockExposuresMakerUpper

@@ -32,8 +32,8 @@ contract ExposedProductCreator {
         }
     }
 
-    function create(address productAddress, string memory name, address owner) external returns (bytes32 s) {
-        Product.Data storage product = ProductCreator.create(productAddress, name, owner);
+    function create(address productAddress, string memory name, address owner, bool isTrusted) external returns (bytes32 s) {
+        Product.Data storage product = ProductCreator.create(productAddress, name, owner, isTrusted);
         assembly {
             s := product.slot
         }
@@ -65,7 +65,7 @@ contract ProductCreatorTest is Test {
         string memory productName = "Product";
         address owner = vm.addr(2);
 
-        bytes32 productSlot = productCreator.create(productAddress, productName, owner);
+        bytes32 productSlot = productCreator.create(productAddress, productName, owner, true);
 
         assertEq(productSlot, keccak256(abi.encode("xyz.voltz.Product", 1)));
 
@@ -94,13 +94,13 @@ contract ProductCreatorTest is Test {
         address owner = vm.addr(2);
 
         {
-            bytes32 productSlot = productCreator.create(productAddress, productName, owner);
+            bytes32 productSlot = productCreator.create(productAddress, productName, owner, true);
 
             assertEq(productSlot, keccak256(abi.encode("xyz.voltz.Product", 1)));
         }
 
         {
-            bytes32 productSlot = productCreator.create(productAddress, productName, owner);
+            bytes32 productSlot = productCreator.create(productAddress, productName, owner, true);
 
             assertEq(productSlot, keccak256(abi.encode("xyz.voltz.Product", 2)));
         }
@@ -113,8 +113,8 @@ contract ProductCreatorTest is Test {
         string memory productName = "Product";
         address owner = vm.addr(2);
 
-        productCreator.create(productAddress, productName, owner);
-        productCreator.create(productAddress, productName, owner);
+        productCreator.create(productAddress, productName, owner, true);
+        productCreator.create(productAddress, productName, owner, true);
 
         {
             uint128[] memory idsByAddress = productCreator.getIdsByAddress(productAddress);

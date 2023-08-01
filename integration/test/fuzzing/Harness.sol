@@ -53,7 +53,7 @@ contract Harness {
     //   liquidatorRewardParameter: ud60x18(5e16),
     //   feeCollectorAccountId: 999
     // });
-    // setupProtocol.registerDatedIrsProduct(1);
+    // setupProtocol.registerDatedIrsProduct(1, true);
     // setupProtocol.configureMarket({
     //   rateOracleAddress: address(deployProtocol.aaveV3RateOracle()),
     //   tokenAddress: address(token),
@@ -81,9 +81,11 @@ contract Harness {
     // });
   }
 
-  function createAccount(address user, uint128 requestedAccountId) public {
+  function createAccount(address user, uint128 requestedAccountId,
+    uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) public {
     hevm.prank(user);
-    try deployProtocol.coreProxy().createAccount(requestedAccountId, user) {
+    try deployProtocol.coreProxy().createAccount(requestedAccountId, user, trustlessProductIdTrustedByAccount,
+      isMultiToken) {
       assert(true == true);
     } catch {
       assert(true == true);

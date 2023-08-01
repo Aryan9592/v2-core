@@ -192,14 +192,17 @@ contract SetupProtocol is BatchScript {
       })
     );
 
+    // todo: fee collector account is an interesting edge case when it comes to collateral pool segmentation (AN)
     // create fee collector account owned by protocol owner
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
-      accountOwner: metadata.owner
+      accountOwner: metadata.owner,
+      trustlessProductIdTrustedByAccount: type(uint128).max,
+      isMultiToken: false
     });
   }
 
-  function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit) public {
+  function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit, bool isTrusted) public {
     // predict product id
     uint128 productId;
     try contracts.coreProxy.getLastCreatedProductId() returns (uint128 lastProductId) { // todo: alex remove try once mainent contracts are upgraded
@@ -214,7 +217,7 @@ contract SetupProtocol is BatchScript {
       return;
     }
 
-    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product");
+    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product", isTrusted);
     
     configureProduct(
       ProductConfiguration.Data({
@@ -249,7 +252,10 @@ contract SetupProtocol is BatchScript {
         depositingEnabled: true,
         liquidationBooster: liquidationBooster,
         tokenAddress: tokenAddress,
-        cap: cap
+        cap: cap,
+        oracleNodeId: "0x",
+        weight: UD60x18.wrap(1e18),
+        autoExchangeReward: UD60x18.wrap(0)
       })
     );
 
@@ -625,16 +631,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function registerProduct(address product, string memory name) public {
+  function registerProduct(address product, string memory name, bool isTrusted) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.registerProduct(product, name);
+      contracts.coreProxy.registerProduct(product, name, isTrusted);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.registerProduct,
-          (product, name)
+          (product, name, isTrusted)
         )
       );
     }
@@ -655,16 +661,18 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function createAccount(uint128 requestedAccountId, address accountOwner) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner,
+    uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.createAccount(requestedAccountId, accountOwner);
+      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, trustlessProductIdTrustedByAccount,
+    isMultiToken);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.createAccount,
-          (requestedAccountId, accountOwner)
+          (requestedAccountId, accountOwner, trustlessProductIdTrustedByAccount, isMultiToken)
         )
       );
     }

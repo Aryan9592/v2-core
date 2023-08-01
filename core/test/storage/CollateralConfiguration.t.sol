@@ -72,7 +72,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 5e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -100,7 +103,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 5e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -109,7 +115,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 1e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -137,7 +146,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 5e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -146,7 +158,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: false,
                 liquidationBooster: 1e16,
                 tokenAddress: Constants.TOKEN_1,
-                cap: Constants.TOKEN_1_CAP
+                cap: Constants.TOKEN_1_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -197,7 +212,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 5e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -206,7 +224,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: false,
                 liquidationBooster: 1e16,
                 tokenAddress: Constants.TOKEN_1,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -224,7 +245,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: false,
                 liquidationBooster: 5e16,
                 tokenAddress: Constants.TOKEN_0,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 
@@ -233,7 +257,10 @@ contract CollateralConfigurationTest is Test {
                 depositingEnabled: true,
                 liquidationBooster: 1e16,
                 tokenAddress: Constants.TOKEN_1,
-                cap: Constants.TOKEN_0_CAP
+                cap: Constants.TOKEN_0_CAP,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
 

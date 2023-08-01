@@ -61,15 +61,20 @@ contract ProductModule is IProductModule {
     /**
      * @inheritdoc IProductModule
      */
-    function registerProduct(address product, string memory name) external override returns (uint128 productId) {
+    function registerProduct(address product, string memory name, bool isTrusted) external override returns (uint128 productId) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        FeatureFlag.ensureAccessToFeature(_REGISTER_PRODUCT_FEATURE_FLAG);
+
+        if (isTrusted) {
+            // todo: consider removing the below feature flag in favour of an ownerOnly check (AN)
+            /// unless there's a good reason to use a feature flag
+            FeatureFlag.ensureAccessToFeature(_REGISTER_PRODUCT_FEATURE_FLAG);
+        }
 
         if (!ERC165Helper.safeSupportsInterface(product, type(IProduct).interfaceId)) {
             revert IncorrectProductInterface(product);
         }
 
-        productId = ProductCreator.create(product, name, msg.sender).id;
+        productId = ProductCreator.create(product, name, msg.sender, isTrusted).id;
 
         emit ProductRegistered(product, productId, name, msg.sender, block.timestamp);
     }
@@ -111,7 +116,64 @@ contract ProductModule is IProductModule {
         emit Collateral.CollateralUpdate(receivingAccountId, collateralType, fee.toInt(), block.timestamp);
     }
 
+    function checkAccountCanEngageWithProduct(
+        uint128 trustlessProductIdTrustedByAccount,
+        uint128 productId,
+        bool isProductTrusted
+    ) internal pure returns (bool) {
+
+        if (isProductTrusted && trustlessProductIdTrustedByAccount == type(uint128).max) {
+            return true;
+        }
+
+        if (!isProductTrusted && trustlessProductIdTrustedByAccount == productId) {
+            return true;
+        }
+
+        return false;
+    }
+
     function propagateTakerOrder(
+        uint128 accountId,
+        uint128 productId,
+        uint128 marketId,
+        address collateralType,
+        int256 annualizedNotional
+    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        // todo: consider checking if the product exists or is it implicitly done in .onlyProductAddress() call (AN)
+        Product.onlyProductAddress(productId, msg.sender);
+
+        Account.Data storage account = Account.exists(accountId);
+        Product.Data storage product = Product.load(productId);
+
+        bool accountCanEngageWithProduct = checkAccountCanEngageWithProduct(
+            account.trustlessProductIdTrustedByAccount, product.id, product.isTrusted
+        );
+
+        if (!accountCanEngageWithProduct) {
+            revert AccountCannotEngageWithProduct(account.id, product.id);
+        }
+
+        MarketFeeConfiguration.Data memory feeConfig = MarketFeeConfiguration.load(productId, marketId);
+        fee = distributeFees(
+            accountId, feeConfig.feeCollectorAccountId, feeConfig.atomicTakerFee, collateralType, annualizedNotional
+        );
+
+
+        if (!account.activeProducts.contains(productId)) {
+            account.activeProducts.add(productId);
+        }
+
+        if (account.isMultiToken) {
+            (im, highestUnrealizedLoss) = account.imCheckAllCollaterals();
+        } else {
+            (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        }
+
+    }
+
+    function propagateMakerOrder(
         uint128 accountId,
         uint128 productId,
         uint128 marketId,
@@ -121,29 +183,16 @@ contract ProductModule is IProductModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Product.onlyProductAddress(productId, msg.sender);
 
-        MarketFeeConfiguration.Data memory feeConfig = MarketFeeConfiguration.load(productId, marketId);
-        fee = distributeFees(
-            accountId, feeConfig.feeCollectorAccountId, feeConfig.atomicTakerFee, collateralType, annualizedNotional
+        Account.Data storage account = Account.exists(accountId);
+        Product.Data storage product = Product.load(productId);
+
+        bool accountCanEngageWithProduct = checkAccountCanEngageWithProduct(
+            account.trustlessProductIdTrustedByAccount, product.id, product.isTrusted
         );
 
-        Account.Data storage account = Account.exists(accountId);
-
-        if (!account.activeProducts.contains(productId)) {
-            account.activeProducts.add(productId);
+        if (!accountCanEngageWithProduct) {
+            revert AccountCannotEngageWithProduct(account.id, product.id);
         }
-
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
-    }
-
-    function propagateMakerOrder(
-        uint128 accountId,
-        uint128 productId,
-        uint128 marketId,
-        address collateralType,
-        int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedPnL) {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        Product.onlyProductAddress(productId, msg.sender);
 
         if (annualizedNotional > 0) {
             MarketFeeConfiguration.Data memory feeConfig = MarketFeeConfiguration.load(productId, marketId);
@@ -152,13 +201,15 @@ contract ProductModule is IProductModule {
             );
         }
 
-        Account.Data storage account = Account.exists(accountId);
-
         if (!account.activeProducts.contains(productId)) {
             account.activeProducts.add(productId);
         }
 
-        (im, highestUnrealizedPnL) = account.imCheck(collateralType);
+        if (account.isMultiToken) {
+            (im, highestUnrealizedLoss) = account.imCheckAllCollaterals();
+        } else {
+            (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        }
     }
 
     function propagateSettlementCashflow(uint128 accountId, uint128 productId, address collateralType, int256 amount)

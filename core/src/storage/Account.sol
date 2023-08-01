@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import "./MarketRiskConfiguration.sol";
 import "./ProtocolRiskConfiguration.sol";
+import "./CollateralConfiguration.sol";
 import "./AccountRBAC.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -23,6 +24,10 @@ import {UD60x18, sub as subSD59x18} from "@prb/math/SD59x18.sol";
 import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18} 
     from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
+// todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries (CR)
+// todo: note, a few of the functions in this library have two representations (one for a single collateral
+// and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away (CR)
+// todo: consider replacing the AllCollaterals suffix with MultiToken? (CR)
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -33,9 +38,11 @@ library Account {
     using AccountRBAC for AccountRBAC.Data;
     using Product for Product.Data;
     using SetUtil for SetUtil.UintSet;
+    using SetUtil for SetUtil.AddressSet;
     using SafeCastU128 for uint128;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
+    using CollateralConfiguration for CollateralConfiguration.Data;
 
     //// ERRORS and STRUCTS ////
 
@@ -45,9 +52,17 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given account's total value is below the initial margin requirement
+     * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
+     * + the highest unrealized loss
      */
     error AccountBelowIM(uint128 accountId, address collateralType, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss);
+
+    /**
+     * @dev Thrown when a given multi-token account's total value is below the initial margin requirement
+     * + the highest unrealized loss in USD
+     */
+    error AccountBelowIMAllCollaterals(uint128 accountId, uint256 initialMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -72,6 +87,29 @@ library Account {
          * @dev Ids of all the products in which the account has active positions
          */
         SetUtil.UintSet activeProducts;
+
+        /**
+         * @dev If this value is set to max uint128, then the account is only able to interact with trusted instruments
+         */
+        uint128 trustlessProductIdTrustedByAccount;
+
+        /**
+         * @dev If this boolean is set to true then the account is able to cross-collateral margin
+         * @dev If this boolean is set to false then the account uses a single-token mode
+         * @dev Single token mode means the account has a separate health factor for each collateral type
+         */
+        bool isMultiToken;
+
+        /**
+         * @dev Addresses of all collateral types in which the account has a non-zero balance
+         */
+        // todo: layer in logic that updates this set upon collateral deposits and withdrawals (CR)
+        SetUtil.AddressSet activeCollateralTokenAddresses;
+
+        // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
+        // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
+        // synthetix/contracts/storage/Account.sol#L58
+
     }
 
 
@@ -89,6 +127,7 @@ library Account {
         int256 annualizedNotional;
         // note, in context of dated irs with the current accounting logic it also includes accruedInterest
         uint256 unrealizedLoss;
+        address collateralType;
     }
 
     //// STATE CHANGING FUNCTIONS ////
@@ -100,13 +139,16 @@ library Account {
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
      *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner) internal returns (Data storage account) {
+    function create(uint128 id, address owner, uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) internal returns (Data storage account) {
         // Disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
+        // todo: consider layering in validation of trustlessProductIdTrustedByAccount (AN)
         require(id != 0);
         account = load(id);
 
         account.id = id;
         account.rbac.owner = owner;
+        account.trustlessProductIdTrustedByAccount = trustlessProductIdTrustedByAccount;
+        account.isMultiToken = isMultiToken;
     }
 
     /**
@@ -147,6 +189,8 @@ library Account {
         collateralBalance = self.collaterals[collateralType].balance;
     }
 
+
+    // todo: consider introducing a multi-token counterpart for this function? (CR)
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
@@ -215,8 +259,7 @@ library Account {
 
     /**
      * @dev Returns the aggregate exposures of the account in all products in which the account is active (
-     * exposures are per product)
-     * note, the exposures are expected to be in notional terms and in terms of the settlement token of this account
+     * exposures are per product) given a collateral type
      */
     function getProductTakerAndMakerExposures(Data storage self, uint128 productId, address collateralType)
         internal
@@ -232,6 +275,23 @@ library Account {
             _product.getAccountTakerAndMakerExposures(self.id, collateralType);
     }
 
+    /**
+    * @dev Returns the aggregate exposures of the account in all products in which the account is active (
+     * exposures are per product) for all collateral types
+     */
+    function getProductTakerAndMakerExposuresAllCollaterals(Data storage self, uint128 productId)
+    internal
+    view
+    returns (
+        Exposure[] memory productTakerExposures,
+        Exposure[] memory productMakerExposuresLower,
+        Exposure[] memory productMakerExposuresUpper
+    )
+    {
+        Product.Data storage _product = Product.load(productId);
+        (productTakerExposures, productMakerExposuresLower, productMakerExposuresUpper) =
+        _product.getAccountTakerAndMakerExposuresAllCollaterals(self.id);
+    }
 
 
     function getRiskParameter(uint128 productId, uint128 marketId) internal view returns (UD60x18 riskParameter) {
@@ -246,7 +306,8 @@ library Account {
     }
 
     /**
-     * @dev Checks if the account is below initial margin requirement and reverts if so, other returns the initial margin requirement
+     * @dev Checks if the account is below initial margin requirement and reverts if so,
+     * otherwise  returns the initial margin requirement (single token account)
      */
     function imCheck(Data storage self, address collateralType) internal view returns (uint256, uint256) {
         (bool isSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) = self.isIMSatisfied(collateralType);
@@ -256,8 +317,24 @@ library Account {
         return (initialMarginRequirement, highestUnrealizedLoss);
     }
 
+
     /**
-     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and the initial margin requirement
+     * @dev Checks if the account is below initial margin requirement and reverts if so,
+     * otherwise returns the initial margin requirement in USD (multi token account)
+     */
+    function imCheckAllCollaterals(Data storage self) internal view returns (uint256, uint256) {
+        (bool isSatisfied, uint256 initialMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD) = self.
+        isIMSatisfiedAllCollaterals();
+        if (!isSatisfied) {
+            revert AccountBelowIMAllCollaterals(self.id, initialMarginRequirementInUSD, highestUnrealizedLossInUSD);
+        }
+        return (initialMarginRequirementInUSD, highestUnrealizedLossInUSD);
+    }
+
+
+    /**
+     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
+     * the initial margin requirement for a given collateral type (single token account)
      */
     function isIMSatisfied(Data storage self, address collateralType)
         internal
@@ -269,8 +346,22 @@ library Account {
     }
 
     /**
-     * @dev Returns a booleans liquidatable (true if the account is below liquidation margin requirement) 
-     * and the initial and liquidation margin requirements
+     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
+     * the initial margin requirement across collateral types (multi-token account)
+     */
+    function isIMSatisfiedAllCollaterals(Data storage self)
+    internal
+    view
+    returns (bool imSatisfied, uint256 initialMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD) {
+        (initialMarginRequirementInUSD,,highestUnrealizedLossInUSD) = self.
+        getMarginRequirementsAndHighestUnrealizedLossAllCollaterals();
+        uint256 weightedCollateralBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
+        imSatisfied = weightedCollateralBalanceInUSD >= initialMarginRequirementInUSD + highestUnrealizedLossInUSD;
+    }
+
+    /**
+     * @dev Returns a booleans liquidatable (true if a single-token account is below liquidation margin requirement)
+     * and the initial and liquidation margin requirements alongside highest unrealized loss
      */
     function isLiquidatable(Data storage self, address collateralType)
         internal
@@ -288,9 +379,30 @@ library Account {
         liquidatable = collateralBalance < liquidationMarginRequirement + highestUnrealizedLoss;
     }
 
+    /**
+     * @dev Returns a boolean isLiquidatable (true if the account is below liquidation margin requirement)
+     * and the initial and liquidation margin requirements alongside highest unrealized loss (all in USD)
+     */
+    function isLiquidatableAllCollaterals(Data storage self)
+    internal
+    view
+    returns (
+        bool liquidatable,
+        uint256 initialMarginRequirementInUSD,
+        uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD
+    )
+    {
+        (initialMarginRequirementInUSD, liquidationMarginRequirementInUSD, highestUnrealizedLossInUSD) =
+        self.getMarginRequirementsAndHighestUnrealizedLossAllCollaterals();
+        uint256 weightedCollateralBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
+        liquidatable = weightedCollateralBalanceInUSD < liquidationMarginRequirementInUSD + highestUnrealizedLossInUSD;
+    }
+
 
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
+     * for a given collateral type
      */
 
     function getMarginRequirementsAndHighestUnrealizedLoss(Data storage self, address collateralType)
@@ -322,6 +434,166 @@ library Account {
         initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
     }
 
+    /**
+    * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
+     * across all collateral types
+     */
+
+    function getMarginRequirementsAndHighestUnrealizedLossAllCollaterals(Data storage self)
+    internal
+    view
+    returns (uint256 initialMarginRequirementInUSD, uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD)
+    {
+        SetUtil.UintSet storage _activeProducts = self.activeProducts;
+
+        for (uint256 i = 1; i <= _activeProducts.length(); i++) {
+            uint128 productId = _activeProducts.valueAt(i).to128();
+
+            (
+            Exposure[] memory productTakerExposures,
+            Exposure[] memory productMakerExposuresLower,
+            Exposure[] memory productMakerExposuresUpper
+            ) = self.getProductTakerAndMakerExposuresAllCollaterals(productId);
+
+            (uint256 lmTakerPositionsInUSD, uint256 unrealizedLossTakerPositionsInUSD) =
+            computeLMAndUnrealizedLossFromExposuresAllCollaterals(
+                productTakerExposures
+            );
+            (uint256 lmMakerPositionsInUSD, uint256 highestUnrealizedLossMakerPositionsInUSD) =
+            computeLMAndHighestUnrealizedLossFromLowerAndUpperExposuresAllCollaterals(productMakerExposuresLower, productMakerExposuresUpper);
+            liquidationMarginRequirementInUSD += (lmTakerPositionsInUSD + lmMakerPositionsInUSD);
+            highestUnrealizedLossInUSD += (unrealizedLossTakerPositionsInUSD + highestUnrealizedLossMakerPositionsInUSD);
+        }
+
+        UD60x18 imMultiplier = getIMMultiplier();
+        initialMarginRequirementInUSD = computeInitialMarginRequirement(liquidationMarginRequirementInUSD, imMultiplier);
+    }
+
+    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
+        Exposure[] memory exposuresLower,
+        Exposure[] memory exposuresUpper
+    ) internal view
+    returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+    {
+
+        require(exposuresLower.length == exposuresUpper.length);
+
+        for (uint256 i=0; i < exposuresLower.length; i++) {
+            require(exposuresLower[i].productId == exposuresUpper[i].productId);
+            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
+            Exposure memory exposureLower = exposuresLower[i];
+            Exposure memory exposureUpper = exposuresUpper[i];
+            UD60x18 riskParameter = getRiskParameter(exposureLower.productId, exposureLower.marketId);
+            uint256 liquidationMarginRequirementExposureLower =
+            computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
+            uint256 liquidationMarginRequirementExposureUpper =
+            computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
+
+            if (
+                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
+                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
+            ) {
+                liquidationMarginRequirement += liquidationMarginRequirementExposureLower;
+                highestUnrealizedLoss += exposureLower.unrealizedLoss;
+            } else {
+                liquidationMarginRequirement += liquidationMarginRequirementExposureUpper;
+                highestUnrealizedLoss += exposureUpper.unrealizedLoss;
+            }
+        }
+    }
+
+    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposuresAllCollaterals(
+        Exposure[] memory exposuresLower,
+        Exposure[] memory exposuresUpper
+    ) internal view
+    returns (uint256 liquidationMarginRequirementInUSD, uint256 highestUnrealizedLossInUSD)
+    {
+
+        require(exposuresLower.length == exposuresUpper.length);
+
+        for (uint256 i=0; i < exposuresLower.length; i++) {
+            require(exposuresLower[i].productId == exposuresUpper[i].productId);
+            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
+            require(exposuresLower[i].collateralType == exposuresUpper[i].collateralType);
+            Exposure memory exposureLower = exposuresLower[i];
+            Exposure memory exposureUpper = exposuresUpper[i];
+            UD60x18 collateralPriceInUSD = CollateralConfiguration.load(exposureLower.collateralType)
+            .getCollateralPrice();
+            UD60x18 riskParameter = getRiskParameter(exposureLower.productId, exposureLower.marketId);
+            uint256 liquidationMarginRequirementExposureLower =
+            computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
+            uint256 liquidationMarginRequirementExposureUpper =
+            computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
+
+            if (
+                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
+                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
+            ) {
+                liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD,
+                    liquidationMarginRequirementExposureLower);
+                highestUnrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposureLower.unrealizedLoss);
+            } else {
+                liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD,
+                    liquidationMarginRequirementExposureUpper);
+                highestUnrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposureUpper.unrealizedLoss);
+            }
+        }
+    }
+
+
+    /**
+    * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
+     */
+    function computeLMAndUnrealizedLossFromExposures(Exposure[] memory exposures)
+    internal
+    view
+    returns (uint256 liquidationMarginRequirement, uint256 unrealizedLoss)
+    {
+        for (uint256 i=0; i < exposures.length; i++) {
+            Exposure memory exposure = exposures[i];
+            UD60x18 riskParameter = getRiskParameter(exposure.productId, exposure.marketId);
+            uint256 liquidationMarginRequirementExposure =
+            computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
+            liquidationMarginRequirement += liquidationMarginRequirementExposure;
+            unrealizedLoss += exposure.unrealizedLoss;
+        }
+
+    }
+
+    /**
+     * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
+     * with varying collateral types and computes the result in USD
+     */
+    function computeLMAndUnrealizedLossFromExposuresAllCollaterals(Exposure[] memory exposures)
+    internal
+    view
+    returns (uint256 liquidationMarginRequirementInUSD, uint256 unrealizedLossInUSD)
+    {
+        for (uint256 i=0; i < exposures.length; i++) {
+            Exposure memory exposure = exposures[i];
+            UD60x18 collateralPriceInUSD = CollateralConfiguration.load(exposure.collateralType).getCollateralPrice();
+            UD60x18 riskParameter = getRiskParameter(exposure.productId, exposure.marketId);
+            uint256 liquidationMarginRequirementExposure =
+            computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
+            liquidationMarginRequirementInUSD += mulUDxUint(collateralPriceInUSD, liquidationMarginRequirementExposure);
+            unrealizedLossInUSD += mulUDxUint(collateralPriceInUSD, exposure.unrealizedLoss);
+        }
+    }
+
+    function getWeightedCollateralBalanceInUSD(Data storage self) internal view
+    returns (uint256 weightedCollateralBalanceInUSD) {
+        // todo: consider breaking this function into a combination of a pure + view function (CR)
+        SetUtil.AddressSet storage _activeCollateralTokenAddresses = self.activeCollateralTokenAddresses;
+        for (uint256 i = 1; i <= _activeCollateralTokenAddresses.length(); i++) {
+            address collateralTokenAddress = _activeCollateralTokenAddresses.valueAt(i);
+            uint256 collateralBalance = self.getCollateralBalance(collateralTokenAddress);
+            CollateralConfiguration.Data storage collateralConfiguration = CollateralConfiguration.load(collateralTokenAddress);
+            uint256 collateralBalanceInUSD = mulUDxUint(collateralConfiguration.getCollateralPrice(), collateralBalance);
+            uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(collateralConfiguration.weight, collateralBalanceInUSD);
+            weightedCollateralBalanceInUSD += collateralBalanceInUSDWithHaircut;
+        }
+    }
 
     //// PURE FUNCTIONS ////
 
@@ -336,24 +608,6 @@ library Account {
         }
     }
 
-    /**
-     * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
-     */
-    function computeLMAndUnrealizedLossFromExposures(Exposure[] memory exposures)
-    internal
-    view
-    returns (uint256 liquidationMarginRequirement, uint256 unrealizedLoss)
-    {
-        for (uint256 i=0; i < exposures.length; i++) {
-            Exposure memory exposure = exposures[i];
-            UD60x18 riskParameter = getRiskParameter(exposure.productId, exposure.marketId);
-            uint256 liquidationMarginRequirementExposure = 
-                computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
-            liquidationMarginRequirement += liquidationMarginRequirementExposure;
-            unrealizedLoss += exposure.unrealizedLoss;
-        }
-
-    }
 
     /**
  * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter
@@ -380,38 +634,5 @@ library Account {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
     }
 
-
-    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
-        Exposure[] memory exposuresLower,
-        Exposure[] memory exposuresUpper
-        ) internal view
-        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
-    {
-
-        require(exposuresLower.length == exposuresUpper.length);
-
-        for (uint256 i=0; i < exposuresLower.length; i++) {
-            require(exposuresLower[i].productId == exposuresUpper[i].productId);
-            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
-            Exposure memory exposureLower = exposuresLower[i];
-            Exposure memory exposureUpper = exposuresUpper[i];
-            UD60x18 riskParameter = getRiskParameter(exposureLower.productId, exposureLower.marketId);
-            uint256 liquidationMarginRequirementExposureLower = 
-                computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
-            uint256 liquidationMarginRequirementExposureUpper =
-                computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-            if (
-                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
-                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
-            ) {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureLower;
-                highestUnrealizedLoss += exposureLower.unrealizedLoss;
-            } else {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureUpper;
-                highestUnrealizedLoss += exposureUpper.unrealizedLoss;
-            }
-        }
-    }
 
 }

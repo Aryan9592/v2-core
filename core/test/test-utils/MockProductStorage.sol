@@ -15,8 +15,8 @@ import "../../src/storage/ProductCreator.sol";
 contract MockProductStorage {
     using Product for Product.Data;
 
-    function mockProduct(address productAddress, string memory name, address owner) public returns (uint128) {
-        Product.Data storage product = ProductCreator.create(productAddress, name, owner);
+    function mockProduct(address productAddress, string memory name, address owner, bool isTrusted) public returns (uint128) {
+        Product.Data storage product = ProductCreator.create(productAddress, name, owner, isTrusted);
         return product.id;
     }
 

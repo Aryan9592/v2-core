@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { UD60x18 } from "@prb/math/SD59x18.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks market-level risk settings

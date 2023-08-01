@@ -9,3 +9,4 @@ oz=../node_modules/@openzeppelin/contracts/
 @voltz-protocol/core/=../node_modules/@voltz-protocol/core/
 @voltz-protocol/products-dated-irs/=../node_modules/@voltz-protocol/products-dated-irs/
 @voltz-protocol/v2-vamm/=../node_modules/@voltz-protocol/v2-vamm/
+@voltz-protocol/oracle-manager/=../node_modules/@voltz-protocol/oracle-manager/

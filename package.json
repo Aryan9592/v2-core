@@ -59,7 +59,8 @@
         "products/dated-irs",
         "community",
         "integration",
-        "access-pass-nft"
+        "access-pass-nft",
+        "oracle-manager"
     ],
     "engines": {
         "node": "^18.14.0",

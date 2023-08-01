@@ -16,6 +16,19 @@ interface ILiquidationModule {
      */
     error AccountNotLiquidatable(uint128 accountId);
 
+
+    /**
+     * @dev Thrown when attempting to liquidate a multi-token account in a single-token manner
+     */
+    error AccountIsMultiToken(uint128 accountId);
+
+
+    /**
+     * @dev Thrown when attempting to liquidate a single-token account in a multi-token manner
+     */
+    error AccountIsSingleToken(uint128 accountId);
+
+
     /**
      * @dev Thrown when an account exposure is not reduced when liquidated.
      */
@@ -58,7 +71,7 @@ interface ILiquidationModule {
     );
 
     /**
-     * @notice Checks if an account is liquidatable
+     * @notice Checks if a single-token account is liquidatable
      * @param accountId The id of the account that is being checked
      * @param collateralType The collateral type of the account that is being checked
      * @return liquidatable True if the account is liquidatable
@@ -74,7 +87,22 @@ interface ILiquidationModule {
     );
 
     /**
-     * @notice Liquidates an account
+     * @notice Checks if a multi-token account is liquidatable
+     * @param accountId The id of the account that is being checked
+     * @return liquidatable True if the account is liquidatable
+     * @return initialMarginRequirementInUSD The initial margin requirement of the account in usd
+     * @return liquidationMarginRequirementInUSD The liquidation margin requirement of the account in usd
+     * @return highestUnrealizedLossInUSD The highest unrealized loss of the account in usd
+     */
+    function isLiquidatableAllCollaterals(uint128 accountId) external view returns (
+        bool liquidatable,
+        uint256 initialMarginRequirementInUSD,
+        uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD
+    );
+
+    /**
+     * @notice Liquidates a single-token account
      * @param liquidatedAccountId The id of the account that is being liquidated
      * @param liquidatorAccountId Account id that will receive the rewards from the liquidation.
      * @return liquidatorRewardAmount Liquidator reward amount in terms of the account's settlement token

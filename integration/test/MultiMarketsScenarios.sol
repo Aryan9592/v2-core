@@ -130,7 +130,10 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
                 depositingEnabled: true,
                 liquidationBooster: 0,
                 tokenAddress: address(token),
-                cap: 1000000e18
+                cap: 1000000e18,
+                oracleNodeId: "0x",
+                weight: UD60x18.wrap(1e18),
+                autoExchangeReward: UD60x18.wrap(0)
             })
         );
         coreProxy.configureProtocolRisk(
@@ -140,7 +143,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
             })
         );
 
-        productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product");
+        productId = coreProxy.registerProduct(address(datedIrsProxy), "Dated IRS Product", true);
 
         datedIrsProxy.configureMarket(
             MarketConfiguration.Data({
@@ -698,7 +701,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
-    coreProxy.createAccount(4, vm.addr(4));
+    coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
     coreProxy.liquidate(1, 4, address(token));
     vm.stopPrank();
 
@@ -828,7 +831,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
-    coreProxy.createAccount(4, vm.addr(4));
+    coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
     coreProxy.liquidate(2, 4, address(token));
     vm.stopPrank();
 

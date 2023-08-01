@@ -18,6 +18,11 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
+// todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable (AB)
+// todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support (AB)
+// position transferring liquidations where the incentive of the liquidator is not in terms of a given collateral token
+// but rather represented as a discount on the liquidated position's price based on the twap
+
 /**
  * @title Module for liquidated accounts
  * @dev See ILiquidationModule
@@ -45,6 +50,20 @@ contract LiquidationModule is ILiquidationModule {
     ) {
         Account.Data storage account = Account.load(accountId);
         return account.isLiquidatable(collateralType);
+    }
+
+
+    /**
+     * @inheritdoc ILiquidationModule
+     */
+    function isLiquidatableAllCollaterals(uint128 accountId) external view override returns (
+        bool liquidatable,
+        uint256 initialMarginRequirementInUSD,
+        uint256 liquidationMarginRequirementInUSD,
+        uint256 highestUnrealizedLossInUSD
+    ) {
+        Account.Data storage account = Account.load(accountId);
+        return account.isLiquidatableAllCollaterals();
     }
 
 
@@ -85,9 +104,13 @@ contract LiquidationModule is ILiquidationModule {
         external
         returns (uint256 liquidatorRewardAmount)
     {
-        // todo: needs review alongside Artur A + IR flagged a potential issue with the liquidation flow
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(liquidatedAccountId);
+
+        if (account.isMultiToken) {
+            revert AccountIsMultiToken(liquidatedAccountId);
+        }
+
         (bool liquidatable, uint256 imPreClose,,uint256 highestUnrealizedLossPreClose) = account.isLiquidatable(collateralType);
 
         if (!liquidatable) {

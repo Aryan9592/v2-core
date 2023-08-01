@@ -19,6 +19,14 @@ interface IProductModule {
     error IncorrectProductInterface(address product);
 
     /**
+     * @notice Thrown when an attempt to propagate an order with a product with which the account cannot engage
+     * @dev A given account can either engage with any combination of trusted products or just a single
+     * trustless product.
+     */
+    // todo: consider if more information needs to be included in this error beyond accountId and productId
+    error AccountCannotEngageWithProduct(uint128 accountId, uint128 productId);
+
+    /**
      * @notice Emitted when a new product is registered in the protocol.
      * @param product The address of the product that was registered in the system.
      * @param productId The id with which the product was registered in the system.
@@ -57,9 +65,12 @@ interface IProductModule {
      * @notice Connects a product to the system.
      * @dev Creates a product object to track the product, and returns the newly created product id.
      * @param product The address of the product that is to be registered in the system.
+     * @param isTrusted Whether the product is trusted or not.
+     * @dev Note, trusted products can only be registered by those who have access to _REGISTER_PRODUCT_FEATURE_FLAG
+     * @dev On the other hand, trustless products can be registered by anyone
      * @return newProductId The id with which the product will be registered in the system.
      */
-    function registerProduct(address product, string memory name) external returns (uint128 newProductId);
+    function registerProduct(address product, string memory name, bool isTrusted) external returns (uint128 newProductId);
 
     /// @notice attempts to close all the unfilled and filled positions of a given account in a given product (productId)
     function closeAccount(uint128 productId, uint128 accountId, address collateralType) external;

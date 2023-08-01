@@ -101,6 +101,19 @@ contract MockProduct is IProduct {
         );
     }
 
+    function getAccountTakerAndMakerExposuresAllCollaterals(uint128 accountId)
+    public
+    view
+    returns (
+        Account.Exposure[] memory takerExposures,
+        Account.Exposure[] memory makerLowerExposures,
+        Account.Exposure[] memory makerUpperExposures
+    )
+    {
+        // todo: needs implementation
+    }
+
+
     // supportsInterface mock support
     function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165) returns (bool) {
         return interfaceId == type(IProduct).interfaceId || interfaceId == this.supportsInterface.selector;

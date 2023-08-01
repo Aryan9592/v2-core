@@ -47,19 +47,22 @@ library ProductCreator {
      * tracks, resulting in multiple ids for the same address.
      * For example if a given Product works across maturities, each maturity internally will be represented as a unique Product id
      */
-    function create(address productAddress, string memory name, address owner)
+    function create(address productAddress, string memory name, address owner, bool isTrusted)
         internal
         returns (Product.Data storage product)
     {
         Data storage productStore = getProductStore();
 
         uint128 id = productStore.lastCreatedProductId + 1;
+        // todo: need to make sure this value never gets to max uint128 since that's reserved for (AN)
+        // identifying accounts that do not trust any trustless instrument (see Account.sol)
         product = Product.load(id);
 
         product.id = id;
         product.productAddress = productAddress;
         product.name = name;
         product.owner = owner;
+        product.isTrusted = isTrusted;
         productStore.lastCreatedProductId = id;
 
         loadIdsByAddress(productAddress).push(id);
@@ -73,6 +76,7 @@ library ProductCreator {
      * could be associated to a single external contract address.
      */
     function loadIdsByAddress(address productAddress) internal view returns (uint128[] storage ids) {
+        // todo: not sure if there is a good reason for having multiple products represented by a single contract (AN)
         return getProductStore().productIdsForAddress[productAddress];
     }
 }

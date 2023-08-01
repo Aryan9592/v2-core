@@ -28,7 +28,7 @@ contract EnhancedProductModule is ProductModule, CoreState {
         returns (uint128 productId, uint128 marketId)
     {
         products.push(new MockProduct(productName));
-        productId = mockProduct(address(products[products.length - 1]), productName, Constants.PRODUCT_OWNER);
+        productId = mockProduct(address(products[products.length - 1]), productName, Constants.PRODUCT_OWNER, true);
         marketId = productId * 10;
         MarketFeeConfiguration.set(
             MarketFeeConfiguration.Data({
@@ -86,7 +86,7 @@ contract ProductModuleTest is Test {
             block.timestamp
         );
 
-        productModule.registerProduct(address(product3), "Product 3");
+        productModule.registerProduct(address(product3), "Product 3", true);
     }
 
     function test_RevertWhen_RegisterProduct_Global_Deny_All() public {
@@ -100,20 +100,20 @@ contract ProductModuleTest is Test {
             )
         );
 
-        productModule.registerProduct(address(product3), "Product 3");
+        productModule.registerProduct(address(product3), "Product 3", true);
     }
 
     function test_RevertWhen_RegisterProduct_NoPermission() public {
         MockProduct product3 = new MockProduct("Product 3");
 
         vm.expectRevert(abi.encodeWithSelector(FeatureFlag.FeatureUnavailable.selector, bytes32("registerProduct")));
-        productModule.registerProduct(address(product3), "Product 3");
+        productModule.registerProduct(address(product3), "Product 3", true);
     }
 
     function test_RevertWhen_RegisterProduct_NoInterfaceSupport() public {
         vm.prank(Constants.PRODUCT_CREATOR);
         vm.expectRevert(abi.encodeWithSelector(IProductModule.IncorrectProductInterface.selector, address(232323)));
-        productModule.registerProduct(address(232323), "Product 3");
+        productModule.registerProduct(address(232323), "Product 3", true);
     }
 
     function test_CloseAccount() public {

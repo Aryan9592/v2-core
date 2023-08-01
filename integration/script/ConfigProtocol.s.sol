@@ -115,7 +115,8 @@ contract ConfigProtocol is SetupProtocol {
     });
 
     registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1
+      takerPositionsPerAccountLimit: 1,
+      isTrusted: true
     });
 
     configureMarket({
@@ -206,7 +207,8 @@ contract ConfigProtocol is SetupProtocol {
     });
 
     registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1
+      takerPositionsPerAccountLimit: 1,
+      isTrusted: true
     });
 
     configureMarket({
@@ -286,7 +288,8 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
     registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1
+      takerPositionsPerAccountLimit: 1,
+      isTrusted: true
     });
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
