@@ -16,6 +16,10 @@ contract MockProduct is IProduct {
         _name = productName;
     }
 
+    function name() public view override returns (string memory) {
+        return _name;
+    }
+
     mapping(uint128 => mapping(uint256 => uint256)) internal mockBaseToAnnualizedFactor;
 
     // getAccountAnnualizedExposures mock support

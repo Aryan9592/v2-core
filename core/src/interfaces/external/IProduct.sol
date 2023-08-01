@@ -13,6 +13,10 @@ import "../../storage/Account.sol";
 /// @title Interface a Product needs to adhere.
 interface IProduct is IERC165 {
     //// VIEW FUNCTIONS ////
+
+    /// @notice returns a human-readable name for a given product
+    function name() external view returns (string memory);
+
     /// @notice returns account taker and maker exposures for a given account and collateral type
     function getAccountTakerAndMakerExposures(uint128 accountId, address collateralType)
         external

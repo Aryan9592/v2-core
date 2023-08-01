@@ -128,10 +128,6 @@ contract ProductIRSModule is IProductIRSModule {
         return "Dated IRS Product";
     }
 
-
-    /**
-     * @inheritdoc IProduct
-     */
     function baseToAnnualizedExposure(
         int256[] memory baseAmounts,
         uint128 marketId,
