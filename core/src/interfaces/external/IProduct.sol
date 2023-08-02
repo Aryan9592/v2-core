@@ -12,23 +12,10 @@ import "../../storage/Account.sol";
 
 /// @title Interface a Product needs to adhere.
 interface IProduct is IERC165 {
-
-
     //// VIEW FUNCTIONS ////
 
     /// @notice returns a human-readable name for a given product
     function name() external view returns (string memory);
-
-    /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function baseToAnnualizedExposure(int256[] memory baseAmounts, uint128 marketId, uint32 maturityTimestamp)
-        external
-        view
-        returns (int256[] memory exposures);
 
     /// @notice returns account taker and maker exposures for a given account and collateral type
     function getAccountTakerAndMakerExposures(uint128 accountId, address collateralType)

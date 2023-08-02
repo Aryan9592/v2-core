@@ -22,8 +22,6 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { ud60x18, div, SD59x18, UD60x18 } from "@prb/math/UD60x18.sol";
 import { sd59x18, abs } from "@prb/math/SD59x18.sol";
 
-import "forge-std/console2.sol";
-
 contract MultiMarketsScenarios is TestUtils, BaseScenario {
   using SafeCastI256 for int256;
   using SafeCastU256 for uint256;
@@ -232,7 +230,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
 
     // PERIPHERY LP COMMAND
     int128 liquidity = extendedPoolModule.getLiquidityForBase(tickLower, tickUpper, baseAmount);
-    console2.log("liquidity", liquidity);
+
     bytes memory commands = abi.encodePacked(
         bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)),
         bytes1(uint8(Commands.TRANSFER_FROM)),
@@ -357,18 +355,8 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
         m.highestUnrealizedLoss
       ) = coreProxy.isLiquidatable(accountId, address(token));
 
-      console2.log("liquidatable", m.liquidatable);
-      console2.log("initialMarginRequirement", m.initialMarginRequirement);
-      console2.log("liquidationMarginRequirement", m.liquidationMarginRequirement);
-      console2.log("highestUnrealizedLoss",m.highestUnrealizedLoss);
-
       (u.unfilledBaseLong, u.unfilledBaseShort, u.unfilledQuoteLong, u.unfilledQuoteShort) =
       vammProxy.getAccountUnfilledBaseAndQuote(_marketId, _maturityTimestamp, accountId);
-
-      console2.log("unfilledBaseLong", u.unfilledBaseLong);
-      console2.log("unfilledQuoteLong", u.unfilledQuoteLong);
-      console2.log("unfilledBaseShort", u.unfilledBaseShort);
-      console2.log("unfilledQuoteShort", u.unfilledQuoteShort);
 
       assertEq(uint256(executedAmounts.baseAmount), u.unfilledBaseLong+u.unfilledBaseShort + 1, "unfilledBase");
       assertEq(m.liquidatable, false, "liquidatable");
@@ -380,18 +368,11 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       uint256 expectedLmrLower = (riskParam * baseLower) * currentLiquidityIndex * timeFactor(maturityTimestamp) / 1e54;
       uint256 expectedLmrUpper = (riskParam * baseUpper) * currentLiquidityIndex * timeFactor(maturityTimestamp) / 1e54;
 
-      console2.log("baseLower", baseLower);
-      console2.log("baseUpper", baseUpper);
-      console2.log("expectedLmrLower", expectedLmrLower);
-      console2.log("expectedLmrUpper", expectedLmrUpper);
-
       // calculate unrealized loss low
       uint256 unrealizedLossLower = absOrZero(u.unfilledQuoteShort.toInt() - 
         (baseLower * currentLiquidityIndex * (twap * timeFactor(maturityTimestamp) / 1e18 + 1e18) / 1e36).toInt());
       uint256 unrealizedLossUpper = absOrZero(-u.unfilledQuoteLong.toInt() + 
         (baseUpper * currentLiquidityIndex * (twap * timeFactor(maturityTimestamp) / 1e18 + 1e18) / 1e36).toInt());
-      console2.log("unrealizedLossLower", unrealizedLossLower);
-      console2.log("unrealizedLossUpper", unrealizedLossUpper);
 
       // todo: manually calculate liquidation margin requirement for lower and upper scenarios and compare to the above
       uint256 expectedUnrealizedLoss = unrealizedLossUpper;
@@ -427,11 +408,6 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
         m.highestUnrealizedLoss
       ) = coreProxy.isLiquidatable(accountId, address(token));
 
-      console2.log("liquidatable", m.liquidatable);
-      console2.log("initialMarginRequirement", m.initialMarginRequirement);
-      console2.log("liquidationMarginRequirement", m.liquidationMarginRequirement);
-      console2.log("highestUnrealizedLoss",m.highestUnrealizedLoss);
-
       (u.unfilledBaseLong, u.unfilledBaseShort, u.unfilledQuoteLong, u.unfilledQuoteShort) =
         vammProxy.getAccountUnfilledBaseAndQuote(_marketId, _maturityTimestamp, accountId);
 
@@ -444,14 +420,19 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       assertGe(m.initialMarginRequirement, m.liquidationMarginRequirement, "lmr");
 
       // calculate LMR
-      uint256 expectedLmr = (riskParam * absUtil(executedAmounts.executedBaseAmount)) * currentLiquidityIndex * timeFactor(maturityTimestamp) / 1e54;
-      console2.log("expectedLmr", expectedLmr);
+      uint256 expectedLmr = 
+        (riskParam * absUtil(executedAmounts.executedBaseAmount)) * 
+        currentLiquidityIndex * 
+        timeFactor(maturityTimestamp) / 1e54;
 
       // calculate unrealized loss low
       uint256 expectedUnrealizedLoss = absOrZero(executedAmounts.executedQuoteAmount + 
-        (executedAmounts.executedBaseAmount * currentLiquidityIndex.toInt() * (twap * timeFactor(maturityTimestamp) / 1e18 + 1e18).toInt() / 1e36));
+        (
+          executedAmounts.executedBaseAmount * 
+          currentLiquidityIndex.toInt() * 
+          (twap * timeFactor(maturityTimestamp) / 1e18 + 1e18).toInt() / 1e36)
+        );
 
-      console2.log("expectedUnrealizedLoss", expectedUnrealizedLoss);
       assertAlmostEq(expectedUnrealizedLoss.toInt(), m.highestUnrealizedLoss.toInt(), 1e5);
       assertAlmostEq(expectedLmr, m.liquidationMarginRequirement, 1e5);
       assertAlmostEq(expectedLmr * imMultiplier, m.initialMarginRequirement, 1e5);
@@ -537,7 +518,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     int24 tick = vammProxy.getVammTick(marketId, maturityTimestamp);
     uint256 twap = priceFromTick(tick) / 100;
     assertAlmostEq(4e16, twap.toInt(), 1e15); // 0.1% error
-    console2.log("CHECK LP ---------");
+
     (MarginData memory mBefore,) = checkImMaker(
       marketId,
         maturityTimestamp,
@@ -565,7 +546,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       marketId, maturityTimestamp, 
       500e18, 120
     ));
-    console2.log("CHECK TAKER ---------");
+
     checkImTaker(
       marketId,
         maturityTimestamp,
@@ -631,7 +612,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     );
 
     // check im
-    console2.log("CHECK LP ---------");
+
     (MarginData memory mBefore,) = checkImMaker(
       marketId,
         maturityTimestamp,
@@ -662,7 +643,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       marketId, maturityTimestamp, 
       -500e18, 120
     ));
-    console2.log("CHECK TAKER ---------"); 
+
     checkImTaker(
         marketId,
         maturityTimestamp,
@@ -677,7 +658,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     aaveLendingPool.setReserveNormalizedIncome(IERC20(token), ud60x18(2.8e18));
 
     // CHECK LP's margin data after some liquidity was consumed
-    console2.log("CHECK LP ---------"); 
+
     MarginData memory mAfterSwap;
     (
         mAfterSwap.liquidatable,
@@ -689,16 +670,12 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     // lmr 71.678952195079287421 hloss 449.845037907720900220
     // note lmr grows with liquidityIndex
     // if lmr grows such that the position becomes
-    console2.log("mAfterSwap.liquidatable", mAfterSwap.liquidatable);
-    console2.log("mAfterSwap.highestUnrealizedLoss", mAfterSwap.highestUnrealizedLoss);
-    console2.log("mAfterSwap.liquidationMarginRequirement", mAfterSwap.liquidationMarginRequirement);
 
     assertEq(mAfterSwap.liquidatable, true);
     assertGt(mAfterSwap.highestUnrealizedLoss, mBefore.highestUnrealizedLoss);
     // tick before was in the middle => modes towards 1 side => LMR is higher
     assertGt(mAfterSwap.liquidationMarginRequirement, mBefore.liquidationMarginRequirement);
 
-    console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
     coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
@@ -761,7 +738,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     );
 
     // check im
-    console2.log("CHECK LP ---------");
+
     checkImMaker(
       marketId,
         maturityTimestamp,
@@ -792,7 +769,7 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       marketId, maturityTimestamp, 
       50e18, 120
     ));
-    console2.log("CHECK TAKER ---------"); 
+
     (MarginData memory mBefore, )= checkImTaker(
         marketId,
         maturityTimestamp,
@@ -807,7 +784,6 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     aaveLendingPool.setReserveNormalizedIncome(IERC20(token), ud60x18(1.135e18));
 
     // CHECK LP's margin data after some liquidity was consumed
-    console2.log("CHECK TRADER ---------"); 
     MarginData memory mAfterVolatility;
     (
         mAfterVolatility.liquidatable,
@@ -818,9 +794,6 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
 
     // note lmr grows with liquidityIndex
     // if lmr grows such that the position becomes
-    console2.log("mAfterVolatility.liquidatable", mAfterVolatility.liquidatable);
-    console2.log("mAfterVolatility.highestUnrealizedLoss", mAfterVolatility.highestUnrealizedLoss);
-    console2.log("mAfterVolatility.liquidationMarginRequirement", mAfterVolatility.liquidationMarginRequirement);
 
     assertEq(mAfterVolatility.liquidatable, true);
     assertGt(mAfterVolatility.highestUnrealizedLoss, mBefore.highestUnrealizedLoss);
@@ -828,7 +801,6 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
     assertGt(mAfterVolatility.liquidationMarginRequirement, mBefore.liquidationMarginRequirement);
     uint256 marginBefore = coreProxy.getAccountCollateralBalance(2, address(token));
 
-    console2.log("-------- LIQUIDATION -------");
     vm.startPrank(vm.addr(4));
     redeemAccessPass(vm.addr(4), 1, 5);
     coreProxy.createAccount(4, vm.addr(4), type(uint128).max, false);
@@ -845,8 +817,6 @@ contract MultiMarketsScenarios is TestUtils, BaseScenario {
       mAfterVolatility.initialMarginRequirement + mAfterVolatility.highestUnrealizedLoss);
     
     // liq reward sent
-    console2.log(coreProxy.getAccountCollateralBalance(4, address(token)));
-    console2.log((-takerAmounts[0].executedBaseAmount).toUint() * 1.135e18 / 1e18 * timeFactor(maturityTimestamp) / 1e18 * 0.0002e18 / 1e18 );
 
     assertEq(coreProxy.getAccountCollateralBalance(2, address(token)), 
       marginBefore -

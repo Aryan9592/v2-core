@@ -477,7 +477,9 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
     assertGe(expFilledBase * liquidityIndex.toInt() / WAD.toInt() , (lpExposureFilledAfter - eps).toInt(), "f l");
     assertLe(expFilledBase * liquidityIndex.toInt() / WAD.toInt(), (lpExposureFilledAfter + eps).toInt(), "f l");
 
-    (uint256 expUnfilledBaseLong,uint256 expUnfilledBaseShort,,) = vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 1);
+    (uint256 expUnfilledBaseLong,uint256 expUnfilledBaseShort,,) = 
+      vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 1);
+  
     assertGe(
       expUnfilledBaseShort * liquidityTimeFactor.toUint() / WAD,
       (lpUnfilledExposureShort < 0 ? (-lpUnfilledExposureShort).toUint() : lpUnfilledExposureShort.toUint()) - eps,
@@ -492,7 +494,9 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
       expUnfilledBaseLong,
       0);
 
-    (uint256 expUnfilledBaseLongTrader,uint256 expUnfilledBaseShortTrader,,) = vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 2);
+    (uint256 expUnfilledBaseLongTrader,uint256 expUnfilledBaseShortTrader,,) = 
+      vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 2);
+    
     assertEq(expUnfilledBaseShortTrader, 0);
     assertEq(expUnfilledBaseLongTrader, 0);
 
@@ -592,7 +596,9 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
     assertGe(expFilledBase * liquidityIndex.toInt() / WAD.toInt() , -(lpExposureFilledAfter + eps).toInt(), "f l");
     assertLe(expFilledBase * liquidityIndex.toInt() / WAD.toInt(), -(lpExposureFilledAfter - eps).toInt(), "f l");
 
-    (uint256 expUnfilledBaseLong,uint256 expUnfilledBaseShort,,) = vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 1);
+    (uint256 expUnfilledBaseLong,uint256 expUnfilledBaseShort,,) = 
+      vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 1);
+    
     assertGe(
       expUnfilledBaseLong * liquidityTimeFactor.toUint() / WAD,
       (lpUnfilledExposureLong < 0 ? (-lpUnfilledExposureLong).toUint() : lpUnfilledExposureLong.toUint()) - eps,
@@ -612,7 +618,9 @@ contract AtomicScenarios is BaseScenario, TestUtils, ExposureUtil {
     (int256 expFilledBaseTrader,) = vammProxy.getAccountFilledBalances(marketId, maturityTimestamp, 2);
     assertEq(expFilledBaseTrader, 0);
 
-    (uint256 expUnfilledBaseLongTrader,uint256 expUnfilledBaseShortTrader,,) = vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 2);
+    (uint256 expUnfilledBaseLongTrader,uint256 expUnfilledBaseShortTrader,,) = 
+      vammProxy.getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, 2);
+    
     assertEq(expUnfilledBaseShortTrader, 0);
     assertEq(expUnfilledBaseLongTrader, 0);
   }

@@ -326,14 +326,15 @@ contract ScenarioHelper is Test, SetupProtocol, TestUtils {
         // calculate LMR
         // todo: replace 1 with protocolId
         uint256 riskParam = UD60x18.unwrap(contracts.coreProxy.getMarketRiskConfiguration(1, p._marketId).riskParameter);
-        uint256 expectedLmr = (riskParam * absUtil(p.takerAmounts.executedBaseAmount)) * currentLiquidityIndex * timeFactor(p._maturityTimestamp) / 1e54;
-        // console2.log("expectedLmr", expectedLmr);
+        uint256 expectedLmr = 
+            (riskParam * absUtil(p.takerAmounts.executedBaseAmount)) * 
+                currentLiquidityIndex * timeFactor(p._maturityTimestamp) / 1e54;
 
         // calculate unrealized loss low
         uint256 expectedUnrealizedLoss = absOrZero(p.takerAmounts.executedQuoteAmount + 
-            (p.takerAmounts.executedBaseAmount * currentLiquidityIndex.toInt() * (p.twap * timeFactor(p._maturityTimestamp) / 1e18 + 1e18).toInt() / 1e36));
+            (p.takerAmounts.executedBaseAmount * currentLiquidityIndex.toInt() * 
+                (p.twap * timeFactor(p._maturityTimestamp) / 1e18 + 1e18).toInt() / 1e36));
 
-        // console2.log("expectedUnrealizedLoss", expectedUnrealizedLoss);
         uint256 imMultiplier = UD60x18.unwrap(contracts.coreProxy.getProtocolRiskConfiguration().imMultiplier);
         assertAlmostEq(expectedUnrealizedLoss.toInt(), m.highestUnrealizedLoss.toInt(), 1e5);
         assertAlmostEq(expectedLmr, m.liquidationMarginRequirement, 1e5);

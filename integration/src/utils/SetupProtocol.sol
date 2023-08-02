@@ -205,7 +205,8 @@ contract SetupProtocol is BatchScript {
   function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit, bool isTrusted) public {
     // predict product id
     uint128 productId;
-    try contracts.coreProxy.getLastCreatedProductId() returns (uint128 lastProductId) { // todo: alex remove try once mainent contracts are upgraded
+    try contracts.coreProxy.getLastCreatedProductId() 
+      returns (uint128 lastProductId) { // todo: alex remove try once mainent contracts are upgraded
       productId = lastProductId + 1;
     } catch {
       productId = 1;
@@ -213,7 +214,6 @@ contract SetupProtocol is BatchScript {
 
     // todo: alex add expected product id as arguments and check against it
     if (productId > 1) {
-      console2.log("WARNING, product id > 1! Will not register product");
       return;
     }
 
@@ -352,7 +352,8 @@ contract SetupProtocol is BatchScript {
     IRateOracle rateOracle = IRateOracle(params.rateOracleAddress);
 
     uint256 liquidationBooster = contracts.coreProxy.getCollateralConfiguration(params.tokenAddress).liquidationBooster;
-    uint256 accountLiquidationBoosterBalance = contracts.coreProxy.getAccountLiquidationBoosterBalance(params.accountId, params.tokenAddress);
+    uint256 accountLiquidationBoosterBalance = 
+      contracts.coreProxy.getAccountLiquidationBoosterBalance(params.accountId, params.tokenAddress);
 
     int256 baseAmount = sd59x18(params.notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
@@ -383,7 +384,8 @@ contract SetupProtocol is BatchScript {
       inputs[0] = abi.encode(params.accountId);
     }
 
-    inputs[inputs.length-3] = abi.encode(params.tokenAddress, params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
+    inputs[inputs.length-3] = 
+      abi.encode(params.tokenAddress, params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
     inputs[inputs.length-2] = abi.encode(params.accountId, params.tokenAddress, params.marginAmount);
     inputs[inputs.length-1] = abi.encode(
       params.accountId,
