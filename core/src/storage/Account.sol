@@ -13,7 +13,6 @@ import "./CollateralConfiguration.sol";
 import "./AccountRBAC.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "./Collateral.sol";
 import "./Product.sol";
 
 import "oz/utils/math/Math.sol";
@@ -69,6 +68,39 @@ library Account {
      */
     error AccountNotFound(uint128 accountId);
 
+    /**
+     * @dev Thrown when an account does not have sufficient collateral.
+     */
+    error InsufficientCollateral(uint128 accountId, address collateralType, uint256 requestedAmount);
+
+    /**
+     * @dev Thrown when an account does not have sufficient collateral.
+     */
+    error InsufficientLiquidationBoosterBalance(uint128 accountId, address collateralType, uint256 requestedAmount);
+
+    /**
+     * @notice Emitted when collateral balance of account token with id `accountId` is updated.
+     * @param accountId The id of the account.
+     * @param collateralType The address of the collateral type.
+     * @param tokenAmount The change delta of the collateral balance.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event CollateralUpdate(uint128 indexed accountId, address indexed collateralType, int256 tokenAmount, uint256 blockTimestamp);
+
+    /**
+     * @notice Emitted when liquidator booster deposit of `accountId` is updated.
+     * @param accountId The id of the account.
+     * @param collateralType The address of the collateral type.
+     * @param tokenAmount The change delta of the collateral balance.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event LiquidatorBoosterUpdate(
+        uint128 indexed accountId, 
+        address indexed collateralType, 
+        int256 tokenAmount, 
+        uint256 blockTimestamp
+    );
+
     struct Data {
         /**
          * @dev Numeric identifier for the account. Must be unique.
@@ -82,7 +114,7 @@ library Account {
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => Collateral.Data) collaterals;
+        mapping(address => Collateral) collaterals;
         /**
          * @dev Ids of all the products in which the account has active positions
          */
@@ -112,7 +144,6 @@ library Account {
 
     }
 
-
     /**
      * @dev productId (IRS) -> marketID (aUSDC lend) -> maturity (30th December)
      * @dev productId (Dated Future) -> marketID (BTC) -> maturity (30th December)
@@ -130,8 +161,68 @@ library Account {
         address collateralType;
     }
 
+    /**
+    * @title Stores information about a deposited asset for a given account.
+    *
+    * Each account will have one of these objects for each type of collateral it deposited in the system.
+    */
+    struct Collateral {
+        /**
+         * @dev The net amount that is deposited in this collateral
+         */
+        uint256 balance;
+        /**
+         * @dev The amount of tokens the account has in liquidation booster. Max value is
+         * @dev liquidation booster defined in CollateralConfiguration.
+         */
+        uint256 liquidationBoosterBalance;
+    }
+
     //// STATE CHANGING FUNCTIONS ////
 
+    /**
+     * @dev Increments the account's collateral balance.
+     */
+    function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        self.collaterals[collateralType].balance += amount;
+
+        emit CollateralUpdate(self.id, collateralType, amount.toInt(), block.timestamp);
+    }
+
+    /**
+     * @dev Decrements the account's collateral balance.
+     */
+    function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        if (self.collaterals[collateralType].balance < amount) {
+            revert InsufficientCollateral(self.id, collateralType, amount);
+        }
+
+        self.collaterals[collateralType].balance -= amount;
+
+        emit CollateralUpdate(self.id, collateralType, -amount.toInt(), block.timestamp);
+    }
+
+    /**
+     * @dev Increments the account's liquidation booster balance.
+     */
+    function increaseLiquidationBoosterBalance(Data storage self, address collateralType, uint256 amount) internal {
+       self.collaterals[collateralType].liquidationBoosterBalance += amount;
+
+       emit LiquidatorBoosterUpdate(self.id, collateralType, amount.toInt(), block.timestamp);
+    }
+
+    /**
+     * @dev Decrements the account's liquidation booster balance.
+     */
+    function decreaseLiquidationBoosterBalance(Data storage self, address collateralType, uint256 amount) internal {
+        if (self.collaterals[collateralType].liquidationBoosterBalance < amount) {
+            revert InsufficientLiquidationBoosterBalance(self.id, collateralType, amount);
+        }
+
+        self.collaterals[collateralType].liquidationBoosterBalance -= amount;
+
+        emit LiquidatorBoosterUpdate(self.id, collateralType, -amount.toInt(), block.timestamp);
+    }
 
     /**
      * @dev Creates an account for the given id, and associates it to the given owner.

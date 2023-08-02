@@ -13,7 +13,6 @@ import "../storage/CollateralConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/errors/ParameterError.sol";
 import "../interfaces/ILiquidationModule.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "../storage/Collateral.sol";
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -36,7 +35,6 @@ contract LiquidationModule is ILiquidationModule {
     using Account for Account.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
-    using Collateral for Collateral.Data;
 
     bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
@@ -82,20 +80,14 @@ contract LiquidationModule is ILiquidationModule {
 
         if (mulUDxUint(liquidatorRewardParameter, coverPreClose) >= liquidationBooster) {
             liquidatorRewardAmount = mulUDxUint(liquidatorRewardParameter, coverPreClose - coverPostClose);
-            account.collaterals[collateralType].decreaseCollateralBalance(liquidatorRewardAmount);
-            emit Collateral.CollateralUpdate(
-                liquidatedAccountId, collateralType, -liquidatorRewardAmount.toInt(), block.timestamp
-            );
+            account.decreaseCollateralBalance(collateralType, liquidatorRewardAmount);
         } else {
             if (coverPostClose != 0) {
                 revert PartialLiquidationNotIncentivized(liquidatedAccountId, coverPreClose, coverPostClose);
             }
 
             liquidatorRewardAmount = liquidationBooster;
-            account.collaterals[collateralType].decreaseLiquidationBoosterBalance(liquidatorRewardAmount);
-            emit Collateral.LiquidatorBoosterUpdate(
-                liquidatedAccountId, collateralType, -liquidatorRewardAmount.toInt(), block.timestamp
-            );
+            account.decreaseLiquidationBoosterBalance(collateralType, liquidatorRewardAmount);
         }
     }
 
@@ -141,10 +133,7 @@ contract LiquidationModule is ILiquidationModule {
         );
 
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-        liquidatorAccount.collaterals[collateralType].increaseCollateralBalance(liquidatorRewardAmount);
-        emit Collateral.CollateralUpdate(
-            liquidatorAccountId, collateralType, liquidatorRewardAmount.toInt(), block.timestamp
-        );
+        liquidatorAccount.increaseCollateralBalance(collateralType, liquidatorRewardAmount);
 
         emit Liquidation(
             liquidatedAccountId,

@@ -30,7 +30,6 @@ contract ProductModule is IProductModule {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using AssociatedSystem for AssociatedSystem.Data;
-    using Collateral for Collateral.Data;
     using SetUtil for SetUtil.UintSet;
 
     bytes32 private constant _REGISTER_PRODUCT_FEATURE_FLAG = "registerProduct";
@@ -108,12 +107,10 @@ contract ProductModule is IProductModule {
         fee = mulUDxUint(atomicFee, SignedMath.abs(annualizedNotional));
 
         Account.Data storage payingAccount = Account.exists(payingAccountId);
-        payingAccount.collaterals[collateralType].decreaseCollateralBalance(fee);
-        emit Collateral.CollateralUpdate(payingAccountId, collateralType, -fee.toInt(), block.timestamp);
+        payingAccount.decreaseCollateralBalance(collateralType, fee);
 
         Account.Data storage receivingAccount = Account.exists(receivingAccountId);
-        receivingAccount.collaterals[collateralType].increaseCollateralBalance(fee);
-        emit Collateral.CollateralUpdate(receivingAccountId, collateralType, fee.toInt(), block.timestamp);
+        receivingAccount.increaseCollateralBalance(collateralType, fee);
     }
 
     function checkAccountCanEngageWithProduct(
@@ -221,11 +218,9 @@ contract ProductModule is IProductModule {
 
         Account.Data storage account = Account.exists(accountId);
         if (amount > 0) {
-            account.collaterals[collateralType].increaseCollateralBalance(amount.toUint());
-            emit Collateral.CollateralUpdate(accountId, collateralType, amount, block.timestamp);
+            account.increaseCollateralBalance(collateralType, amount.toUint());
         } else {
-            account.collaterals[collateralType].decreaseCollateralBalance((-amount).toUint());
-            emit Collateral.CollateralUpdate(accountId, collateralType, amount, block.timestamp);
+            account.decreaseCollateralBalance(collateralType, (-amount).toUint());
         }
 
     }
