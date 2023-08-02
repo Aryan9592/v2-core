@@ -595,6 +595,18 @@ library Account {
         }
     }
 
+
+    function isEligibleForAutoExchange(Data storage self) internal view returns (bool) {
+
+        // note, only applies to multi-token accounts
+        // todo: needs to be exposed via e.g. the account module
+        // todo: needs implementation -> within this need to take into account product -> market changes
+
+        return false;
+
+    }
+
+
     //// PURE FUNCTIONS ////
 
     /**

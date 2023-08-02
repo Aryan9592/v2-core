@@ -18,6 +18,8 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
+// todo: consider introducing explicit reetrancy guards across the protocol
+// todo: funnel a portfion of profits from liquidations to the default fund (nedes more research) (AB)
 // todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable (AB)
 // todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support (AB)
 // position transferring liquidations where the incentive of the liquidator is not in terms of a given collateral token
