@@ -36,14 +36,17 @@ library CollateralConfiguration {
          * @dev Allows the owner to control deposits and delegation of collateral types.
          */
         bool depositingEnabled;
+
         /**
          * @dev Amount of tokens to award when a small account is liquidated.
          */
         uint256 liquidationBooster;
+
         /**
          * @dev The token address for this collateral type.
          */
         address tokenAddress;
+        
         /**
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
