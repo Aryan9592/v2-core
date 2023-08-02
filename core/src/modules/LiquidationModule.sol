@@ -52,21 +52,6 @@ contract LiquidationModule is ILiquidationModule {
         return account.isLiquidatable(collateralType);
     }
 
-
-    /**
-     * @inheritdoc ILiquidationModule
-     */
-    function isLiquidatableAllCollaterals(uint128 accountId) external view override returns (
-        bool liquidatable,
-        uint256 initialMarginRequirementInUSD,
-        uint256 liquidationMarginRequirementInUSD,
-        uint256 highestUnrealizedLossInUSD
-    ) {
-        Account.Data storage account = Account.load(accountId);
-        return account.isLiquidatableAllCollaterals();
-    }
-
-
     function extractLiquidatorReward(
         uint128 liquidatedAccountId,
         address collateralType,

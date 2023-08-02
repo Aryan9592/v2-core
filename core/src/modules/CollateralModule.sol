@@ -99,11 +99,7 @@ contract CollateralModule is ICollateralModule {
             account.decreaseCollateralBalance(collateralType, tokenAmount);
         }
 
-        if (account.isMultiToken) {
-            account.imCheckAllCollaterals();
-        } else {
-            account.imCheck(collateralType);
-        }
+        account.imCheck(collateralType);
 
         collateralType.safeTransfer(msg.sender, tokenAmount);
 
