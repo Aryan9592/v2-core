@@ -138,7 +138,7 @@ contract ProductIRSModule is IProductIRSModule {
         returns (int256[] memory exposures)
     {
         exposures = new int256[](baseAmounts.length);
-        exposures = Portfolio.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
+        exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
     }
 
     /**
@@ -177,7 +177,9 @@ contract ProductIRSModule is IProductIRSModule {
         Account.Exposure[] memory makerExposuresUpper
     )
     {
-        // todo: needs implementation (IR)
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId);
+        address poolAddress = ProductConfiguration.getPoolAddress();
+        return portfolio.getAccountTakerAndMakerExposuresAllCollaterals(poolAddress);
     }
 
     /**
