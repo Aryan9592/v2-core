@@ -7,15 +7,15 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "./Portfolio.sol";
+import "../storage/Portfolio.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "./RateOracleReader.sol";
+import "../storage/RateOracleReader.sol";
 import "../interfaces/IPool.sol";
 import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import "./ProductConfiguration.sol";
+import "../storage/ProductConfiguration.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -105,7 +105,7 @@ library ExposureHelpers {
         }
     }
 
-    function getTraderExposureInPool(
+    function getOnlyFilledExposureInPool(
         Portfolio.PoolExposureState memory poolState,
         address poolAddress,
         address collateralType,
@@ -127,7 +127,7 @@ library ExposureHelpers {
         });
     }
 
-    function getMakerShortExposureInPool(
+    function getUnfilledExposureLowerInPool(
         Portfolio.PoolExposureState memory poolState,
         address poolAddress,
         address collateralType,
@@ -152,7 +152,7 @@ library ExposureHelpers {
         });
     }
 
-    function getMakerLongExposureInPool(
+    function getUnfilledExposureUpperInPool(
         Portfolio.PoolExposureState memory poolState,
         address poolAddress,
         address collateralType,
