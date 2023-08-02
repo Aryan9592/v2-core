@@ -17,7 +17,7 @@ import "./RateOracleReader.sol";
 import "./MarketConfiguration.sol";
 import "./ProductConfiguration.sol";
 import "../interfaces/IPool.sol";
-import "./ExposureHelpers.sol";
+import "../libraries/ExposureHelpers.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
 import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
@@ -178,14 +178,14 @@ library Portfolio {
             if (poolState.unfilledBaseLong == 0 && poolState.unfilledBaseShort == 0) {
                 // no unfilled exposures => only consider taker exposures
                 initExposures.taker[collateralState.takerExposuresLength] = 
-                    ExposureHelpers.getTraderExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getOnlyFilledExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
                 collateralState.takerExposuresLength = collateralState.takerExposuresLength + 1;
             } else {
                 // unfilled exposures => consider maker lower
                 initExposures.makerLower[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getMakerShortExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress, collateralType, collateralState.productId);
                 initExposures.makerUpper[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getMakerLongExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress, collateralType, collateralState.productId);
 
                 collateralState.makerExposuresLowerAndUpperLength = collateralState.makerExposuresLowerAndUpperLength + 1;
             }
