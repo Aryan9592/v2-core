@@ -60,7 +60,8 @@
         "community",
         "integration",
         "access-pass-nft",
-        "oracle-manager"
+        "oracle-manager",
+        "exchanges/vamm"
     ],
     "engines": {
         "node": "^18.14.0",

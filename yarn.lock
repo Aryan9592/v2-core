@@ -1621,26 +1621,13 @@ __metadata:
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
-    "@voltz-protocol/v2-vamm": 1.21.0
+    "@voltz-protocol/v2-vamm": "workspace:^"
     lcov-badge-generator: 1.0.5
     prettier: 2.8.4
     semantic-release: ^20.1.1
     solhint: 3.4.0
   languageName: unknown
   linkType: soft
-
-"@voltz-protocol/core@npm:2.3.0, @voltz-protocol/core@npm:^2.3.0":
-  version: 2.3.0
-  resolution: "@voltz-protocol/core@npm:2.3.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40voltz-protocol%2Fcore%2F2.3.0%2Fa9d6a6475832a40402cef37495ed3fa423127347"
-  dependencies:
-    "@openzeppelin/contracts": 4.9.2
-    "@prb/math": 3.3.0
-    "@prb/test": ^0.6.0
-    "@voltz-protocol/util-contracts": ^1.2.0
-    "@voltz-protocol/util-modules": ^1.1.0
-  checksum: 045a19bf25ffdb7fb3e8150f2b228f6bb0b8ad5a9e8cce3d1784aba197dbd061f66e30332fce83cc32fbd6434a53c12dfe08a8710f9b5b035258346b922421e7
-  languageName: node
-  linkType: hard
 
 "@voltz-protocol/core@workspace:^, @voltz-protocol/core@workspace:core":
   version: 0.0.0-use.local
@@ -1674,7 +1661,7 @@ __metadata:
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
-    "@voltz-protocol/v2-vamm": 1.21.0
+    "@voltz-protocol/v2-vamm": "workspace:^"
     lcov-badge-generator: 1.0.5
     prettier: 2.8.4
     semantic-release: ^20.1.1
@@ -1713,7 +1700,7 @@ __metadata:
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
-    "@voltz-protocol/v2-vamm": 1.21.0
+    "@voltz-protocol/v2-vamm": "workspace:^"
     lcov-badge-generator: 1.0.5
     prettier: 2.8.4
     semantic-release: ^20.1.1
@@ -1721,20 +1708,6 @@ __metadata:
     solmate: 6.7.0
   languageName: unknown
   linkType: soft
-
-"@voltz-protocol/products-dated-irs@npm:2.4.0":
-  version: 2.4.0
-  resolution: "@voltz-protocol/products-dated-irs@npm:2.4.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40voltz-protocol%2Fproducts-dated-irs%2F2.4.0%2F54a18eb7a845034063cbf3d89502f1d4b8c9a323"
-  dependencies:
-    "@openzeppelin/contracts": 4.9.2
-    "@prb/math": 3.3.0
-    "@prb/test": ^0.6.0
-    "@voltz-protocol/core": ^2.3.0
-    "@voltz-protocol/util-contracts": ^1.2.0
-    "@voltz-protocol/util-modules": ^1.1.0
-  checksum: 74f3917b0ae0c479a6ca5f5251b07b933f855aaad97327f28e4f9566657b659e415a366d61b54c69681b5044f7bf64ebed43f1e269dcedee09577df7d9db1bea
-  languageName: node
-  linkType: hard
 
 "@voltz-protocol/products-dated-irs@workspace:^, @voltz-protocol/products-dated-irs@workspace:products/dated-irs":
   version: 0.0.0-use.local
@@ -1752,7 +1725,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@voltz-protocol/util-contracts@^1.2.0, @voltz-protocol/util-contracts@workspace:^, @voltz-protocol/util-contracts@workspace:utils/contracts":
+"@voltz-protocol/util-contracts@workspace:^, @voltz-protocol/util-contracts@workspace:utils/contracts":
   version: 0.0.0-use.local
   resolution: "@voltz-protocol/util-contracts@workspace:utils/contracts"
   dependencies:
@@ -1761,16 +1734,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@voltz-protocol/util-contracts@npm:1.3.0":
-  version: 1.3.0
-  resolution: "@voltz-protocol/util-contracts@npm:1.3.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40voltz-protocol%2Futil-contracts%2F1.3.0%2Fdbaf6784e11d2a7e480e74bc2345d767fdb88b34"
-  dependencies:
-    "@prb/math": 3.0.0
-  checksum: d77877e493ef0627f7197e4007858aa97f3d2b879b7ec6e43349de7dbbdc79ee89ddf3125099edb5dc2e92502fef19bff6acf1c84e2cce30d561009ed9acacf0
-  languageName: node
-  linkType: hard
-
-"@voltz-protocol/util-modules@^1.1.0, @voltz-protocol/util-modules@workspace:^, @voltz-protocol/util-modules@workspace:utils/modules":
+"@voltz-protocol/util-modules@workspace:^, @voltz-protocol/util-modules@workspace:utils/modules":
   version: 0.0.0-use.local
   resolution: "@voltz-protocol/util-modules@workspace:utils/modules"
   dependencies:
@@ -1779,26 +1743,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@voltz-protocol/util-modules@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@voltz-protocol/util-modules@npm:1.2.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40voltz-protocol%2Futil-modules%2F1.2.0%2Fb20238cfd3bd206b5e0f6c3a13e4fc15e2563fa8"
-  checksum: 8e9109734b03f99ac352c78c71c08d74c889d49d68671b0bc40a5a0cb367a5c919460cb590ddbe21af46530d3894c1839e1579ffb2b5f786701b73cf626d286c
-  languageName: node
-  linkType: hard
-
-"@voltz-protocol/v2-vamm@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@voltz-protocol/v2-vamm@npm:1.21.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40voltz-protocol%2Fv2-vamm%2F1.21.0%2F03699d424b329fdf7729edb09b4de768c6c67c24"
+"@voltz-protocol/v2-vamm@workspace:^, @voltz-protocol/v2-vamm@workspace:exchanges/vamm":
+  version: 0.0.0-use.local
+  resolution: "@voltz-protocol/v2-vamm@workspace:exchanges/vamm"
   dependencies:
     "@openzeppelin/contracts": 4.9.2
     "@prb/math": 3.3.0
-    "@voltz-protocol/core": 2.3.0
-    "@voltz-protocol/products-dated-irs": 2.4.0
-    "@voltz-protocol/util-contracts": 1.3.0
-    "@voltz-protocol/util-modules": 1.2.0
-  checksum: 64af162f2767f76f6bb2d4706124da1cfefbada2a48403d1df5efe65683c50a687003ca5e103786e9b42fd65c8564c46dd858fe5b6a40f6ce3cd6bd17a521284
-  languageName: node
-  linkType: hard
+    "@voltz-protocol/core": "workspace:^"
+    "@voltz-protocol/products-dated-irs": "workspace:^"
+    "@voltz-protocol/util-contracts": "workspace:^"
+    "@voltz-protocol/util-modules": "workspace:^"
+    lcov-badge-generator: 1.0.5
+    prettier: 2.8.4
+    solhint: 3.4.0
+  languageName: unknown
+  linkType: soft
 
 "JSONStream@npm:^1.0.4":
   version: 1.3.5
