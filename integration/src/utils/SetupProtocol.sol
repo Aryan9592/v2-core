@@ -23,7 +23,7 @@ import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/ora
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 import {MarketConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketConfiguration.sol";
 
-import {VammConfiguration} from "@voltz-protocol/v2-vamm/utils/vamm-math/VammConfiguration.sol";
+import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
 import {Config} from "@voltz-protocol/periphery/src/storage/Config.sol";
 
@@ -35,8 +35,8 @@ import {UUPSImplementation} from "@voltz-protocol/util-contracts/src/proxy/UUPSI
 import {UD60x18, ud60x18} from "@prb/math/UD60x18.sol";
 import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 
-import {TickMath} from "@voltz-protocol/v2-vamm/utils/vamm-math/TickMath.sol";
-import {IRateOracle} from "@voltz-protocol/v2-vamm/utils/vamm-math/VammConfiguration.sol";
+import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
+import {IRateOracle} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
 import {Commands} from "@voltz-protocol/periphery/src/libraries/Commands.sol";
 import {IWETH9} from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";

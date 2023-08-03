@@ -118,7 +118,8 @@ library Tick {
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The tick that will be updated
     /// @param tickCurrent The current tick
-    /// @param liquidityDelta A new amount of liquidity to be added (subtracted) when tick is crossed from left to right (right to left)
+    /// @param liquidityDelta A new amount of liquidity to be added (subtracted) 
+    ///     when tick is crossed from left to right (right to left)
     /// @param quoteTokenGrowthGlobalX128 The quote token growth accumulated per unit of liquidity for the entire life of the vamm
     /// @param baseTokenGrowthGlobalX128 The variable token growth accumulated per unit of liquidity for the entire life of the vamm
     /// @param upper true for updating a position's upper tick, or false for updating a position's lower tick

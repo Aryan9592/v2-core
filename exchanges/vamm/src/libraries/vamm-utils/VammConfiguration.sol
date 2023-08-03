@@ -18,7 +18,8 @@ library VammConfiguration {
         UD60x18 priceImpactPhi;
         /// @dev the beta value to use when adjusting a TWAP price for the likely price impact of liquidation
         UD60x18 priceImpactBeta;
-        /// @dev the spread taken by LPs on each trade. As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
+        /// @dev the spread taken by LPs on each trade. 
+        ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
         UD60x18 spread;
         /// @dev rate oracle from which the vamm extracts the liquidity index
         IRateOracle rateOracle;
@@ -61,7 +62,8 @@ library VammConfiguration {
 
         /// Circular buffer of Oracle Observations. Resizable but no more than type(uint16).max slots in the buffer
         Oracle.Observation[65535] observations;
-        /// @dev Maps from an account address to a list of the position IDs of positions associated with that account address. Use the `positions` mapping to see full details of any given `LPPosition`.
+        /// @dev Maps from an account address to a list of the position IDs of positions associated with that account address. 
+        ///     Use the `positions` mapping to see full details of any given `LPPosition`.
         mapping(uint128 => uint128[]) positionsInAccount;
         /// @notice The currently in range liquidity available to the pool
         /// @dev This value has no relationship to the total liquidity across all ticks

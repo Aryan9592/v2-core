@@ -60,7 +60,8 @@ library DatedIrsVamm {
     }
 
     struct SwapParams {
-        /// @dev The amount of the swap in base tokens, which implicitly configures the swap as exact input (positive), or exact output (negative)
+        /// @dev The amount of the swap in base tokens, which implicitly configures the swap 
+        ///     as exact input (positive), or exact output (negative)
         int256 amountSpecified;
         /// @dev The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
         uint160 sqrtPriceLimitX96;
@@ -145,7 +146,8 @@ library DatedIrsVamm {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        (self.vars.observationCardinality, self.vars.observationCardinalityNext) = self.vars.observations.initialize(times, observedTicks);
+        (self.vars.observationCardinality, self.vars.observationCardinalityNext) = 
+            self.vars.observations.initialize(times, observedTicks);
         self.vars.observationIndex = self.vars.observationCardinality - 1;
         self.vars.unlocked = true;
         self.vars.tick = tick;
@@ -207,10 +209,12 @@ library DatedIrsVamm {
 
     /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderSize The order size to use when adjusting the price for price impact or spread. Must not be zero if either of the boolean params is true because it used to indicate the direction of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`
+    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
+    ///     Must not be zero if either of the boolean params is true because it used to indicate the direction of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`
     /// @param adjustForPriceImpact Whether or not to adjust the returned price by the VAMM's configured spread.
     /// @param adjustForSpread Whether or not to adjust the returned price by the VAMM's configured spread.
-    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. May return zero if adjustments would take the price to or below zero - e.g. when anticipated price impact is large because the order size is large.
+    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
+    ///     May return zero if adjustments would take the price to or below zero - e.g. when anticipated price impact is large because the order size is large.
     function twap(Data storage self, uint32 secondsAgo, int256 orderSize, bool adjustForPriceImpact,  bool adjustForSpread)
         internal
         view
@@ -296,7 +300,8 @@ library DatedIrsVamm {
     /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
     /// @param secondsAgos From how long ago each cumulative tick and liquidity value should be returned
     /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
-    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value as of each `secondsAgos` from the current block
+    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value 
+    ///     as of each `secondsAgos` from the current block
     /// timestamp
     function observe(
         Data storage self,
@@ -331,7 +336,13 @@ library DatedIrsVamm {
         );
          self.vars.observationCardinalityNext = observationCardinalityNextNew;
         if (observationCardinalityNextOld != observationCardinalityNextNew)
-            emit IncreaseObservationCardinalityNext(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp, observationCardinalityNextOld, observationCardinalityNextNew, block.timestamp);
+            emit IncreaseObservationCardinalityNext(
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp,
+                observationCardinalityNextOld,
+                observationCardinalityNextNew,
+                block.timestamp
+            );
     }
 
     /**
@@ -378,16 +389,30 @@ library DatedIrsVamm {
 
         _updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
 
-        emit VAMMBase.LiquidityChange(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp, msg.sender, accountId, tickLower, tickUpper, liquidityDelta, block.timestamp);
+        emit VAMMBase.LiquidityChange(
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
+            msg.sender,
+            accountId,
+            tickLower,
+            tickUpper,
+            liquidityDelta,
+            block.timestamp
+        );
     }
 
     /// @notice update position token balances and account for fees
     /// @dev if the _liquidity of the position supplied to this function is >0 then we
-    /// @dev 1. retrieve the fixed, variable and fee Growth variables from the vamm by invoking the computeGrowthInside function of the VAMM
-    /// @dev 2. calculate the deltas that need to be applied to the position's fixed and variable token balances by taking into account trades that took place in the VAMM since the last mint/poke/burn that invoked this function
-    /// @dev 3. update the fixed and variable token balances and the margin of the position to account for deltas (outlined above) and fees generated by the active liquidity supplied by the position
-    /// @dev 4. additionally, we need to update the last growth inside variables in the Position.Info struct so that we take a note that we've accounted for the changes up until this point
-    /// @dev if _liquidity of the position supplied to this function is zero, then we need to check if isMintBurn is set to true (if it is set to true) then we know this function was called post a mint/burn event,
+    /// @dev 1. retrieve the fixed, variable and fee Growth variables from the vamm by 
+    ///     invoking the computeGrowthInside function of the VAMM
+    /// @dev 2. calculate the deltas that need to be applied to the position's fixed and variable token balances 
+    ///     by taking into account trades that took place in the VAMM since the last mint/poke/burn that invoked this function
+    /// @dev 3. update the fixed and variable token balances and the margin of the position to account for deltas (outlined above) 
+    ///     and fees generated by the active liquidity supplied by the position
+    /// @dev 4. additionally, we need to update the last growth inside variables in the Position.Info struct 
+    ///     so that we take a note that we've accounted for the changes up until this point
+    /// @dev if _liquidity of the position supplied to this function is zero, 
+    ///     then we need to check if isMintBurn is set to true (if it is set to true) then we know this function was called post a mint/burn event,
     /// @dev meaning we still need to correctly update the last fixed, variable and fee growth variables in the Position.Info struct
     function updatePositionTokenBalances(
         Data storage self,
@@ -430,7 +455,8 @@ library DatedIrsVamm {
     }
 
     /// @dev Private but labelled internal for testability. Consumers of the library should use `executeDatedMakerOrder()`.
-    /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`) `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
+    /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`) 
+    ///     `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
     function _updateLiquidity(
         Data storage self,
         int24 tickLower,
@@ -484,7 +510,8 @@ library DatedIrsVamm {
         }
     }
 
-    /// @dev amountSpecified The amount of the swap in base tokens, which implicitly configures the swap as exact input (positive), or exact output (negative)
+    /// @dev amountSpecified The amount of the swap in base tokens, 
+    ///     which implicitly configures the swap as exact input (positive), or exact output (negative)
     /// @dev sqrtPriceLimitX96 The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
     function vammSwap(
         Data storage self,
@@ -517,7 +544,8 @@ library DatedIrsVamm {
         vammMinMaxTicks[0] = self.mutableConfig.minTick;
         vammMinMaxTicks[1] = self.mutableConfig.maxTick;
 
-        // continue swapping as long as we haven't used the entire input/output and haven't reached the price (implied fixed rate) limit
+        // continue swapping as long as we haven't used the entire input/output and haven't 
+        //     reached the price (implied fixed rate) limit
         while (
             state.amountSpecifiedRemaining != 0 &&
             state.sqrtPriceX96 != params.sqrtPriceLimitX96
@@ -528,8 +556,10 @@ library DatedIrsVamm {
 
             step.sqrtPriceStartX96 = state.sqrtPriceX96;
 
-            /// @dev if isFT (fixed taker) (moving right to left), the nextInitializedTick should be more than or equal to the current tick
-            /// @dev if !isFT (variable taker) (moving left to right), the nextInitializedTick should be less than or equal to the current tick
+            /// @dev if isFT (fixed taker) (moving right to left), 
+            ///     the nextInitializedTick should be more than or equal to the current tick
+            /// @dev if !isFT (variable taker) (moving left to right), 
+            ///     the nextInitializedTick should be less than or equal to the current tick
             /// add a test for the statement that checks for the above two conditions
             (step.tickNext, step.initialized) = self.vars._tickBitmap
                 .nextInitializedTickWithinOneWord(state.tick, self.immutableConfig._tickSpacing, !(params.amountSpecified > 0));
@@ -547,8 +577,10 @@ library DatedIrsVamm {
             ///// GET SWAP RESULTS /////
 
             // compute values to swap to the target tick, price limit, or point where input/output amount is exhausted
-            /// @dev for a Fixed Taker (isFT) if the sqrtPriceNextX96 is larger than the limit, then the target price passed into computeSwapStep is sqrtPriceLimitX96
-            /// @dev for a Variable Taker (!isFT) if the sqrtPriceNextX96 is lower than the limit, then the target price passed into computeSwapStep is sqrtPriceLimitX96
+            /// @dev for a Fixed Taker (isFT) if the sqrtPriceNextX96 is larger than the limit, 
+            ///     then the target price passed into computeSwapStep is sqrtPriceLimitX96
+            /// @dev for a Variable Taker (!isFT) if the sqrtPriceNextX96 is lower than the limit, 
+            ///     then the target price passed into computeSwapStep is sqrtPriceLimitX96
             (
                 state.sqrtPriceX96,
                 step.amountIn,
@@ -556,7 +588,11 @@ library DatedIrsVamm {
             ) = SwapMath.computeSwapStep(
                 SwapMath.SwapStepParams({
                     sqrtRatioCurrentX96: state.sqrtPriceX96,
-                    sqrtRatioTargetX96: VAMMBase.getSqrtRatioTargetX96(params.amountSpecified, step.sqrtPriceNextX96, params.sqrtPriceLimitX96),
+                    sqrtRatioTargetX96: VAMMBase.getSqrtRatioTargetX96(
+                        params.amountSpecified,
+                        step.sqrtPriceNextX96,
+                        params.sqrtPriceLimitX96
+                    ),
                     liquidity: state.liquidity,
                     amountRemaining: state.amountSpecifiedRemaining,
                     timeToMaturityInSeconds: secondsTillMaturity
@@ -651,7 +687,12 @@ library DatedIrsVamm {
         self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
         self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
 
-        emit VAMMBase.VAMMPriceChange(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp, self.vars.tick, block.timestamp);
+        emit VAMMBase.VAMMPriceChange(
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
+            self.vars.tick,
+            block.timestamp
+        );
 
         emit VAMMBase.Swap(
             self.immutableConfig.marketId,
@@ -669,8 +710,10 @@ library DatedIrsVamm {
 
     /// @notice For a given LP account, how much liquidity is available to trade in each direction.
     /// @param accountId The LP account. All positions within the account will be considered.
-    /// @return unfilledBaseLong The base tokens available for a trader to take a long position against this LP (which will then become a short position for the LP) 
-    /// @return unfilledBaseShort The base tokens available for a trader to take a short position against this LP (which will then become a long position for the LP) 
+    /// @return unfilledBaseLong The base tokens available for a trader to take 
+    ///     a long position against this LP (which will then become a short position for the LP) 
+    /// @return unfilledBaseShort The base tokens available for a trader to take 
+    ///      a short position against this LP (which will then become a long position for the LP) 
     function getAccountUnfilledBalances(
         Data storage self,
         uint128 accountId
@@ -729,7 +772,8 @@ library DatedIrsVamm {
         return ( unfilledLongBase, unfilledShortBase, unfilledLongQuote, unfilledShortQuote);
     }
 
-    // @dev For a given LP posiiton, how much of it is already traded and what are base and quote tokens representing those exiting trades?
+    /// @dev For a given LP posiiton, how much of it is already traded and what are base and 
+    /// quote tokens representing those exiting trades?
     function getAccountFilledBalances(
         Data storage self,
         uint128 accountId
@@ -744,7 +788,8 @@ library DatedIrsVamm {
             LPPosition.Data storage position = LPPosition.load(self.vars.positionsInAccount[accountId][i]);
             (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth) = 
                 growthBetweenTicks(self, position.tickLower, position.tickUpper);
-            (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = position.getUpdatedPositionBalances(trackerQuoteTokenGlobalGrowth, trackerBaseTokenGlobalGrowth); 
+            (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = 
+                position.getUpdatedPositionBalances(trackerQuoteTokenGlobalGrowth, trackerBaseTokenGlobalGrowth); 
 
             baseBalancePool += trackerBaseTokenAccumulated;
             quoteBalancePool += trackerQuoteTokenAccumulated;
@@ -903,8 +948,10 @@ library DatedIrsVamm {
                 self.vars._ticks[tickUpper].trackerBaseTokenGrowthOutsideX128;
         }
 
-        trackerQuoteTokenGrowthBetween = self.vars.trackerQuoteTokenGrowthGlobalX128 - trackerQuoteTokenBelowLowerTick - trackerQuoteTokenAboveUpperTick;
-        trackerBaseTokenGrowthBetween = self.vars.trackerBaseTokenGrowthGlobalX128 - trackerBaseTokenBelowLowerTick - trackerBaseTokenAboveUpperTick;
+        trackerQuoteTokenGrowthBetween = 
+            self.vars.trackerQuoteTokenGrowthGlobalX128 - trackerQuoteTokenBelowLowerTick - trackerQuoteTokenAboveUpperTick;
+        trackerBaseTokenGrowthBetween = 
+            self.vars.trackerBaseTokenGrowthGlobalX128 - trackerBaseTokenBelowLowerTick - trackerBaseTokenAboveUpperTick;
 
     }
 
@@ -1029,9 +1076,11 @@ library DatedIrsVamm {
         }
 
         /// @dev if a trader is an FT, they consume fixed in return for variable
-        /// @dev Movement from right to left along the VAMM, hence the sqrtPriceLimitX96 needs to be higher than the current sqrtPriceX96, but lower than the MAX_SQRT_RATIO
+        /// @dev Movement from right to left along the VAMM, hence the sqrtPriceLimitX96 needs to be higher 
+        // than the current sqrtPriceX96, but lower than the MAX_SQRT_RATIO
         /// @dev if a trader is a VT, they consume variable in return for fixed
-        /// @dev Movement from left to right along the VAMM, hence the sqrtPriceLimitX96 needs to be lower than the current sqrtPriceX96, but higher than the MIN_SQRT_RATIO
+        /// @dev Movement from left to right along the VAMM, hence the sqrtPriceLimitX96 needs to be lower 
+        // than the current sqrtPriceX96, but higher than the MIN_SQRT_RATIO
 
         require(
             isFT

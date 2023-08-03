@@ -19,13 +19,16 @@ interface VammCustomErrors {
    /// No VAMM currently exists for the specified {market, maturity}
    error MarketAndMaturityCombinaitonNotSupported(uint128 marketId, uint32 maturityTimestamp);
 
-   /// @dev If the sqrt price of the vamm is non-zero before a vamm is initialized, it has already been initialized. Initialization can only be done once.
+   /// @dev If the sqrt price of the vamm is non-zero before a vamm is initialized, 
+   ///      it has already been initialized. Initialization can only be done once.
    error ExpectedSqrtPriceZeroBeforeInit(uint160 sqrtPriceX96);
 
-   /// @dev If the sqrt price of the vamm is zero, this makes no sense and does not allow sqrtPriceX96 to double as an "already initialized" flag.
-      error ExpectedNonZeroSqrtPriceForInit(uint160 sqrtPriceX96);
+   /// @dev If the sqrt price of the vamm is zero, 
+   ///      this makes no sense and does not allow sqrtPriceX96 to double as an "already initialized" flag.
+   error ExpectedNonZeroSqrtPriceForInit(uint160 sqrtPriceX96);
 
-   /// @dev Error which ensures the amount of notional specified when initiating an IRS contract (via the swap function in the vamm) is non-zero
+   /// @dev Error which ensures the amount of notional specified when 
+   ///      initiating an IRS contract (via the swap function in the vamm) is non-zero
    error IRSNotionalAmountSpecifiedMustBeNonZero();
 
    /// @dev Error which ensures the VAMM is unlocked

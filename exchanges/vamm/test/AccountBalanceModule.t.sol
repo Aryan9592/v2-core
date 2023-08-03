@@ -20,12 +20,23 @@ contract ExtendedAccountBalanceModule is AccountBalanceModule, VoltzTest {
     int24 ACCOUNT_1_TICK_LOWER = TickMath.getTickAtSqrtRatio(ACCOUNT_1_LOWER_SQRTPRICEX96);
     int24 ACCOUNT_1_TICK_UPPER = TickMath.getTickAtSqrtRatio(ACCOUNT_1_UPPER_SQRTPRICEX96);
 
-    function getVammConfig(uint128 marketId, uint32 maturityTimestamp) external view returns (VammConfiguration.Mutable memory, VammConfiguration.Immutable memory) {
+    function getVammConfig(uint128 marketId, uint32 maturityTimestamp) 
+        external
+        view
+        returns (VammConfiguration.Mutable memory, VammConfiguration.Immutable memory) 
+    {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return (vamm.mutableConfig, vamm.immutableConfig);
     }
 
-    function createTestVamm(uint128 _marketId,  uint160 _sqrtPriceX96, uint32[] calldata times, int24[] calldata observedTicks, VammConfiguration.Immutable calldata _config, VammConfiguration.Mutable calldata _mutableConfig) public {
+    function createTestVamm(
+        uint128 _marketId, 
+        uint160 _sqrtPriceX96,
+        uint32[] calldata times,
+        int24[] calldata observedTicks, 
+        VammConfiguration.Immutable calldata _config,
+        VammConfiguration.Mutable calldata _mutableConfig
+    ) public {
         DatedIrsVamm.create(_marketId, _sqrtPriceX96, times, observedTicks, _config, _mutableConfig);
     }
 
@@ -47,7 +58,10 @@ contract ExtendedAccountBalanceModule is AccountBalanceModule, VoltzTest {
         return BASE_AMOUNT_PER_LP;
     }
 
-    function mockTakerOrderRight(uint128 marketId, uint32 maturityTimestamp) public returns (int256 quoteTokenDelta, int256 baseTokenDelta){
+    function mockTakerOrderRight(uint128 marketId, uint32 maturityTimestamp) 
+        public 
+        returns (int256 quoteTokenDelta, int256 baseTokenDelta)
+    {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         int256 amountSpecified =  500_000_000;
 
@@ -60,7 +74,11 @@ contract ExtendedAccountBalanceModule is AccountBalanceModule, VoltzTest {
         UD60x18 mockLiquidityIndex = convert(_mockLiquidityIndex);
 
         // Mock the liquidity index that is read during a swap
-        vm.mockCall(0xAa73aA73Aa73Aa73AA73Aa73aA73AA73aa73aa73, abi.encodeWithSelector(IRateOracle.getCurrentIndex.selector), abi.encode(mockLiquidityIndex));
+        vm.mockCall(
+            0xAa73aA73Aa73Aa73AA73Aa73aA73AA73aa73aa73,
+            abi.encodeWithSelector(IRateOracle.getCurrentIndex.selector),
+            abi.encode(mockLiquidityIndex)
+        );
         (quoteTokenDelta, baseTokenDelta) = vamm.vammSwap(params);
     }
 
@@ -149,7 +167,8 @@ contract AccountBalanceModuleTest is VoltzTest {
     }
 
     function test_UnfilledBalances_UnknownPosition() public {
-        (uint256 unfilledBaseLong, uint256 unfilledBaseShort,,)= pool.getAccountUnfilledBaseAndQuote(initMarketId, initMaturityTimestamp, 162);
+        (uint256 unfilledBaseLong, uint256 unfilledBaseShort,,) = 
+            pool.getAccountUnfilledBaseAndQuote(initMarketId, initMaturityTimestamp, 162);
         assertEq(unfilledBaseLong, 0);
         assertEq(unfilledBaseShort, 0);
     }
@@ -158,7 +177,8 @@ contract AccountBalanceModuleTest is VoltzTest {
         pool.mockMakerOrder(initMarketId, initMaturityTimestamp);
         (int256 quoteTokenDelta, int256 baseTokenDelta) = pool.mockTakerOrderRight(initMarketId, initMaturityTimestamp);
 
-        (int256 baseBalancePool, int256 quoteBalancePool)  = pool.getAccountFilledBalances(initMarketId, initMaturityTimestamp, pool.ACCOUNT_1());
+        (int256 baseBalancePool, int256 quoteBalancePool)  = 
+            pool.getAccountFilledBalances(initMarketId, initMaturityTimestamp, pool.ACCOUNT_1());
         assertAlmostEqual(baseBalancePool, -baseTokenDelta);
         assertAlmostEqual(quoteBalancePool, -quoteTokenDelta);
     }
@@ -166,7 +186,8 @@ contract AccountBalanceModuleTest is VoltzTest {
     function test_UnfilledBalances() public {
         pool.mockMakerOrder(initMarketId, initMaturityTimestamp);
         vm.mockCall(mockRateOracle, abi.encodeWithSelector(IRateOracle.getCurrentIndex.selector), abi.encode(ud60x18(1e18)));
-        (uint256 unfilledBaseLong, uint256 unfilledBaseShort,,)= pool.getAccountUnfilledBaseAndQuote(initMarketId, initMaturityTimestamp, pool.ACCOUNT_1());
+        (uint256 unfilledBaseLong, uint256 unfilledBaseShort,,)= 
+            pool.getAccountUnfilledBaseAndQuote(initMarketId, initMaturityTimestamp, pool.ACCOUNT_1());
         assertAlmostEqual((unfilledBaseLong + unfilledBaseShort).toInt(), int256(pool.BASE_AMOUNT_PER_LP()));
     }
 
