@@ -1,7 +1,6 @@
 pragma solidity >=0.8.13;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 import "./DatedIrsVammTestUtil.sol";
 import "../src/storage/LPPosition.sol";
 import "../src/storage/DatedIrsVAMM.sol";

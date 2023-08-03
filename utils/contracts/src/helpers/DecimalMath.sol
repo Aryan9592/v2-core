@@ -15,9 +15,11 @@ import "./SafeCast.sol";
  * 2) Given UNIT = 1000000000000000000
  * then if A = 500000000000000000, A represents the decimal 0.500000000000000000
  *
- * Note: An accompanying naming convention of the postfix "D<Precision>" is helpful with this utility. I.e. if a variable "myValue" represents a low resolution decimal, it should be named "myValueD18", and if it was a high resolution decimal "myValueD27". While scaling, intermediate precision decimals like "myValue45" could arise. Non-decimals should have no postfix, i.e. just "myValue".
+ * Note: An accompanying naming convention of the postfix "D<Precision>" is helpful with this utility. 
+ * I.e. if a variable "myValue" represents a low resolution decimal, it should be named "myValueD18", and if it was a high resolution decimal "myValueD27". While scaling, intermediate precision decimals like "myValue45" could arise. Non-decimals should have no postfix, i.e. just "myValue".
  *
- * Important: Multiplication and division operations are currently not supported for high precision decimals. Using these operations on them will yield incorrect results and fail silently.
+ * Important: Multiplication and division operations are currently not supported for high precision decimals. 
+ * Using these operations on them will yield incorrect results and fail silently.
  */
 library DecimalMath {
     using SafeCastU256 for uint256;
@@ -93,7 +95,8 @@ library DecimalMath {
     // uint128
     // -----------------
 
-    // Note: Overloading doesn't seem to work for similar types, i.e. int256 and int128, uint256 and uint128, etc, so explicitly naming the functions differently here.
+    // Note: Overloading doesn't seem to work for similar types, i.e. int256 and int128, uint256 and uint128, etc, 
+    // so explicitly naming the functions differently here.
 
     /**
      * @dev See mulDecimal for uint256.

@@ -113,7 +113,8 @@ library VAMMBase {
     /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary
     /// @param sqrtRatioBX96 A sqrt price representing the second tick boundary
     /// @return baseAmount The base amount of returned from liquidity
-    function baseAmountFromLiquidity(int128 liquidity, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) internal pure returns (int256 baseAmount){
+    function baseAmountFromLiquidity(int128 liquidity, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
+        internal pure returns (int256 baseAmount) {
         if (sqrtRatioAX96 > sqrtRatioBX96)
             (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
@@ -123,7 +124,8 @@ library VAMMBase {
         baseAmount = liquidity > 0 ? absBase.toInt() : -(absBase.toInt());
     }
 
-    function unbalancedQuoteAmountFromBase(int256 baseAmount, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) internal pure returns (int256 unbalancedQuoteAmount){
+    function unbalancedQuoteAmountFromBase(int256 baseAmount, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
+        internal pure returns (int256 unbalancedQuoteAmount) {
         uint256 absQuote = FullMath
                 .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), Q96, sqrtRatioBX96);
         absQuote = FullMath

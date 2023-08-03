@@ -24,7 +24,14 @@ contract VammModule is IVammModule {
         VammConfiguration.Mutable calldata _mutableConfig
     ) external override {
         OwnableStorage.onlyOwner();
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.create(_marketId, _sqrtPriceX96, times, observedTicks,  _config, _mutableConfig);
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.create(
+            _marketId,
+            _sqrtPriceX96,
+            times,
+            observedTicks,
+            _config,
+            _mutableConfig
+        );
         emit VammCreated(
             _marketId,
             vamm.vars.tick,
@@ -71,7 +78,14 @@ contract VammModule is IVammModule {
     /**
      * @inheritdoc IVammModule
      */
-    function getDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSize, uint32 lookbackWindow, bool adjustForPriceImpact,  bool adjustForSpread) 
+    function getDatedIRSTwap(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 orderSize,
+        uint32 lookbackWindow,
+        bool adjustForPriceImpact,
+        bool adjustForSpread
+    ) 
         external view override returns (UD60x18 datedIRSTwap) 
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);

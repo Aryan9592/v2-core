@@ -40,13 +40,15 @@ library LPPosition {
         */
         int256 trackerBaseTokenUpdatedGrowth;
         /** 
-        * @dev current Quote Token balance of the position, 1 quote token can be redeemed for 1% APY * (annualised amm term) at the maturity of the amm
+        * @dev current Quote Token balance of the position, 1 quote token can be redeemed for 
+        * 1% APY * (annualised amm term) at the maturity of the amm
         * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
         * can be negative/positive/zero
         */
         int256 trackerQuoteTokenAccumulated;
         /** 
-        * @dev current Variable Token Balance of the position, 1 variable token can be redeemed for underlyingPoolAPY*(annualised amm term) at the maturity of the amm
+        * @dev current Variable Token Balance of the position, 
+        * 1 variable token can be redeemed for underlyingPoolAPY*(annualised amm term) at the maturity of the amm
         * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
         * can be negative/positive/zero
         */
