@@ -55,11 +55,7 @@ interface IMarketManagerModule {
     /// @notice returns account taker and maker exposures for a given market, account and collateral type
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        );
+        returns (Account.MakerMarketExposure[] memory exposures);
 
     //// STATE CHANGING FUNCTIONS ////
 

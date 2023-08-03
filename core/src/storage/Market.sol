@@ -68,11 +68,7 @@ library Market {
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId)
         internal
         view
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        )
+        returns (Account.MakerMarketExposure[] memory exposure)
     {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
