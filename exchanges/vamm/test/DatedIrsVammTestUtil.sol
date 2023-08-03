@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import "./VoltzTest.sol";
 import "../src/storage/LPPosition.sol";
 import "../src/storage/DatedIrsVAMM.sol";
-import "../src/libraries/errors/CustomErrors.sol";
+import "../src/libraries/errors/VammCustomErrors.sol";
 import "../src/libraries/ticks/Tick.sol";
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
