@@ -15,7 +15,7 @@ import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "../storage/RateOracleReader.sol";
 import "../interfaces/IPool.sol";
 import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import "../storage/ProductConfiguration.sol";
+import "../storage/MarketManagerConfiguration.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -35,7 +35,6 @@ library ExposureHelpers {
         int256 unrealizedPnL = quoteBalance + unwindQuote;
 
         if (unrealizedPnL < 0) {
-            // todo: check if safecasting with .Uint() is necessary (CR)
             unrealizedLoss = uint256(-unrealizedPnL);
         }
     }
@@ -54,10 +53,10 @@ library ExposureHelpers {
 
         UD60x18 currentLiquidityIndex = RateOracleReader.load(marketId).getRateIndexCurrent();
 
-        address coreProxy = ProductConfiguration.getCoreProxyAddress();
-        uint128 productId = ProductConfiguration.getProductId();
+        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+
         uint32 lookbackWindow =
-            IRiskConfigurationModule(coreProxy).getMarketRiskConfiguration(productId, marketId).twapLookbackWindow;
+            IRiskConfigurationModule(coreProxy).getMarketRiskConfiguration(marketId).twapLookbackWindow;
 
         UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(marketId, maturityTimestamp, -baseAmount, lookbackWindow);
 
@@ -107,9 +106,7 @@ library ExposureHelpers {
 
     function getOnlyFilledExposureInPool(
         Portfolio.PoolExposureState memory poolState,
-        address poolAddress,
-        address collateralType,
-        uint128 productId
+        address poolAddress
     ) internal view returns (Account.Exposure memory) {
         uint256 unrealizedLoss = computeUnrealizedLoss(
             poolState.marketId,
@@ -118,20 +115,17 @@ library ExposureHelpers {
             poolState.baseBalance + poolState.baseBalancePool,
             poolState.quoteBalance + poolState.quoteBalancePool
         );
+        
         return Account.Exposure({
-            productId: productId,
             marketId: poolState.marketId,
             annualizedNotional: mulUDxInt(poolState._annualizedExposureFactor, poolState.baseBalance + poolState.baseBalancePool),
-            unrealizedLoss: unrealizedLoss,
-            collateralType: collateralType
+            unrealizedLoss: unrealizedLoss
         });
     }
 
     function getUnfilledExposureLowerInPool(
         Portfolio.PoolExposureState memory poolState,
-        address poolAddress,
-        address collateralType,
-        uint128 productId
+        address poolAddress
     ) internal view returns (Account.Exposure memory) {
         uint256 unrealizedLossLower = computeUnrealizedLoss(
             poolState.marketId,
@@ -140,23 +134,20 @@ library ExposureHelpers {
             poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
             poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
         );
+
         return Account.Exposure({
-            productId: productId,
             marketId: poolState.marketId,
             annualizedNotional: mulUDxInt(
                 poolState._annualizedExposureFactor, 
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
             ),
-            unrealizedLoss: unrealizedLossLower,
-            collateralType: collateralType
+            unrealizedLoss: unrealizedLossLower
         });
     }
 
     function getUnfilledExposureUpperInPool(
         Portfolio.PoolExposureState memory poolState,
-        address poolAddress,
-        address collateralType,
-        uint128 productId
+        address poolAddress
     ) internal view returns (Account.Exposure memory) {
         uint256 unrealizedLossUpper = computeUnrealizedLoss(
             poolState.marketId,
@@ -165,15 +156,14 @@ library ExposureHelpers {
             poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
             poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt()
         );
+
         return Account.Exposure({
-            productId: productId,
             marketId: poolState.marketId,
             annualizedNotional: mulUDxInt(
                 poolState._annualizedExposureFactor,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
             ),
-            unrealizedLoss: unrealizedLossUpper,
-            collateralType: collateralType
+            unrealizedLoss: unrealizedLossUpper
         });
     }
 }

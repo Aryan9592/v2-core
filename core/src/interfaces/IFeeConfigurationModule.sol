@@ -22,7 +22,7 @@ interface IFeeConfigurationModule {
     event MarketFeeConfigured(MarketFeeConfiguration.Data config, uint256 blockTimestamp);
 
     /**
-     * @notice Creates or updates the fee configuration for the given `productId` and `marketId` pair
+     * @notice Creates or updates the fee configuration for the given `marketId`
      * @param config The MarketFeeConfiguration object describing the new configuration.
      *
      * Requirements:
@@ -35,12 +35,11 @@ interface IFeeConfigurationModule {
     function configureMarketFee(MarketFeeConfiguration.Data memory config) external;
 
     /**
-     * @notice Returns detailed information pertaining the specified productId and marketId pair
-     * @param productId Id that uniquely identifies the product (e.g. Dated IRS) for which we want to query the risk config
+     * @notice Returns detailed information pertaining the specified marketId
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
-     * @return config The fee configuration object describing the given productId and marketId pair
+     * @return config The fee configuration object describing the given marketId
      */
-    function getMarketFeeConfiguration(uint128 productId, uint128 marketId)
+    function getMarketFeeConfiguration(uint128 marketId)
         external
         pure
         returns (MarketFeeConfiguration.Data memory config);

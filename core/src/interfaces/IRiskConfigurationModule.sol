@@ -30,7 +30,7 @@ interface IRiskConfigurationModule {
     event ProtocolRiskConfigured(ProtocolRiskConfiguration.Data config, uint256 blockTimestamp);
 
     /**
-     * @notice Creates or updates the configuration for the given `productId` and `marketId` pair
+     * @notice Creates or updates the configuration for the given `marketId`
      * @param config The MarketConfiguration object describing the new configuration.
      *
      * Requirements:
@@ -56,12 +56,11 @@ interface IRiskConfigurationModule {
     function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) external;
 
     /**
-     * @notice Returns detailed information pertaining the specified productId and marketId pair
-     * @param productId Id that uniquely identifies the product (e.g. Dated IRS) for which we want to query the risk config
+     * @notice Returns detailed information pertaining the specified marketId
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
-     * @return config The configuration object describing the given productId and marketId pair
+     * @return config The configuration object describing the given marketId
      */
-    function getMarketRiskConfiguration(uint128 productId, uint128 marketId)
+    function getMarketRiskConfiguration(uint128 marketId)
         external
         pure
         returns (MarketRiskConfiguration.Data memory config);

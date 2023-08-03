@@ -18,10 +18,6 @@ library MarketFeeConfiguration {
 
     struct Data {
         /**
-         * @dev Id of the product for which we store fee configurations
-         */
-        uint128 productId;
-        /**
          * @dev Id of the market for which we store fee configurations
          */
         uint128 marketId;
@@ -42,28 +38,26 @@ library MarketFeeConfiguration {
     }
 
     /**
-     * @dev Loads the MarketFeeConfiguration object for a given productId & marketId pair
-     * @param productId Id of the product (e.g. IRS) for which we want to query the risk configuration
+     * @dev Loads the MarketFeeConfiguration object for a given marketId
      * @param marketId Id of the market (e.g. aUSDC lend) for which we want to query the risk configuration
      * @return config The MarketFeeConfiguration object.
      */
-    function load(uint128 productId, uint128 marketId) internal pure returns (Data storage config) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.MarketFeeConfiguration", productId, marketId));
+    function load(uint128 marketId) internal pure returns (Data storage config) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.MarketFeeConfiguration", marketId));
         assembly {
             config.slot := s
         }
     }
 
     /**
-     * @dev Sets the fee configuration for a given productId & marketId pair
+     * @dev Sets the fee configuration for a given marketId pair
      * @param config The MarketFeeConfiguration object
      */
     function set(Data memory config) internal {
         Account.exists(config.feeCollectorAccountId);
 
-        Data storage storedConfig = load(config.productId, config.marketId);
+        Data storage storedConfig = load(config.marketId);
 
-        storedConfig.productId = config.productId;
         storedConfig.marketId = config.marketId;
         storedConfig.feeCollectorAccountId = config.feeCollectorAccountId;
         storedConfig.atomicMakerFee = config.atomicMakerFee;

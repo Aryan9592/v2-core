@@ -17,8 +17,12 @@ library CollateralPool {
     /**
      * @dev Thrown when a collateral pool cannot be found
      */
-    error CollateralPoolNotFound(uint128 trustlessInstrumentId);
+    error CollateralPoolNotFound(uint128 id);
 
+    /**
+     * @dev Thrown when a collateral pool is already created
+     */
+    error CollateralPoolAlreadyExists(uint128 id);
 
     /**
     * @dev Thrown when a collateral pool does not have sufficient collateral.
@@ -28,13 +32,10 @@ library CollateralPool {
     // todo: consider introducing a CollateralPoolBalanceUpdate event similar to what we have in Collateral.sols (AN)
 
     struct Data {
-
         /**
-         * @dev Each trustless instrument has a unique collateral pool of assets associated with it
-         * @dev If the trustlessInstrumentId == type(uint128).max -> identifies the collateral pool
-         * shared across all the trusted instruments registered with the system
+         * @dev Collateral pool Id
          */
-        uint128 trustlessInstrumentId;
+        uint128 id;
 
         /**
          * @dev Flag to check if the collateral pool has been initialized
@@ -50,30 +51,32 @@ library CollateralPool {
     }
 
     /**
-     * @dev Creates an collateral pool for the given trustlessInstrumentId
-     *
-     * Note: Will not fail if the collateral pool already exists,
-     *  Whatever calls this internal function must first check that the collateral pool doesn't exist before re-creating it.
+     * @dev Creates an collateral pool for the given id
      */
-    function create(uint128 trustlessInstrumentId) internal returns(Data storage collateralPool) {
-        collateralPool = load(trustlessInstrumentId);
-        collateralPool.trustlessInstrumentId = trustlessInstrumentId;
+    function create(uint128 id) internal returns(Data storage collateralPool) {
+        collateralPool = load(id);
+        
+        if (collateralPool.isInitialized) {
+            revert CollateralPoolAlreadyExists(id);
+        }
+
+        collateralPool.id = id;
         collateralPool.isInitialized = true;
     }
 
-    function exists(uint128 trustlessInstrumentId) internal view returns (Data storage collateralPool) {
-        Data storage c = load(trustlessInstrumentId);
-        if (!c.isInitialized) {
-            revert CollateralPoolNotFound(trustlessInstrumentId);
+    function exists(uint128 id) internal view returns (Data storage collateralPool) {
+        collateralPool = load(id);
+    
+        if (!collateralPool.isInitialized) {
+            revert CollateralPoolNotFound(id);
         }
-        return c;
     }
 
     /**
     * @dev Returns the account stored at the specified account id.
      */
-    function load(uint128 trustlessInstrumentId) internal pure returns (Data storage collateralPool) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.CollateralPool", trustlessInstrumentId));
+    function load(uint128 id) internal pure returns (Data storage collateralPool) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.CollateralPool", id));
         assembly {
             collateralPool.slot := s
         }

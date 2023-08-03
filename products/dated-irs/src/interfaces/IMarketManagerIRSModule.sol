@@ -7,12 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/core/src/interfaces/external/IProduct.sol";
-import "../storage/ProductConfiguration.sol";
+import "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
+import "../storage/MarketManagerConfiguration.sol";
 
-/// @title Interface of a dated irs product
-interface IProductIRSModule is IProduct {
-    event ProductConfigured(ProductConfiguration.Data config, uint256 blockTimestamp);
+/// @title Interface of a dated irs market
+interface IMarketManagerIRSModule is IMarketManager {
+    event MarketManagerConfigured(MarketManagerConfiguration.Data config, uint256 blockTimestamp);
 
     struct TakerOrderParams {
         uint128 accountId;
@@ -25,7 +25,6 @@ interface IProductIRSModule is IProduct {
     /**
      * @notice Emitted when a taker order of the account token with id `accountId` is initiated.
      * @param accountId The id of the account.
-     * @param productId The id of the product.
      * @param marketId The id of the market.
      * @param maturityTimestamp The maturity timestamp of the position.
      * @param collateralType The address of the collateral.
@@ -36,7 +35,6 @@ interface IProductIRSModule is IProduct {
      */
     event TakerOrder(
         uint128 indexed accountId,
-        uint128 productId,
         uint128 indexed marketId,
         uint32 indexed maturityTimestamp,
         address collateralType,
@@ -49,7 +47,6 @@ interface IProductIRSModule is IProduct {
     /**
      * @notice Emitted when a position is settled.
      * @param accountId The id of the account.
-     * @param productId The id of the product.
      * @param marketId The id of the market.
      * @param maturityTimestamp The maturity timestamp of the position.
      * @param collateralType The address of the collateral.
@@ -57,7 +54,6 @@ interface IProductIRSModule is IProduct {
      */
     event DatedIRSPositionSettled(
         uint128 indexed accountId,
-        uint128 productId,
         uint128 indexed marketId,
         uint32 indexed maturityTimestamp,
         address collateralType,
@@ -81,8 +77,8 @@ interface IProductIRSModule is IProduct {
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) external;
 
     /**
-     * @notice Initiates a taker order for a given account by consuming liquidity provided by the pool connected to this product
-     * @dev Initially a single pool is connected to a single product, however, that doesn't need to be the case in the future
+     * @notice Initiates a taker order for a given account by consuming liquidity provided by the pool linked to this market manager
+     * @dev Initially a single pool is connected to a single market singleton, however, that doesn't need to be the case in the future
      * params accountId Id of the account that wants to initiate a taker order
      * params marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
      * params maturityTimestamp Maturity timestamp of the market in which the account wants to initiate a taker order
@@ -95,17 +91,17 @@ interface IProductIRSModule is IProduct {
         returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
 
     /**
-     * @notice Creates or updates the configuration for the given product.
-     * @param config The ProductConfiguration object describing the new configuration.
+     * @notice Creates or updates the configuration for the given market manager.
+     * @param config The MarketConfiguration object describing the new configuration.
      *
      * Requirements:
      *
      * - `msg.sender` must be the owner of the system.
      *
-     * Emits a {ProductConfigured} event.
+     * Emits a {MarketManagerConfigured} event.
      *
      */
-    function configureProduct(ProductConfiguration.Data memory config) external;
+    function configureMarketManager(MarketManagerConfiguration.Data memory config) external;
 
     /**
      * @notice Propagates maker order to core to check margin requirements
@@ -122,7 +118,7 @@ interface IProductIRSModule is IProduct {
     ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
 
     /**
-     * @notice Returns core proxy address from ProductConfigruation
+     * @notice Returns core proxy address from MarketManagerConfigruation
      */
     function getCoreProxyAddress() external returns (address);
 }

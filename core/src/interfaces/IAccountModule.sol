@@ -37,9 +37,6 @@ interface IAccountModule {
      */
     event AccountCreated(uint128 indexed accountId, address indexed owner, address indexed trigger, uint256 blockTimestamp);
 
-
-
-
     /**
      * @notice Emitted when an account token with id `accountId` is transferred to `newOwner`.
      * @param accountId The id of the account.
@@ -111,9 +108,6 @@ interface IAccountModule {
     /**
      * @notice Mints an account token with id `requestedAccountId` to `msg.sender`.
      * @param requestedAccountId The id requested for the account being created. Reverts if id already exists.
-     * @param trustlessProductIdTrustedByAccount if this value is set to max uint128 the account only trusts
-     * the trusted instrumnents, if this value is set to a valid trustless instrument id then the account only
-     * trusts (and hence is able to engage in positions with) that specific trustless instrument.
      * @param isMultiToken if this value is set to true then the account is a multi token account, if this value
      * is set to false then it is a single-token account
      * Requirements:
@@ -122,8 +116,7 @@ interface IAccountModule {
      *
      * Emits a {AccountCreated} event.
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner,
-        uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) external;
+    function createAccount(uint128 requestedAccountId, address accountOwner, bool isMultiToken) external;
 
     /**
      * @notice Called by AccountTokenModule to notify the system when the account token is transferred.

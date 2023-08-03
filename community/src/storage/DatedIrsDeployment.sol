@@ -1,7 +1,7 @@
 pragma solidity >=0.8.19;
 
 // Dated IRS
-import "@voltz-protocol/products-dated-irs/src/ProductProxy.sol";
+import "@voltz-protocol/products-dated-irs/src/MarketManagerProxy.sol";
 
 import "@voltz-protocol/util-modules/src/modules/OwnerUpgradeModule.sol";
 
@@ -45,7 +45,7 @@ library DatedIrsDeployment {
     function deploy(address ownerAddress) internal returns (address datedIrsProxy) {
         Data storage config = load();
 
-        datedIrsProxy = address(new ProductProxy(config.datedIrsRouter, address(this)));
+        datedIrsProxy = address(new MarketManagerProxy(config.datedIrsRouter, address(this)));
         OwnerUpgradeModule(datedIrsProxy).nominateNewOwner(ownerAddress);
     }
 }

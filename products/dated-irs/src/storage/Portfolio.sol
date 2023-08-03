@@ -11,11 +11,11 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "@voltz-protocol/util-contracts/src/helpers/Pack.sol";
-import "@voltz-protocol/core/src/interfaces/IProductModule.sol";
+import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import "./Position.sol";
 import "./RateOracleReader.sol";
 import "./MarketConfiguration.sol";
-import "./ProductConfiguration.sol";
+import "./MarketManagerConfiguration.sol";
 import "../interfaces/IPool.sol";
 import "../libraries/ExposureHelpers.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
@@ -38,21 +38,22 @@ library Portfolio {
     /**
      * @dev Thrown when a portfolio cannot be found.
      */
-    error PortfolioNotFound(uint128 accountId);
+    error PortfolioNotFound(uint128 accountId, uint128 marketId);
 
     /**
      * @dev Thrown when an account exceeds the positions limit.
      */
-    error TooManyTakerPositions(uint128 accountId);
+    error TooManyTakerPositions(uint128 accountId, uint128 marketId);
 
     /**
      * @notice Emitted when attempting to settle before maturity
      */
     error SettlementBeforeMaturity(uint128 marketId, uint32 maturityTimestamp, uint256 accountId);
+
     error UnknownMarket(uint128 marketId);
 
     /**
-     * @notice Emitted when a new product is registered in the protocol.
+     * @notice Emitted when a position in updated.
      * @param accountId The id of the account.
      * @param marketId The id of the market.
      * @param maturityTimestamp The maturity timestamp of the position.
@@ -60,7 +61,7 @@ library Portfolio {
      * @param quoteDelta The delta in position quote balance.
      * @param blockTimestamp The current block timestamp.
      */
-    event ProductPositionUpdated(
+    event PositionUpdated(
         uint128 indexed accountId,
         uint128 indexed marketId,
         uint32 indexed maturityTimestamp,
@@ -72,59 +73,59 @@ library Portfolio {
     struct Data {
         /**
          * @dev Numeric identifier for the account that owns the portfolio.
-         * @dev Since a given account can only own a single portfolio in a given dated product
+         * @dev Since a given account can only own a single portfolio in a given dated market
          * the id of the portfolio is the same as the id of the account
          * @dev There cannot be an account and hence dated portfolio with id zero
          */
         uint128 accountId;
+
+        uint128 marketId;
+
         /**
-         * @dev marketId (e.g. aUSDC lend) --> maturityTimestamp (e.g. 31st Dec 2023) --> Position object with filled
-         * balances
+         * @dev maturityTimestamp (e.g. 31st Dec 2023) --> Position object with filled balances
          */
-        mapping(uint128 => mapping(uint32 => Position.Data)) positions;
+        mapping(uint32 => Position.Data) positions;
+
         /**
          * @dev Mapping from settlementToken to an
          * array of marketId (e.g. aUSDC lend) and activeMaturities (e.g. 31st Dec 2023)
          * in which the account has active positions
          */
-        mapping(address => SetUtil.UintSet) activeMarketsAndMaturities;
-
-        /**
-         * @dev List of active collateralTypes
-         */
-        SetUtil.AddressSet activeCollateralTypes;
+        SetUtil.UintSet activeMaturities;
     }
 
     /**
      * @dev Returns the portfolio stored at the specified portfolio id
      * @dev Same as account id of the account that owns the portfolio of dated irs positions
      */
-    function load(uint128 accountId) internal pure returns (Data storage portfolio) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.Portfolio", accountId));
+    function load(uint128 accountId, uint128 marketId) internal pure returns (Data storage portfolio) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.Portfolio", accountId, marketId));
         assembly {
             portfolio.slot := s
         }
     }
 
-    function loadOrCreate(uint128 id) internal returns (Data storage portfolio) {
-        portfolio = load(id);
+    function loadOrCreate(uint128 accountId, uint128 marketId) internal returns (Data storage portfolio) {
+        portfolio = load(accountId, marketId);
+
         if (portfolio.accountId == 0)  {
-            portfolio.accountId = id;
+            portfolio.accountId = accountId;
+            portfolio.marketId = marketId;
         }
     }
 
     /**
      * @dev Reverts if the portfolio does not exist with appropriate error. Otherwise, returns the portfolio.
      */
-    function exists(uint128 id) internal view returns (Data storage portfolio) {
-        portfolio = load(id);
-        if (portfolio.accountId != id) {
-            revert PortfolioNotFound(id);
+    function exists(uint128 accountId, uint128 marketId) internal view returns (Data storage portfolio) {
+        portfolio = load(accountId, marketId);
+
+        if (portfolio.accountId != accountId || portfolio.marketId != marketId) {
+            revert PortfolioNotFound(accountId, marketId);
         }
     }
 
     struct CollateralExposureState {
-        uint128 productId;
         uint256 poolsCount;
         uint256 takerExposuresLength;
         uint256 makerExposuresLowerAndUpperLength;
@@ -155,37 +156,35 @@ library Portfolio {
     function getAccountTakerAndMakerExposuresWithEmptySlots(
         Data storage self,
         address poolAddress,
-        address collateralType,
         Exposures memory initExposures
     ) internal view returns (Account.Exposure[] memory, Account.Exposure[] memory, Account.Exposure[] memory, uint256, uint256) {
 
         CollateralExposureState memory collateralState = CollateralExposureState({
-            productId: ProductConfiguration.getProductId(),
-            // todo: consider renaming poolsCount to activeMarketsAndMaturitiesCount (AB)
-            poolsCount: self.activeMarketsAndMaturities[collateralType].length(),
+            poolsCount: self.activeMaturities.length(),
             takerExposuresLength: initExposures.takerIndex,
             makerExposuresLowerAndUpperLength: initExposures.makerIndex
         });
 
 
-        for (uint256 i = 0; i < collateralState.poolsCount; i++) {
+        for (uint256 i = 1; i <= collateralState.poolsCount; i++) {
             PoolExposureState memory poolState = self.getPoolExposureState(
-                i + 1,
-                collateralType,
+                i,
                 poolAddress
             );
 
             if (poolState.unfilledBaseLong == 0 && poolState.unfilledBaseShort == 0) {
                 // no unfilled exposures => only consider taker exposures
                 initExposures.taker[collateralState.takerExposuresLength] = 
-                    ExposureHelpers.getOnlyFilledExposureInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getOnlyFilledExposureInPool(poolState, poolAddress);
+            
                 collateralState.takerExposuresLength = collateralState.takerExposuresLength + 1;
             } else {
                 // unfilled exposures => consider maker lower
                 initExposures.makerLower[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
+                
                 initExposures.makerUpper[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress, collateralType, collateralState.productId);
+                    ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
 
                 collateralState.makerExposuresLowerAndUpperLength = collateralState.makerExposuresLowerAndUpperLength + 1;
             }
@@ -203,17 +202,21 @@ library Portfolio {
     function getPoolExposureState(
         Data storage self,
         uint256 index,
-        address collateralType,
         address poolAddress
     ) internal view returns (PoolExposureState memory poolState) {
-        (poolState.marketId, poolState.maturityTimestamp) = self.getMarketAndMaturity(index, collateralType);
+        poolState.marketId = self.marketId;
 
-        poolState.baseBalance = self.positions[poolState.marketId][poolState.maturityTimestamp].baseBalance;
-        poolState.quoteBalance = self.positions[poolState.marketId][poolState.maturityTimestamp].quoteBalance;
+        poolState.maturityTimestamp = self.activeMaturities.valueAt(index).to32();
+
+        poolState.baseBalance = self.positions[poolState.maturityTimestamp].baseBalance;
+        poolState.quoteBalance = self.positions[poolState.maturityTimestamp].quoteBalance;
+
         (poolState.baseBalancePool,poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
             poolState.marketId, poolState.maturityTimestamp, self.accountId);
+
         (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(poolState.marketId, poolState.maturityTimestamp, self.accountId);
+        
         poolState._annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
             poolState.marketId,
             poolState.maturityTimestamp
@@ -221,9 +224,7 @@ library Portfolio {
     }
 
     function getAccountTakerAndMakerExposures(
-        Data storage self,
-        address poolAddress,
-        address collateralType
+        Data storage self
     )
         internal
         view
@@ -233,8 +234,8 @@ library Portfolio {
             Account.Exposure[] memory makerExposuresUpper
         )
     {
-
-        uint256 marketsAndMaturitiesCount = self.activeMarketsAndMaturities[collateralType].length();
+        address poolAddress = MarketManagerConfiguration.getPoolAddress();
+        uint256 marketsAndMaturitiesCount = self.activeMaturities.length();
 
         (
             Account.Exposure[] memory takerExposuresPadded,
@@ -245,7 +246,6 @@ library Portfolio {
         ) = getAccountTakerAndMakerExposuresWithEmptySlots(
             self,
             poolAddress,
-            collateralType,
             Exposures({
                 taker: new Account.Exposure[](marketsAndMaturitiesCount),
                 takerIndex: 0,
@@ -259,10 +259,12 @@ library Portfolio {
             takerExposuresPadded,
             takerExposuresLength
         );
+
         makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
             makerExposuresLowerPadded,
             makerExposuresLowerAndUpperLength
         );
+
         makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
             makerExposuresUpperPadded,
             makerExposuresLowerAndUpperLength
@@ -284,10 +286,7 @@ library Portfolio {
         )
     {
 
-        uint256 exposuresCount = 0;
-        for(uint256 i = 0; i < self.activeCollateralTypes.length(); i++){
-            exposuresCount += self.activeMarketsAndMaturities[self.activeCollateralTypes.valueAt(i+1)].length();
-        }
+        uint256 exposuresCount = self.activeMaturities.length();
 
         Account.Exposure[] memory takerExposuresPadded = new Account.Exposure[](exposuresCount);
         Account.Exposure[] memory makerExposuresLowerPadded = new Account.Exposure[](exposuresCount);
@@ -295,37 +294,35 @@ library Portfolio {
 
         uint256 takerExposuresLength = 0;
         uint256 makerExposuresLowerAndUpperLength = 0;
-        for (uint256 i = 0; i < self.activeCollateralTypes.length(); i++) {
-            address collateralType = self.activeCollateralTypes.valueAt(i+1);
 
-            (
-                takerExposuresPadded,
-                makerExposuresLowerPadded,
-                makerExposuresUpperPadded,
-                takerExposuresLength,
-                makerExposuresLowerAndUpperLength
-            ) = getAccountTakerAndMakerExposuresWithEmptySlots(
-                self,
-                poolAddress,
-                collateralType,
-                Exposures({
-                    taker: takerExposuresPadded,
-                    takerIndex: takerExposuresLength,
-                    makerLower: makerExposuresLowerPadded,
-                    makerUpper: makerExposuresUpperPadded,
-                    makerIndex: makerExposuresLowerAndUpperLength
-                })
-            );
-        }
+        (
+            takerExposuresPadded,
+            makerExposuresLowerPadded,
+            makerExposuresUpperPadded,
+            takerExposuresLength,
+            makerExposuresLowerAndUpperLength
+        ) = getAccountTakerAndMakerExposuresWithEmptySlots(
+            self,
+            poolAddress,
+            Exposures({
+                taker: takerExposuresPadded,
+                takerIndex: takerExposuresLength,
+                makerLower: makerExposuresLowerPadded,
+                makerUpper: makerExposuresUpperPadded,
+                makerIndex: makerExposuresLowerAndUpperLength
+            })
+        );
 
         takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(
             takerExposuresPadded,
             takerExposuresLength
         );
+
         makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
             makerExposuresLowerPadded,
             makerExposuresLowerAndUpperLength
         );
+
         makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
             makerExposuresUpperPadded,
             makerExposuresLowerAndUpperLength
@@ -338,39 +335,47 @@ library Portfolio {
      * @dev Fully Close all the positions owned by the account within the dated irs portfolio
      * poolAddress in which to close the account, note in the beginning we'll only have a single pool
      */
-    function closeAccount(Data storage self, address poolAddress, address collateralType) internal {
-        IPool pool = IPool(poolAddress);
-        for (uint256 i = 1; i <= self.activeMarketsAndMaturities[collateralType].length(); i++) {
-            (uint128 marketId, uint32 maturityTimestamp) = self.getMarketAndMaturity(i, collateralType);
+    function closeAccount(Data storage self) internal {
+        IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
 
-            Position.Data storage position = self.positions[marketId][maturityTimestamp];
+        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
 
-            pool.closeUnfilledBase(marketId, maturityTimestamp, self.accountId);
+        for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+
+            Position.Data storage position = self.positions[maturityTimestamp];
+
+            pool.closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
-            (int256 filledBasePool,) = pool.getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+            (int256 filledBasePool,) = pool.getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
 
             int256 unwindBase = -(position.baseBalance + filledBasePool);
 
             (int256 executedBaseAmount, int256 executedQuoteAmount) =
-                pool.executeDatedTakerOrder(marketId, maturityTimestamp, unwindBase, 0);
+                pool.executeDatedTakerOrder(self.marketId, maturityTimestamp, unwindBase, 0);
 
             position.update(executedBaseAmount, executedQuoteAmount);
 
-            UD60x18 _annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(marketId, maturityTimestamp);
-            IProductModule(ProductConfiguration.getCoreProxyAddress()).propagateTakerOrder(
+            UD60x18 _annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
+
+            IMarketManagerModule(MarketManagerConfiguration.getCoreProxyAddress()).propagateTakerOrder(
                 self.accountId,
-                ProductConfiguration.getProductId(),
-                marketId,
+                self.marketId,
                 collateralType,
                 mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
             );
 
-            RateOracleReader.load(marketId).updateOracleStateIfNeeded();
+            RateOracleReader.load(self.marketId).updateOracleStateIfNeeded();
 
-            emit ProductPositionUpdated(
-                self.accountId, marketId, maturityTimestamp, executedBaseAmount, executedQuoteAmount, block.timestamp
-                );
+            emit PositionUpdated(
+                self.accountId, 
+                self.marketId, 
+                maturityTimestamp, 
+                executedBaseAmount, 
+                executedQuoteAmount, 
+                block.timestamp
+            );
         }
     }
 
@@ -379,22 +384,21 @@ library Portfolio {
      */
     function updatePosition(
         Data storage self,
-        uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseDelta,
         int256 quoteDelta
     )
         internal
     {
-        Position.Data storage position = self.positions[marketId][maturityTimestamp];
+        Position.Data storage position = self.positions[maturityTimestamp];
 
         // register active market
         if (position.baseBalance == 0 && position.quoteBalance == 0) {
-            self.activateMarketMaturity(marketId, maturityTimestamp);
+            self.activateMarketMaturity(maturityTimestamp);
         }
 
         position.update(baseDelta, quoteDelta);
-        emit ProductPositionUpdated(self.accountId, marketId, maturityTimestamp, baseDelta, quoteDelta, block.timestamp);
+        emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, baseDelta, quoteDelta, block.timestamp);
     }
 
     /**
@@ -413,11 +417,11 @@ library Portfolio {
             revert SettlementBeforeMaturity(marketId, maturityTimestamp, self.accountId);
         }
 
-        Position.Data storage position = self.positions[marketId][maturityTimestamp];
+        Position.Data storage position = self.positions[maturityTimestamp];
 
         UD60x18 liquidityIndexMaturity = RateOracleReader.load(marketId).getRateIndexMaturity(maturityTimestamp);
 
-        self.deactivateMarketMaturity(marketId, maturityTimestamp);
+        self.deactivateMarketMaturity(maturityTimestamp);
 
         IPool pool = IPool(poolAddress);
 
@@ -426,9 +430,15 @@ library Portfolio {
         settlementCashflow =
             mulUDxInt(liquidityIndexMaturity, position.baseBalance + filledBase) + position.quoteBalance + filledQuote;
 
-        emit ProductPositionUpdated(
-            self.accountId, marketId, maturityTimestamp, -position.baseBalance, -position.quoteBalance, block.timestamp
-            );
+        emit PositionUpdated(
+            self.accountId, 
+            marketId, 
+            maturityTimestamp, 
+            -position.baseBalance, 
+            -position.quoteBalance, 
+            block.timestamp
+        );
+
         position.update(-position.baseBalance, -position.quoteBalance);
     }
 
@@ -436,24 +446,23 @@ library Portfolio {
      * @dev set market and maturity as active
      * note this can also be called by the pool when a position is intitalised
      */
-    function activateMarketMaturity(Data storage self, uint128 marketId, uint32 maturityTimestamp) internal {
+    function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         // check if market/maturity exist
-        address collateralType = MarketConfiguration.load(marketId).quoteToken;
+        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
+
         if (collateralType == address(0)) {
-            revert UnknownMarket(marketId);
+            revert UnknownMarket(self.marketId);
         }
-        uint256 marketMaturityPacked = Pack.pack(marketId, maturityTimestamp);
-        if (!self.activeMarketsAndMaturities[collateralType].contains(marketMaturityPacked)) {
+
+        if (!self.activeMaturities.contains(maturityTimestamp)) {
             if (
-                self.activeMarketsAndMaturities[collateralType].length() >= 
-                ProductConfiguration.load().takerPositionsPerAccountLimit
+                self.activeMaturities.length() >= 
+                MarketManagerConfiguration.load().takerPositionsPerAccountLimit
             ) {
-                revert TooManyTakerPositions(self.accountId);
+                revert TooManyTakerPositions(self.accountId, self.marketId);
             }
-            self.activeMarketsAndMaturities[collateralType].add(marketMaturityPacked);
-        }
-        if (!self.activeCollateralTypes.contains(collateralType)) {
-            self.activeCollateralTypes.add(collateralType);
+
+            self.activeMaturities.add(maturityTimestamp);
         }
     }
 
@@ -461,28 +470,9 @@ library Portfolio {
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint128 marketId, uint32 maturityTimestamp) internal {
-        uint256 marketMaturityPacked = Pack.pack(marketId, maturityTimestamp);
-        address collateralType = MarketConfiguration.load(marketId).quoteToken;
-        if (self.activeMarketsAndMaturities[collateralType].contains(marketMaturityPacked)) {
-            self.activeMarketsAndMaturities[collateralType].remove(marketMaturityPacked);
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
+        if (self.activeMaturities.contains(maturityTimestamp)) {
+            self.activeMaturities.remove(maturityTimestamp);
         }
-    }
-
-    /**
-     * @dev retreives marketId and maturityTimestamp from the list
-     * of active markets and maturities associated with the collateral type
-     */
-    function getMarketAndMaturity(
-        Data storage self,
-        uint256 index,
-        address collateralType
-    )
-        internal
-        view
-        returns (uint128 marketId, uint32 maturityTimestamp)
-    {
-        uint256 marketMaturityPacked = self.activeMarketsAndMaturities[collateralType].valueAt(index);
-        (marketId, maturityTimestamp) = Pack.unpack(marketMaturityPacked);
     }
 }

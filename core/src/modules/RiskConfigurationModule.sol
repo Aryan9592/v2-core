@@ -13,7 +13,7 @@ import "../storage/ProtocolRiskConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
- * @title Module for configuring protocol-wide and product+market level risk parameters
+ * @title Module for configuring protocol-wide and market level risk parameters
  * @dev See IRiskConfigurationModule
  */
 contract RiskConfigurationModule is IRiskConfigurationModule {
@@ -38,13 +38,13 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getMarketRiskConfiguration(uint128 productId, uint128 marketId)
+    function getMarketRiskConfiguration(uint128 marketId)
         external
         pure
         override
         returns (MarketRiskConfiguration.Data memory config)
     {
-        return MarketRiskConfiguration.load(productId, marketId);
+        return MarketRiskConfiguration.load(marketId);
     }
 
     /**

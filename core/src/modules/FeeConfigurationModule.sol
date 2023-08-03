@@ -24,12 +24,12 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function getMarketFeeConfiguration(uint128 productId, uint128 marketId)
+    function getMarketFeeConfiguration(uint128 marketId)
         external
         pure
         override
         returns (MarketFeeConfiguration.Data memory config)
     {
-        return MarketFeeConfiguration.load(productId, marketId);
+        return MarketFeeConfiguration.load(marketId);
     }
 }
