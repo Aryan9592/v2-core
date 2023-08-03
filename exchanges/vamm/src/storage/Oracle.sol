@@ -23,7 +23,8 @@ library Oracle {
         bool initialized;
     }
 
-    /// @notice Transforms a previous observation into a new observation, given the passage of time and the current tick and liquidity values
+    /// @notice Transforms a previous observation into a new observation, 
+    // given the passage of time and the current tick and liquidity values
     /// @dev blockTimestamp _must_ be chronologically equal to or greater than last.blockTimestamp, safe for 0 or 1 overflows
     /// @param last The specified observation to be transformed
     /// @param blockTimestamp The timestamp of the new observation
@@ -79,7 +80,8 @@ library Oracle {
     }
 
     /// @notice Writes an oracle observation to the array
-    /// @dev Writable at most once per block. Index represents the most recently written element. cardinality and index must be tracked externally.
+    /// @dev Writable at most once per block. Index represents the most recently written element. 
+    // cardinality and index must be tracked externally.
     /// If the index is at the end of the allowable array length (according to cardinality), and the next cardinality
     /// is greater than the current one, cardinality may be increased. This restriction is created to preserve ordering.
     /// @param self The stored oracle array
@@ -126,7 +128,7 @@ library Oracle {
         uint16 current,
         uint16 next
     ) internal returns (uint16) {
-        require(current > 0, 'I');
+        require(current > 0, "I");
 
         // check against buffer size not needed since next is uint16 
         // and MAX_BUFFER_LENGTH is 2^16-1
@@ -243,7 +245,7 @@ library Oracle {
         if (!beforeOrAt.initialized) beforeOrAt = self[0];
 
         // ensure that the target is chronologically at or after the oldest observation
-        require(lte(time, beforeOrAt.blockTimestamp, target), 'OLD');
+        require(lte(time, beforeOrAt.blockTimestamp, target), "OLD");
 
         // if we've reached this point, we have to binary search
         return binarySearch(self, time, target, index, cardinality);
@@ -262,7 +264,8 @@ library Oracle {
     /// @param cardinality The number of populated elements in the oracle array
     /// @return tickCumulative The tick * time elapsed since the pool was first initialized, as of `secondsAgo`
     /// @return secondsPerLiquidityCumulativeX128 Undefined - do not use
-    // UNUSED for now -- @return secondsPerLiquidityCumulativeX128 The time elapsed / max(1, liquidity) since the pool was first initialized, as of `secondsAgo`
+    // UNUSED for now -- @return secondsPerLiquidityCumulativeX128 The time elapsed / max(1, liquidity) 
+    //   since the pool was first initialized, as of `secondsAgo`
     function observeSingle(
         Observation[MAX_BUFFER_LENGTH] storage self,
         uint32 time,
@@ -325,7 +328,8 @@ library Oracle {
     /// @param cardinality The number of populated elements in the oracle array
     /// @return tickCumulatives The tick * time elapsed since the pool was first initialized, as of each `secondsAgo`
     /// @return secondsPerLiquidityCumulativeX128s Undefined - do not use
-    // UNUSED for now --  @return secondsPerLiquidityCumulativeX128s The cumulative seconds / max(1, liquidity) since the pool was first initialized, as of each `secondsAgo`
+    // UNUSED for now --  @return secondsPerLiquidityCumulativeX128s The cumulative seconds / max(1, liquidity) 
+    //    since the pool was first initialized, as of each `secondsAgo`
     function observe(
         Observation[MAX_BUFFER_LENGTH] storage self,
         uint32 time,
@@ -334,8 +338,11 @@ library Oracle {
         uint16 index,
         uint128 liquidity,
         uint16 cardinality
-    ) internal view returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {
-        require(cardinality > 0, 'I');
+    ) internal view returns (
+        int56[] memory tickCumulatives,
+        uint160[] memory secondsPerLiquidityCumulativeX128s
+    ) {
+        require(cardinality > 0, "I");
 
         tickCumulatives = new int56[](secondsAgos.length);
         secondsPerLiquidityCumulativeX128s = new uint160[](secondsAgos.length);

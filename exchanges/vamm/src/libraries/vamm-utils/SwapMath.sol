@@ -40,7 +40,8 @@ library SwapMath {
 
         uint256 amountRemainingAbsolute;
 
-        /// @dev using unchecked block below since overflow is possible when calculating "-amountRemaining" and such overflow would cause a revert
+        /// @dev using unchecked block below since overflow is possible 
+        ///     when calculating "-amountRemaining" and such overflow would cause a revert
         unchecked {
             amountRemainingAbsolute = uint256(-params.amountRemaining);
         }
