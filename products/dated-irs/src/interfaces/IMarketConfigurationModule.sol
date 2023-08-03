@@ -28,7 +28,7 @@ interface IMarketConfigurationModule {
      *
      * Requirements:
      *
-     * - `msg.sender` must be the owner of the dated irs product.
+     * - `msg.sender` must be the owner of the dated irs market.
      *
      * Emits a {MarketConfigured} event.
      *

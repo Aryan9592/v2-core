@@ -12,7 +12,7 @@ import "../storage/Account.sol";
 /**
  * @title System-wide entry point for the management of markets connected to the protocol.
  */
-interface IMarketModule {
+interface IMarketManagerModule {
     /**
      * @notice Thrown when an attempt to register a market that does not conform to the IMarket interface is made.
      */

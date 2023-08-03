@@ -20,7 +20,7 @@ import {MarketRiskConfiguration} from "@voltz-protocol/core/src/storage/MarketRi
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
 
-import {ProductConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/ProductConfiguration.sol";
+import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 import {MarketConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketConfiguration.sol";
 
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/utils/vamm-math/VammConfiguration.sol";
@@ -203,25 +203,10 @@ contract SetupProtocol is BatchScript {
   }
 
   function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit, bool isTrusted) public {
-    // predict product id
-    uint128 productId;
-    try contracts.coreProxy.getLastCreatedProductId() 
-      returns (uint128 lastProductId) { // todo: alex remove try once mainent contracts are upgraded
-      productId = lastProductId + 1;
-    } catch {
-      productId = 1;
-    }
-
-    // todo: alex add expected product id as arguments and check against it
-    if (productId > 1) {
-      return;
-    }
-
     registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product", isTrusted);
     
     configureProduct(
-      ProductConfiguration.Data({
-        productId: productId,
+      MarketManagerConfiguration.Data({
         coreProxy: address(contracts.coreProxy),
         poolAddress: address(contracts.vammProxy),
         takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
@@ -274,7 +259,6 @@ contract SetupProtocol is BatchScript {
 
     configureMarketFee(
       MarketFeeConfiguration.Data({
-        productId: productId,
         marketId: marketId,
         feeCollectorAccountId: feeCollectorAccountId,
         atomicMakerFee: atomicMakerFee,
@@ -284,7 +268,6 @@ contract SetupProtocol is BatchScript {
 
     configureMarketRisk(
       MarketRiskConfiguration.Data({
-        productId: productId, 
         marketId: marketId, 
         riskParameter: riskParameter,
         twapLookbackWindow: twapLookbackWindow
@@ -636,13 +619,13 @@ contract SetupProtocol is BatchScript {
   function registerProduct(address product, string memory name, bool isTrusted) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.registerProduct(product, name, isTrusted);
+      contracts.coreProxy.registerMarket(product, name);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
-          contracts.coreProxy.registerProduct,
-          (product, name, isTrusted)
+          contracts.coreProxy.registerMarket,
+          (product, name)
         )
       );
     }
@@ -667,14 +650,13 @@ contract SetupProtocol is BatchScript {
     uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, trustlessProductIdTrustedByAccount,
-    isMultiToken);
+      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, isMultiToken);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.createAccount,
-          (requestedAccountId, accountOwner, trustlessProductIdTrustedByAccount, isMultiToken)
+          (requestedAccountId, accountOwner, isMultiToken)
         )
       );
     }
@@ -699,15 +681,15 @@ contract SetupProtocol is BatchScript {
   /////////////////             DATED IRS            /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function configureProduct(ProductConfiguration.Data memory config) public {
+  function configureProduct(MarketManagerConfiguration.Data memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.datedIrsProxy.configureProduct(config);
+      contracts.datedIrsProxy.configureMarketManager(config);
     } else {
       addToBatch(
         address(contracts.datedIrsProxy),
         abi.encodeCall(
-          contracts.datedIrsProxy.configureProduct,
+          contracts.datedIrsProxy.configureMarketManager,
           (config)
         )
       );

@@ -10,8 +10,8 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import "../../storage/Account.sol";
 
-/// @title Interface a Market needs to adhere.
-interface IMarket is IERC165 {
+/// @title Interface a Market Manager needs to adhere.
+interface IMarketManager is IERC165 {
     //// VIEW FUNCTIONS ////
 
     /// @notice returns a human-readable name for a given market

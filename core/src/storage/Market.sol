@@ -8,11 +8,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/errors/AccessError.sol";
-import "../interfaces/external/IMarket.sol";
+import "../interfaces/external/IMarketManager.sol";
 import "./Account.sol";
 
 /**
- * @title Connects external contracts that implement the `IMarket` interface to the protocol.
+ * @title Connects external contracts that implement the `IMarketManager` interface to the protocol.
  *
  */
 library Market {
@@ -23,7 +23,8 @@ library Market {
          */
         uint128 id;
         /**
-         * @dev Address for the external contract that implements the `IMarket` interface, which this Market objects connects to.
+         * @dev Address for the external contract that implements the `IMarketManager` interface, 
+         * which this Market objects connects to.
          *
          * Note: This object is how the system tracks the market. The actual market is external to the system, i.e. its own
          * contract.
@@ -73,7 +74,7 @@ library Market {
             Account.Exposure[] memory makerExposuresUpper
         )
     {
-        return IMarket(self.marketAddress).getAccountTakerAndMakerExposures(self.id, accountId);
+        return IMarketManager(self.marketAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
 
 
@@ -81,6 +82,6 @@ library Market {
      * @dev The market at self.marketAddress is expected to close filled and unfilled positions for all maturities and pools
      */
     function closeAccount(Data storage self, uint128 accountId) internal {
-        IMarket(self.marketAddress).closeAccount(self.id, accountId);
+        IMarketManager(self.marketAddress).closeAccount(self.id, accountId);
     }
 }

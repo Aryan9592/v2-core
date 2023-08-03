@@ -88,16 +88,14 @@ library Dispatcher {
             // equivalent: abi.decode(inputs, (uint128, uint128, bool))
             // todo: double check the input offsets following changes to the core (IR)
             uint128 requestedId;
-            uint128 trustlessProductIdTrustedByAccount;
             bool isMultiToken;
             assembly {
                 requestedId := calldataload(inputs.offset)
-                trustlessProductIdTrustedByAccount := calldataload(add(inputs.offset, 0x20))
                 isMultiToken := calldataload(add(inputs.offset, 0x40))
             }
 
             // todo: missing tests for this flow, no tests failed after changing the implementation (IR)
-            V2Core.createAccount(requestedId, trustlessProductIdTrustedByAccount, isMultiToken);
+            V2Core.createAccount(requestedId, isMultiToken);
         } else if (command == Commands.V2_CORE_DEPOSIT) {
             // equivalent: abi.decode(inputs, (uint128, address, uint256))
             uint128 accountId;

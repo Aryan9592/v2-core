@@ -8,52 +8,53 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 /**
- * @title Tracks configurations for the Products
- * note Enables the owner of the ProductProxy to configure the pool address the product is linked to
+ * @title Tracks configurations for the Market Managers
+ * note Enables the owner of the MarketManagerProxy to configure the pool address the market manager is linked to
  */
-library ProductConfiguration {
-    bytes32 private constant _SLOT_PRODUCT_CONFIGURATION = keccak256(abi.encode("xyz.voltz.ProductConfiguration"));
+library MarketManagerConfiguration {
+    bytes32 private constant _SLOT_MARKET_MANAGER_CONFIGURATION = keccak256(abi.encode("xyz.voltz.MarketManagerConfiguration"));
 
     struct Data {
-        /**
-         * @dev Id for a given interest rate swap market
-         */
-        uint128 productId;
         /**
          * @dev Address of the core proxy
          */
         address coreProxy;
+
+        // todo: revise the fact that pool address is per market manager and not per market
+
         /**
-         * @dev Address of the pool address the product is linked to
+         * @dev Address of the pool address the market manager is linked to
          */
         address poolAddress;
+
+        // todo: revise the fact that taker position limit is only per market and not per all markets
+        
         /**
-         * @dev Maximum number of positions of an account in this product
+         * @dev Maximum number of positions of an account in this market
          */
         uint256 takerPositionsPerAccountLimit;
     }
 
     /**
-     * @dev Loads the ProductConfiguration object
-     * @return productConfig The ProductConfiguration object.
+     * @dev Loads the MarketManagerConfiguration object
+     * @return marketManagerConfig The MarketManagerConfiguration object.
      */
-    function load() internal pure returns (Data storage productConfig) {
-        bytes32 s = _SLOT_PRODUCT_CONFIGURATION;
+    function load() internal pure returns (Data storage marketManagerConfig) {
+        bytes32 s = _SLOT_MARKET_MANAGER_CONFIGURATION;
         assembly {
-            productConfig.slot := s
+            marketManagerConfig.slot := s
         }
     }
 
     /**
-     * @dev Configures a product
-     * @param config The ProductConfiguration object with all the settings for the product being configured.
+     * @dev Configures a market manager
+     * @param config The MarketManagerConfiguration object with all the settings for the market manager being configured.
      */
     function set(Data memory config) internal {
         Data storage storedConfig = load();
 
         //todo: check interface id of pool address (AB)
 
-        storedConfig.productId = config.productId;
         storedConfig.coreProxy = config.coreProxy;
         storedConfig.poolAddress = config.poolAddress;
         storedConfig.takerPositionsPerAccountLimit = config.takerPositionsPerAccountLimit;
@@ -67,11 +68,6 @@ library ProductConfiguration {
     function getCoreProxyAddress() internal view returns (address storedProxyAddress) {
         Data storage storedConfig = load();
         storedProxyAddress = storedConfig.coreProxy;
-    }
-
-    function getProductId() internal view returns (uint128 storedProductId) {
-        Data storage storedConfig = load();
-        storedProductId = storedConfig.productId;
     }
 
     function getTakerPositionsPerAccountLimit() internal view returns (uint256 takerPositionsPerAccountLimit) {

@@ -30,9 +30,8 @@ library V2Core {
         Payments.pay(collateralType, msg.sender, tokenAmount);
     }
 
-    function createAccount(uint128 requestedId, uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) internal {
+    function createAccount(uint128 requestedId, bool isMultiToken) internal {
         Config.Data memory config = Config.load();
-        IAccountModule(config.VOLTZ_V2_CORE_PROXY).createAccount(requestedId, msg.sender,
-            trustlessProductIdTrustedByAccount, isMultiToken);
+        IAccountModule(config.VOLTZ_V2_CORE_PROXY).createAccount(requestedId, msg.sender, isMultiToken);
     }
 }

@@ -151,7 +151,6 @@ library Account {
         int256 annualizedNotional;
         // note, in context of dated irs with the current accounting logic it also includes accruedInterest
         uint256 unrealizedLoss;
-        address collateralType;
     }
 
     /**

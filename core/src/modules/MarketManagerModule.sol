@@ -7,8 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/external/IMarket.sol";
-import "../interfaces/IMarketModule.sol";
+import "../interfaces/external/IMarketManager.sol";
+import "../interfaces/IMarketManagerModule.sol";
 import "../storage/Market.sol";
 import "../storage/MarketCreator.sol";
 import "../storage/MarketFeeConfiguration.sol";
@@ -21,9 +21,9 @@ import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelp
 
 /**
  * @title Protocol-wide entry point for the management of markets connected to the protocol.
- * @dev See IMarketModule
+ * @dev See IMarketManagerModule
  */
-contract MarketModule is IMarketModule {
+contract MarketManagerModule is IMarketManagerModule {
     using Account for Account.Data;
     using Market for Market.Data;
     using MarketFeeConfiguration for MarketFeeConfiguration.Data;
@@ -39,9 +39,8 @@ contract MarketModule is IMarketModule {
         return MarketCreator.getMarketStore().lastCreatedMarketId;
     }
 
-
     /**
-     * @inheritdoc IMarketModule
+     * @inheritdoc IMarketManagerModule
      */
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
@@ -58,12 +57,12 @@ contract MarketModule is IMarketModule {
     }
 
     /**
-     * @inheritdoc IMarketModule
+     * @inheritdoc IMarketManagerModule
      */
     function registerMarket(address market, string memory name) external override returns (uint128 marketId) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
 
-        if (!ERC165Helper.safeSupportsInterface(market, type(IMarket).interfaceId)) {
+        if (!ERC165Helper.safeSupportsInterface(market, type(IMarketManager).interfaceId)) {
             revert IncorrectMarketInterface(market);
         }
 
@@ -73,7 +72,7 @@ contract MarketModule is IMarketModule {
     }
 
     /**
-     * @inheritdoc IMarketModule
+     * @inheritdoc IMarketManagerModule
      */
 
     function closeAccount(uint128 marketId, uint128 accountId) external override {
