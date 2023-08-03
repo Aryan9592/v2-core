@@ -46,14 +46,9 @@ contract MarketManagerModule is IMarketManagerModule {
         external
         override
         view
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        )
+        returns (Account.MakerMarketExposure[] memory exposures)
     {
-        (takerExposures, makerExposuresLower, makerExposuresUpper) = 
-            Market.load(marketId).getAccountTakerAndMakerExposures(accountId);
+        exposures = Market.load(marketId).getAccountTakerAndMakerExposures(accountId);
     }
 
     /**

@@ -24,6 +24,23 @@ library ExposureHelpers {
     using SafeCastU256 for uint256;
     using RateOracleReader for RateOracleReader.Data;
 
+    struct PoolExposureState {
+        uint128 marketId;
+        uint32 maturityTimestamp;
+        UD60x18 annualizedExposureFactor;
+
+        int256 baseBalance;
+        int256 quoteBalance;
+
+        int256 baseBalancePool;
+        int256 quoteBalancePool;
+
+        uint256 unfilledBaseLong;
+        uint256 unfilledQuoteLong;
+        uint256 unfilledBaseShort;
+        uint256 unfilledQuoteShort;
+    }
+
     function computeUnrealizedLoss(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -92,41 +109,10 @@ library ExposureHelpers {
         }
     }
 
-    function removeEmptySlotsFromExposuresArray(
-        Account.Exposure[] memory exposures,
-        uint256 length
-    ) internal pure returns (Account.Exposure[] memory exposuresWithoutEmptySlots) {
-        // todo: consider into a utility library (CR)
-        require(exposures.length >= length, "Exp len");
-        exposuresWithoutEmptySlots = new Account.Exposure[](length);
-        for (uint256 i = 0; i < length; i++) {
-            exposuresWithoutEmptySlots[i] = exposures[i];
-        }
-    }
-
-    function getOnlyFilledExposureInPool(
-        Portfolio.PoolExposureState memory poolState,
-        address poolAddress
-    ) internal view returns (Account.Exposure memory) {
-        uint256 unrealizedLoss = computeUnrealizedLoss(
-            poolState.marketId,
-            poolState.maturityTimestamp,
-            poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool,
-            poolState.quoteBalance + poolState.quoteBalancePool
-        );
-        
-        return Account.Exposure({
-            marketId: poolState.marketId,
-            annualizedNotional: mulUDxInt(poolState._annualizedExposureFactor, poolState.baseBalance + poolState.baseBalancePool),
-            unrealizedLoss: unrealizedLoss
-        });
-    }
-
     function getUnfilledExposureLowerInPool(
-        Portfolio.PoolExposureState memory poolState,
+        PoolExposureState memory poolState,
         address poolAddress
-    ) internal view returns (Account.Exposure memory) {
+    ) internal view returns (Account.MarketExposure memory) {
         uint256 unrealizedLossLower = computeUnrealizedLoss(
             poolState.marketId,
             poolState.maturityTimestamp,
@@ -135,10 +121,9 @@ library ExposureHelpers {
             poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
         );
 
-        return Account.Exposure({
-            marketId: poolState.marketId,
+        return Account.MarketExposure({
             annualizedNotional: mulUDxInt(
-                poolState._annualizedExposureFactor, 
+                poolState.annualizedExposureFactor, 
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
             ),
             unrealizedLoss: unrealizedLossLower
@@ -148,7 +133,7 @@ library ExposureHelpers {
     function getUnfilledExposureUpperInPool(
         Portfolio.PoolExposureState memory poolState,
         address poolAddress
-    ) internal view returns (Account.Exposure memory) {
+    ) internal view returns (Account.MarketExposure memory) {
         uint256 unrealizedLossUpper = computeUnrealizedLoss(
             poolState.marketId,
             poolState.maturityTimestamp,
@@ -157,10 +142,9 @@ library ExposureHelpers {
             poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt()
         );
 
-        return Account.Exposure({
-            marketId: poolState.marketId,
+        return Account.MarketExposure({
             annualizedNotional: mulUDxInt(
-                poolState._annualizedExposureFactor,
+                poolState.annualizedExposureFactor,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
             ),
             unrealizedLoss: unrealizedLossUpper

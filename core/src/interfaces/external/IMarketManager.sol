@@ -21,11 +21,7 @@ interface IMarketManager is IERC165 {
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
         view
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        );
+        returns (Account.MakerMarketExposure[] memory exposures);
 
     //// STATE CHANGING FUNCTIONS ////
 

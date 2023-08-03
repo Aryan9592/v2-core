@@ -14,6 +14,8 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "./OracleManager.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
  * price from the oracle manager -> relevant for multi-collateral.
@@ -21,6 +23,8 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
+
+    using CollateralConfiguration for CollateralConfiguration.Data;
 
     bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
         keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
@@ -123,18 +127,33 @@ library CollateralConfiguration {
         }
     }
 
-
     /**
      * @dev Returns the price of this collateral configuration object.
      * @param self The CollateralConfiguration object.
      * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralPrice(Data storage self) internal view returns (UD60x18) {
+    function getCollateralPriceInUSD(Data storage self) internal view returns (UD60x18) {
         OracleManager.Data memory oracleManager = OracleManager.load();
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
             self.oracleNodeId
         );
 
         return UD60x18.wrap(node.price.toUint());
+    }
+
+    /**
+     * @dev Returns the weighted amount of colletaral in USD.
+     * @param self The CollateralConfiguration object.
+     * @param collateralAmount The amount of collateral.
+     * @return The corresponding weight USD amount of the collateral with 18 decimals of precision.
+     */
+    function getWeightedCollateralInUSD(
+        Data storage self,
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
+        uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(self.weight, collateralBalanceInUSD);
+
+        return collateralBalanceInUSDWithHaircut;
     }
 }

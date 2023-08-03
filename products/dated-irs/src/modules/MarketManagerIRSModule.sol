@@ -146,11 +146,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        )
+        returns (Account.MakerMarketExposure[] memory exposures)
     {
         return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures();
     }

@@ -141,16 +141,18 @@ library Account {
     }
 
     /**
-     * @dev marketId (Perp) -> marketID (ETH)
      * @dev Note, for dated instruments we don't need to keep track of the maturity
      because the risk parameter is shared across maturities for a given marketId
-     * @dev we need reference to marketId to be able to derive the risk parameters for lm calculation
      */
-    struct Exposure {
-        uint128 marketId;
+    struct MarketExposure {
         int256 annualizedNotional;
         // note, in context of dated irs with the current accounting logic it also includes accruedInterest
         uint256 unrealizedLoss;
+    }
+
+    struct MakerMarketExposure {
+        MarketExposure lower;
+        MarketExposure upper;
     }
 
     /**
@@ -342,25 +344,6 @@ library Account {
         }
     }
 
-    /**
-     * @dev Returns the aggregate exposures of the account in which the account is active 
-     * (exposures are per market)
-     */
-    function getMarketTakerAndMakerExposures(Data storage self, uint128 marketId)
-        internal
-        view
-        returns (
-            Exposure[] memory takerExposures,
-            Exposure[] memory makerExposuresLower,
-            Exposure[] memory makerExposuresUpper
-        )
-    {
-        Market.Data storage market = Market.load(marketId);
-        (takerExposures, makerExposuresLower, makerExposuresUpper) = 
-            market.getAccountTakerAndMakerExposures(self.id);
-    }
-
-
     function getRiskParameter(uint128 marketId) internal view returns (UD60x18 riskParameter) {
         return MarketRiskConfiguration.load(marketId).riskParameter;
     }
@@ -470,78 +453,43 @@ library Account {
         for (uint256 i = 1; i <= markets.length(); i++) {
             uint128 marketId = markets.valueAt(i).to128();
 
-            (
-                Exposure[] memory takerExposures,
-                Exposure[] memory makerExposuresLower,
-                Exposure[] memory makerExposuresUpper
-            ) = self.getMarketTakerAndMakerExposures(marketId);
+            // Get the risk parameter of the market
+            UD60x18 riskParameter = getRiskParameter(marketId);
 
-            (uint256 lmTakerPositions, uint256 unrealizedLossTakerPositions) = 
-                computeLMAndUnrealizedLossFromExposures(takerExposures);
+            // Get taker and maker exposure to the market
+            MakerMarketExposure[] memory makerExposures = Market.load(marketId).getAccountTakerAndMakerExposures(self.id);
 
-            (uint256 lmMakerPositions, uint256 highestUnrealizedLossMakerPositions) =
-                computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(makerExposuresLower, makerExposuresUpper);
+            // Aggregate LMR and unrealized loss for all exposures
+            for (uint256 j = 0; j < makerExposures.length; j++) {
+                MarketExposure memory exposureLower = makerExposures[j].lower;
+                MarketExposure memory exposureUpper = makerExposures[j].upper;
 
-            liquidationMarginRequirement += (lmTakerPositions + lmMakerPositions);
-            highestUnrealizedLoss += (unrealizedLossTakerPositions + highestUnrealizedLossMakerPositions);
-        }
-    }
+                uint256 lowerLMR = 
+                    computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
 
-    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
-        Exposure[] memory exposuresLower,
-        Exposure[] memory exposuresUpper
-    ) internal view
-    returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
-    {
-        require(exposuresLower.length == exposuresUpper.length);
+               if (equalExposures(exposureLower, exposureUpper)) {
+                    liquidationMarginRequirement += lowerLMR;
+                    highestUnrealizedLoss += exposureLower.unrealizedLoss;
+               }
+               else {
+                    uint256 upperLMR = 
+                        computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
 
-        for (uint256 i = 0; i < exposuresLower.length; i++) {
-            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
-        
-            Exposure memory exposureLower = exposuresLower[i];
-            Exposure memory exposureUpper = exposuresUpper[i];
-        
-            UD60x18 riskParameter = getRiskParameter(exposureLower.marketId);
-
-            uint256 liquidationMarginRequirementExposureLower =
-                computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
-        
-            uint256 liquidationMarginRequirementExposureUpper =
-                computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-            if (
-                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
-                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
-            ) {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureLower;
-                highestUnrealizedLoss += exposureLower.unrealizedLoss;
-            } else {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureUpper;
-                highestUnrealizedLoss += exposureUpper.unrealizedLoss;
+                    if (
+                        lowerLMR + exposureLower.unrealizedLoss >
+                        upperLMR + exposureUpper.unrealizedLoss
+                    ) {
+                        liquidationMarginRequirement += lowerLMR;
+                        highestUnrealizedLoss += exposureLower.unrealizedLoss;
+                    } else {
+                        liquidationMarginRequirement += upperLMR;
+                        highestUnrealizedLoss += exposureUpper.unrealizedLoss;
+                    }
+               }
+            
+                
             }
         }
-    }
-
-    /**
-    * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
-     */
-    function computeLMAndUnrealizedLossFromExposures(Exposure[] memory exposures)
-    internal
-    view
-    returns (uint256 liquidationMarginRequirement, uint256 unrealizedLoss)
-    {
-        for (uint256 i = 0; i < exposures.length; i++) {
-            Exposure memory exposure = exposures[i];
-
-            UD60x18 riskParameter = getRiskParameter(exposure.marketId);
-
-            uint256 liquidationMarginRequirementExposure =
-                computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
-            
-            liquidationMarginRequirement += liquidationMarginRequirementExposure;
-            unrealizedLoss += exposure.unrealizedLoss;
-        }
-
     }
 
     function getWeightedCollateralBalanceInUSD(Data storage self) 
@@ -549,20 +497,18 @@ library Account {
     view
     returns (uint256 weightedCollateralBalanceInUSD) 
     {
-        // todo: consider breaking this function into a combination of a pure + view function (CR)
-
+        // retrieve all active collaterals of the account
         SetUtil.AddressSet storage activeCollaterals = self.activeCollaterals;
 
         for (uint256 i = 1; i <= activeCollaterals.length(); i++) {
             address collateralType = activeCollaterals.valueAt(i);
-            CollateralConfiguration.Data storage collateralConfiguration = CollateralConfiguration.load(collateralType);
 
+            // get the collateral balance of the account in this collateral type
             uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
-            uint256 collateralBalanceInUSD = mulUDxUint(collateralConfiguration.getCollateralPrice(), collateralBalance);
-            uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(collateralConfiguration.weight, collateralBalanceInUSD);
-
-            weightedCollateralBalanceInUSD += collateralBalanceInUSDWithHaircut;
+            // aggregate the corresponding weighted amount in USD 
+            weightedCollateralBalanceInUSD += 
+                CollateralConfiguration.load(collateralType).getWeightedCollateralInUSD(collateralBalance);
         }
     }
 
@@ -615,5 +561,16 @@ library Account {
     returns (uint256 initialMarginRequirement)
     {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
+    }
+
+    function equalExposures(MarketExposure memory a, MarketExposure memory b) internal pure returns (bool) {
+        if (
+            a.annualizedNotional == b.annualizedNotional && 
+            a.unrealizedLoss == b.unrealizedLoss
+        ) {
+            return true;
+        }
+
+        return false;
     }
 }

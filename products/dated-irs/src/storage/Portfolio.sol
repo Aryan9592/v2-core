@@ -125,99 +125,31 @@ library Portfolio {
         }
     }
 
-    struct CollateralExposureState {
-        uint256 poolsCount;
-        uint256 takerExposuresLength;
-        uint256 makerExposuresLowerAndUpperLength;
-    }
-
-    struct PoolExposureState {
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        int256 baseBalance;
-        int256 baseBalancePool;
-        int256 quoteBalance;
-        int256 quoteBalancePool;
-        uint256 unfilledBaseLong;
-        uint256 unfilledQuoteLong;
-        uint256 unfilledBaseShort;
-        uint256 unfilledQuoteShort;
-        UD60x18 _annualizedExposureFactor;
-    }
-
-    struct Exposures {
-        Account.Exposure[] taker;
-        uint256 takerIndex;
-        Account.Exposure[] makerLower;
-        Account.Exposure[] makerUpper;
-        uint256 makerIndex;
-    }
-
-    function getAccountTakerAndMakerExposuresWithEmptySlots(
-        Data storage self,
-        address poolAddress,
-        Exposures memory initExposures
-    ) internal view returns (Account.Exposure[] memory, Account.Exposure[] memory, Account.Exposure[] memory, uint256, uint256) {
-
-        CollateralExposureState memory collateralState = CollateralExposureState({
-            poolsCount: self.activeMaturities.length(),
-            takerExposuresLength: initExposures.takerIndex,
-            makerExposuresLowerAndUpperLength: initExposures.makerIndex
-        });
-
-
-        for (uint256 i = 1; i <= collateralState.poolsCount; i++) {
-            PoolExposureState memory poolState = self.getPoolExposureState(
-                i,
-                poolAddress
-            );
-
-            if (poolState.unfilledBaseLong == 0 && poolState.unfilledBaseShort == 0) {
-                // no unfilled exposures => only consider taker exposures
-                initExposures.taker[collateralState.takerExposuresLength] = 
-                    ExposureHelpers.getOnlyFilledExposureInPool(poolState, poolAddress);
-            
-                collateralState.takerExposuresLength = collateralState.takerExposuresLength + 1;
-            } else {
-                // unfilled exposures => consider maker lower
-                initExposures.makerLower[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
-                
-                initExposures.makerUpper[collateralState.makerExposuresLowerAndUpperLength] = 
-                    ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
-
-                collateralState.makerExposuresLowerAndUpperLength = collateralState.makerExposuresLowerAndUpperLength + 1;
-            }
-        }
-
-        return (
-            initExposures.taker,
-            initExposures.makerLower,
-            initExposures.makerUpper,
-            collateralState.takerExposuresLength,
-            collateralState.makerExposuresLowerAndUpperLength
-        );
-    }
-
     function getPoolExposureState(
         Data storage self,
-        uint256 index,
+        uint32 maturityTimestamp,
         address poolAddress
-    ) internal view returns (PoolExposureState memory poolState) {
+    ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
         poolState.marketId = self.marketId;
-
-        poolState.maturityTimestamp = self.activeMaturities.valueAt(index).to32();
+        poolState.maturityTimestamp = maturityTimestamp;
 
         poolState.baseBalance = self.positions[poolState.maturityTimestamp].baseBalance;
         poolState.quoteBalance = self.positions[poolState.maturityTimestamp].quoteBalance;
 
-        (poolState.baseBalancePool,poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
-            poolState.marketId, poolState.maturityTimestamp, self.accountId);
+        (poolState.baseBalancePool, poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
+            poolState.marketId, 
+            poolState.maturityTimestamp, 
+            self.accountId
+        );
 
         (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
-            IPool(poolAddress).getAccountUnfilledBaseAndQuote(poolState.marketId, poolState.maturityTimestamp, self.accountId);
+            IPool(poolAddress).getAccountUnfilledBaseAndQuote(
+                poolState.marketId, 
+                poolState.maturityTimestamp, 
+                self.accountId
+            );
         
-        poolState._annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
+        poolState.annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
             poolState.marketId,
             poolState.maturityTimestamp
         );
@@ -228,107 +160,26 @@ library Portfolio {
     )
         internal
         view
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        )
+        returns (Account.MakerMarketExposure[] memory exposures)
     {
         address poolAddress = MarketManagerConfiguration.getPoolAddress();
-        uint256 marketsAndMaturitiesCount = self.activeMaturities.length();
+        uint256 activeMaturitiesCount = self.activeMaturities.length();
 
-        (
-            Account.Exposure[] memory takerExposuresPadded,
-            Account.Exposure[] memory makerExposuresLowerPadded,
-            Account.Exposure[] memory makerExposuresUpperPadded,
-            uint256 takerExposuresLength,
-            uint256 makerExposuresLowerAndUpperLength
-        ) = getAccountTakerAndMakerExposuresWithEmptySlots(
-            self,
-            poolAddress,
-            Exposures({
-                taker: new Account.Exposure[](marketsAndMaturitiesCount),
-                takerIndex: 0,
-                makerLower: new Account.Exposure[](marketsAndMaturitiesCount),
-                makerUpper: new Account.Exposure[](marketsAndMaturitiesCount),
-                makerIndex: 0
-            })
-        );
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+            ExposureHelpers.PoolExposureState memory poolState = self.getPoolExposureState(
+                self.activeMaturities.valueAt(i).to32(),
+                poolAddress
+            );
 
-        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            takerExposuresPadded,
-            takerExposuresLength
-        );
+            // unfilled exposures => consider maker lower
+            exposures[i - 1].lower = 
+                ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
+    
+            exposures[i - 1].upper = 
+                ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
+        }
 
-        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            makerExposuresLowerPadded,
-            makerExposuresLowerAndUpperLength
-        );
-
-        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            makerExposuresUpperPadded,
-            makerExposuresLowerAndUpperLength
-        );
-
-        return (takerExposures, makerExposuresLower, makerExposuresUpper);
-    }
-
-    function getAccountTakerAndMakerExposuresAllCollaterals(
-        Data storage self,
-        address poolAddress
-    )
-        internal
-        view
-        returns (
-            Account.Exposure[] memory takerExposures,
-            Account.Exposure[] memory makerExposuresLower,
-            Account.Exposure[] memory makerExposuresUpper
-        )
-    {
-
-        uint256 exposuresCount = self.activeMaturities.length();
-
-        Account.Exposure[] memory takerExposuresPadded = new Account.Exposure[](exposuresCount);
-        Account.Exposure[] memory makerExposuresLowerPadded = new Account.Exposure[](exposuresCount);
-        Account.Exposure[] memory makerExposuresUpperPadded = new Account.Exposure[](exposuresCount);
-
-        uint256 takerExposuresLength = 0;
-        uint256 makerExposuresLowerAndUpperLength = 0;
-
-        (
-            takerExposuresPadded,
-            makerExposuresLowerPadded,
-            makerExposuresUpperPadded,
-            takerExposuresLength,
-            makerExposuresLowerAndUpperLength
-        ) = getAccountTakerAndMakerExposuresWithEmptySlots(
-            self,
-            poolAddress,
-            Exposures({
-                taker: takerExposuresPadded,
-                takerIndex: takerExposuresLength,
-                makerLower: makerExposuresLowerPadded,
-                makerUpper: makerExposuresUpperPadded,
-                makerIndex: makerExposuresLowerAndUpperLength
-            })
-        );
-
-        takerExposures = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            takerExposuresPadded,
-            takerExposuresLength
-        );
-
-        makerExposuresLower = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            makerExposuresLowerPadded,
-            makerExposuresLowerAndUpperLength
-        );
-
-        makerExposuresUpper = ExposureHelpers.removeEmptySlotsFromExposuresArray(
-            makerExposuresUpperPadded,
-            makerExposuresLowerAndUpperLength
-        );
-
-        return (takerExposures, makerExposuresLower, makerExposuresUpper);
+        return exposures;
     }
 
     /**
