@@ -443,14 +443,14 @@ library Account {
             for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
                 address quoteToken = self.activeQuoteTokens.valueAt(i);
 
-                (, uint256 liquidationMarginRequirementToken, uint256 highestUnrealizedLossToken) = 
+                (uint256 liquidationMarginRequirementByCollateral, uint256 highestUnrealizedLossByCollateral) = 
                     self.getRequirementsAndHighestUnrealizedLossByCollateralType(quoteToken);
 
                 // todo: convert amounts per token to USD and aggregate them
             }
         }
         else {
-            (, liquidationMarginRequirement, highestUnrealizedLoss) = 
+            (liquidationMarginRequirement, highestUnrealizedLoss) = 
                     self.getRequirementsAndHighestUnrealizedLossByCollateralType(collateralType);
             
             // don't convert to USD because single token accounts have requirements in quote token
@@ -464,7 +464,7 @@ library Account {
     function getRequirementsAndHighestUnrealizedLossByCollateralType(Data storage self, address collateralType)
         internal
         view
-        returns (uint256 initialMarginRequirement, uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
     {
         SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
 
