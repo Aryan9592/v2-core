@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import "./DatedIrsVammTestUtil.sol";
 import "../src/storage/LPPosition.sol";
 import "../src/storage/DatedIrsVAMM.sol";
-import "../src/libraries/errors/CustomErrors.sol";
+import "../src/libraries/errors/VammCustomErrors.sol";
 import "../src/storage/LPPosition.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, convert, unwrap, ud60x18, uMAX_UD60x18, uUNIT, UNIT } from "@prb/math/UD60x18.sol";
@@ -104,11 +104,11 @@ contract DatedIrsVammTest is DatedIrsVammTestUtil {
         // 3rd position
         vamm.executeDatedMakerOrder(ACCOUNT_1, initMarketId, ACCOUNT_1_TICK_LOWER + 1,ACCOUNT_1_TICK_UPPER + 1, 1000);
         // 4th position
-        vm.expectRevert(abi.encodeWithSelector(DatedIrsVamm.TooManyLpPositions.selector, ACCOUNT_1));
+        vm.expectRevert(abi.encodeWithSelector(VammCustomErrors.TooManyLpPositions.selector, ACCOUNT_1));
         vamm.executeDatedMakerOrder(ACCOUNT_1, initMarketId, ACCOUNT_1_TICK_LOWER + 2,ACCOUNT_1_TICK_UPPER + 1, 1000);
 
         // 4th position
-        vm.expectRevert(abi.encodeWithSelector(DatedIrsVamm.TooManyLpPositions.selector, ACCOUNT_1));
+        vm.expectRevert(abi.encodeWithSelector(VammCustomErrors.TooManyLpPositions.selector, ACCOUNT_1));
         vamm.executeDatedMakerOrder(ACCOUNT_1, initMarketId, ACCOUNT_1_TICK_LOWER - 2,ACCOUNT_1_TICK_UPPER - 1, 1000);
     }
 
@@ -313,7 +313,7 @@ contract DatedIrsVammTest is DatedIrsVammTestUtil {
             maxTick: NEW_MAX_TICK
         });
 
-        vm.expectRevert(abi.encodeWithSelector(DatedIrsVamm.ExceededTickLimits.selector, NEW_MIN_TICK, NEW_MAX_TICK));
+        vm.expectRevert(abi.encodeWithSelector(VammCustomErrors.ExceededTickLimits.selector, NEW_MIN_TICK, NEW_MAX_TICK));
         vamm.configureVamm(mutableConfig);
 
         // MOVE TICK BACK 

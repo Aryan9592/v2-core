@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../../utils/vamm-math/VammConfiguration.sol";
+import "../libraries/vamm-utils/VammConfiguration.sol";
 import "../storage/LPPosition.sol";
 
 interface IVammModule {

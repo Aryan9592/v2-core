@@ -128,7 +128,7 @@ contract PoolModuleTest is VoltzTest {
 
     function test_RevertWhen_ExecuteDatedTakerOrder_MarketNotFoud() public {
         vm.prank(address(0));
-        vm.expectRevert(abi.encodeWithSelector(CustomErrors.MarketAndMaturityCombinaitonNotSupported.selector, 3, initMaturityTimestamp));
+        vm.expectRevert(abi.encodeWithSelector(VammCustomErrors.MarketAndMaturityCombinaitonNotSupported.selector, 3, initMaturityTimestamp));
         (int256 executedBaseAmount, int256 executedQuoteAmount) = pool.executeDatedTakerOrder(3, initMaturityTimestamp, -100, TickMath.getSqrtRatioAtTick(MAX_TICK - 1));
         assertEq(executedBaseAmount, 0);
         assertEq(executedQuoteAmount, 0);

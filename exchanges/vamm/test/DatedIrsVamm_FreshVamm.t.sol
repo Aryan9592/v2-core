@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import "./DatedIrsVammTestUtil.sol";
 import "../src/storage/LPPosition.sol";
 import "../src/storage/DatedIrsVAMM.sol";
-import "../src/libraries/errors/CustomErrors.sol";
+import "../src/libraries/errors/VammCustomErrors.sol";
 import "../src/storage/LPPosition.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, convert as convertUd , ud60x18, uMAX_UD60x18, uUNIT } from "@prb/math/UD60x18.sol";
