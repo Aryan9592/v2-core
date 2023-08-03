@@ -1,0 +1,34 @@
+#####################################
+# Deploy VAMM Router Modules
+#####################################
+[contract.AccountBalanceModule]
+artifact = "AccountBalanceModule"
+[contract.FeatureFlagModule]
+artifact = "FeatureFlagModule"
+[contract.PoolConfigurationModule]
+artifact = "PoolConfigurationModule"
+[contract.PoolModule]
+artifact = "PoolModule"
+[contract.VammModule]
+artifact = "VammModule"
+
+#####################################
+# Deploy VAMM Router
+#####################################
+[router.VammRouter]
+contracts = [
+  "OwnerUpgradeModule",
+  "AccountBalanceModule",
+  "FeatureFlagModule",
+  "PoolConfigurationModule",
+  "PoolModule",
+  "VammModule"
+]
+depends = [
+  "contract.OwnerUpgradeModule",
+  "contract.AccountBalanceModule",
+  "contract.FeatureFlagModule",
+  "contract.PoolConfigurationModule",
+  "contract.PoolModule",
+  "contract.VammModule"
+]
