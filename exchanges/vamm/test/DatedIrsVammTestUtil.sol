@@ -3,7 +3,7 @@ pragma solidity >=0.8.13;
 import "forge-std/Test.sol";
 import "./VoltzTest.sol";
 import "../src/storage/LPPosition.sol";
-import "../src/storage/DatedIrsVAMM.sol";
+import "../src/storage/DatedIrsVamm.sol";
 import "../src/libraries/errors/VammCustomErrors.sol";
 import "../src/libraries/ticks/Tick.sol";
 
