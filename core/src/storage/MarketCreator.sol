@@ -13,7 +13,7 @@ import "./Market.sol";
  * @title Encapsulates Market creation logic
  */
 library MarketCreator {
-    bytes32 private constant _SLOT_Market_CREATOR = keccak256(abi.encode("xyz.voltz.Markets"));
+    bytes32 private constant _SLOT_Market_CREATOR = keccak256(abi.encode("xyz.voltz.MarketCreator"));
 
     struct Data {
         /**
@@ -43,7 +43,7 @@ library MarketCreator {
      * tracks, resulting in multiple ids for the same address.
      * For example if a given Market works across maturities, each maturity internally will be represented as a unique Market id
      */
-    function create(address marketAddress, string memory name, address owner)
+    function create(address marketManagerAddress, string memory name, address owner)
         internal
         returns (Market.Data storage market)
     {
@@ -53,7 +53,7 @@ library MarketCreator {
         market = Market.load(id);
     
         market.id = id;
-        market.marketAddress = marketAddress;
+        market.marketManagerAddress = marketManagerAddress;
         market.name = name;
         market.owner = owner;
         marketStore.lastCreatedMarketId = id;

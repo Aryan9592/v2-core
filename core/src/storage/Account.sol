@@ -243,8 +243,8 @@ library Account {
     function closeAccount(Data storage self, address collateralType) internal {
         SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
             
-        for (uint256 j = 1; j <= markets.length(); j++) {
-            uint128 marketId = markets.valueAt(j).to128();
+        for (uint256 i = 1; i <= markets.length(); i++) {
+            uint128 marketId = markets.valueAt(i).to128();
             Market.load(marketId).closeAccount(self.id);
         }
     }
@@ -467,8 +467,8 @@ library Account {
     {
         SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
 
-        for (uint256 j = 1; j <= markets.length(); j++) {
-            uint128 marketId = markets.valueAt(j).to128();
+        for (uint256 i = 1; i <= markets.length(); i++) {
+            uint128 marketId = markets.valueAt(i).to128();
 
             (
                 Exposure[] memory takerExposures,

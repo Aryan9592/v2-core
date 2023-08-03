@@ -109,7 +109,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
 
         address quoteToken = MarketConfiguration.load(marketId).quoteToken;
 
-        IMarketManagerModule(coreProxy).propagateSettlementCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
+        IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
 
         emit DatedIRSPositionSettled(
             accountId, marketId, maturityTimestamp, quoteToken, settlementCashflowInQuote, block.timestamp

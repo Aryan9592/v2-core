@@ -59,16 +59,16 @@ contract MarketManagerModule is IMarketManagerModule {
     /**
      * @inheritdoc IMarketManagerModule
      */
-    function registerMarket(address market, string memory name) external override returns (uint128 marketId) {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+    function registerMarket(address marketManager, string memory name) external override returns (uint128 marketId) {
+        // todo: think of the access control of registering market
 
-        if (!ERC165Helper.safeSupportsInterface(market, type(IMarketManager).interfaceId)) {
-            revert IncorrectMarketInterface(market);
+        if (!ERC165Helper.safeSupportsInterface(marketManager, type(IMarketManager).interfaceId)) {
+            revert IncorrectMarketInterface(marketManager);
         }
 
-        marketId = MarketCreator.create(market, name, msg.sender).id;
+        marketId = MarketCreator.create(marketManager, name, msg.sender).id;
 
-        emit MarketRegistered(market, marketId, name, msg.sender, block.timestamp);
+        emit MarketRegistered(marketManager, marketId, name, msg.sender, block.timestamp);
     }
 
     /**
@@ -171,7 +171,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.imCheck(collateralType);
     }
 
-    function propagateSettlementCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)
+    function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)
         external
         override
     {

@@ -14,27 +14,25 @@ import "../storage/Account.sol";
  */
 interface IMarketManagerModule {
     /**
-     * @notice Thrown when an attempt to register a market that does not conform to the IMarket interface is made.
+     * @notice Thrown when an attempt to register a market that does not conform to the IMarketManager interface is made.
      */
     error IncorrectMarketInterface(address market);
 
     /**
-     * @notice Thrown when an attempt to propagate an order with a market with which the account cannot engage
-     * @dev A given account can either engage with any combination of trusted markets or just a single
-     * trustless market.
+     * @notice Thrown when an attempt to propagate an order with a market with which the account cannot engage.
      */
     // todo: consider if more information needs to be included in this error beyond accountId and marketId
     error AccountCannotEngageWithMarket(uint128 accountId, uint128 marketId);
 
     /**
      * @notice Emitted when a new market is registered in the protocol.
-     * @param market The address of the market that was registered in the system.
+     * @param marketManager The address of the market that was registered in the system.
      * @param marketId The id with which the market was registered in the system.
      * @param sender The account that trigger the registration of the market and also the owner of the market.
      * @param blockTimestamp The current block timestamp.
      */
     event MarketRegistered(
-        address indexed market, 
+        address indexed marketManager, 
         uint128 indexed marketId, 
         string name, 
         address indexed sender, 
@@ -92,6 +90,5 @@ interface IMarketManagerModule {
     ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
 
 
-    // todo: consider naming propagateCashflow to be more generic to work with e.g. perps that may have funding cashflows
-    function propagateSettlementCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount) external;
+    function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount) external;
 }

@@ -29,7 +29,7 @@ library Market {
          * Note: This object is how the system tracks the market. The actual market is external to the system, i.e. its own
          * contract.
          */
-        address marketAddress;
+        address marketManagerAddress;
         /**
          * @dev Text identifier for the market.
          *
@@ -56,7 +56,7 @@ library Market {
      * @dev Reverts if the caller is not the market address of the specified market
      */
     function onlyMarketAddress(uint128 marketId, address caller) internal view {
-        if (Market.load(marketId).marketAddress != caller) {
+        if (Market.load(marketId).marketManagerAddress != caller) {
             revert AccessError.Unauthorized(caller);
         }
     }
@@ -74,7 +74,7 @@ library Market {
             Account.Exposure[] memory makerExposuresUpper
         )
     {
-        return IMarketManager(self.marketAddress).getAccountTakerAndMakerExposures(self.id, accountId);
+        return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
 
 
@@ -82,6 +82,6 @@ library Market {
      * @dev The market at self.marketAddress is expected to close filled and unfilled positions for all maturities and pools
      */
     function closeAccount(Data storage self, uint128 accountId) internal {
-        IMarketManager(self.marketAddress).closeAccount(self.id, accountId);
+        IMarketManager(self.marketManagerAddress).closeAccount(self.id, accountId);
     }
 }
