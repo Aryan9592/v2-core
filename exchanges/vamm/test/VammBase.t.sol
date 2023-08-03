@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
  import "forge-std/console2.sol";
  import "./DatedIrsVammTestUtil.sol";
  import "../src/storage/LPPosition.sol";
-import "../src/storage/DatedIrsVAMM.sol";
+import "../src/storage/DatedIrsVamm.sol";
 import "../src/libraries/errors/VammCustomErrors.sol";
 import "../src/storage/LPPosition.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
