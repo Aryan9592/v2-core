@@ -1,11 +1,6 @@
 {
   "name": "@voltz-protocol/v2-vamm",
   "version": "1.21.0",
-  "description": "Dated IRS V2 VAMM smart contracts",
-  "publishConfig": {
-    "access": "restricted",
-    "@voltz-protocol:registry": "https://npm.pkg.github.com"
-  },
   "license": "MIT",
   "dependencies": {
     "@openzeppelin/contracts": "4.9.2",

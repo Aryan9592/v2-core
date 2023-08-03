@@ -1,5 +1,5 @@
 [profile.default]
-  allow_paths = ["../", "../../", "./", "../../node_modules/", "../node_modules/"]
+  allow_paths = [ "../../", "../../node_modules/", "../node_modules/"]
   auto_detect_solc = false
   fuzz = { runs = 256, max_test_rejects = 1_000_000 }
   libs = ["lib", "../../node_modules"]
