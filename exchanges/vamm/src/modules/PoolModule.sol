@@ -6,7 +6,7 @@ import { UD60x18, ZERO } from "@prb/math/UD60x18.sol";
 import "../interfaces/IPoolModule.sol";
 import "../storage/DatedIrsVamm.sol";
 import "../storage/PoolConfiguration.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IProductIRSModule.sol";
+import "@voltz-protocol/products-dated-irs/src/interfaces/IMarketManagerIRSModule.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "@voltz-protocol/core/src/storage/AccountRBAC.sol";
 
@@ -68,7 +68,7 @@ contract PoolModule is IPoolModule {
         external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss)
     {
 
-        IProductIRSModule irsProduct = IProductIRSModule(PoolConfiguration.load().productAddress);
+        IMarketManagerIRSModule irsProduct = IMarketManagerIRSModule(PoolConfiguration.load().productAddress);
 
         IAccountModule(
             irsProduct.getCoreProxyAddress()
