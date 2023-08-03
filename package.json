@@ -56,12 +56,12 @@
         "core",
         "utils/contracts",
         "utils/modules",
+        "exchanges/vamm",
         "products/dated-irs",
         "community",
         "integration",
         "access-pass-nft",
-        "oracle-manager",
-        "exchanges/vamm"
+        "oracle-manager"
     ],
     "engines": {
         "node": "^18.14.0",
