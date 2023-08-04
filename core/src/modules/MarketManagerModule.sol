@@ -126,9 +126,7 @@ contract MarketManagerModule is IMarketManagerModule {
             accountId, feeConfig.feeCollectorAccountId, feeConfig.atomicTakerFee, collateralType, annualizedNotional
         );
 
-        if (!account.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
-            account.activeMarketsPerQuoteToken[collateralType].add(marketId);
-        }
+        account.markActiveMarket(collateralType, marketId);
 
         (im, highestUnrealizedLoss) = account.imCheck(collateralType);
     }
@@ -159,9 +157,7 @@ contract MarketManagerModule is IMarketManagerModule {
             );
         }
 
-        if (!account.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
-            account.activeMarketsPerQuoteToken[collateralType].add(marketId);
-        }
+        account.markActiveMarket(collateralType, marketId);
 
         (im, highestUnrealizedLoss) = account.imCheck(collateralType);
     }

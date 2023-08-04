@@ -224,7 +224,6 @@ contract SetupProtocol is BatchScript {
     uint128 productId,
     uint128 marketId,
     uint128 feeCollectorAccountId,
-    uint256 liquidationBooster,
     uint256 cap,
     UD60x18 atomicMakerFee,
     UD60x18 atomicTakerFee,
@@ -235,7 +234,6 @@ contract SetupProtocol is BatchScript {
     configureCollateral(
       CollateralConfiguration.Data({
         depositingEnabled: true,
-        liquidationBooster: liquidationBooster,
         tokenAddress: tokenAddress,
         cap: cap,
         oracleNodeId: "0x",
@@ -334,16 +332,12 @@ contract SetupProtocol is BatchScript {
   ) public returns (bytes memory) {
     IRateOracle rateOracle = IRateOracle(params.rateOracleAddress);
 
-    uint256 liquidationBooster = contracts.coreProxy.getCollateralConfiguration(params.tokenAddress).liquidationBooster;
-    uint256 accountLiquidationBoosterBalance = 
-      contracts.coreProxy.getAccountLiquidationBoosterBalance(params.accountId, params.tokenAddress);
-
     int256 baseAmount = sd59x18(params.notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
     erc20_approve(
       IERC20(params.tokenAddress), 
       address(contracts.peripheryProxy), 
-      params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance
+      params.marginAmount
     );
 
     bytes memory commands;
@@ -368,7 +362,7 @@ contract SetupProtocol is BatchScript {
     }
 
     inputs[inputs.length-3] = 
-      abi.encode(params.tokenAddress, params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
+      abi.encode(params.tokenAddress, params.marginAmount);
     inputs[inputs.length-2] = abi.encode(params.accountId, params.tokenAddress, params.marginAmount);
     inputs[inputs.length-1] = abi.encode(
       params.accountId,
@@ -393,15 +387,12 @@ contract SetupProtocol is BatchScript {
   ) public returns (bytes memory) {
     IRateOracle rateOracle = IRateOracle(rateOracleAddress);
 
-    uint256 liquidationBooster = contracts.coreProxy.getCollateralConfiguration(tokenAddress).liquidationBooster;
-    uint256 accountLiquidationBoosterBalance = contracts.coreProxy.getAccountLiquidationBoosterBalance(accountId, tokenAddress);
-
     int256 baseAmount = sd59x18(notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
     erc20_approve(
       IERC20(tokenAddress), 
       address(contracts.peripheryProxy), 
-      marginAmount + liquidationBooster - accountLiquidationBoosterBalance
+      marginAmount
     );
 
     bytes memory commands;
@@ -424,7 +415,7 @@ contract SetupProtocol is BatchScript {
       inputs = new bytes[](4);
       inputs[0] = abi.encode(accountId);
     }
-    inputs[inputs.length-3] = abi.encode(tokenAddress, marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
+    inputs[inputs.length-3] = abi.encode(tokenAddress, marginAmount);
     inputs[inputs.length-2] = abi.encode(accountId, tokenAddress, marginAmount);
     inputs[inputs.length-1] = abi.encode(
       accountId,

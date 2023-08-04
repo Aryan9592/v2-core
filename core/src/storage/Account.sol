@@ -66,11 +66,6 @@ library Account {
     error InsufficientCollateral(uint128 accountId, address collateralType, uint256 requestedAmount);
 
     /**
-     * @dev Thrown when an account does not have sufficient collateral.
-     */
-    error InsufficientLiquidationBoosterBalance(uint128 accountId, address collateralType, uint256 requestedAmount);
-
-    /**
      * @notice Emitted when collateral balance of account token with id `accountId` is updated.
      * @param accountId The id of the account.
      * @param collateralType The address of the collateral type.
@@ -78,20 +73,6 @@ library Account {
      * @param blockTimestamp The current block timestamp.
      */
     event CollateralUpdate(uint128 indexed accountId, address indexed collateralType, int256 tokenAmount, uint256 blockTimestamp);
-
-    /**
-     * @notice Emitted when liquidator booster deposit of `accountId` is updated.
-     * @param accountId The id of the account.
-     * @param collateralType The address of the collateral type.
-     * @param tokenAmount The change delta of the collateral balance.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event LiquidatorBoosterUpdate(
-        uint128 indexed accountId, 
-        address indexed collateralType, 
-        int256 tokenAmount, 
-        uint256 blockTimestamp
-    );
 
     struct Data {
         /**
@@ -165,11 +146,6 @@ library Account {
          * @dev The net amount that is deposited in this collateral
          */
         uint256 balance;
-        /**
-         * @dev The amount of tokens the account has in liquidation booster. Max value is
-         * @dev liquidation booster defined in CollateralConfiguration.
-         */
-        uint256 liquidationBoosterBalance;
     }
 
     //// STATE CHANGING FUNCTIONS ////
@@ -178,8 +154,17 @@ library Account {
      * @dev Increments the account's collateral balance.
      */
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        // increase collateral balance
         self.collaterals[collateralType].balance += amount;
 
+        // add the collateral type to the active collaterals if missing
+        if (self.collaterals[collateralType].balance > 0) {
+            if (!self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.add(collateralType);
+            }
+        }
+
+        // emit event
         emit CollateralUpdate(self.id, collateralType, amount.toInt(), block.timestamp);
     }
 
@@ -187,35 +172,39 @@ library Account {
      * @dev Decrements the account's collateral balance.
      */
     function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        // check collateral balance and revert if not sufficient
         if (self.collaterals[collateralType].balance < amount) {
             revert InsufficientCollateral(self.id, collateralType, amount);
         }
 
+        // decrease collateral balance
         self.collaterals[collateralType].balance -= amount;
 
+        // remove the collateral type from the active collaterals if balance goes to zero
+        if (self.collaterals[collateralType].balance == 0) {
+            if (self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.remove(collateralType);
+            }
+        }
+
+        // emit event
         emit CollateralUpdate(self.id, collateralType, -amount.toInt(), block.timestamp);
     }
 
     /**
-     * @dev Increments the account's liquidation booster balance.
+     * @dev Marks that the account is active on particular market.
      */
-    function increaseLiquidationBoosterBalance(Data storage self, address collateralType, uint256 amount) internal {
-       self.collaterals[collateralType].liquidationBoosterBalance += amount;
+    function markActiveMarket(Data storage self, address collateralType, uint128 marketId) internal {
+        // add the market id to the account active markets if missing
+        if (!self.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
+        
+            // add the collateral type to the account active quote tokens if missing
+            if (!self.activeQuoteTokens.contains(collateralType)) {
+                self.activeQuoteTokens.add(collateralType);
+            }
 
-       emit LiquidatorBoosterUpdate(self.id, collateralType, amount.toInt(), block.timestamp);
-    }
-
-    /**
-     * @dev Decrements the account's liquidation booster balance.
-     */
-    function decreaseLiquidationBoosterBalance(Data storage self, address collateralType, uint256 amount) internal {
-        if (self.collaterals[collateralType].liquidationBoosterBalance < amount) {
-            revert InsufficientLiquidationBoosterBalance(self.id, collateralType, amount);
+            self.activeMarketsPerQuoteToken[collateralType].add(marketId);
         }
-
-        self.collaterals[collateralType].liquidationBoosterBalance -= amount;
-
-        emit LiquidatorBoosterUpdate(self.id, collateralType, -amount.toInt(), block.timestamp);
     }
 
     /**
@@ -295,17 +284,6 @@ library Account {
             collateralBalanceAvailable = collateralBalance - initialMarginRequirement - highestUnrealizedLoss;
         }
 
-    }
-
-    /**
-     * @dev Given a collateral type, returns information about the total liquidation booster balance of the account
-     */
-    function getLiquidationBoosterBalance(Data storage self, address collateralType)
-        internal
-        view
-        returns (uint256 liquidationBoosterBalance)
-    {
-        liquidationBoosterBalance = self.collaterals[collateralType].liquidationBoosterBalance;
     }
 
     /**
@@ -486,8 +464,6 @@ library Account {
                         highestUnrealizedLoss += exposureUpper.unrealizedLoss;
                     }
                }
-            
-                
             }
         }
     }

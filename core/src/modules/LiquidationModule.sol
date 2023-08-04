@@ -61,19 +61,8 @@ contract LiquidationModule is ILiquidationModule {
         Account.Data storage account = Account.load(liquidatedAccountId);
 
         UD60x18 liquidatorRewardParameter = ProtocolRiskConfiguration.load().liquidatorRewardParameter;
-        uint256 liquidationBooster = CollateralConfiguration.load(collateralType).liquidationBooster;
-
-        if (mulUDxUint(liquidatorRewardParameter, coverPreClose) >= liquidationBooster) {
-            liquidatorRewardAmount = mulUDxUint(liquidatorRewardParameter, coverPreClose - coverPostClose);
-            account.decreaseCollateralBalance(collateralType, liquidatorRewardAmount);
-        } else {
-            if (coverPostClose != 0) {
-                revert PartialLiquidationNotIncentivized(liquidatedAccountId, coverPreClose, coverPostClose);
-            }
-
-            liquidatorRewardAmount = liquidationBooster;
-            account.decreaseLiquidationBoosterBalance(collateralType, liquidatorRewardAmount);
-        }
+        liquidatorRewardAmount = mulUDxUint(liquidatorRewardParameter, coverPreClose - coverPostClose);
+        account.decreaseCollateralBalance(collateralType, liquidatorRewardAmount);
     }
 
     /**

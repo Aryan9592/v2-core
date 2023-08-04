@@ -16,10 +16,7 @@ library V2Core {
 
     function deposit(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
         address coreProxyAddress = Config.load().VOLTZ_V2_CORE_PROXY;
-        uint256 liquidationBooster = ICollateralConfigurationModule(
-            coreProxyAddress
-        ).getCollateralConfiguration(collateralType).liquidationBooster;
-        Payments.approveERC20Core(collateralType, tokenAmount + liquidationBooster);
+        Payments.approveERC20Core(collateralType, tokenAmount);
         ICollateralModule(coreProxyAddress).deposit(accountId, collateralType, tokenAmount);
     }
 

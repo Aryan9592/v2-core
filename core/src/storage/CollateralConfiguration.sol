@@ -42,11 +42,6 @@ library CollateralConfiguration {
         bool depositingEnabled;
 
         /**
-         * @dev Amount of tokens to award when a small account is liquidated.
-         */
-        uint256 liquidationBooster;
-
-        /**
          * @dev The token address for this collateral type.
          */
         address tokenAddress;
@@ -109,7 +104,6 @@ library CollateralConfiguration {
         Data storage storedConfig = load(config.tokenAddress);
 
         storedConfig.tokenAddress = config.tokenAddress;
-        storedConfig.liquidationBooster = config.liquidationBooster;
         storedConfig.depositingEnabled = config.depositingEnabled;
         storedConfig.cap = config.cap;
         storedConfig.oracleNodeId = config.oracleNodeId;

@@ -41,14 +41,6 @@ interface ILiquidationModule {
     );
 
     /**
-     * @dev Thrown when a liquidation uses the liquidation booster but the account
-     * is not fully liquidated.
-     * todo: liquidity minted for liquidation (AN) - not sure what this means but I think you've originally
-     *   written this code so you might know if anything needs to be remidiated here or we can safely remove it.
-     */
-    error PartialLiquidationNotIncentivized(uint128 accountId, uint256 imPreClose, uint256 imPostClose);
-
-    /**
      * @notice Emitted when an account is liquidated.
      * @param liquidatedAccountId The id of the account that was liquidated.
      * @param collateralType The collateral type of the account that was liquidated
