@@ -25,10 +25,7 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
      */
     function configureCollateral(CollateralConfiguration.Data memory config) external override {
         OwnableStorage.onlyOwner();
-
         CollateralConfiguration.set(config);
-
-        emit CollateralConfigured(config.tokenAddress, config, block.timestamp);
     }
 
     /**

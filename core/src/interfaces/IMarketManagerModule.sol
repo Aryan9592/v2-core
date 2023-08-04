@@ -19,12 +19,6 @@ interface IMarketManagerModule {
     error IncorrectMarketInterface(address market);
 
     /**
-     * @notice Thrown when an attempt to propagate an order with a market with which the account cannot engage.
-     */
-    // todo: consider if more information needs to be included in this error beyond accountId and marketId
-    error AccountCannotEngageWithMarket(uint128 accountId, uint128 marketId);
-
-    /**
      * @notice Emitted when a new market is registered in the protocol.
      * @param marketManager The address of the market that was registered in the system.
      * @param marketId The id with which the market was registered in the system.

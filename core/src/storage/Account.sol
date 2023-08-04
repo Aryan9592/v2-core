@@ -7,13 +7,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "./MarketRiskConfiguration.sol";
+import "./Market.sol";
 import "./ProtocolRiskConfiguration.sol";
 import "./CollateralConfiguration.sol";
 import "./AccountRBAC.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "./Market.sol";
+import "./CollateralPool.sol";
 
 import "oz/utils/math/Math.sol";
 import "oz/utils/math/SignedMath.sol";
@@ -28,7 +28,6 @@ import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18}
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
-    using MarketRiskConfiguration for MarketRiskConfiguration.Data;
     using ProtocolRiskConfiguration for ProtocolRiskConfiguration.Data;
     using Account for Account.Data;
     using AccountRBAC for AccountRBAC.Data;
@@ -39,6 +38,7 @@ library Account {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using CollateralConfiguration for CollateralConfiguration.Data;
+    using CollateralPool for CollateralPool.Data;
 
     //// ERRORS and STRUCTS ////
 
@@ -64,6 +64,12 @@ library Account {
     error InsufficientCollateral(uint128 accountId, address collateralType, uint256 requestedAmount);
 
     /**
+     * @notice Thrown when an attempt to propagate an order with a market with which the account cannot engage.
+     */
+    // todo: consider if more information needs to be included in this error beyond accountId and marketId
+    error AccountCannotEngageWithMarket(uint128 accountId, uint128 marketId);
+
+    /**
      * @notice Emitted when collateral balance of account token with id `accountId` is updated.
      * @param accountId The id of the account.
      * @param collateralType The address of the collateral type.
@@ -87,7 +93,7 @@ library Account {
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => Collateral) collaterals;
+        mapping(address => uint256) collateralBalances;
 
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
@@ -104,7 +110,10 @@ library Account {
          */
         SetUtil.AddressSet activeQuoteTokens;
 
-        // todo: add support for corresponding collateral pool
+        /**
+         * @dev First market id that this account is active on
+         */
+        uint128 firstMarketId;
 
         /**
          * @dev If this boolean is set to true then the account is able to cross-collateral margin
@@ -142,18 +151,6 @@ library Account {
         uint256 highestUnrealizedLoss;
     }
 
-    /**
-    * @title Stores information about a deposited asset for a given account.
-    *
-    * Each account will have one of these objects for each type of collateral it deposited in the system.
-    */
-    struct Collateral {
-        /**
-         * @dev The net amount that is deposited in this collateral
-         */
-        uint256 balance;
-    }
-
     //// STATE CHANGING FUNCTIONS ////
 
     /**
@@ -161,14 +158,19 @@ library Account {
      */
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         // increase collateral balance
-        self.collaterals[collateralType].balance += amount;
+        self.collateralBalances[collateralType] += amount;
 
         // add the collateral type to the active collaterals if missing
-        if (self.collaterals[collateralType].balance > 0) {
+        if (self.collateralBalances[collateralType] > 0) {
             if (!self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.add(collateralType);
             }
         }
+
+        // update the corresponding collateral pool balance
+        Market.exists(self.firstMarketId)
+            .getCollateralPool()
+            .increaseCollateralBalance(collateralType, amount);
 
         // emit event
         emit CollateralUpdate(self.id, collateralType, amount.toInt(), block.timestamp);
@@ -179,19 +181,24 @@ library Account {
      */
     function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         // check collateral balance and revert if not sufficient
-        if (self.collaterals[collateralType].balance < amount) {
+        if (self.collateralBalances[collateralType] < amount) {
             revert InsufficientCollateral(self.id, collateralType, amount);
         }
 
         // decrease collateral balance
-        self.collaterals[collateralType].balance -= amount;
+        self.collateralBalances[collateralType] -= amount;
 
         // remove the collateral type from the active collaterals if balance goes to zero
-        if (self.collaterals[collateralType].balance == 0) {
+        if (self.collateralBalances[collateralType] == 0) {
             if (self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.remove(collateralType);
             }
         }
+
+        // update the corresponding collateral pool balance
+        Market.exists(self.firstMarketId)
+            .getCollateralPool()
+            .decreaseCollateralBalance(collateralType, amount);
 
         // emit event
         emit CollateralUpdate(self.id, collateralType, -amount.toInt(), block.timestamp);
@@ -201,16 +208,37 @@ library Account {
      * @dev Marks that the account is active on particular market.
      */
     function markActiveMarket(Data storage self, address collateralType, uint128 marketId) internal {
-        // add the market id to the account active markets if missing
-        if (!self.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
-        
-            // add the collateral type to the account active quote tokens if missing
-            if (!self.activeQuoteTokens.contains(collateralType)) {
-                self.activeQuoteTokens.add(collateralType);
-            }
-
-            self.activeMarketsPerQuoteToken[collateralType].add(marketId);
+        // skip if account is already active on this market
+        if (self.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
+            return;
         }
+
+        // check if account can interact with this market
+        if (self.firstMarketId == 0) {
+            self.firstMarketId = marketId;
+        }
+        else {
+            // get collateral pool ID of the account
+            uint128 accountCollateralPoolId = 
+                Market.exists(self.firstMarketId).getCollateralPool().id;
+    
+            // get collateral pool ID of the new market
+            uint128 marketCollateralPoolId = 
+                Market.exists(marketId).getCollateralPool().id;
+
+            // if the collateral pools are different, account cannot engage with the new market
+            if (accountCollateralPoolId != marketCollateralPoolId) {
+                revert AccountCannotEngageWithMarket(self.id, marketId);
+            }
+        }
+
+        // add the collateral type to the account active quote tokens if missing
+        if (!self.activeQuoteTokens.contains(collateralType)) {
+            self.activeQuoteTokens.add(collateralType);
+        }
+
+        // add the market to the account active markets
+        self.activeMarketsPerQuoteToken[collateralType].add(marketId);
     }
 
     /**
@@ -264,7 +292,7 @@ library Account {
             
         for (uint256 i = 1; i <= markets.length(); i++) {
             uint128 marketId = markets.valueAt(i).to128();
-            Market.load(marketId).closeAccount(self.id);
+            Market.exists(marketId).closeAccount(self.id);
         }
     }
 
@@ -290,7 +318,7 @@ library Account {
         view
         returns (uint256 collateralBalance)
     {
-        collateralBalance = self.collaterals[collateralType].balance;
+        collateralBalance = self.collateralBalances[collateralType];
     }
 
 
@@ -380,7 +408,7 @@ library Account {
     }
 
     function getRiskParameter(uint128 marketId) internal view returns (UD60x18 riskParameter) {
-        return MarketRiskConfiguration.load(marketId).riskParameter;
+        return Market.exists(marketId).riskConfig.riskParameter;
     }
 
     /**
@@ -474,7 +502,8 @@ library Account {
             UD60x18 riskParameter = getRiskParameter(marketId);
 
             // Get taker and maker exposure to the market
-            MakerMarketExposure[] memory makerExposures = Market.load(marketId).getAccountTakerAndMakerExposures(self.id);
+            MakerMarketExposure[] memory makerExposures = 
+                Market.exists(marketId).getAccountTakerAndMakerExposures(self.id);
 
             // Aggregate LMR and unrealized loss for all exposures
             for (uint256 j = 0; j < makerExposures.length; j++) {

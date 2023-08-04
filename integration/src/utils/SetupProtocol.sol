@@ -15,8 +15,7 @@ import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.s
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
 import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
 import {ProtocolRiskConfiguration} from "@voltz-protocol/core/src/storage/ProtocolRiskConfiguration.sol";
-import {MarketFeeConfiguration} from "@voltz-protocol/core/src/storage/MarketFeeConfiguration.sol";
-import {MarketRiskConfiguration} from "@voltz-protocol/core/src/storage/MarketRiskConfiguration.sol";
+import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
 
@@ -256,8 +255,8 @@ contract SetupProtocol is BatchScript {
     });
 
     configureMarketFee(
-      MarketFeeConfiguration.Data({
-        marketId: marketId,
+      marketId,
+      Market.MarketFeeConfiguration({
         feeCollectorAccountId: feeCollectorAccountId,
         atomicMakerFee: atomicMakerFee,
         atomicTakerFee: atomicTakerFee
@@ -265,8 +264,8 @@ contract SetupProtocol is BatchScript {
     );
 
     configureMarketRisk(
-      MarketRiskConfiguration.Data({
-        marketId: marketId, 
+      marketId,
+      Market.MarketRiskConfiguration({
         riskParameter: riskParameter,
         twapLookbackWindow: twapLookbackWindow
       })
@@ -562,16 +561,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketRisk(MarketRiskConfiguration.Data memory config) public {
+  function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureMarketRisk(config);
+      contracts.coreProxy.configureMarketRisk(marketId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureMarketRisk,
-          (config)
+          (marketId, config)
         )
       );
     }
@@ -653,16 +652,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketFee(MarketFeeConfiguration.Data memory config) public {
+  function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureMarketFee(config);
+      contracts.coreProxy.configureMarketFee(marketId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureMarketFee,
-          (config)
+          (marketId, config)
         )
       );
     }

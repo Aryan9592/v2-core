@@ -47,7 +47,7 @@ contract LiquidationModule is ILiquidationModule {
         override 
         returns (Account.MarginRequirements memory mr) 
     {
-        Account.Data storage account = Account.load(accountId);
+        Account.Data storage account = Account.exists(accountId);
         mr = account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
     }
 
@@ -57,7 +57,7 @@ contract LiquidationModule is ILiquidationModule {
         uint256 coverPreClose,
         uint256 coverPostClose
     ) internal returns (uint256 liquidatorRewardAmount) {
-        Account.Data storage account = Account.load(liquidatedAccountId);
+        Account.Data storage account = Account.exists(liquidatedAccountId);
 
         UD60x18 liquidatorRewardParameter = ProtocolRiskConfiguration.load().liquidatorRewardParameter;
         liquidatorRewardAmount = mulUDxUint(liquidatorRewardParameter, coverPreClose - coverPostClose);

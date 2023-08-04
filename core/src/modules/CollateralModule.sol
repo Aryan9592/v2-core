@@ -90,7 +90,7 @@ contract CollateralModule is ICollateralModule {
         override
         returns (uint256 collateralBalance)
     {
-        return Account.load(accountId).getCollateralBalance(collateralType);
+        return Account.exists(accountId).getCollateralBalance(collateralType);
     }
 
     /**
@@ -102,6 +102,6 @@ contract CollateralModule is ICollateralModule {
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        return Account.load(accountId).getCollateralBalanceAvailable(collateralType);
+        return Account.exists(accountId).getCollateralBalanceAvailable(collateralType);
     }
 }

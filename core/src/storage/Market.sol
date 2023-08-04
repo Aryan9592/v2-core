@@ -10,12 +10,56 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/errors/AccessError.sol";
 import "../interfaces/external/IMarketManager.sol";
 import "./Account.sol";
+import "./CollateralPool.sol";
+import "./MarketStore.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Connects external contracts that implement the `IMarketManager` interface to the protocol.
  *
  */
 library Market {
+    /**
+     * @notice Emitted when a market is created or updated
+     * @param market The object with the newly updated details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketUpdate(Market.Data market, uint256 blockTimestamp);
+
+    /**
+     * @dev Thrown when a market cannot be found.
+     */
+    error MarketNotFound(uint128 marketId);
+
+    struct MarketRiskConfiguration {
+        /**
+         * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
+         */
+        UD60x18 riskParameter;
+    
+        /**
+         * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
+         */
+        uint32 twapLookbackWindow;
+    }
+
+    struct MarketFeeConfiguration {
+        /**
+         * @dev Address of fee collector
+         */
+        uint128 feeCollectorAccountId;
+        /**
+         * @dev Atomic Maker Fee is multiplied by the annualised notional traded
+         * @dev to derived the maker fee.
+         */
+        UD60x18 atomicMakerFee;
+        /**
+         * @dev Atomic Taker Fee is multiplied by the annualised notional traded
+         * @dev to derived the taker fee.
+         */
+        UD60x18 atomicTakerFee;
+    }
+
     struct Data {
         /**
          * @dev Numeric identifier for the market. Must be unique.
@@ -40,6 +84,41 @@ library Market {
          * @dev Creator of the market, which has configuration access rights for the market.
          */
         address owner;
+        /**
+         * @dev Market risk configurations
+         */
+        MarketRiskConfiguration riskConfig;
+        /**
+         * @dev Market fee configurations
+         */
+        MarketFeeConfiguration feeConfig;
+    }
+
+    /**
+     * @dev Given an external contract address representing an `IMarket`, creates a new id for the Market, and tracks it
+     * internally in the protocol.
+     *
+     * The id used to track the Market will be automatically assigned by the protocol according to the last id used.
+     *
+     * Note: If an external `IMarket` contract tracks several Market ids, this function should be called for each Market it
+     * tracks, resulting in multiple ids for the same address.
+     * For example if a given Market works across maturities, each maturity internally will be represented as a unique Market id
+     */
+    function create(address marketManagerAddress, string memory name, address owner)
+        internal
+        returns (Data storage market)
+    {
+        uint128 id = MarketStore.advanceMarketId();
+        market = Market.load(id);
+    
+        market.id = id;
+        market.marketManagerAddress = marketManagerAddress;
+        market.name = name;
+        market.owner = owner;
+
+        CollateralPool.create(id);
+
+        emit MarketUpdate(market, block.timestamp);
     }
 
     /**
@@ -53,12 +132,30 @@ library Market {
     }
 
     /**
+     * @dev Returns the market stored at the specified market id.
+     */
+    function exists(uint128 id) internal view returns (Data storage market) {
+        market = load(id);
+
+        if (id == 0 || market.id != id) {
+            revert MarketNotFound(id);
+        }
+    }
+
+    /**
      * @dev Reverts if the caller is not the market address of the specified market
      */
     function onlyMarketAddress(uint128 marketId, address caller) internal view {
-        if (Market.load(marketId).marketManagerAddress != caller) {
+        if (Market.exists(marketId).marketManagerAddress != caller) {
             revert AccessError.Unauthorized(caller);
         }
+    }
+
+    /**
+     * @dev Returns the root collateral pool id of the market
+     */
+    function getCollateralPool(Data storage self) internal returns (CollateralPool.Data storage) {
+        return CollateralPool.getRoot(self.id);
     }
 
     /**
@@ -73,9 +170,31 @@ library Market {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
 
+    /**
+     * @dev Sets the risk configuration for a given market
+     * @param config The RiskConfiguration object with all the risk parameters
+     */
+    function setRiskConfiguration(Data storage self, MarketRiskConfiguration memory config) internal {
+        self.riskConfig = config;
+
+        emit MarketUpdate(self, block.timestamp);
+    }
 
     /**
-     * @dev The market at self.marketAddress is expected to close filled and unfilled positions for all maturities and pools
+     * @dev Sets the risk configuration for a given market
+     * @param config The FeeConfiguration object with all the fee parameters
+     */
+    function setFeeConfiguration(Data storage self, MarketFeeConfiguration memory config) internal {
+        // check if fee collector account exists
+        Account.exists(config.feeCollectorAccountId);
+
+        self.feeConfig = config;
+
+        emit MarketUpdate(self, block.timestamp);
+    }
+
+    /**
+     * @dev The market at self.marketManagerAddress is expected to close filled and unfilled positions for all maturities and pools
      */
     function closeAccount(Data storage self, uint128 accountId) internal {
         IMarketManager(self.marketManagerAddress).closeAccount(self.id, accountId);

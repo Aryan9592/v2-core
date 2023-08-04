@@ -14,7 +14,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "./OracleManager.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
-import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
@@ -23,11 +23,17 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
-
     using CollateralConfiguration for CollateralConfiguration.Data;
 
     bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
         keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
+
+    /**
+     * @notice Emitted when a collateral type’s configuration is created or updated.
+     * @param config The object with the newly configured details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event CollateralConfigurationUpdated(Data config, uint256 blockTimestamp);
 
     /**
      * @dev Thrown when deposits are disabled for the given collateral type.
@@ -109,6 +115,8 @@ library CollateralConfiguration {
         storedConfig.oracleNodeId = config.oracleNodeId;
         storedConfig.weight = config.weight;
         storedConfig.autoExchangeReward = config.autoExchangeReward;
+
+        emit CollateralConfigurationUpdated(config, block.timestamp);
     }
 
     /**
@@ -176,7 +184,7 @@ library CollateralConfiguration {
         Data storage self,
         uint256 usdAmount
     ) internal view returns (uint256) {
-        uint256 collateralAmount = usdAmount * 1e18 / self.getCollateralPriceInUSD().unwrap();
+        uint256 collateralAmount = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
         
         return collateralAmount;
     }
@@ -191,7 +199,7 @@ library CollateralConfiguration {
         Data storage self,
         uint256 weightedUsdAmount
     ) internal view returns (uint256) {
-        uint256 usdAmount = weightedUsdAmount * 1e18 / self.weight.unwrap();
+        uint256 usdAmount = divUintUDx(weightedUsdAmount, self.weight);
         
         return self.getUSDInCollateral(usdAmount);
     }
