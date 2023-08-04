@@ -163,7 +163,7 @@ contract MarketManagerModule is IMarketManagerModule {
             account.activeMarketsPerQuoteToken[collateralType].add(marketId);
         }
 
-        account.imCheck(collateralType);
+        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)
