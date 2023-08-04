@@ -8,12 +8,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 
 pragma solidity >=0.8.19;
 
+import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Object for tracking aggregate collateral pool balances
  */
 library CollateralPool {
     using CollateralPool for CollateralPool.Data;
+    using SafeCastU256 for uint256;
 
     /**
      * @dev Thrown when a collateral pool cannot be found
@@ -33,20 +35,19 @@ library CollateralPool {
     /**
      * @dev Thrown when an action is performed on a collateral pool that is already merged.
      */
-    error MergedCollateralPool(uint128 id);
+    error InactiveCollateralPool(uint128 id);
 
-    // todo: consider introducing a CollateralPoolBalanceUpdate event similar to what we have in Collateral.sols (AN)
+    // todo: add docs
+    event CollateralPoolUpdated(uint128 id, uint128 rootId);
+    
+    // todo: add docs
+    event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount);
 
     struct Data {
         /**
          * @dev Collateral pool Id
          */
         uint128 id;
-
-        /**
-         * @dev Flag to check if the collateral pool has been initialized
-        */
-        bool isInitialized;
 
         /**
         * @dev Address set of collaterals alongside net balances that are held by the collateral pool
@@ -63,28 +64,33 @@ library CollateralPool {
      * @dev Creates an collateral pool for the given id
      */
     function create(uint128 id) internal returns(Data storage collateralPool) {
+        if (id == 0) {
+            revert CollateralPoolAlreadyExists(id);
+        }
+
         collateralPool = load(id);
         
-        if (collateralPool.isInitialized) {
+        if (collateralPool.id > 0) {
             revert CollateralPoolAlreadyExists(id);
         }
 
         collateralPool.id = id;
-        collateralPool.isInitialized = true;
         collateralPool.rootId = id;
+
+        emit CollateralPoolUpdated(id, id);
     }
 
     function exists(uint128 id) internal view returns (Data storage collateralPool) {
         collateralPool = load(id);
     
-        if (!collateralPool.isInitialized) {
+        if (collateralPool.id == 0) {
             revert CollateralPoolNotFound(id);
         }
     }
 
     function checkRoot(Data storage self) internal view {
         if (self.id != self.rootId) {
-            revert MergedCollateralPool(self.id);
+            revert InactiveCollateralPool(self.id);
         }
     }
 
@@ -100,6 +106,8 @@ library CollateralPool {
         }
 
         self.rootId = root.id;
+        emit CollateralPoolUpdated(self.id, self.rootId);
+
         return root;
     }
 
@@ -146,6 +154,8 @@ library CollateralPool {
         self.checkRoot();
 
         self.collateralBalances[collateralType] += amount;
+
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, amount.toInt());
     }
 
     /**
@@ -159,6 +169,8 @@ library CollateralPool {
         }
 
         self.collateralBalances[collateralType] -= amount;
+
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, -amount.toInt());
     }
 
 }

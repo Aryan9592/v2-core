@@ -11,8 +11,7 @@ pragma solidity >=0.8.19;
  * @title Represents Oracle Manager
  */
 library OracleManager {
-    bytes32 private constant _SLOT_ORACLE_MANAGER =
-    keccak256(abi.encode("xyz.voltz.OracleManager"));
+    bytes32 private constant _SLOT_ORACLE_MANAGER = keccak256(abi.encode("xyz.voltz.OracleManager"));
 
     struct Data {
         /**
