@@ -11,8 +11,10 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import "./OracleManager.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
@@ -23,6 +25,7 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
+    using DecimalMath for uint256;
 
     using CollateralConfiguration for CollateralConfiguration.Data;
 
@@ -34,6 +37,8 @@ library CollateralConfiguration {
      * @param collateralType The address of the collateral type for which depositing was disabled.
      */
     error CollateralDepositDisabled(address collateralType);
+
+    error PrecisionLost(uint256 tokenAmount, uint8 decimals);
 
     struct Data {
         /**
@@ -151,9 +156,41 @@ library CollateralConfiguration {
         Data storage self,
         uint256 collateralAmount
     ) internal view returns (uint256) {
-        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
-        uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(self.weight, collateralBalanceInUSD);
+        uint256 collateralAmountWad = self.convertTokenToWadAmount(collateralAmount);
+        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmountWad);
 
-        return collateralBalanceInUSDWithHaircut;
+        return mulUDxUint(self.weight, collateralBalanceInUSD);
+    }
+
+
+    /**
+     * @dev Returns the token amount with 18 decimals of precision
+     * @param self The CollateralConfiguration object.
+     * @param tokenAmount The token amount
+     * @return amountWad The corresponding token amount with 18 decimals of precision.
+     */
+    function convertTokenToWadAmount(
+        Data storage self,
+        uint256 tokenAmount
+    ) internal view returns (uint256 amountWad) {
+        uint8 decimals = IERC20(self.tokenAddress).decimals();
+        uint8 wadDecimals = 18;
+
+        if (decimals == wadDecimals) {
+            amountWad = tokenAmount;
+        } else if (decimals < wadDecimals) {
+            amountWad = tokenAmount.upscale(wadDecimals - decimals);
+        } else {
+            // ensure no precision is lost when converting to 18 decimals
+            if (
+                tokenAmount.downscale(decimals - wadDecimals).upscale(decimals - wadDecimals)
+                != tokenAmount
+            ) {
+                revert PrecisionLost(tokenAmount, decimals);
+            }
+
+            // this will scale down the amount by the difference between the token's decimals and 18
+            amountWad = tokenAmount.downscale(decimals - wadDecimals);
+        }
     }
 }
