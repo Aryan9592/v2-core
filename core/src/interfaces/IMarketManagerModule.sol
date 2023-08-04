@@ -76,14 +76,14 @@ interface IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+    ) external returns (uint256 fee, Account.MarginRequirements memory mr);
 
     function propagateMakerOrder(
         uint128 accountId,
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+    ) external returns (uint256 fee, Account.MarginRequirements memory mr);
 
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount) external;

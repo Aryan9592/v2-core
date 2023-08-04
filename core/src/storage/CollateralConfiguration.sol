@@ -136,18 +136,63 @@ library CollateralConfiguration {
     }
 
     /**
+     * @dev Returns the amount of colletaral in USD.
+     * @param self The CollateralConfiguration object.
+     * @param collateralAmount The amount of collateral.
+     * @return The corresponding USD amount of the collateral with 18 decimals of precision.
+     */
+    function getCollateralInUSD(
+        Data storage self,
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
+
+        return collateralBalanceInUSD;
+    }
+
+    /**
      * @dev Returns the weighted amount of colletaral in USD.
      * @param self The CollateralConfiguration object.
      * @param collateralAmount The amount of collateral.
-     * @return The corresponding weight USD amount of the collateral with 18 decimals of precision.
+     * @return The corresponding weighted USD amount of the collateral with 18 decimals of precision.
      */
     function getWeightedCollateralInUSD(
         Data storage self,
         uint256 collateralAmount
     ) internal view returns (uint256) {
-        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
-        uint256 collateralBalanceInUSDWithHaircut = mulUDxUint(self.weight, collateralBalanceInUSD);
+        uint256 collateralBalanceInUSDWithHaircut = 
+            mulUDxUint(self.weight, self.getCollateralInUSD(collateralAmount));
 
         return collateralBalanceInUSDWithHaircut;
+    }
+
+    /**
+     * @dev Returns the amount of USD in collateral.
+     * @param self The CollateralConfiguration object.
+     * @param usdAmount The amount of USD.
+     * @return The corresponding amount of the collateral with 18 decimals of precision.
+     */
+    function getUSDInCollateral(
+        Data storage self,
+        uint256 usdAmount
+    ) internal view returns (uint256) {
+        uint256 collateralAmount = usdAmount * 1e18 / self.getCollateralPriceInUSD().unwrap();
+        
+        return collateralAmount;
+    }
+
+    /**
+     * @dev Returns the weighted amount of USD in collateral.
+     * @param self The CollateralConfiguration object.
+     * @param weightedUsdAmount The amount of USD.
+     * @return The corresponding amount of the collateral with 18 decimals of precision.
+     */
+    function getWeightedUSDInCollateral(
+        Data storage self,
+        uint256 weightedUsdAmount
+    ) internal view returns (uint256) {
+        uint256 usdAmount = weightedUsdAmount * 1e18 / self.weight.unwrap();
+        
+        return self.getUSDInCollateral(usdAmount);
     }
 }

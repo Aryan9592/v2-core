@@ -106,7 +106,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+    ) external override returns (uint256 fee, Account.MarginRequirements memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         // todo: consider checking if the market exists or is it implicitly done in .onlyMarketAddress() call (AN)
         Market.onlyMarketAddress(marketId, msg.sender);
@@ -128,7 +128,7 @@ contract MarketManagerModule is IMarketManagerModule {
 
         account.markActiveMarket(collateralType, marketId);
 
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        mr = account.imCheck(collateralType);
     }
 
     function propagateMakerOrder(
@@ -136,7 +136,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+    ) external override returns (uint256 fee, Account.MarginRequirements memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
@@ -159,7 +159,7 @@ contract MarketManagerModule is IMarketManagerModule {
 
         account.markActiveMarket(collateralType, marketId);
 
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        mr = account.imCheck(collateralType);
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

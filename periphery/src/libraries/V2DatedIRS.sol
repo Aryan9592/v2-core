@@ -16,8 +16,7 @@ library V2DatedIRS {
             int256 executedBaseAmount,
             int256 executedQuoteAmount,
             uint256 fee,
-            uint256 im,
-            uint256 highestUnrealizedLoss,
+            Account.MarginRequirements memory mr,
             int24 currentTick
         )
     {
@@ -31,7 +30,7 @@ library V2DatedIRS {
             priceLimit: priceLimit
         }); 
     
-        (executedBaseAmount, executedQuoteAmount, fee, im, highestUnrealizedLoss) =
+        (executedBaseAmount, executedQuoteAmount, fee, mr) =
             IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
                 .initiateTakerOrder(params);
 

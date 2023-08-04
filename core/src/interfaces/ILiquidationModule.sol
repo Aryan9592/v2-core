@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import "../storage/Account.sol";
+
 /**
  * @title Liquidation Engine interface
  */
@@ -34,10 +36,8 @@ interface ILiquidationModule {
      */
     error AccountExposureNotReduced(
         uint128 accountId,
-        uint256 imPreClose,
-        uint256 imPostClose,
-        uint256 highestUnrealizedLossPreClose,
-        uint256 highestUnrealizedLossPostClose
+        Account.MarginRequirements mrPreClose,
+        Account.MarginRequirements mrPostClose
     );
 
     /**
@@ -55,28 +55,21 @@ interface ILiquidationModule {
         address sender,
         uint128 liquidatorAccountId,
         uint256 liquidatorRewardAmount,
-        uint256 imPreClose,
-        uint256 imPostClose,
-        uint256 highestUnrealizedLossPreClose,
-        uint256 highestUnrealizedLossPostClose,
+        Account.MarginRequirements mrPreClose,
+        Account.MarginRequirements mrPostClose,
         uint256 blockTimestamp
     );
 
     /**
-     * @notice Checks if a single-token account is liquidatable
+     * @notice Get the im and lm requirements and highest unrealized loss along with the flags for im or lm satisfied 
      * @param accountId The id of the account that is being checked
      * @param collateralType The collateral type of the account that is being checked
-     * @return liquidatable True if the account is liquidatable
-     * @return initialMarginRequirement The initial margin requirement of the account
-     * @return liquidationMarginRequirement The liquidation margin requirement of the account
-     * @return highestUnrealizedLoss The highest unrealized loss of the account
+     * @return mr Margin requirement and highest unrealized loss information
      */
-    function isLiquidatable(uint128 accountId, address collateralType) external view returns (
-        bool liquidatable,
-        uint256 initialMarginRequirement,
-        uint256 liquidationMarginRequirement,
-        uint256 highestUnrealizedLoss
-    );
+    function getMarginRequirementsAndHighestUnrealizedLoss(uint128 accountId, address collateralType) 
+        external 
+        view 
+        returns (Account.MarginRequirements memory mr);
 
     /**
      * @notice Liquidates a single-token account

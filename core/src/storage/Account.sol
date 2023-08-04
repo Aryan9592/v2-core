@@ -24,8 +24,6 @@ import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18}
     from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries (CR)
-// todo: note, a few of the functions in this library have two representations (one for a single collateral
-// and one for all collaterals with potentially a lot of duplicate logic that can in be abstracted away (CR)
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
@@ -53,7 +51,7 @@ library Account {
      * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, address collateralType, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss);
+    error AccountBelowIM(uint128 accountId, address collateralType, MarginRequirements marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -94,7 +92,6 @@ library Account {
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
          */
-        // todo: layer in logic that updates this set upon collateral deposits and withdrawals (CR)
         SetUtil.AddressSet activeCollaterals;
     
         /**
@@ -114,6 +111,7 @@ library Account {
          * @dev If this boolean is set to false then the account uses a single-token mode
          * @dev Single token mode means the account has a separate health factor for each collateral type
          */
+        // todo: should we change this from boolean to something more general? What if we're gonna have some other mode? 
         bool isMultiToken;
 
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
@@ -134,6 +132,14 @@ library Account {
     struct MakerMarketExposure {
         MarketExposure lower;
         MarketExposure upper;
+    }
+
+    struct MarginRequirements {
+        bool isIMSatisfied;
+        bool isLMSatisfied;
+        uint256 initialMarginRequirement;
+        uint256 liquidationMarginRequirement;
+        uint256 highestUnrealizedLoss;
     }
 
     /**
@@ -208,6 +214,28 @@ library Account {
     }
 
     /**
+     * @dev Marks that the account is active on particular market.
+     */
+    function changeAccountMode(Data storage self, bool isMultiToken) internal {
+        if (self.isMultiToken == isMultiToken) {
+            // todo: return vs revert
+            return;
+        }
+
+        self.isMultiToken = isMultiToken;
+
+        if (isMultiToken) {
+            self.imCheck(address(0));
+        }
+        else {
+            for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
+                address quoteToken = self.activeQuoteTokens.valueAt(i);
+                self.imCheck(quoteToken);
+            }
+        }
+    }
+
+    /**
      * @dev Creates an account for the given id, and associates it to the given owner.
      *
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
@@ -266,7 +294,6 @@ library Account {
     }
 
 
-    // todo: consider introducing a multi-token counterpart for this function? (CR)
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
@@ -275,15 +302,45 @@ library Account {
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        (uint256 initialMarginRequirement,,uint256 highestUnrealizedLoss) = 
-            self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        if (self.isMultiToken) {
+            // get im and lm requirements and highest unrealized pnl in USD
+            MarginRequirements memory mrInUSD = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
+            // get account weighted balance in USD
+            uint256 weightedBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
 
-        if (collateralBalance > initialMarginRequirement + highestUnrealizedLoss) {
-            collateralBalanceAvailable = collateralBalance - initialMarginRequirement - highestUnrealizedLoss;
+            // check if there's any available balance in USD
+            if (weightedBalanceInUSD >= mrInUSD.initialMarginRequirement + mrInUSD.highestUnrealizedLoss) {
+                // get the available weighted balance in USD
+                uint256 availableWeightedBalanceInUSD = 
+                    weightedBalanceInUSD - mrInUSD.initialMarginRequirement - mrInUSD.highestUnrealizedLoss;
+
+                // convert weighted balance in USD to collateral
+                uint256 availableAmountInCollateral = 
+                    CollateralConfiguration.load(collateralType).getWeightedUSDInCollateral(availableWeightedBalanceInUSD);
+
+                // get the account collateral balance
+                uint256 collateralBalance = self.getCollateralBalance(collateralType);
+
+                // return the minimum between account collateral balance and available collateral
+                collateralBalanceAvailable = 
+                    (collateralBalance < availableAmountInCollateral) 
+                        ? collateralBalance 
+                        : availableAmountInCollateral;
+            }
         }
+        else {
+            // get im and lm requirements and highest unrealized pnl in collateral
+            MarginRequirements memory mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
+            // get the account collateral balance
+            uint256 collateralBalance = self.getCollateralBalance(collateralType);
+
+            if (collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss) {
+                // return the available collateral balance
+                collateralBalanceAvailable = collateralBalance - mr.initialMarginRequirement - mr.highestUnrealizedLoss;
+            }
+        }
     }
 
     /**
@@ -337,90 +394,72 @@ library Account {
      * @dev Checks if the account is below initial margin requirement and reverts if so,
      * otherwise  returns the initial margin requirement (single token account)
      */
-    function imCheck(Data storage self, address collateralType) internal view returns (uint256, uint256) {
-        (bool isSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) = self.isIMSatisfied(collateralType);
-        if (!isSatisfied) {
-            revert AccountBelowIM(self.id, collateralType, initialMarginRequirement, highestUnrealizedLoss);
-        }
-        return (initialMarginRequirement, highestUnrealizedLoss);
-    }
-
-    /**
-     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and
-     * the initial margin requirement for a given collateral type (single token account)
-     */
-    function isIMSatisfied(Data storage self, address collateralType)
-        internal
-        view
-    returns (bool imSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) {
-        (initialMarginRequirement,,highestUnrealizedLoss) = self.
-                getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-
-        uint256 collateralBalance = 
-            (self.isMultiToken) 
-                ? self.getWeightedCollateralBalanceInUSD() 
-                : self.getCollateralBalance(collateralType);
-    
-        imSatisfied = collateralBalance >= initialMarginRequirement + highestUnrealizedLoss;
-    }
-
-    /**
-     * @dev Returns a booleans liquidatable (true if a single-token account is below liquidation margin requirement)
-     * and the initial and liquidation margin requirements alongside highest unrealized loss
-     */
-    function isLiquidatable(Data storage self, address collateralType)
-        internal
-        view
-        returns (
-            bool liquidatable,
-            uint256 initialMarginRequirement,
-            uint256 liquidationMarginRequirement,
-            uint256 highestUnrealizedLoss
-        )
+    function imCheck(Data storage self, address collateralType) 
+        internal 
+        view 
+        returns (MarginRequirements memory mr)
     {
-        (initialMarginRequirement, liquidationMarginRequirement, highestUnrealizedLoss) = self.
-                getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-
-        uint256 collateralBalance = 
-            (self.isMultiToken) 
-                ? self.getWeightedCollateralBalanceInUSD() 
-                : self.getCollateralBalance(collateralType);
-    
-        liquidatable = collateralBalance < liquidationMarginRequirement + highestUnrealizedLoss;
+        mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        
+        if (!mr.isIMSatisfied) {
+            revert AccountBelowIM(self.id, collateralType, mr);
+        }
     }
 
     /**
-     * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
-     * for a given collateral type
+     * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account and highest unrealized loss
+     * for a given collateral type along with the flags for im or lm satisfied
+     * @dev If the account is single-token, the amounts are in collateral type. 
+     *      Otherwise, if the account is multi-token, the amounts are in USD.
      */
-
+    // todo: do we want for this function to return values in USD or leave for collateral type?
     function getMarginRequirementsAndHighestUnrealizedLoss(Data storage self, address collateralType)
         internal
         view
-        returns (uint256 initialMarginRequirement, uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+        returns (MarginRequirements memory mr)
     {
+        uint256 collateralBalance = 0;
+    
         if (self.isMultiToken) {
+
             for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
                 address quoteToken = self.activeQuoteTokens.valueAt(i);
+                CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(quoteToken);
 
-                (uint256 liquidationMarginRequirementByCollateral, uint256 highestUnrealizedLossByCollateral) = 
+                (uint256 liquidationMarginRequirementInCollateral, uint256 highestUnrealizedLossInCollateral) = 
                     self.getRequirementsAndHighestUnrealizedLossByCollateralType(quoteToken);
 
-                // todo: convert amounts per token to USD and aggregate them
+                uint256 liquidationMarginRequirementInUSD = collateral.getCollateralInUSD(liquidationMarginRequirementInCollateral);
+                uint256 highestUnrealizedLossInUSD = collateral.getCollateralInUSD(highestUnrealizedLossInCollateral);
+
+                mr.liquidationMarginRequirement += liquidationMarginRequirementInUSD;
+                mr.highestUnrealizedLoss += highestUnrealizedLossInUSD;
             }
+
+            collateralBalance = self.getWeightedCollateralBalanceInUSD();
         }
         else {
-            (liquidationMarginRequirement, highestUnrealizedLoss) = 
+            // we don't need to convert the amounts to USD because single-token accounts have requirements in quote token
+
+            (mr.liquidationMarginRequirement, mr.highestUnrealizedLoss) = 
                     self.getRequirementsAndHighestUnrealizedLossByCollateralType(collateralType);
-            
-            // don't convert to USD because single token accounts have requirements in quote token
+
+            collateralBalance = self.getCollateralBalance(collateralType);
         }
 
-
         UD60x18 imMultiplier = getIMMultiplier();
-        initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+        mr.initialMarginRequirement = computeInitialMarginRequirement(mr.liquidationMarginRequirement, imMultiplier);
+
+        mr.isIMSatisfied = collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss;
+        mr.isLMSatisfied = collateralBalance >= mr.liquidationMarginRequirement + mr.highestUnrealizedLoss;
     }
 
+    /**
+     * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account and highest unrealized loss
+     * for a given collateral type along with the flags for im satisfied or lm satisfied
+     * @dev If the account is single-token, the amounts are in collateral type. 
+     *      Otherwise, if the account is multi-token, the amounts are in USD.
+     */
     function getRequirementsAndHighestUnrealizedLossByCollateralType(Data storage self, address collateralType)
         internal
         view
@@ -473,11 +512,8 @@ library Account {
     view
     returns (uint256 weightedCollateralBalanceInUSD) 
     {
-        // retrieve all active collaterals of the account
-        SetUtil.AddressSet storage activeCollaterals = self.activeCollaterals;
-
-        for (uint256 i = 1; i <= activeCollaterals.length(); i++) {
-            address collateralType = activeCollaterals.valueAt(i);
+        for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
+            address collateralType = self.activeCollaterals.valueAt(i);
 
             // get the collateral balance of the account in this collateral type
             uint256 collateralBalance = self.getCollateralBalance(collateralType);
@@ -488,7 +524,6 @@ library Account {
         }
     }
 
-
     function isEligibleForAutoExchange(Data storage self) internal view returns (bool) {
 
         // note, only applies to multi-token accounts
@@ -496,9 +531,7 @@ library Account {
         // todo: needs implementation -> within this need to take into account product -> market changes
 
         return false;
-
     }
-
 
     //// PURE FUNCTIONS ////
 
@@ -512,7 +545,6 @@ library Account {
             account.slot := s
         }
     }
-
 
     /**
      * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter

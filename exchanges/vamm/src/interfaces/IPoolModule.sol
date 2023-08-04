@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+import "@voltz-protocol/core/src/storage/Account.sol";
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -51,7 +52,7 @@ interface IPoolModule is IERC165 {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+        external returns (uint256 fee, Account.MarginRequirements memory mr);
 
     /**
      * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market

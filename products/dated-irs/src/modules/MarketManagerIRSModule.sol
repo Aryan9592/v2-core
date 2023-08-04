@@ -36,7 +36,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function initiateTakerOrder(TakerOrderParams memory params)
         external
         override
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, uint256 im, uint256 highestUnrealizedLoss)
+        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirements memory mr)
     {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -59,7 +59,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
         
-        (fee, im, highestUnrealizedLoss) = IMarketManagerModule(coreProxy).propagateTakerOrder(
+        (fee, mr) = IMarketManagerModule(coreProxy).propagateTakerOrder(
             params.accountId,
             params.marketId,
             quoteToken,
@@ -189,7 +189,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+    ) external returns (uint256 fee, Account.MarginRequirements memory mr) {
 
         if (msg.sender != MarketManagerConfiguration.getPoolAddress()) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");
@@ -200,7 +200,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         int256 annualizedNotionalAmount = getSingleAnnualizedExposure(baseAmount, marketId, maturityTimestamp);
 
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        (fee, im, highestUnrealizedLoss) = IMarketManagerModule(coreProxy).propagateMakerOrder(
+        (fee, mr) = IMarketManagerModule(coreProxy).propagateMakerOrder(
             accountId,
             marketId,
             MarketConfiguration.load(marketId).quoteToken,
