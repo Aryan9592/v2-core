@@ -78,6 +78,8 @@ library Account {
      */
     event CollateralUpdate(uint128 indexed accountId, address indexed collateralType, int256 tokenAmount, uint256 blockTimestamp);
 
+    // todo: add events to track this storage changes
+
     struct Data {
         /**
          * @dev Numeric identifier for the account. Must be unique.

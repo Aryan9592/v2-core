@@ -13,6 +13,7 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
 
 library AutoExchangeConfiguration {
 
+    // todo: add events to track this storage changes
 
     struct Data {
         /**

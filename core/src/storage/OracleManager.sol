@@ -13,6 +13,8 @@ pragma solidity >=0.8.19;
 library OracleManager {
     bytes32 private constant _SLOT_ORACLE_MANAGER = keccak256(abi.encode("xyz.voltz.OracleManager"));
 
+    // todo: add events to track this storage changes
+
     struct Data {
         /**
          * @dev The oracle manager address.

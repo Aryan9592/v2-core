@@ -17,6 +17,8 @@ library AccessPassConfiguration {
         address accessPassNFTAddress;
     }
 
+    // todo: add events to track this storage changes
+
     /**
      * @dev Loads the AccessPassConfiguration object.
      * @return config The AccessPassConfiguration object.

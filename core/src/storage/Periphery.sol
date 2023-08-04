@@ -12,6 +12,8 @@ pragma solidity >=0.8.19;
  */
 library Periphery {
 
+    // todo: add events to track this storage changes
+
     struct Data {
         /**
          * @dev Periphery address.
