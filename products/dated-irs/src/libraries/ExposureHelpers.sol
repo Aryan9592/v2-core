@@ -131,7 +131,7 @@ library ExposureHelpers {
     }
 
     function getUnfilledExposureUpperInPool(
-        Portfolio.PoolExposureState memory poolState,
+        PoolExposureState memory poolState,
         address poolAddress
     ) internal view returns (Account.MarketExposure memory) {
         uint256 unrealizedLossUpper = computeUnrealizedLoss(
