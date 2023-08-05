@@ -7,42 +7,27 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "./Market.sol";
-import "./ProtocolRiskConfiguration.sol";
-import "./CollateralConfiguration.sol";
-import "./AccountRBAC.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import "./AccountRBAC.sol";
+import "./Market.sol";
 
 import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
-
-import "oz/utils/math/Math.sol";
-import "oz/utils/math/SignedMath.sol";
-
-// todo: consider moving into ProbMathHelper.sol
-import {UD60x18, sub as subSD59x18} from "@prb/math/SD59x18.sol";
-import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18} 
-    from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries (CR)
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
-    using ProtocolRiskConfiguration for ProtocolRiskConfiguration.Data;
     using Account for Account.Data;
     using AccountRBAC for AccountRBAC.Data;
     using Market for Market.Data;
-    using SetUtil for SetUtil.UintSet;
-    using SetUtil for SetUtil.AddressSet;
-    using SafeCastU128 for uint128;
     using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
-    using CollateralConfiguration for CollateralConfiguration.Data;
-
-    //// ERRORS and STRUCTS ////
+    using SetUtil for SetUtil.AddressSet;
+    using SetUtil for SetUtil.UintSet;
 
     /**
      * @dev Thrown when the given target address does not own the given account.
