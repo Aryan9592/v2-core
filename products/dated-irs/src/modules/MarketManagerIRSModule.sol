@@ -36,7 +36,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function initiateTakerOrder(TakerOrderParams memory params)
         external
         override
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirements memory mr)
+        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, AccountExposure.MarginRequirements memory mr)
     {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -146,7 +146,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (Account.MakerMarketExposure[] memory exposures)
+        returns (AccountExposure.MakerMarketExposure[] memory exposures)
     {
         return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures();
     }
@@ -189,7 +189,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount
-    ) external returns (uint256 fee, Account.MarginRequirements memory mr) {
+    ) external returns (uint256 fee, AccountExposure.MarginRequirements memory mr) {
 
         if (msg.sender != MarketManagerConfiguration.getPoolAddress()) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");

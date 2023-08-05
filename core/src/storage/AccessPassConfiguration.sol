@@ -17,7 +17,12 @@ library AccessPassConfiguration {
         address accessPassNFTAddress;
     }
 
-    // todo: add events to track this storage changes
+    /**
+     * @notice Emitted when the access pass configuration is created or updated
+     * @param config The object with the newly configured details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event AccessPassConfigurationUpdated(Data config, uint256 blockTimestamp);
 
     /**
      * @dev Loads the AccessPassConfiguration object.
@@ -37,6 +42,7 @@ library AccessPassConfiguration {
     function set(Data memory config) internal {
         Data storage storedConfig = load();
         storedConfig.accessPassNFTAddress = config.accessPassNFTAddress;
-    }
 
+        emit AccessPassConfigurationUpdated(storedConfig, block.timestamp);
+    }
 }

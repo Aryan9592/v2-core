@@ -105,7 +105,7 @@ contract AccountModule is IAccountModule {
         }
 
         account.rbac.setOwner(to);
-        emit AccountOwnerUpdate(accountId, to, block.timestamp);
+        emit AccountOwnerUpdated(accountId, to, block.timestamp);
     }
 
     /**

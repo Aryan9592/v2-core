@@ -43,7 +43,7 @@ library Dispatcher {
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
                 uint256 fee,
-                Account.MarginRequirements memory mr,
+                AccountExposure.MarginRequirements memory mr,
                 int24 currentTick
             ) = V2DatedIRS.swap(accountId, marketId, maturityTimestamp, baseAmount, priceLimit);
             output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, mr, currentTick);
@@ -74,7 +74,7 @@ library Dispatcher {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, Account.MarginRequirements memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
+            (uint256 fee, AccountExposure.MarginRequirements memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
                 accountId,
                 marketId,
                 maturityTimestamp,

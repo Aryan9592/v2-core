@@ -15,6 +15,13 @@ import "./Market.sol";
 library MarketStore {
     bytes32 private constant _SLOT_MARKET_STORE = keccak256(abi.encode("xyz.voltz.MarketStore"));
 
+    /**
+     * @notice Emitted when the market store is created or updated
+     * @param marketStore The object with the newly updated details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketStoreUpdated(Data marketStore, uint256 blockTimestamp);
+
     struct Data {
         /**
          * @dev Keeps track of the last Market id created.
@@ -36,6 +43,9 @@ library MarketStore {
     function advanceMarketId() internal returns (uint128) {
         Data storage marketStore = getMarketStore();
         marketStore.lastCreatedMarketId += 1;
+
+        emit MarketStoreUpdated(marketStore, block.timestamp);
+
         return marketStore.lastCreatedMarketId;
     }
 }

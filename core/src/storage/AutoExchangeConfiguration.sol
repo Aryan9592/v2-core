@@ -9,11 +9,14 @@ pragma solidity >=0.8.19;
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
 
-
-
 library AutoExchangeConfiguration {
 
-    // todo: add events to track this storage changes
+    /**
+     * @notice Emitted when auto-exchange configuration is created or updated
+     * @param config The object with the newly configured details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event AutoExchangeConfigurationUpdated(Data config, uint256 blockTimestamp);
 
     struct Data {
         /**
@@ -58,5 +61,7 @@ library AutoExchangeConfiguration {
         storedConfig.singleAutoExchangeThreshold = config.singleAutoExchangeThreshold;
         storedConfig.totalAutoExchangeThreshold = config.totalAutoExchangeThreshold;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
+
+        emit AutoExchangeConfigurationUpdated(storedConfig, block.timestamp);
     }
 }

@@ -37,10 +37,16 @@ library CollateralPool {
      */
     error InactiveCollateralPool(uint128 id);
 
-    // todo: add docs
+    /**
+     * @notice Emitted when the collateral pool is created or updated
+     * @param id The id of the collateral pool.
+     * @param rootId The id of the root collateral pool.
+     */
     event CollateralPoolUpdated(uint128 id, uint128 rootId);
     
-    // todo: add docs
+    /**
+     * @notice Emitted when the collateral pool balance of some particular collateral type is updated.
+     */
     event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount);
 
     struct Data {
@@ -140,11 +146,10 @@ library CollateralPool {
     function getCollateralBalance(Data storage self, address collateralType)
     internal
     view
-    returns (uint256 collateralBalance)
+    returns (uint256)
     {
         self.checkRoot();
-        
-        collateralBalance = self.collateralBalances[collateralType];
+        return self.collateralBalances[collateralType];
     }
 
     /**

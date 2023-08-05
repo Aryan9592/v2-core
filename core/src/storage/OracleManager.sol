@@ -13,7 +13,12 @@ pragma solidity >=0.8.19;
 library OracleManager {
     bytes32 private constant _SLOT_ORACLE_MANAGER = keccak256(abi.encode("xyz.voltz.OracleManager"));
 
-    // todo: add events to track this storage changes
+    /**
+     * @notice Emitted when the oracle manager is created or updated
+     * @param oracleManager The object with the newly updated details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event OracleManagerUpdated(Data oracleManager, uint256 blockTimestamp);
 
     struct Data {
         /**
@@ -30,5 +35,12 @@ library OracleManager {
         assembly {
             oracleManager.slot := s
         }
+    }
+
+    function set(Data memory config) internal {
+        Data storage storedConfig = load();
+        storedConfig.oracleManagerAddress = config.oracleManagerAddress;
+
+        emit OracleManagerUpdated(storedConfig, block.timestamp);
     }
 }

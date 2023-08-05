@@ -8,11 +8,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/errors/AccessError.sol";
-import "../interfaces/external/IMarketManager.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 import "./Account.sol";
 import "./CollateralPool.sol";
 import "./MarketStore.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import "../libraries/AccountExposure.sol";
+import "../interfaces/external/IMarketManager.sol";
 
 /**
  * @title Connects external contracts that implement the `IMarketManager` interface to the protocol.
@@ -24,7 +26,7 @@ library Market {
      * @param market The object with the newly updated details.
      * @param blockTimestamp The current block timestamp.
      */
-    event MarketUpdate(Market.Data market, uint256 blockTimestamp);
+    event MarketUpdated(Market.Data market, uint256 blockTimestamp);
 
     /**
      * @dev Thrown when a market cannot be found.
@@ -118,7 +120,7 @@ library Market {
 
         CollateralPool.create(id);
 
-        emit MarketUpdate(market, block.timestamp);
+        emit MarketUpdated(market, block.timestamp);
     }
 
     /**
@@ -165,7 +167,7 @@ library Market {
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId)
         internal
         view
-        returns (Account.MakerMarketExposure[] memory exposure)
+        returns (AccountExposure.MakerMarketExposure[] memory exposure)
     {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
@@ -177,7 +179,7 @@ library Market {
     function setRiskConfiguration(Data storage self, MarketRiskConfiguration memory config) internal {
         self.riskConfig = config;
 
-        emit MarketUpdate(self, block.timestamp);
+        emit MarketUpdated(self, block.timestamp);
     }
 
     /**
@@ -190,7 +192,7 @@ library Market {
 
         self.feeConfig = config;
 
-        emit MarketUpdate(self, block.timestamp);
+        emit MarketUpdated(self, block.timestamp);
     }
 
     /**
