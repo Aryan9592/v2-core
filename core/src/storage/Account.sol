@@ -17,7 +17,6 @@ import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
 
-// todo: this file is getting quite large, consider abstracting away some of the pure functions into libraries (CR)
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
