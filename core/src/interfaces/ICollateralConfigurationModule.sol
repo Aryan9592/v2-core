@@ -25,7 +25,7 @@ interface ICollateralConfigurationModule {
      * Emits a {CollateralConfigured} event.
      *
      */
-    function configureCollateral(CollateralConfiguration.Data memory config) external;
+    function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) external;
 
     /**
      * @notice Returns a list of detailed information pertaining to all collateral types registered in the protocol

@@ -7,14 +7,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "./OracleManager.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import { mulUDxUint, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
+import "./OracleManager.sol";
 
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
@@ -41,17 +43,12 @@ library CollateralConfiguration {
      */
     error CollateralDepositDisabled(address collateralType);
 
-    struct Data {
+    struct Config {
         /**
          * @dev Allows the owner to control deposits and delegation of collateral types.
          */
         bool depositingEnabled;
 
-        /**
-         * @dev The token address for this collateral type.
-         */
-        address tokenAddress;
-        
         /**
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
@@ -71,6 +68,23 @@ library CollateralConfiguration {
          * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
          */
         UD60x18 autoExchangeReward;
+    }
+
+    struct CachedConfig {
+        /**
+         * @dev The token address for this collateral type.
+         */
+        address tokenAddress;
+
+        /**
+         * @dev The token decimals for this collateral type.
+         */
+        uint8 tokenDecimals;
+    }
+
+    struct Data {
+        Config config;
+        CachedConfig cachedConfig;
     }
 
     /**
@@ -100,23 +114,26 @@ library CollateralConfiguration {
      * @dev Configures a collateral type.
      * @param config The CollateralConfiguration object with all the settings for the collateral type being configured.
      */
-    function set(Data memory config) internal {
+    function set(address tokenAddress, Config memory config) internal {
         SetUtil.AddressSet storage collateralTypes = loadAvailableCollaterals();
 
-        if (!collateralTypes.contains(config.tokenAddress)) {
-            collateralTypes.add(config.tokenAddress);
+        if (!collateralTypes.contains(tokenAddress)) {
+            collateralTypes.add(tokenAddress);
         }
 
-        Data storage storedConfig = load(config.tokenAddress);
+        Data storage storedConfig = load(tokenAddress);
 
-        storedConfig.tokenAddress = config.tokenAddress;
-        storedConfig.depositingEnabled = config.depositingEnabled;
-        storedConfig.cap = config.cap;
-        storedConfig.oracleNodeId = config.oracleNodeId;
-        storedConfig.weight = config.weight;
-        storedConfig.autoExchangeReward = config.autoExchangeReward;
+        storedConfig.config.depositingEnabled = config.depositingEnabled;
+        storedConfig.config.cap = config.cap;
+        storedConfig.config.oracleNodeId = config.oracleNodeId;
+        storedConfig.config.weight = config.weight;
+        storedConfig.config.autoExchangeReward = config.autoExchangeReward;
 
-        emit CollateralConfigurationUpdated(config, block.timestamp);
+        storedConfig.cachedConfig.tokenAddress = tokenAddress;
+        uint8 tokenDecimals = IERC20(tokenAddress).decimals();
+        storedConfig.cachedConfig.tokenDecimals = tokenDecimals;
+
+        emit CollateralConfigurationUpdated(storedConfig, block.timestamp);
     }
 
     /**
@@ -124,7 +141,7 @@ library CollateralConfiguration {
      * @param token The address of the collateral being queried.
      */
     function collateralEnabled(address token) internal view {
-        if (!load(token).depositingEnabled) {
+        if (!load(token).config.depositingEnabled) {
             revert CollateralDepositDisabled(token);
         }
     }
@@ -137,7 +154,7 @@ library CollateralConfiguration {
     function getCollateralPriceInUSD(Data storage self) internal view returns (UD60x18) {
         OracleManager.Data memory oracleManager = OracleManager.load();
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
-            self.oracleNodeId
+            self.config.oracleNodeId
         );
 
         return UD60x18.wrap(node.price.toUint());
@@ -153,9 +170,10 @@ library CollateralConfiguration {
         Data storage self,
         uint256 collateralAmount
     ) internal view returns (uint256) {
-        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
+        uint8 decimals = self.cachedConfig.tokenDecimals;
 
-        return collateralBalanceInUSD;
+        uint256 collateralAmountWad = changeDecimals(collateralAmount, decimals, 18);
+        return mulUDxUint(self.getCollateralPriceInUSD(), collateralAmountWad);
     }
 
     /**
@@ -168,10 +186,7 @@ library CollateralConfiguration {
         Data storage self,
         uint256 collateralAmount
     ) internal view returns (uint256) {
-        uint256 collateralBalanceInUSDWithHaircut = 
-            mulUDxUint(self.weight, self.getCollateralInUSD(collateralAmount));
-
-        return collateralBalanceInUSDWithHaircut;
+        return mulUDxUint(self.config.weight, self.getCollateralInUSD(collateralAmount));
     }
 
     /**
@@ -184,9 +199,10 @@ library CollateralConfiguration {
         Data storage self,
         uint256 usdAmount
     ) internal view returns (uint256) {
-        uint256 collateralAmount = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
-        
-        return collateralAmount;
+        uint8 decimals = self.cachedConfig.tokenDecimals;
+
+        uint256 collateralAmountWad = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
+        return changeDecimals(collateralAmountWad, 18, decimals);
     }
 
     /**
@@ -199,8 +215,22 @@ library CollateralConfiguration {
         Data storage self,
         uint256 weightedUsdAmount
     ) internal view returns (uint256) {
-        uint256 usdAmount = divUintUDx(weightedUsdAmount, self.weight);
-        
-        return self.getUSDInCollateral(usdAmount);
+        return divUintUDx(self.getUSDInCollateral(weightedUsdAmount), self.config.weight);
+    }
+
+    function changeDecimals(uint256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns(uint256) {
+        if (fromDecimals < toDecimals) {
+            uint256 factor = 10 ** (toDecimals - fromDecimals);
+            return a * factor;
+        }
+
+        if (fromDecimals > toDecimals) {
+            // todo: think of precision loss (e.g. revert, emit event or do nothing)
+
+            uint256 factor = 10 ** (fromDecimals - toDecimals);
+            return a / factor;
+        }
+
+        return a;
     }
 }

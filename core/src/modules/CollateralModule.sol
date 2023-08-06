@@ -44,7 +44,7 @@ contract CollateralModule is ICollateralModule {
 
         // check that this deposit does not reach the cap
         uint256 currentBalance = IERC20(collateralType).balanceOf(self);
-        uint256 collateralCap = CollateralConfiguration.load(collateralType).cap;
+        uint256 collateralCap = CollateralConfiguration.load(collateralType).config.cap;
         if (collateralCap < currentBalance + tokenAmount) {
             revert CollateralCapExceeded(collateralType, collateralCap, currentBalance, tokenAmount);
         }
