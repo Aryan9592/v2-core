@@ -42,44 +42,26 @@ contract CollateralModule is ICollateralModule {
         address depositFrom = msg.sender;
         address self = address(this);
 
-        // if liquidation booster is not full, add the delta to the deposited collateral amount
-        uint256 liquidationBooster = CollateralConfiguration.load(collateralType).liquidationBooster;
-        uint256 liquidationBoosterBalance = account.collaterals[collateralType].liquidationBoosterBalance;
-
-        uint256 liquidationBoosterTopUp =
-            (liquidationBooster > liquidationBoosterBalance) ? liquidationBooster - liquidationBoosterBalance : 0;
-
-        uint256 actualTokenAmount = tokenAmount + liquidationBoosterTopUp;
-
         // check that this deposit does not reach the cap
         uint256 currentBalance = IERC20(collateralType).balanceOf(self);
         uint256 collateralCap = CollateralConfiguration.load(collateralType).cap;
-        if (collateralCap < currentBalance + actualTokenAmount) {
-            revert CollateralCapExceeded(
-                collateralType, collateralCap, currentBalance, tokenAmount, liquidationBoosterTopUp
-            );
+        if (collateralCap < currentBalance + tokenAmount) {
+            revert CollateralCapExceeded(collateralType, collateralCap, currentBalance, tokenAmount);
         }
 
         // check allowance
         uint256 allowance = IERC20(collateralType).allowance(depositFrom, self);
-        if (allowance < actualTokenAmount) {
-            revert IERC20.InsufficientAllowance(actualTokenAmount, allowance);
+        if (allowance < tokenAmount) {
+            revert IERC20.InsufficientAllowance(tokenAmount, allowance);
         }
 
         // execute transfer
-        collateralType.safeTransferFrom(depositFrom, self, actualTokenAmount);
-
-        // update account liquidator booster balance if necessary 
-        if (liquidationBoosterTopUp > 0) {
-            account.increaseLiquidationBoosterBalance(collateralType, liquidationBoosterTopUp);
-        }
+        collateralType.safeTransferFrom(depositFrom, self, tokenAmount);
 
         // update account collateral balance if necessary 
-        if (tokenAmount > 0) {
-            account.increaseCollateralBalance(collateralType, tokenAmount);
-        }
+        account.increaseCollateralBalance(collateralType, tokenAmount);
 
-        emit Deposited(accountId, collateralType, actualTokenAmount, msg.sender, block.timestamp);
+        emit Deposited(accountId, collateralType, tokenAmount, msg.sender, block.timestamp);
     }
 
     /**
@@ -90,14 +72,7 @@ contract CollateralModule is ICollateralModule {
         Account.Data storage account =
             Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
 
-        uint256 collateralBalance = account.collaterals[collateralType].balance;
-        if (tokenAmount > collateralBalance) {
-            uint256 liquidatorBoosterWithdrawal = tokenAmount - collateralBalance;
-            account.decreaseLiquidationBoosterBalance(collateralType, liquidatorBoosterWithdrawal);
-            account.decreaseCollateralBalance(collateralType, collateralBalance);
-        } else {
-            account.decreaseCollateralBalance(collateralType, tokenAmount);
-        }
+        account.decreaseCollateralBalance(collateralType, tokenAmount);
 
         account.imCheck(collateralType);
 
@@ -115,7 +90,7 @@ contract CollateralModule is ICollateralModule {
         override
         returns (uint256 collateralBalance)
     {
-        return Account.load(accountId).getCollateralBalance(collateralType);
+        return Account.exists(accountId).getCollateralBalance(collateralType);
     }
 
     /**
@@ -127,19 +102,6 @@ contract CollateralModule is ICollateralModule {
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        return Account.load(accountId).getCollateralBalanceAvailable(collateralType);
+        return Account.exists(accountId).getCollateralBalanceAvailable(collateralType);
     }
-
-    /**
-     * @inheritdoc ICollateralModule
-     */
-    function getAccountLiquidationBoosterBalance(uint128 accountId, address collateralType)
-        external
-        view
-        override
-        returns (uint256 collateralBalance)
-    {
-        return Account.load(accountId).getLiquidationBoosterBalance(collateralType);
-    }
-
 }

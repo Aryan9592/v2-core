@@ -15,8 +15,7 @@ import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.s
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
 import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
 import {ProtocolRiskConfiguration} from "@voltz-protocol/core/src/storage/ProtocolRiskConfiguration.sol";
-import {MarketFeeConfiguration} from "@voltz-protocol/core/src/storage/MarketFeeConfiguration.sol";
-import {MarketRiskConfiguration} from "@voltz-protocol/core/src/storage/MarketRiskConfiguration.sol";
+import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
 
@@ -224,7 +223,6 @@ contract SetupProtocol is BatchScript {
     uint128 productId,
     uint128 marketId,
     uint128 feeCollectorAccountId,
-    uint256 liquidationBooster,
     uint256 cap,
     UD60x18 atomicMakerFee,
     UD60x18 atomicTakerFee,
@@ -235,7 +233,6 @@ contract SetupProtocol is BatchScript {
     configureCollateral(
       CollateralConfiguration.Data({
         depositingEnabled: true,
-        liquidationBooster: liquidationBooster,
         tokenAddress: tokenAddress,
         cap: cap,
         oracleNodeId: "0x",
@@ -258,8 +255,8 @@ contract SetupProtocol is BatchScript {
     });
 
     configureMarketFee(
-      MarketFeeConfiguration.Data({
-        marketId: marketId,
+      marketId,
+      Market.MarketFeeConfiguration({
         feeCollectorAccountId: feeCollectorAccountId,
         atomicMakerFee: atomicMakerFee,
         atomicTakerFee: atomicTakerFee
@@ -267,8 +264,8 @@ contract SetupProtocol is BatchScript {
     );
 
     configureMarketRisk(
-      MarketRiskConfiguration.Data({
-        marketId: marketId, 
+      marketId,
+      Market.MarketRiskConfiguration({
         riskParameter: riskParameter,
         twapLookbackWindow: twapLookbackWindow
       })
@@ -334,16 +331,12 @@ contract SetupProtocol is BatchScript {
   ) public returns (bytes memory) {
     IRateOracle rateOracle = IRateOracle(params.rateOracleAddress);
 
-    uint256 liquidationBooster = contracts.coreProxy.getCollateralConfiguration(params.tokenAddress).liquidationBooster;
-    uint256 accountLiquidationBoosterBalance = 
-      contracts.coreProxy.getAccountLiquidationBoosterBalance(params.accountId, params.tokenAddress);
-
     int256 baseAmount = sd59x18(params.notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
     erc20_approve(
       IERC20(params.tokenAddress), 
       address(contracts.peripheryProxy), 
-      params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance
+      params.marginAmount
     );
 
     bytes memory commands;
@@ -368,7 +361,7 @@ contract SetupProtocol is BatchScript {
     }
 
     inputs[inputs.length-3] = 
-      abi.encode(params.tokenAddress, params.marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
+      abi.encode(params.tokenAddress, params.marginAmount);
     inputs[inputs.length-2] = abi.encode(params.accountId, params.tokenAddress, params.marginAmount);
     inputs[inputs.length-1] = abi.encode(
       params.accountId,
@@ -393,15 +386,12 @@ contract SetupProtocol is BatchScript {
   ) public returns (bytes memory) {
     IRateOracle rateOracle = IRateOracle(rateOracleAddress);
 
-    uint256 liquidationBooster = contracts.coreProxy.getCollateralConfiguration(tokenAddress).liquidationBooster;
-    uint256 accountLiquidationBoosterBalance = contracts.coreProxy.getAccountLiquidationBoosterBalance(accountId, tokenAddress);
-
     int256 baseAmount = sd59x18(notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
     erc20_approve(
       IERC20(tokenAddress), 
       address(contracts.peripheryProxy), 
-      marginAmount + liquidationBooster - accountLiquidationBoosterBalance
+      marginAmount
     );
 
     bytes memory commands;
@@ -424,7 +414,7 @@ contract SetupProtocol is BatchScript {
       inputs = new bytes[](4);
       inputs[0] = abi.encode(accountId);
     }
-    inputs[inputs.length-3] = abi.encode(tokenAddress, marginAmount + liquidationBooster - accountLiquidationBoosterBalance);
+    inputs[inputs.length-3] = abi.encode(tokenAddress, marginAmount);
     inputs[inputs.length-2] = abi.encode(accountId, tokenAddress, marginAmount);
     inputs[inputs.length-1] = abi.encode(
       accountId,
@@ -571,16 +561,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketRisk(MarketRiskConfiguration.Data memory config) public {
+  function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureMarketRisk(config);
+      contracts.coreProxy.configureMarketRisk(marketId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureMarketRisk,
-          (config)
+          (marketId, config)
         )
       );
     }
@@ -662,16 +652,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketFee(MarketFeeConfiguration.Data memory config) public {
+  function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureMarketFee(config);
+      contracts.coreProxy.configureMarketFee(marketId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureMarketFee,
-          (config)
+          (marketId, config)
         )
       );
     }

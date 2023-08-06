@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/MarketRiskConfiguration.sol";
+import "../storage/Market.sol";
 import "../storage/ProtocolRiskConfiguration.sol";
 
 /**
@@ -15,20 +15,6 @@ import "../storage/ProtocolRiskConfiguration.sol";
  * @notice Allows the owner to configure risk parameters at protocol and market wide level
  */
 interface IRiskConfigurationModule {
-    /**
-     * @notice Emitted when a market risk configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event MarketRiskConfigured(MarketRiskConfiguration.Data config, uint256 blockTimestamp);
-
-    /**
-     * @notice Emitted when the protocol risk configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event ProtocolRiskConfigured(ProtocolRiskConfiguration.Data config, uint256 blockTimestamp);
-
     /**
      * @notice Creates or updates the configuration for the given `marketId`
      * @param config The MarketConfiguration object describing the new configuration.
@@ -40,7 +26,17 @@ interface IRiskConfigurationModule {
      * Emits a {MarketRiskConfigured} event.
      *
      */
-    function configureMarketRisk(MarketRiskConfiguration.Data memory config) external;
+    function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) external;
+
+    /**
+     * @notice Returns detailed information pertaining the specified marketId
+     * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
+     * @return config The configuration object describing the given marketId
+     */
+    function getMarketRiskConfiguration(uint128 marketId)
+        external
+        view
+        returns (Market.MarketRiskConfiguration memory config);
 
     /**
      * @notice Creates or updates the configuration on the protocol (i.e. system-wide) level
@@ -54,16 +50,6 @@ interface IRiskConfigurationModule {
      *
      */
     function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) external;
-
-    /**
-     * @notice Returns detailed information pertaining the specified marketId
-     * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
-     * @return config The configuration object describing the given marketId
-     */
-    function getMarketRiskConfiguration(uint128 marketId)
-        external
-        pure
-        returns (MarketRiskConfiguration.Data memory config);
 
     /**
      * @notice Returns detailed information on protocol-wide risk configuration

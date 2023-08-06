@@ -65,7 +65,7 @@ contract PoolModule is IPoolModule {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss)
+        external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr)
     {
 
         IMarketManagerIRSModule irsProduct = IMarketManagerIRSModule(PoolConfiguration.load().productAddress);
@@ -80,7 +80,7 @@ contract PoolModule is IPoolModule {
 
         vamm.executeDatedMakerOrder(accountId, marketId, tickLower, tickUpper, liquidityDelta);
 
-        (fee, im, highestUnrealizedLoss) = irsProduct.propagateMakerOrder(
+        (fee, mr) = irsProduct.propagateMakerOrder(
             accountId,
             marketId,
             maturityTimestamp,

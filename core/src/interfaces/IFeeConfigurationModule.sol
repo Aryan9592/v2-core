@@ -7,20 +7,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/MarketFeeConfiguration.sol";
+import "../storage/Market.sol";
 
 /**
  * @title Module for configuring (protocol and) market wide risk parameters
  * @notice Allows the owner to configure risk parameters at (protocol and) market wide level
  */
 interface IFeeConfigurationModule {
-    /**
-     * @notice Emitted when a market fee configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event MarketFeeConfigured(MarketFeeConfiguration.Data config, uint256 blockTimestamp);
-
     /**
      * @notice Creates or updates the fee configuration for the given `marketId`
      * @param config The MarketFeeConfiguration object describing the new configuration.
@@ -32,7 +25,7 @@ interface IFeeConfigurationModule {
      * Emits a {MarketFeeConfigured} event.
      *
      */
-    function configureMarketFee(MarketFeeConfiguration.Data memory config) external;
+    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external;
 
     /**
      * @notice Returns detailed information pertaining the specified marketId
@@ -41,6 +34,6 @@ interface IFeeConfigurationModule {
      */
     function getMarketFeeConfiguration(uint128 marketId)
         external
-        pure
-        returns (MarketFeeConfiguration.Data memory config);
+        view
+        returns (Market.MarketFeeConfiguration memory config);
 }

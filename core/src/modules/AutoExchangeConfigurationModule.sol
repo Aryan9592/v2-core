@@ -23,9 +23,7 @@ contract AutoExchangeConfigurationModule is IAutoExchangeConfigurationModule {
     function configureAutoExchange(AutoExchangeConfiguration.Data memory config) external override {
         OwnableStorage.onlyOwner();
         AutoExchangeConfiguration.set(config);
-        emit AutoExchangeConfigured(config, block.timestamp);
     }
-
 
     /**
      * @inheritdoc IAutoExchangeConfigurationModule

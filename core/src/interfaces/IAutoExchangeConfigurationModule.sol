@@ -15,14 +15,7 @@ import "../storage/AutoExchangeConfiguration.sol";
  * @notice Allows the owner to configure auto-exchange parameters
  */
 interface IAutoExchangeConfigurationModule {
-
-    /**
-     * @notice Emitted when auto-exchange configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AutoExchangeConfigured(AutoExchangeConfiguration.Data config, uint256 blockTimestamp);
-
+    
     /**
      * @notice Creates or updates the auto-exchange configuration on the protocol (i.e. system-wide) level
      * @param config The AutoExchangeConfiguration object describing the new configuration.

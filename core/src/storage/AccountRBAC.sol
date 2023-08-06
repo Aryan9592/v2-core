@@ -19,6 +19,8 @@ library AccountRBAC {
     using SetUtil for SetUtil.Bytes32Set;
     using SetUtil for SetUtil.AddressSet;
 
+    // todo: consider pushing account id here and add events to track this storage changes separately
+
     /**
      * @dev All permissions used by the system
      * need to be hardcoded here.

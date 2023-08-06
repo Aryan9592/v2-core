@@ -160,7 +160,7 @@ library Portfolio {
     )
         internal
         view
-        returns (Account.MakerMarketExposure[] memory exposures)
+        returns (AccountExposure.MakerMarketExposure[] memory exposures)
     {
         address poolAddress = MarketManagerConfiguration.getPoolAddress();
         uint256 activeMaturitiesCount = self.activeMaturities.length();

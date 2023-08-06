@@ -112,7 +112,7 @@ library ExposureHelpers {
     function getUnfilledExposureLowerInPool(
         PoolExposureState memory poolState,
         address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
+    ) internal view returns (AccountExposure.MarketExposure memory) {
         uint256 unrealizedLossLower = computeUnrealizedLoss(
             poolState.marketId,
             poolState.maturityTimestamp,
@@ -121,7 +121,7 @@ library ExposureHelpers {
             poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
         );
 
-        return Account.MarketExposure({
+        return AccountExposure.MarketExposure({
             annualizedNotional: mulUDxInt(
                 poolState.annualizedExposureFactor, 
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
@@ -133,7 +133,7 @@ library ExposureHelpers {
     function getUnfilledExposureUpperInPool(
         PoolExposureState memory poolState,
         address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
+    ) internal view returns (AccountExposure.MarketExposure memory) {
         uint256 unrealizedLossUpper = computeUnrealizedLoss(
             poolState.marketId,
             poolState.maturityTimestamp,
@@ -142,7 +142,7 @@ library ExposureHelpers {
             poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt()
         );
 
-        return Account.MarketExposure({
+        return AccountExposure.MarketExposure({
             annualizedNotional: mulUDxInt(
                 poolState.annualizedExposureFactor,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()

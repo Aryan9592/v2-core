@@ -126,7 +126,6 @@ contract ConfigProtocol is SetupProtocol {
       productId: 1,
       marketId: 1,
       feeCollectorAccountId: 999,
-      liquidationBooster: 0,
       cap: type(uint256).max,
       atomicMakerFee: ud60x18(0),
       atomicTakerFee: ud60x18(0.0002e18),
@@ -179,10 +178,26 @@ contract ConfigProtocol is SetupProtocol {
   }
 
   function run_mainnet() public {
-    // upgradeProxy(address(contracts.coreProxy), 0x44E1D5aEcb7B4d191F37f1933A30343046bD9ADB); // todo: populate with latest router
-    // upgradeProxy(address(contracts.datedIrsProxy), 0x2463Db784786e04d266d9D91E77E1Fd650204fDD); // todo: populate with latest router
-    // upgradeProxy(address(contracts.peripheryProxy), 0x2457D958DBEBaCc9daA41B47592faCA5845f8Fc3); // todo: populate with latest router
-    // upgradeProxy(address(contracts.vammProxy), 0x8b6663217C62D5510F191de84d1c3a403D304016); // todo: populate with latest router
+    // upgradeProxy(
+    //   address(contracts.coreProxy), 
+    //   0x44E1D5aEcb7B4d191F37f1933A30343046bD9ADB
+    // ); // todo: populate with latest router
+    
+    // upgradeProxy(
+    //   address(contracts.datedIrsProxy), 
+    //   0x2463Db784786e04d266d9D91E77E1Fd650204fDD
+    // ); // todo: populate with latest router
+    
+    // upgradeProxy(
+    //   address(contracts.peripheryProxy), 
+    //   0x2457D958DBEBaCc9daA41B47592faCA5845f8Fc3
+    // ); // todo: populate with latest router
+    
+    // upgradeProxy(
+    //   address(contracts.vammProxy), 
+    //   0x8b6663217C62D5510F191de84d1c3a403D304016
+    // ); // todo: populate with latest router
+    
     // initOrUpgradeNft({
     //   id: 0x6163636f756e744e465400000000000000000000000000000000000000000000,
     //   name: "Voltz V2 Account NFT", 
@@ -218,7 +233,6 @@ contract ConfigProtocol is SetupProtocol {
       productId: 1,
       marketId: 1,
       feeCollectorAccountId: 999,
-      liquidationBooster: 0,
       cap: 100000e6,
       atomicMakerFee: ud60x18(0),
       atomicTakerFee: ud60x18(0.0002e18),
@@ -297,7 +311,6 @@ contract ConfigProtocol is SetupProtocol {
       productId: 1,
       marketId: 1,
       feeCollectorAccountId: 999,
-      liquidationBooster: 1e6,
       cap: 1000e6,
       atomicMakerFee: ud60x18(1e16),
       atomicTakerFee: ud60x18(5e16),

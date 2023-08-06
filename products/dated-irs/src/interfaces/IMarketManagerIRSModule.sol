@@ -88,7 +88,7 @@ interface IMarketManagerIRSModule is IMarketManager {
      */
     function initiateTakerOrder(TakerOrderParams memory params)
         external
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, AccountExposure.MarginRequirements memory mr);
 
     /**
      * @notice Creates or updates the configuration for the given market manager.
@@ -115,7 +115,7 @@ interface IMarketManagerIRSModule is IMarketManager {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+    ) external returns (uint256 fee, AccountExposure.MarginRequirements memory mr);
 
     /**
      * @notice Returns core proxy address from MarketManagerConfigruation

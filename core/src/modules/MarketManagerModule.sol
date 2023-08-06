@@ -10,8 +10,6 @@ pragma solidity >=0.8.19;
 import "../interfaces/external/IMarketManager.sol";
 import "../interfaces/IMarketManagerModule.sol";
 import "../storage/Market.sol";
-import "../storage/MarketCreator.sol";
-import "../storage/MarketFeeConfiguration.sol";
 import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import "@voltz-protocol/util-contracts/src/helpers/ERC165Helper.sol";
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
@@ -26,7 +24,6 @@ import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelp
 contract MarketManagerModule is IMarketManagerModule {
     using Account for Account.Data;
     using Market for Market.Data;
-    using MarketFeeConfiguration for MarketFeeConfiguration.Data;
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using AssociatedSystem for AssociatedSystem.Data;
@@ -36,7 +33,7 @@ contract MarketManagerModule is IMarketManagerModule {
     bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
     function getLastCreatedMarketId() external view override returns (uint128) {
-        return MarketCreator.getMarketStore().lastCreatedMarketId;
+        return MarketStore.getMarketStore().lastCreatedMarketId;
     }
 
     /**
@@ -46,9 +43,9 @@ contract MarketManagerModule is IMarketManagerModule {
         external
         override
         view
-        returns (Account.MakerMarketExposure[] memory exposures)
+        returns (AccountExposure.MakerMarketExposure[] memory exposures)
     {
-        exposures = Market.load(marketId).getAccountTakerAndMakerExposures(accountId);
+        exposures = Market.exists(marketId).getAccountTakerAndMakerExposures(accountId);
     }
 
     /**
@@ -61,7 +58,7 @@ contract MarketManagerModule is IMarketManagerModule {
             revert IncorrectMarketInterface(marketManager);
         }
 
-        marketId = MarketCreator.create(marketManager, name, msg.sender).id;
+        marketId = Market.create(marketManager, name, msg.sender).id;
 
         emit MarketRegistered(marketManager, marketId, name, msg.sender, block.timestamp);
     }
@@ -73,7 +70,7 @@ contract MarketManagerModule is IMarketManagerModule {
     function closeAccount(uint128 marketId, uint128 accountId) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
-        Market.load(marketId).closeAccount(accountId);
+        Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
     }
 
@@ -106,31 +103,24 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+    ) external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        // todo: consider checking if the market exists or is it implicitly done in .onlyMarketAddress() call (AN)
         Market.onlyMarketAddress(marketId, msg.sender);
 
         Account.Data storage account = Account.exists(accountId);
-        Market.Data storage market = Market.load(marketId);
+        Market.Data memory market = Market.exists(marketId);
 
-        // todo: check if account can engage with the market (i.e. if the market is in the collateral pool of the account)
-        bool accountCanEngageWithMarket = true;
-
-        if (!accountCanEngageWithMarket) {
-            revert AccountCannotEngageWithMarket(account.id, market.id);
-        }
-
-        MarketFeeConfiguration.Data memory feeConfig = MarketFeeConfiguration.load(marketId);
         fee = distributeFees(
-            accountId, feeConfig.feeCollectorAccountId, feeConfig.atomicTakerFee, collateralType, annualizedNotional
+            accountId, 
+            market.feeConfig.feeCollectorAccountId, 
+            market.feeConfig.atomicTakerFee, 
+            collateralType, 
+            annualizedNotional
         );
 
-        if (!account.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
-            account.activeMarketsPerQuoteToken[collateralType].add(marketId);
-        }
+        account.markActiveMarket(collateralType, marketId);
 
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        mr = account.imCheck(collateralType);
     }
 
     function propagateMakerOrder(
@@ -138,32 +128,24 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) {
+    ) external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
         Account.Data storage account = Account.exists(accountId);
-        Market.Data storage market = Market.load(marketId);
+        Market.Data memory market = Market.exists(marketId);
+        
+        fee = distributeFees(
+            accountId, 
+            market.feeConfig.feeCollectorAccountId, 
+            market.feeConfig.atomicMakerFee, 
+            collateralType, 
+            annualizedNotional
+        );
 
-        // todo: check if account can engage with the market (i.e. if the market is in the collateral pool of the account)
-        bool accountCanEngageWithMarket = true;
+        account.markActiveMarket(collateralType, marketId);
 
-        if (!accountCanEngageWithMarket) {
-            revert AccountCannotEngageWithMarket(account.id, market.id);
-        }
-
-        if (annualizedNotional > 0) {
-            MarketFeeConfiguration.Data memory feeConfig = MarketFeeConfiguration.load(marketId);
-            fee = distributeFees(
-                accountId, feeConfig.feeCollectorAccountId, feeConfig.atomicMakerFee, collateralType, annualizedNotional
-            );
-        }
-
-        if (!account.activeMarketsPerQuoteToken[collateralType].contains(marketId)) {
-            account.activeMarketsPerQuoteToken[collateralType].add(marketId);
-        }
-
-        (im, highestUnrealizedLoss) = account.imCheck(collateralType);
+        mr = account.imCheck(collateralType);
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

@@ -18,15 +18,12 @@ interface ICollateralModule {
      * @param collateralCap The cap limit of the collateral
      * @param currentBalance Protocol's total balance in the collateral type
      * @param tokenAmount The token amount of the unsuccessful deposit
-     * @param liquidationBoosterDeposit The amount paid towards the liquidation booster
-     * (up to ConfigurationConfiguration.liquidationBooster)
      */
     error CollateralCapExceeded(
         address collateralType,
         uint256 collateralCap,
         uint256 currentBalance,
-        uint256 tokenAmount,
-        uint256 liquidationBoosterDeposit
+        uint256 tokenAmount
     );
 
     /**
@@ -83,18 +80,6 @@ interface ICollateralModule {
     function getAccountCollateralBalanceAvailable(uint128 accountId, address collateralType)
         external
         returns (uint256 amount);
-
-    /**
-     * @notice Returns the total liquidation booster pertaining to account `accountId` for `collateralType`.
-     * @param accountId The id of the account whose collateral is being queried.
-     * @param collateralType The address of the collateral type whose amount is being queried.
-     * @return liquidationBoosterBalance The total liquidation booster deposited in the account, denominated
-     * in the token's native decimal representation.
-     */
-    function getAccountLiquidationBoosterBalance(uint128 accountId, address collateralType)
-        external
-        view
-        returns (uint256 liquidationBoosterBalance);
 
     /**
      * @notice Deposits `tokenAmount` of collateral of type `collateralType` into account `accountId`.

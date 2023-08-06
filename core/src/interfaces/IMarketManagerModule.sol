@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Account.sol";
+import "../libraries/AccountExposure.sol";
 
 /**
  * @title System-wide entry point for the management of markets connected to the protocol.
@@ -17,12 +17,6 @@ interface IMarketManagerModule {
      * @notice Thrown when an attempt to register a market that does not conform to the IMarketManager interface is made.
      */
     error IncorrectMarketInterface(address market);
-
-    /**
-     * @notice Thrown when an attempt to propagate an order with a market with which the account cannot engage.
-     */
-    // todo: consider if more information needs to be included in this error beyond accountId and marketId
-    error AccountCannotEngageWithMarket(uint128 accountId, uint128 marketId);
 
     /**
      * @notice Emitted when a new market is registered in the protocol.
@@ -55,7 +49,7 @@ interface IMarketManagerModule {
     /// @notice returns account taker and maker exposures for a given market, account and collateral type
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
-        returns (Account.MakerMarketExposure[] memory exposures);
+        returns (AccountExposure.MakerMarketExposure[] memory exposures);
 
     //// STATE CHANGING FUNCTIONS ////
 
@@ -76,14 +70,14 @@ interface IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+    ) external returns (uint256 fee, AccountExposure.MarginRequirements memory mr);
 
     function propagateMakerOrder(
         uint128 accountId,
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external returns (uint256 fee, uint256 im, uint256 highestUnrealizedLoss);
+    ) external returns (uint256 fee, AccountExposure.MarginRequirements memory mr);
 
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount) external;

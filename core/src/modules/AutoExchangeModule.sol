@@ -32,7 +32,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
     function isEligibleForAutoExchange(uint128 accountId) external view override returns (
         bool isEligibleForAutoExchange
     ) {
-        Account.Data storage account = Account.load(accountId);
+        Account.Data storage account = Account.exists(accountId);
         return account.isEligibleForAutoExchange();
     }
 
