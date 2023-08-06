@@ -45,7 +45,7 @@ contract LiquidationModule is ILiquidationModule {
         external 
         view 
         override 
-        returns (AccountExposure.MarginRequirements memory mr) 
+        returns (Account.MarginRequirement memory mr) 
     {
         Account.Data storage account = Account.exists(accountId);
         mr = account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
@@ -74,11 +74,11 @@ contract LiquidationModule is ILiquidationModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(liquidatedAccountId);
 
-        if (account.isMultiToken) {
+        if (account.accountMode == Account.MULTI_TOKEN_MODE) {
             revert AccountIsMultiToken(liquidatedAccountId);
         }
 
-        AccountExposure.MarginRequirements memory mrPreClose = 
+        Account.MarginRequirement memory mrPreClose = 
             account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
         if (mrPreClose.isLMSatisfied) {
@@ -87,7 +87,7 @@ contract LiquidationModule is ILiquidationModule {
 
         account.closeAccount(collateralType);
 
-        AccountExposure.MarginRequirements memory mrPostClose = 
+        Account.MarginRequirement memory mrPostClose = 
             account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
         uint256 coverPreClose = mrPreClose.initialMarginRequirement + mrPreClose.highestUnrealizedLoss;

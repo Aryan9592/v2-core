@@ -196,8 +196,7 @@ contract SetupProtocol is BatchScript {
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
       accountOwner: metadata.owner,
-      trustlessProductIdTrustedByAccount: type(uint128).max,
-      isMultiToken: false
+      accountMode: 1
     });
   }
 
@@ -636,17 +635,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function createAccount(uint128 requestedAccountId, address accountOwner,
-    uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, isMultiToken);
+      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, accountMode);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.createAccount,
-          (requestedAccountId, accountOwner, isMultiToken)
+          (requestedAccountId, accountOwner, accountMode)
         )
       );
     }

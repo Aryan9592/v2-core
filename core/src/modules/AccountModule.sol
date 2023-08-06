@@ -62,7 +62,7 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner, bool isMultiToken) external override {
+    function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) external override {
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             During the alpha phase of the protocol, the create account feature will only be available to the Periphery
@@ -81,7 +81,7 @@ contract AccountModule is IAccountModule {
         IAccountTokenModule accountTokenModule = IAccountTokenModule(getAccountTokenAddress());
         accountTokenModule.safeMint(accountOwner, requestedAccountId, "");
 
-        Account.create(requestedAccountId, accountOwner, isMultiToken);
+        Account.create(requestedAccountId, accountOwner, accountMode);
         
         emit AccountCreated(requestedAccountId, accountOwner, msg.sender, block.timestamp);
     }

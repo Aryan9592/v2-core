@@ -65,7 +65,7 @@ contract PoolModule is IPoolModule {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr)
+        external override returns (uint256 fee, Account.MarginRequirement memory mr)
     {
 
         IMarketManagerIRSModule irsProduct = IMarketManagerIRSModule(PoolConfiguration.load().productAddress);
