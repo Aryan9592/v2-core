@@ -10,27 +10,37 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "./AccountRBAC.sol";
 import "./Market.sol";
 
 import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
 import "../libraries/AccountMode.sol";
+import "../libraries/AccountRBAC.sol";
+
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
     using Account for Account.Data;
-    using AccountRBAC for AccountRBAC.Data;
     using Market for Market.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
-    uint8 constant public SINGLE_TOKEN_MODE = 1;
-    uint8 constant public MULTI_TOKEN_MODE = 2;
+    /**
+     * @dev All account permissions used by the system
+     * need to be hardcoded here.
+     */
+    bytes32 internal constant ADMIN_PERMISSION = "ADMIN";
+
+    /**
+     * @dev All account modes used by the system
+     * need to be hardcoded here.
+     */
+    bytes32 constant public SINGLE_TOKEN_MODE = "SINGLE_TOKEN_MODE";
+    bytes32 constant public MULTI_TOKEN_MODE = "MULTI_TOKEN_MODE";
 
     /**
      * @dev Thrown when the given target address does not own the given account.
@@ -67,6 +77,21 @@ library Account {
         MarketExposure upper;
     }
 
+    struct RBAC {
+        /**
+         * @dev The owner of the account
+         */
+        address owner;
+        /**
+         * @dev Set of permissions for each address enabled by the account.
+         */
+        mapping(address => SetUtil.Bytes32Set) permissions;
+        /**
+         * @dev Array of addresses that this account has given permissions to.
+         */
+        SetUtil.AddressSet permissionAddresses;
+    }
+
     struct Data {
         /**
          * @dev Numeric identifier for the account. Must be unique.
@@ -77,7 +102,7 @@ library Account {
         /**
          * @dev Role based access control data for the account.
          */
-        AccountRBAC.Data rbac;
+        RBAC rbac;
     
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
@@ -109,8 +134,7 @@ library Account {
          * @dev If this boolean is set to false then the account uses a single-token mode
          * @dev Single token mode means the account has a separate health factor for each collateral type
          */
-        // todo: should we change this from boolean to something more general? What if we're gonna have some other mode? 
-        uint8 accountMode;
+        bytes32 accountMode;
 
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
@@ -123,7 +147,7 @@ library Account {
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
      *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner, uint8 accountMode) 
+    function create(uint128 id, address owner, bytes32 accountMode) 
         internal 
         returns (Data storage account) 
     {
@@ -133,7 +157,7 @@ library Account {
         account = load(id);
 
         account.id = id;
-        account.rbac.setOwner(owner);
+        account.setOwner(owner);
         AccountMode.setAccountMode(account, accountMode);
     }
 
@@ -191,9 +215,52 @@ library Account {
         returns (Data storage account)
     {
         account = Account.load(accountId);
-        if (!account.rbac.authorized(permission, senderAddress)) {
+        if (!account.authorized(permission, senderAddress)) {
             revert PermissionDenied(accountId, senderAddress);
         }
+    }
+
+    /**
+     * @dev Sets the owner of the account.
+     */
+    function setOwner(Data storage self, address owner) internal {
+        AccountRBAC.setOwner(self, owner);
+    }
+
+    /**
+     * @dev Grants a particular permission to the specified target address.
+     */
+    function grantPermission(Data storage self, bytes32 permission, address target) internal {
+        AccountRBAC.grantPermission(self, permission, target);
+    }
+
+    /**
+     * @dev Revokes a particular permission from the specified target address.
+     */
+    function revokePermission(Data storage self, bytes32 permission, address target) internal {
+        AccountRBAC.revokePermission(self, permission, target);
+    }
+
+    /**
+     * @dev Revokes all permissions for the specified target address.
+     * @notice only removes permissions for the given address, not for the entire account
+     */
+    function revokeAllPermissions(Data storage self, address target) internal {
+        AccountRBAC.revokeAllPermissions(self, target);
+    }
+
+    /**
+     * @dev Returns wether the specified address has the given permission.
+     */
+    function hasPermission(Data storage self, bytes32 permission, address target) internal view returns (bool) {
+        return AccountRBAC.hasPermission(self, permission, target);
+    }
+
+    /**
+     * @dev Returns wether the specified target address has the given permission, or has the high level admin permission.
+     */
+    function authorized(Data storage self, bytes32 permission, address target) internal view returns (bool) {
+        return Account.authorized(self, permission, target);
     }
 
     /**
@@ -274,7 +341,7 @@ library Account {
     /**
      * @dev Changes the account mode.
      */
-    function changeAccountMode(Data storage self, uint8 newAccountMode) internal {
+    function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
     }
 

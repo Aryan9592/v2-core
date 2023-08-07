@@ -27,7 +27,7 @@ library V2Core {
         Payments.pay(collateralType, msg.sender, tokenAmount);
     }
 
-    function createAccount(uint128 requestedId, uint8 accountMode) internal {
+    function createAccount(uint128 requestedId, bytes32 accountMode) internal {
         Config.Data memory config = Config.load();
         IAccountModule(config.VOLTZ_V2_CORE_PROXY).createAccount(requestedId, msg.sender, accountMode);
     }

@@ -53,8 +53,8 @@ library AccountActiveMarket {
             // account is linked the first time to some collateral pool - update the collateral pool balances
             CollateralPool.Data storage collateralPool = Market.exists(marketId).getCollateralPool();
             for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
-                address collateralType = self.activeCollaterals.valueAt(i);
-                collateralPool.increaseCollateralBalance(collateralType, self.collateralBalances[collateralType]);
+                address activeCollateral = self.activeCollaterals.valueAt(i);
+                collateralPool.increaseCollateralBalance(activeCollateral, self.collateralBalances[activeCollateral]);
             }
         }
         else {

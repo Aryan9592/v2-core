@@ -11,7 +11,6 @@ import "../interfaces/IAccountTokenModule.sol";
 import "../interfaces/IAccountModule.sol";
 import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import "../storage/Account.sol";
-import "../storage/AccountRBAC.sol";
 import "../storage/AccessPassConfiguration.sol";
 import "../interfaces/external/IAccessPassNFT.sol";
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
@@ -23,7 +22,6 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 contract AccountModule is IAccountModule {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.Bytes32Set;
-    using AccountRBAC for AccountRBAC.Data;
     using Account for Account.Data;
 
     bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
@@ -46,7 +44,7 @@ contract AccountModule is IAccountModule {
         view
         returns (AccountPermissions[] memory accountPerms)
     {
-        AccountRBAC.Data storage accountRbac = Account.exists(accountId).rbac;
+        Account.RBAC storage accountRbac = Account.exists(accountId).rbac;
 
         uint256 allPermissionsLength = accountRbac.permissionAddresses.length();
         accountPerms = new AccountPermissions[](allPermissionsLength);
@@ -62,7 +60,7 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) external override {
+    function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) external override {
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             During the alpha phase of the protocol, the create account feature will only be available to the Periphery
@@ -101,18 +99,17 @@ contract AccountModule is IAccountModule {
 
         address[] memory permissionedAddresses = account.rbac.permissionAddresses.values();
         for (uint256 i = 0; i < permissionedAddresses.length; i++) {
-            account.rbac.revokeAllPermissions(permissionedAddresses[i]);
+            account.revokeAllPermissions(permissionedAddresses[i]);
         }
 
-        account.rbac.setOwner(to);
-        emit AccountOwnerUpdated(accountId, to, block.timestamp);
+        account.setOwner(to);
     }
 
     /**
      * @inheritdoc IAccountModule
      */
     function hasPermission(uint128 accountId, bytes32 permission, address user) public view override returns (bool) {
-        return Account.exists(accountId).rbac.hasPermission(permission, user);
+        return Account.exists(accountId).hasPermission(permission, user);
     }
 
     /**
@@ -126,7 +123,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function isAuthorized(uint128 accountId, bytes32 permission, address user) public view override returns (bool) {
-        return Account.exists(accountId).rbac.authorized(permission, user);
+        return Account.exists(accountId).authorized(permission, user);
     }
 
     /**
@@ -134,7 +131,7 @@ contract AccountModule is IAccountModule {
      */
     function onlyAuthorized(uint128 accountId, bytes32 permission, address target) public view override {
         if (!isAuthorized(accountId, permission, target)) {
-            revert PermissionNotGranted(accountId, AccountRBAC._ADMIN_PERMISSION, target);
+            revert PermissionNotGranted(accountId, permission, target);
         }
     }
 
@@ -145,9 +142,7 @@ contract AccountModule is IAccountModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
-        account.rbac.grantPermission(permission, user);
-
-        emit PermissionGranted(accountId, permission, user, msg.sender, block.timestamp);
+        account.grantPermission(permission, user);
     }
 
     /**
@@ -157,9 +152,7 @@ contract AccountModule is IAccountModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
-        account.rbac.revokePermission(permission, user);
-
-        emit PermissionRevoked(accountId, permission, user, msg.sender, block.timestamp);
+        account.revokePermission(permission, user);
     }
 
     /**
@@ -167,13 +160,11 @@ contract AccountModule is IAccountModule {
      */
     function renouncePermission(uint128 accountId, bytes32 permission) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        if (!Account.exists(accountId).rbac.hasPermission(permission, msg.sender)) {
+        if (!Account.exists(accountId).hasPermission(permission, msg.sender)) {
             revert PermissionNotGranted(accountId, permission, msg.sender);
         }
 
-        Account.exists(accountId).rbac.revokePermission(permission, msg.sender);
-
-        emit PermissionRevoked(accountId, permission, msg.sender, msg.sender, block.timestamp);
+        Account.exists(accountId).revokePermission(permission, msg.sender);
     }
 
     /**

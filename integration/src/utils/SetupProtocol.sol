@@ -196,7 +196,7 @@ contract SetupProtocol is BatchScript {
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
       accountOwner: metadata.owner,
-      accountMode: 1
+      accountMode: "SINGLE_TOKEN_MODE"
     });
   }
 
@@ -635,7 +635,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.coreProxy.createAccount(requestedAccountId, accountOwner, accountMode);

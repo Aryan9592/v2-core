@@ -69,7 +69,7 @@ contract MarketManagerModule is IMarketManagerModule {
 
     function closeAccount(uint128 marketId, uint128 accountId) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
         Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
     }
