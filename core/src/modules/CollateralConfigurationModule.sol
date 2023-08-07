@@ -23,9 +23,9 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
     /**
      * @inheritdoc ICollateralConfigurationModule
      */
-    function configureCollateral(CollateralConfiguration.Data memory config) external override {
+    function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) external override {
         OwnableStorage.onlyOwner();
-        CollateralConfiguration.set(config);
+        CollateralConfiguration.set(tokenAddress, config);
     }
 
     /**
@@ -45,7 +45,7 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
             address collateralType = collateralTypes.valueAt(i);
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
 
-            if (!hideDisabled || collateral.depositingEnabled) {
+            if (!hideDisabled || collateral.config.depositingEnabled) {
                 returningConfig++;
             }
         }
@@ -57,7 +57,7 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
             address collateralType = collateralTypes.valueAt(i);
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
 
-            if (!hideDisabled || collateral.depositingEnabled) {
+            if (!hideDisabled || collateral.config.depositingEnabled) {
                 filteredCollaterals[returningConfig++] = collateral;
             }
         }

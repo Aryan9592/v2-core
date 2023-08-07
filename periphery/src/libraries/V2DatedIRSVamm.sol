@@ -18,7 +18,7 @@ library V2DatedIRSVamm {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        internal returns (uint256 fee, AccountExposure.MarginRequirements memory mr)
+        internal returns (uint256 fee, Account.MarginRequirement memory mr)
      {
         AccessControl.onlyOwner(accountId);
 

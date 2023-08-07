@@ -10,8 +10,6 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "./AccountExposure.sol";
-
 import "../storage/Account.sol";
 import "../storage/CollateralConfiguration.sol";
 import "../storage/CollateralPool.sol";
@@ -123,9 +121,23 @@ library AccountCollateral {
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        if (self.isMultiToken) {
+        if (self.accountMode == Account.SINGLE_TOKEN_MODE) {
+            // get im and lm requirements and highest unrealized pnl in collateral
+            Account.MarginRequirement memory mr = 
+                self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+
+            // get the account collateral balance
+            uint256 collateralBalance = self.getCollateralBalance(collateralType);
+
+            if (collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss) {
+                // return the available collateral balance
+                collateralBalanceAvailable = collateralBalance - mr.initialMarginRequirement - mr.highestUnrealizedLoss;
+            }
+        }
+
+        if (self.accountMode == Account.MULTI_TOKEN_MODE) {
             // get im and lm requirements and highest unrealized pnl in USD
-            AccountExposure.MarginRequirements memory mrInUSD = 
+            Account.MarginRequirement memory mrInUSD = 
                 self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
             // get account weighted balance in USD
@@ -149,19 +161,6 @@ library AccountCollateral {
                     (collateralBalance < availableAmountInCollateral) 
                         ? collateralBalance 
                         : availableAmountInCollateral;
-            }
-        }
-        else {
-            // get im and lm requirements and highest unrealized pnl in collateral
-            AccountExposure.MarginRequirements memory mr = 
-                self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-
-            // get the account collateral balance
-            uint256 collateralBalance = self.getCollateralBalance(collateralType);
-
-            if (collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss) {
-                // return the available collateral balance
-                collateralBalanceAvailable = collateralBalance - mr.initialMarginRequirement - mr.highestUnrealizedLoss;
             }
         }
     }

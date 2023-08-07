@@ -25,29 +25,6 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
-    struct MarginRequirements {
-        bool isIMSatisfied;
-        bool isLMSatisfied;
-        uint256 initialMarginRequirement;
-        uint256 liquidationMarginRequirement;
-        uint256 highestUnrealizedLoss;
-    }
-
-    /**
-     * @dev Note, for dated instruments we don't need to keep track of the maturity
-     because the risk parameter is shared across maturities for a given marketId
-     */
-    struct MarketExposure {
-        int256 annualizedNotional;
-        // note, in context of dated irs with the current accounting logic it also includes accruedInterest
-        uint256 unrealizedLoss;
-    }
-
-    struct MakerMarketExposure {
-        MarketExposure lower;
-        MarketExposure upper;
-    }
-
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account and highest unrealized loss
      * for a given collateral type along with the flags for im or lm satisfied
@@ -58,11 +35,20 @@ library AccountExposure {
     function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
         internal
         view
-        returns (MarginRequirements memory mr)
+        returns (Account.MarginRequirement memory mr)
     {
         uint256 collateralBalance = 0;
+
+        if (self.accountMode == Account.SINGLE_TOKEN_MODE) {
+            // we don't need to convert the amounts to USD because single-token accounts have requirements in quote token
+
+            (mr.liquidationMarginRequirement, mr.highestUnrealizedLoss) = 
+                    getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
+
+            collateralBalance = self.getCollateralBalance(collateralType);
+        }
     
-        if (self.isMultiToken) {
+        if (self.accountMode == Account.MULTI_TOKEN_MODE) {
 
             for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
                 address quoteToken = self.activeQuoteTokens.valueAt(i);
@@ -79,14 +65,6 @@ library AccountExposure {
             }
 
             collateralBalance = self.getWeightedCollateralBalanceInUSD();
-        }
-        else {
-            // we don't need to convert the amounts to USD because single-token accounts have requirements in quote token
-
-            (mr.liquidationMarginRequirement, mr.highestUnrealizedLoss) = 
-                    getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
-
-            collateralBalance = self.getCollateralBalance(collateralType);
         }
 
         UD60x18 imMultiplier = getIMMultiplier();
@@ -116,13 +94,13 @@ library AccountExposure {
             UD60x18 riskParameter = getRiskParameter(marketId);
 
             // Get taker and maker exposure to the market
-            MakerMarketExposure[] memory makerExposures = 
+            Account.MakerMarketExposure[] memory makerExposures = 
                 Market.exists(marketId).getAccountTakerAndMakerExposures(self.id);
 
             // Aggregate LMR and unrealized loss for all exposures
             for (uint256 j = 0; j < makerExposures.length; j++) {
-                MarketExposure memory exposureLower = makerExposures[j].lower;
-                MarketExposure memory exposureUpper = makerExposures[j].upper;
+                Account.MarketExposure memory exposureLower = makerExposures[j].lower;
+                Account.MarketExposure memory exposureUpper = makerExposures[j].upper;
 
                 uint256 lowerLMR = 
                     computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
@@ -186,7 +164,7 @@ library AccountExposure {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
     }
 
-    function equalExposures(MarketExposure memory a, MarketExposure memory b) internal pure returns (bool) {
+    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) internal pure returns (bool) {
         if (
             a.annualizedNotional == b.annualizedNotional && 
             a.unrealizedLoss == b.unrealizedLoss

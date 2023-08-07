@@ -196,8 +196,7 @@ contract SetupProtocol is BatchScript {
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
       accountOwner: metadata.owner,
-      trustlessProductIdTrustedByAccount: type(uint128).max,
-      isMultiToken: false
+      accountMode: 1
     });
   }
 
@@ -231,9 +230,9 @@ contract SetupProtocol is BatchScript {
     uint256 maturityIndexCachingWindowInSeconds
   ) public {
     configureCollateral(
-      CollateralConfiguration.Data({
+      tokenAddress,
+      CollateralConfiguration.Config({
         depositingEnabled: true,
-        tokenAddress: tokenAddress,
         cap: cap,
         oracleNodeId: "0x",
         weight: UD60x18.wrap(1e18),
@@ -621,32 +620,31 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureCollateral(CollateralConfiguration.Data memory config) public {
+  function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureCollateral(config);
+      contracts.coreProxy.configureCollateral(tokenAddress, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureCollateral,
-          (config)
+          (tokenAddress, config)
         )
       );
     }
   }
 
-  function createAccount(uint128 requestedAccountId, address accountOwner,
-    uint128 trustlessProductIdTrustedByAccount, bool isMultiToken) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, isMultiToken);
+      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, accountMode);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.createAccount,
-          (requestedAccountId, accountOwner, isMultiToken)
+          (requestedAccountId, accountOwner, accountMode)
         )
       );
     }

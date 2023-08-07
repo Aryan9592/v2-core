@@ -43,7 +43,7 @@ library Dispatcher {
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
                 uint256 fee,
-                AccountExposure.MarginRequirements memory mr,
+                Account.MarginRequirement memory mr,
                 int24 currentTick
             ) = V2DatedIRS.swap(accountId, marketId, maturityTimestamp, baseAmount, priceLimit);
             output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, mr, currentTick);
@@ -74,7 +74,7 @@ library Dispatcher {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, AccountExposure.MarginRequirements memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
+            (uint256 fee, Account.MarginRequirement memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
                 accountId,
                 marketId,
                 maturityTimestamp,
@@ -87,14 +87,14 @@ library Dispatcher {
             // equivalent: abi.decode(inputs, (uint128, uint128, bool))
             // todo: double check the input offsets following changes to the core (IR)
             uint128 requestedId;
-            bool isMultiToken;
+            uint8 accountMode;
             assembly {
                 requestedId := calldataload(inputs.offset)
-                isMultiToken := calldataload(add(inputs.offset, 0x40))
+                accountMode := calldataload(add(inputs.offset, 0x40))
             }
 
             // todo: missing tests for this flow, no tests failed after changing the implementation (IR)
-            V2Core.createAccount(requestedId, isMultiToken);
+            V2Core.createAccount(requestedId, accountMode);
         } else if (command == Commands.V2_CORE_DEPOSIT) {
             // equivalent: abi.decode(inputs, (uint128, address, uint256))
             uint128 accountId;

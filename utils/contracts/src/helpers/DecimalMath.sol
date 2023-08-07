@@ -23,51 +23,6 @@ import "./SafeCast.sol";
  */
 library DecimalMath {
     using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
-
-    // solhint-disable numcast/safe-cast
-
-    // Numbers representing 1.0 (low precision).
-    uint256 public constant UNIT = 1e18;
-    int256 public constant UNIT_INT = int256(UNIT);
-    uint128 public constant UNIT_UINT128 = uint128(UNIT);
-    int128 public constant UNIT_INT128 = int128(UNIT_INT);
-
-    // Numbers representing 1.0 (high precision).
-    uint256 public constant UNIT_PRECISE = 1e27;
-    int256 public constant UNIT_PRECISE_INT = int256(UNIT_PRECISE);
-    int128 public constant UNIT_PRECISE_INT128 = int128(UNIT_PRECISE_INT);
-
-    // Precision scaling, (used to scale down/up from one precision to the other).
-    uint256 public constant PRECISION_FACTOR = 9; // 27 - 18 = 9 :)
-
-    // solhint-enable numcast/safe-cast
-
-    // -----------------
-    // uint256
-    // -----------------
-
-    /**
-     * @dev Multiplies two low precision decimals.
-     *
-     * Since the two numbers are assumed to be fixed point numbers,
-     * (x * UNIT) * (y * UNIT) = x * y * UNIT ^ 2,
-     * the result is divided by UNIT to remove double scaling.
-     */
-    function mulDecimal(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return (x * y) / UNIT;
-    }
-
-    /**
-     * @dev Divides two low precision decimals.
-     *
-     * Since the two numbers are assumed to be fixed point numbers,
-     * (x * UNIT) / (y * UNIT) = x / y (Decimal representation is lost),
-     * x is first scaled up to end up with a decimal representation.
-     */
-    function divDecimal(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return (x * UNIT) / y;
-    }
 
     /**
      * @dev Scales up a value.
@@ -91,59 +46,6 @@ library DecimalMath {
         return x / 10 ** factor;
     }
 
-    // -----------------
-    // uint128
-    // -----------------
-
-    // Note: Overloading doesn't seem to work for similar types, i.e. int256 and int128, uint256 and uint128, etc, 
-    // so explicitly naming the functions differently here.
-
-    /**
-     * @dev See mulDecimal for uint256.
-     */
-    function mulDecimalUint128(uint128 x, uint128 y) internal pure returns (uint128) {
-        return (x * y) / UNIT_UINT128;
-    }
-
-    /**
-     * @dev See divDecimal for uint256.
-     */
-    function divDecimalUint128(uint128 x, uint128 y) internal pure returns (uint128) {
-        return (x * UNIT_UINT128) / y;
-    }
-
-    /**
-     * @dev See upscale for uint256.
-     */
-    function upscaleUint128(uint128 x, uint factor) internal pure returns (uint128) {
-        return x * (10 ** factor).to128();
-    }
-
-    /**
-     * @dev See downscale for uint256.
-     */
-    function downscaleUint128(uint128 x, uint factor) internal pure returns (uint128) {
-        return x / (10 ** factor).to128();
-    }
-
-    // -----------------
-    // int256
-    // -----------------
-
-    /**
-     * @dev See mulDecimal for uint256.
-     */
-    function mulDecimal(int256 x, int256 y) internal pure returns (int256) {
-        return (x * y) / UNIT_INT;
-    }
-
-    /**
-     * @dev See divDecimal for uint256.
-     */
-    function divDecimal(int256 x, int256 y) internal pure returns (int256) {
-        return (x * UNIT_INT) / y;
-    }
-
     /**
      * @dev See upscale for uint256.
      */
@@ -156,37 +58,5 @@ library DecimalMath {
      */
     function downscale(int x, uint factor) internal pure returns (int) {
         return x / (10 ** factor).toInt();
-    }
-
-    // -----------------
-    // int128
-    // -----------------
-
-    /**
-     * @dev See mulDecimal for uint256.
-     */
-    function mulDecimalInt128(int128 x, int128 y) internal pure returns (int128) {
-        return (x * y) / UNIT_INT128;
-    }
-
-    /**
-     * @dev See divDecimal for uint256.
-     */
-    function divDecimalInt128(int128 x, int128 y) internal pure returns (int128) {
-        return (x * UNIT_INT128) / y;
-    }
-
-    /**
-     * @dev See upscale for uint256.
-     */
-    function upscaleInt128(int128 x, uint factor) internal pure returns (int128) {
-        return x * ((10 ** factor).toInt()).to128();
-    }
-
-    /**
-     * @dev See downscale for uint256.
-     */
-    function downscaleInt128(int128 x, uint factor) internal pure returns (int128) {
-        return x / ((10 ** factor).toInt().to128());
     }
 }
