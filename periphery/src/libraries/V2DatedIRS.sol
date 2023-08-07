@@ -16,7 +16,7 @@ library V2DatedIRS {
             int256 executedBaseAmount,
             int256 executedQuoteAmount,
             uint256 fee,
-            AccountExposure.MarginRequirements memory mr,
+            Account.MarginRequirement memory mr,
             int24 currentTick
         )
     {

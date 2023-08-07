@@ -16,6 +16,7 @@ import "./Market.sol";
 import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
+import "../libraries/AccountMode.sol";
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -28,6 +29,9 @@ library Account {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
+    uint8 constant public SINGLE_TOKEN_MODE = 1;
+    uint8 constant public MULTI_TOKEN_MODE = 2;
+
     /**
      * @dev Thrown when the given target address does not own the given account.
      */
@@ -37,20 +41,31 @@ library Account {
      * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, address collateralType, AccountExposure.MarginRequirements marginRequirements);
+    error AccountBelowIM(uint128 accountId, address collateralType, MarginRequirement marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
      */
     error AccountNotFound(uint128 accountId);
 
-    /**
-     * @notice Emitted when the account mode is switched.
-     * @param accountId The id of the account.
-     * @param isMultiToken The new mode of the account.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AccountModeUpdated(uint128 indexed accountId, bool isMultiToken, uint256 blockTimestamp);
+    struct MarginRequirement {
+        bool isIMSatisfied;
+        bool isLMSatisfied;
+        uint256 initialMarginRequirement;
+        uint256 liquidationMarginRequirement;
+        uint256 highestUnrealizedLoss;
+    }
+
+    struct MarketExposure {
+        int256 annualizedNotional;
+        // note, in context of dated irs with the current accounting logic it also includes accruedInterest
+        uint256 unrealizedLoss;
+    }
+
+    struct MakerMarketExposure {
+        MarketExposure lower;
+        MarketExposure upper;
+    }
 
     struct Data {
         /**
@@ -95,7 +110,7 @@ library Account {
          * @dev Single token mode means the account has a separate health factor for each collateral type
          */
         // todo: should we change this from boolean to something more general? What if we're gonna have some other mode? 
-        bool isMultiToken;
+        uint8 accountMode;
 
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
@@ -108,7 +123,7 @@ library Account {
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
      *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner, bool isMultiToken) 
+    function create(uint128 id, address owner, uint8 accountMode) 
         internal 
         returns (Data storage account) 
     {
@@ -118,8 +133,8 @@ library Account {
         account = load(id);
 
         account.id = id;
-        account.rbac.owner = owner;
-        account.isMultiToken = isMultiToken;
+        account.rbac.setOwner(owner);
+        AccountMode.setAccountMode(account, accountMode);
     }
 
      /**
@@ -235,7 +250,7 @@ library Account {
     function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
         internal
         view
-        returns (AccountExposure.MarginRequirements memory mr)
+        returns (MarginRequirement memory mr)
     {
         return AccountExposure.getMarginRequirementsAndHighestUnrealizedLoss(self, collateralType);
     }
@@ -247,7 +262,7 @@ library Account {
     function imCheck(Data storage self, address collateralType) 
         internal 
         view 
-        returns (AccountExposure.MarginRequirements memory mr)
+        returns (MarginRequirement memory mr)
     {
         mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
         
@@ -259,25 +274,8 @@ library Account {
     /**
      * @dev Changes the account mode.
      */
-    function changeAccountMode(Data storage self, bool isMultiToken) internal {
-        if (self.isMultiToken == isMultiToken) {
-            // todo: return vs revert
-            return;
-        }
-
-        self.isMultiToken = isMultiToken;
-
-        if (isMultiToken) {
-            self.imCheck(address(0));
-        }
-        else {
-            for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
-                address quoteToken = self.activeQuoteTokens.valueAt(i);
-                self.imCheck(quoteToken);
-            }
-        }
-
-        emit AccountModeUpdated(self.id, isMultiToken, block.timestamp);
+    function changeAccountMode(Data storage self, uint8 newAccountMode) internal {
+        AccountMode.changeAccountMode(self, newAccountMode);
     }
 
     /**

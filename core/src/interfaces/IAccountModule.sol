@@ -108,15 +108,14 @@ interface IAccountModule {
     /**
      * @notice Mints an account token with id `requestedAccountId` to `msg.sender`.
      * @param requestedAccountId The id requested for the account being created. Reverts if id already exists.
-     * @param isMultiToken if this value is set to true then the account is a multi token account, if this value
-     * is set to false then it is a single-token account
+     * @param accountMode The mode of the account
      * Requirements:
      *
      * - `requestedAccountId` must not already be minted.
      *
      * Emits a {AccountCreated} event.
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner, bool isMultiToken) external;
+    function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) external;
 
     /**
      * @notice Called by AccountTokenModule to notify the system when the account token is transferred.

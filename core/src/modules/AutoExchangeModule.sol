@@ -45,7 +45,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(autoExchangeAccountId);
 
-        if (!account.isMultiToken) {
+        if (account.accountMode == Account.SINGLE_TOKEN_MODE) {
             // todo: move this logic into account library (or inside isEligibleForAutoExchange) - Costin
             revert AccountIsSingleTokenNoExposureToExchangeRateRisk(autoExchangeAccountId);
         }

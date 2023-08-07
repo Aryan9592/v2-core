@@ -43,7 +43,7 @@ contract MarketManagerModule is IMarketManagerModule {
         external
         override
         view
-        returns (AccountExposure.MakerMarketExposure[] memory exposures)
+        returns (Account.MakerMarketExposure[] memory exposures)
     {
         exposures = Market.exists(marketId).getAccountTakerAndMakerExposures(accountId);
     }
@@ -103,7 +103,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr) {
+    ) external override returns (uint256 fee, Account.MarginRequirement memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
@@ -128,7 +128,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, AccountExposure.MarginRequirements memory mr) {
+    ) external override returns (uint256 fee, Account.MarginRequirement memory mr) {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 

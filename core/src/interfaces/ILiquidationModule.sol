@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../libraries/AccountExposure.sol";
+import "../storage/Account.sol";
 
 /**
  * @title Liquidation Engine interface
@@ -36,8 +36,8 @@ interface ILiquidationModule {
      */
     error AccountExposureNotReduced(
         uint128 accountId,
-        AccountExposure.MarginRequirements mrPreClose,
-        AccountExposure.MarginRequirements mrPostClose
+        Account.MarginRequirement mrPreClose,
+        Account.MarginRequirement mrPostClose
     );
 
     /**
@@ -55,8 +55,8 @@ interface ILiquidationModule {
         address sender,
         uint128 liquidatorAccountId,
         uint256 liquidatorRewardAmount,
-        AccountExposure.MarginRequirements mrPreClose,
-        AccountExposure.MarginRequirements mrPostClose,
+        Account.MarginRequirement mrPreClose,
+        Account.MarginRequirement mrPostClose,
         uint256 blockTimestamp
     );
 
@@ -69,7 +69,7 @@ interface ILiquidationModule {
     function getMarginRequirementsAndHighestUnrealizedLoss(uint128 accountId, address collateralType) 
         external 
         view 
-        returns (AccountExposure.MarginRequirements memory mr);
+        returns (Account.MarginRequirement memory mr);
 
     /**
      * @notice Liquidates a single-token account

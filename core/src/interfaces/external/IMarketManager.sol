@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
-import "../../libraries/AccountExposure.sol";
+import "../../storage/Account.sol";
 
 /// @title Interface a Market Manager needs to adhere.
 interface IMarketManager is IERC165 {
@@ -21,7 +21,7 @@ interface IMarketManager is IERC165 {
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
         view
-        returns (AccountExposure.MakerMarketExposure[] memory exposures);
+        returns (Account.MakerMarketExposure[] memory exposures);
 
     //// STATE CHANGING FUNCTIONS ////
 

@@ -52,7 +52,7 @@ interface IPoolModule is IERC165 {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        external returns (uint256 fee, AccountExposure.MarginRequirements memory mr);
+        external returns (uint256 fee, Account.MarginRequirement memory mr);
 
     /**
      * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market

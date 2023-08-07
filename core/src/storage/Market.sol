@@ -13,7 +13,6 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 import "./Account.sol";
 import "./CollateralPool.sol";
 import "./MarketStore.sol";
-import "../libraries/AccountExposure.sol";
 import "../interfaces/external/IMarketManager.sol";
 
 /**
@@ -167,7 +166,7 @@ library Market {
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId)
         internal
         view
-        returns (AccountExposure.MakerMarketExposure[] memory exposure)
+        returns (Account.MakerMarketExposure[] memory exposure)
     {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
