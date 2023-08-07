@@ -46,7 +46,7 @@ contract AccountModule is IAccountModule {
         view
         returns (AccountPermissions[] memory accountPerms)
     {
-        AccountRBAC.Data storage accountRbac = Account.load(accountId).rbac;
+        AccountRBAC.Data storage accountRbac = Account.exists(accountId).rbac;
 
         uint256 allPermissionsLength = accountRbac.permissionAddresses.length();
         accountPerms = new AccountPermissions[](allPermissionsLength);
@@ -62,7 +62,7 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner) external override {
+    function createAccount(uint128 requestedAccountId, address accountOwner, bool isMultiToken) external override {
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             During the alpha phase of the protocol, the create account feature will only be available to the Periphery
@@ -81,7 +81,7 @@ contract AccountModule is IAccountModule {
         IAccountTokenModule accountTokenModule = IAccountTokenModule(getAccountTokenAddress());
         accountTokenModule.safeMint(accountOwner, requestedAccountId, "");
 
-        Account.create(requestedAccountId, accountOwner);
+        Account.create(requestedAccountId, accountOwner, isMultiToken);
         
         emit AccountCreated(requestedAccountId, accountOwner, msg.sender, block.timestamp);
     }
@@ -97,7 +97,7 @@ contract AccountModule is IAccountModule {
         FeatureFlag.ensureAccessToFeature(_NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG);
         _onlyAccountToken();
 
-        Account.Data storage account = Account.load(accountId);
+        Account.Data storage account = Account.exists(accountId);
 
         address[] memory permissionedAddresses = account.rbac.permissionAddresses.values();
         for (uint256 i = 0; i < permissionedAddresses.length; i++) {
@@ -105,28 +105,28 @@ contract AccountModule is IAccountModule {
         }
 
         account.rbac.setOwner(to);
-        emit AccountOwnerUpdate(accountId, to, block.timestamp);
+        emit AccountOwnerUpdated(accountId, to, block.timestamp);
     }
 
     /**
      * @inheritdoc IAccountModule
      */
     function hasPermission(uint128 accountId, bytes32 permission, address user) public view override returns (bool) {
-        return Account.load(accountId).rbac.hasPermission(permission, user);
+        return Account.exists(accountId).rbac.hasPermission(permission, user);
     }
 
     /**
      * @inheritdoc IAccountModule
      */
     function getAccountOwner(uint128 accountId) public view returns (address) {
-        return Account.load(accountId).rbac.owner;
+        return Account.exists(accountId).rbac.owner;
     }
 
     /**
      * @inheritdoc IAccountModule
      */
     function isAuthorized(uint128 accountId, bytes32 permission, address user) public view override returns (bool) {
-        return Account.load(accountId).rbac.authorized(permission, user);
+        return Account.exists(accountId).rbac.authorized(permission, user);
     }
 
     /**
@@ -167,11 +167,11 @@ contract AccountModule is IAccountModule {
      */
     function renouncePermission(uint128 accountId, bytes32 permission) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        if (!Account.load(accountId).rbac.hasPermission(permission, msg.sender)) {
+        if (!Account.exists(accountId).rbac.hasPermission(permission, msg.sender)) {
             revert PermissionNotGranted(accountId, permission, msg.sender);
         }
 
-        Account.load(accountId).rbac.revokePermission(permission, msg.sender);
+        Account.exists(accountId).rbac.revokePermission(permission, msg.sender);
 
         emit PermissionRevoked(accountId, permission, msg.sender, msg.sender, block.timestamp);
     }

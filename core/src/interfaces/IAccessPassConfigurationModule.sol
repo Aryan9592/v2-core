@@ -16,14 +16,6 @@ import "../storage/AccessPassConfiguration.sol";
 interface IAccessPassConfigurationModule {
 
     /**
-     * @notice Emitted when the access pass configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AccessPassConfigured(AccessPassConfiguration.Data config, uint256 blockTimestamp);
-
-
-    /**
      * @notice Creates or updates the access pass configuration
      * @param config The AccessPassConfiguration object describing the new configuration.
      *
@@ -31,7 +23,7 @@ interface IAccessPassConfigurationModule {
      *
      * - `msg.sender` must be the owner of the protocol.
      *
-     * Emits a {AccessPassConfigured} event.
+     * Emits a {AccessPassConfigurationUpdated} event.
      *
      */
     function configureAccessPass(AccessPassConfiguration.Data memory config) external;

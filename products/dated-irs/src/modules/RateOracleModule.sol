@@ -15,7 +15,7 @@ import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
- * @title Module for managing rate oracles connected to the Dated IRS Product
+ * @title Module for managing rate oracles connected to the Dated IRS Market
  * @dev See IRateOracleModule
  */
 contract RateOracleModule is IRateOracleModule {

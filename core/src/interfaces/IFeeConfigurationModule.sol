@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/MarketFeeConfiguration.sol";
+import "../storage/Market.sol";
 
 /**
  * @title Module for configuring (protocol and) market wide risk parameters
@@ -15,14 +15,7 @@ import "../storage/MarketFeeConfiguration.sol";
  */
 interface IFeeConfigurationModule {
     /**
-     * @notice Emitted when a market fee configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event MarketFeeConfigured(MarketFeeConfiguration.Data config, uint256 blockTimestamp);
-
-    /**
-     * @notice Creates or updates the fee configuration for the given `productId` and `marketId` pair
+     * @notice Creates or updates the fee configuration for the given `marketId`
      * @param config The MarketFeeConfiguration object describing the new configuration.
      *
      * Requirements:
@@ -32,16 +25,15 @@ interface IFeeConfigurationModule {
      * Emits a {MarketFeeConfigured} event.
      *
      */
-    function configureMarketFee(MarketFeeConfiguration.Data memory config) external;
+    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external;
 
     /**
-     * @notice Returns detailed information pertaining the specified productId and marketId pair
-     * @param productId Id that uniquely identifies the product (e.g. Dated IRS) for which we want to query the risk config
+     * @notice Returns detailed information pertaining the specified marketId
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
-     * @return config The fee configuration object describing the given productId and marketId pair
+     * @return config The fee configuration object describing the given marketId
      */
-    function getMarketFeeConfiguration(uint128 productId, uint128 marketId)
+    function getMarketFeeConfiguration(uint128 marketId)
         external
-        pure
-        returns (MarketFeeConfiguration.Data memory config);
+        view
+        returns (Market.MarketFeeConfiguration memory config);
 }

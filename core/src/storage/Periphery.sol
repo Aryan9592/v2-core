@@ -12,6 +12,13 @@ pragma solidity >=0.8.19;
  */
 library Periphery {
 
+    /**
+     * @notice Emitted when the periphery reference is created or updated
+     * @param periphery The object with the newly updated details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event PeripheryUpdated(Data periphery, uint256 blockTimestamp);
+
     struct Data {
         /**
          * @dev Periphery address.
@@ -32,16 +39,18 @@ library Periphery {
     /**
      * @dev Sets the approved Periphery address.
      */
-    function setPeriphery(address _peripheryAddress) internal {
-        Data storage periphery = load();
-        periphery.peripheryAddress = _peripheryAddress;
+    function set(Data memory periphery) internal {
+        Data storage storedPeriphery = load();
+        storedPeriphery.peripheryAddress = periphery.peripheryAddress;
+
+        emit PeripheryUpdated(storedPeriphery, block.timestamp);
     }
 
     /**
      * @dev Checks if given address is the periphery address.
      */
-    function isPeriphery(address _peripheryAddress) internal view returns (bool) {
+    function isPeriphery(address peripheryAddress) internal view returns (bool) {
         Data storage periphery = load();
-        return _peripheryAddress == periphery.peripheryAddress;
+        return peripheryAddress == periphery.peripheryAddress;
     }
 }

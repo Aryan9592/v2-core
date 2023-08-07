@@ -8,22 +8,23 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "../interfaces/IRiskConfigurationModule.sol";
-import "../storage/MarketRiskConfiguration.sol";
+import "../storage/Market.sol";
 import "../storage/ProtocolRiskConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
- * @title Module for configuring protocol-wide and product+market level risk parameters
+ * @title Module for configuring protocol-wide and market level risk parameters
  * @dev See IRiskConfigurationModule
  */
 contract RiskConfigurationModule is IRiskConfigurationModule {
+    using Market for Market.Data;
+
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function configureMarketRisk(MarketRiskConfiguration.Data memory config) external override {
+    function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) external override {
         OwnableStorage.onlyOwner();
-        MarketRiskConfiguration.set(config);
-        emit MarketRiskConfigured(config, block.timestamp);
+        Market.exists(marketId).setRiskConfiguration(config);
     }
 
     /**
@@ -32,25 +33,24 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) external override {
         OwnableStorage.onlyOwner();
         ProtocolRiskConfiguration.set(config);
-        emit ProtocolRiskConfigured(config, block.timestamp);
     }
 
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getMarketRiskConfiguration(uint128 productId, uint128 marketId)
+    function getMarketRiskConfiguration(uint128 marketId)
         external
-        pure
+        view
         override
-        returns (MarketRiskConfiguration.Data memory config)
+        returns (Market.MarketRiskConfiguration memory)
     {
-        return MarketRiskConfiguration.load(productId, marketId);
+        return Market.exists(marketId).riskConfig;
     }
 
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getProtocolRiskConfiguration() external pure returns (ProtocolRiskConfiguration.Data memory config) {
+    function getProtocolRiskConfiguration() external pure returns (ProtocolRiskConfiguration.Data memory) {
         return ProtocolRiskConfiguration.load();
     }
 }

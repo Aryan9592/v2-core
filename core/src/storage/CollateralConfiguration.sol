@@ -8,6 +8,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
+import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import "./OracleManager.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
+import { mulUDxUint, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
@@ -15,9 +22,18 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
  */
 library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
+    using SafeCastI256 for int256;
+    using CollateralConfiguration for CollateralConfiguration.Data;
 
     bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
         keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
+
+    /**
+     * @notice Emitted when a collateral type’s configuration is created or updated.
+     * @param config The object with the newly configured details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event CollateralConfigurationUpdated(Data config, uint256 blockTimestamp);
 
     /**
      * @dev Thrown when deposits are disabled for the given collateral type.
@@ -30,23 +46,31 @@ library CollateralConfiguration {
          * @dev Allows the owner to control deposits and delegation of collateral types.
          */
         bool depositingEnabled;
-        /**
-         * @dev Amount of tokens to award when a small account is liquidated.
-         */
-        uint256 liquidationBooster;
-        /**
-         * @dev The oracle manager node id which reports the current price for this collateral type.
-         */
-        // bytes32 oracleNodeId;
-        // + function getCollateralPrice function
+
         /**
          * @dev The token address for this collateral type.
          */
         address tokenAddress;
+        
         /**
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
+
+        /**
+         * @dev The oracle manager node id which reports the current price for this collateral type.
+         */
+        bytes32 oracleNodeId;
+
+        /**
+         * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
+         */
+        UD60x18 weight;
+
+        /**
+         * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
+         */
+        UD60x18 autoExchangeReward;
     }
 
     /**
@@ -86,9 +110,13 @@ library CollateralConfiguration {
         Data storage storedConfig = load(config.tokenAddress);
 
         storedConfig.tokenAddress = config.tokenAddress;
-        storedConfig.liquidationBooster = config.liquidationBooster;
         storedConfig.depositingEnabled = config.depositingEnabled;
         storedConfig.cap = config.cap;
+        storedConfig.oracleNodeId = config.oracleNodeId;
+        storedConfig.weight = config.weight;
+        storedConfig.autoExchangeReward = config.autoExchangeReward;
+
+        emit CollateralConfigurationUpdated(config, block.timestamp);
     }
 
     /**
@@ -99,5 +127,80 @@ library CollateralConfiguration {
         if (!load(token).depositingEnabled) {
             revert CollateralDepositDisabled(token);
         }
+    }
+
+    /**
+     * @dev Returns the price of this collateral configuration object.
+     * @param self The CollateralConfiguration object.
+     * @return The price of the collateral with 18 decimals of precision.
+     */
+    function getCollateralPriceInUSD(Data storage self) internal view returns (UD60x18) {
+        OracleManager.Data memory oracleManager = OracleManager.load();
+        NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
+            self.oracleNodeId
+        );
+
+        return UD60x18.wrap(node.price.toUint());
+    }
+
+    /**
+     * @dev Returns the amount of colletaral in USD.
+     * @param self The CollateralConfiguration object.
+     * @param collateralAmount The amount of collateral.
+     * @return The corresponding USD amount of the collateral with 18 decimals of precision.
+     */
+    function getCollateralInUSD(
+        Data storage self,
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        uint256 collateralBalanceInUSD = mulUDxUint(self.getCollateralPriceInUSD(), collateralAmount);
+
+        return collateralBalanceInUSD;
+    }
+
+    /**
+     * @dev Returns the weighted amount of colletaral in USD.
+     * @param self The CollateralConfiguration object.
+     * @param collateralAmount The amount of collateral.
+     * @return The corresponding weighted USD amount of the collateral with 18 decimals of precision.
+     */
+    function getWeightedCollateralInUSD(
+        Data storage self,
+        uint256 collateralAmount
+    ) internal view returns (uint256) {
+        uint256 collateralBalanceInUSDWithHaircut = 
+            mulUDxUint(self.weight, self.getCollateralInUSD(collateralAmount));
+
+        return collateralBalanceInUSDWithHaircut;
+    }
+
+    /**
+     * @dev Returns the amount of USD in collateral.
+     * @param self The CollateralConfiguration object.
+     * @param usdAmount The amount of USD.
+     * @return The corresponding amount of the collateral with 18 decimals of precision.
+     */
+    function getUSDInCollateral(
+        Data storage self,
+        uint256 usdAmount
+    ) internal view returns (uint256) {
+        uint256 collateralAmount = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
+        
+        return collateralAmount;
+    }
+
+    /**
+     * @dev Returns the weighted amount of USD in collateral.
+     * @param self The CollateralConfiguration object.
+     * @param weightedUsdAmount The amount of USD.
+     * @return The corresponding amount of the collateral with 18 decimals of precision.
+     */
+    function getWeightedUSDInCollateral(
+        Data storage self,
+        uint256 weightedUsdAmount
+    ) internal view returns (uint256) {
+        uint256 usdAmount = divUintUDx(weightedUsdAmount, self.weight);
+        
+        return self.getUSDInCollateral(usdAmount);
     }
 }

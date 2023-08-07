@@ -7,37 +7,26 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "./MarketRiskConfiguration.sol";
-import "./ProtocolRiskConfiguration.sol";
-import "./AccountRBAC.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "./Collateral.sol";
-import "./Product.sol";
 
-import "oz/utils/math/Math.sol";
-import "oz/utils/math/SignedMath.sol";
+import "./AccountRBAC.sol";
+import "./Market.sol";
 
-// todo: consider moving into ProbMathHelper.sol
-import {UD60x18, sub as subSD59x18} from "@prb/math/SD59x18.sol";
-import {mulUDxUint, mulUDxInt, mulSDxInt, sd59x18, SD59x18, UD60x18} 
-    from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import "../libraries/AccountActiveMarket.sol";
+import "../libraries/AccountCollateral.sol";
+import "../libraries/AccountExposure.sol";
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
-    using MarketRiskConfiguration for MarketRiskConfiguration.Data;
-    using ProtocolRiskConfiguration for ProtocolRiskConfiguration.Data;
     using Account for Account.Data;
     using AccountRBAC for AccountRBAC.Data;
-    using Product for Product.Data;
-    using SetUtil for SetUtil.UintSet;
-    using SafeCastU128 for uint128;
+    using Market for Market.Data;
     using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
-
-    //// ERRORS and STRUCTS ////
+    using SetUtil for SetUtil.AddressSet;
+    using SetUtil for SetUtil.UintSet;
 
     /**
      * @dev Thrown when the given target address does not own the given account.
@@ -45,14 +34,23 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given account's total value is below the initial margin requirement
+     * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
+     * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, address collateralType, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss);
+    error AccountBelowIM(uint128 accountId, address collateralType, AccountExposure.MarginRequirements marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
      */
     error AccountNotFound(uint128 accountId);
+
+    /**
+     * @notice Emitted when the account mode is switched.
+     * @param accountId The id of the account.
+     * @param isMultiToken The new mode of the account.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event AccountModeUpdated(uint128 indexed accountId, bool isMultiToken, uint256 blockTimestamp);
 
     struct Data {
         /**
@@ -60,39 +58,49 @@ library Account {
          * @dev There cannot be an account with id zero (See ERC721._mint()).
          */
         uint128 id;
+    
         /**
          * @dev Role based access control data for the account.
          */
         AccountRBAC.Data rbac;
+    
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => Collateral.Data) collaterals;
+        mapping(address => uint256) collateralBalances;
+
         /**
-         * @dev Ids of all the products in which the account has active positions
+         * @dev Addresses of all collateral types in which the account has a non-zero balance
          */
-        SetUtil.UintSet activeProducts;
+        SetUtil.AddressSet activeCollaterals;
+    
+        /**
+         * @dev Ids of all the markets in which the account has active positions by quote token
+         */
+        mapping(address => SetUtil.UintSet) activeMarketsPerQuoteToken;
+
+        /**
+         * @dev Addresses of all collateral types in which the account has a non-zero balance
+         */
+        SetUtil.AddressSet activeQuoteTokens;
+
+        /**
+         * @dev First market id that this account is active on
+         */
+        uint128 firstMarketId;
+
+        /**
+         * @dev If this boolean is set to true then the account is able to cross-collateral margin
+         * @dev If this boolean is set to false then the account uses a single-token mode
+         * @dev Single token mode means the account has a separate health factor for each collateral type
+         */
+        // todo: should we change this from boolean to something more general? What if we're gonna have some other mode? 
+        bool isMultiToken;
+
+        // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
+        // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
+        // synthetix/contracts/storage/Account.sol#L58
     }
-
-
-    /**
-     * @dev productId (IRS) -> marketID (aUSDC lend) -> maturity (30th December)
-     * @dev productId (Dated Future) -> marketID (BTC) -> maturity (30th December)
-     * @dev productId (Perp) -> marketID (ETH)
-     * @dev Note, for dated instruments we don't need to keep track of the maturity
-     because the risk parameter is shared across maturities for a given productId marketId pair
-     * @dev we need reference to productId & marketId to be able to derive the risk parameters for lm calculation
-     */
-    struct Exposure {
-        uint128 productId;
-        uint128 marketId;
-        int256 annualizedNotional;
-        // note, in context of dated irs with the current accounting logic it also includes accruedInterest
-        uint256 unrealizedLoss;
-    }
-
-    //// STATE CHANGING FUNCTIONS ////
-
 
     /**
      * @dev Creates an account for the given id, and associates it to the given owner.
@@ -100,29 +108,30 @@ library Account {
      * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
      *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner) internal returns (Data storage account) {
+    function create(uint128 id, address owner, bool isMultiToken) 
+        internal 
+        returns (Data storage account) 
+    {
         // Disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
         require(id != 0);
+
         account = load(id);
 
         account.id = id;
         account.rbac.owner = owner;
+        account.isMultiToken = isMultiToken;
     }
 
-    /**
-     * @dev Closes all account filled (i.e. attempts to fully unwind) and unfilled orders in all the products in which the account
-     * is active
+     /**
+     * @dev Returns the account stored at the specified account id.
      */
-    function closeAccount(Data storage self, address collateralType) internal {
-        SetUtil.UintSet storage _activeProducts = self.activeProducts;
-        for (uint256 i = 1; i <= _activeProducts.length(); i++) {
-            uint128 productIndex = _activeProducts.valueAt(i).to128();
-            Product.Data storage _product = Product.load(productIndex);
-            _product.closeAccount(self.id, collateralType);
+    function load(uint128 id) internal pure returns (Data storage account) {
+        require(id != 0);
+        bytes32 s = keccak256(abi.encode("xyz.voltz.Account", id));
+        assembly {
+            account.slot := s
         }
     }
-
-    //// VIEW FUNCTIONS ////
 
     /**
      * @dev Reverts if the account does not exist with appropriate error. Otherwise, returns the account.
@@ -134,47 +143,6 @@ library Account {
         }
 
         return a;
-    }
-
-    /**
-     * @dev Given a collateral type, returns information about the collateral balance of the account
-     */
-    function getCollateralBalance(Data storage self, address collateralType)
-        internal
-        view
-        returns (uint256 collateralBalance)
-    {
-        collateralBalance = self.collaterals[collateralType].balance;
-    }
-
-    /**
-     * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
-     */
-    function getCollateralBalanceAvailable(Data storage self, address collateralType)
-        internal
-        view
-        returns (uint256 collateralBalanceAvailable)
-    {
-        (uint256 initialMarginRequirement,,uint256 highestUnrealizedLoss) = 
-            self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
-
-        if (collateralBalance > initialMarginRequirement + highestUnrealizedLoss) {
-            collateralBalanceAvailable = collateralBalance - initialMarginRequirement - highestUnrealizedLoss;
-        }
-
-    }
-
-    /**
-     * @dev Given a collateral type, returns information about the total liquidation booster balance of the account
-     */
-    function getLiquidationBoosterBalance(Data storage self, address collateralType)
-        internal
-        view
-        returns (uint256 liquidationBoosterBalance)
-    {
-        liquidationBoosterBalance = self.collaterals[collateralType].liquidationBoosterBalance;
     }
 
     /**
@@ -214,204 +182,123 @@ library Account {
     }
 
     /**
-     * @dev Returns the aggregate exposures of the account in all products in which the account is active (
-     * exposures are per product)
-     * note, the exposures are expected to be in notional terms and in terms of the settlement token of this account
+     * @dev Increments the account's collateral balance.
      */
-    function getProductTakerAndMakerExposures(Data storage self, uint128 productId, address collateralType)
+    function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
+    }
+
+    /**
+     * @dev Decrements the account's collateral balance.
+     */
+    function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        AccountCollateral.decreaseCollateralBalance(self, collateralType, amount);
+    }
+
+    /**
+     * @dev Given a collateral type, returns information about the collateral balance of the account
+     */
+    function getCollateralBalance(Data storage self, address collateralType)
         internal
         view
-        returns (
-            Exposure[] memory productTakerExposures,
-            Exposure[] memory productMakerExposuresLower,
-            Exposure[] memory productMakerExposuresUpper
-        )
+        returns (uint256 collateralBalance)
     {
-        Product.Data storage _product = Product.load(productId);
-        (productTakerExposures, productMakerExposuresLower, productMakerExposuresUpper) = 
-            _product.getAccountTakerAndMakerExposures(self.id, collateralType);
+        collateralBalance = self.collateralBalances[collateralType];
     }
 
-
-
-    function getRiskParameter(uint128 productId, uint128 marketId) internal view returns (UD60x18 riskParameter) {
-        return MarketRiskConfiguration.load(productId, marketId).riskParameter;
-    }
-
-    /**
-     * @dev Note, im multiplier is assumed to be the same across all products, markets and maturities
-     */
-    function getIMMultiplier() internal view returns (UD60x18 imMultiplier) {
-        return ProtocolRiskConfiguration.load().imMultiplier;
-    }
-
-    /**
-     * @dev Checks if the account is below initial margin requirement and reverts if so, other returns the initial margin requirement
-     */
-    function imCheck(Data storage self, address collateralType) internal view returns (uint256, uint256) {
-        (bool isSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) = self.isIMSatisfied(collateralType);
-        if (!isSatisfied) {
-            revert AccountBelowIM(self.id, collateralType, initialMarginRequirement, highestUnrealizedLoss);
-        }
-        return (initialMarginRequirement, highestUnrealizedLoss);
-    }
-
-    /**
-     * @dev Returns a boolean imSatisfied (true if the account is above initial margin requirement) and the initial margin requirement
-     */
-    function isIMSatisfied(Data storage self, address collateralType)
-        internal
+    function getWeightedCollateralBalanceInUSD(Data storage self) 
+        internal 
         view
-    returns (bool imSatisfied, uint256 initialMarginRequirement, uint256 highestUnrealizedLoss) {
-        (initialMarginRequirement,,highestUnrealizedLoss) = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
-        imSatisfied = collateralBalance >= initialMarginRequirement + highestUnrealizedLoss;
-    }
-
-    /**
-     * @dev Returns a booleans liquidatable (true if the account is below liquidation margin requirement) 
-     * and the initial and liquidation margin requirements
-     */
-    function isLiquidatable(Data storage self, address collateralType)
-        internal
-        view
-        returns (
-            bool liquidatable,
-            uint256 initialMarginRequirement,
-            uint256 liquidationMarginRequirement,
-            uint256 highestUnrealizedLoss
-        )
+        returns (uint256 weightedCollateralBalanceInUSD) 
     {
-        (initialMarginRequirement, liquidationMarginRequirement, highestUnrealizedLoss) = 
-            self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
-        liquidatable = collateralBalance < liquidationMarginRequirement + highestUnrealizedLoss;
+        weightedCollateralBalanceInUSD = AccountCollateral.getWeightedCollateralBalanceInUSD(self);
     }
 
-
     /**
-     * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account alongside highest unrealized loss
+     * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
-
-    function getMarginRequirementsAndHighestUnrealizedLoss(Data storage self, address collateralType)
+    function getCollateralBalanceAvailable(Data storage self, address collateralType)
         internal
         view
-        returns (uint256 initialMarginRequirement, uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+        returns (uint256 collateralBalanceAvailable)
     {
-        SetUtil.UintSet storage _activeProducts = self.activeProducts;
-
-        for (uint256 i = 1; i <= _activeProducts.length(); i++) {
-            uint128 productId = _activeProducts.valueAt(i).to128();
-
-            (
-                Exposure[] memory productTakerExposures,
-                Exposure[] memory productMakerExposuresLower,
-                Exposure[] memory productMakerExposuresUpper
-            ) = self.getProductTakerAndMakerExposures(productId, collateralType);
-
-            (uint256 lmTakerPositions, uint256 unrealizedLossTakerPositions) = computeLMAndUnrealizedLossFromExposures(
-                productTakerExposures
-            );
-            (uint256 lmMakerPositions, uint256 highestUnrealizedLossMakerPositions) =
-                computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(productMakerExposuresLower, productMakerExposuresUpper);
-            liquidationMarginRequirement += (lmTakerPositions + lmMakerPositions);
-            highestUnrealizedLoss += (unrealizedLossTakerPositions + highestUnrealizedLossMakerPositions);
-        }
-
-        UD60x18 imMultiplier = getIMMultiplier();
-        initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+        collateralBalanceAvailable = AccountCollateral.getCollateralBalanceAvailable(self, collateralType);
     }
 
+    /**
+     * @dev Marks that the account is active on particular market.
+     */
+    function markActiveMarket(Data storage self, address collateralType, uint128 marketId) internal {
+        AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
+    }
 
-    //// PURE FUNCTIONS ////
+    function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
+        internal
+        view
+        returns (AccountExposure.MarginRequirements memory mr)
+    {
+        return AccountExposure.getMarginRequirementsAndHighestUnrealizedLoss(self, collateralType);
+    }
 
     /**
-    * @dev Returns the account stored at the specified account id.
+     * @dev Checks if the account is below initial margin requirement and reverts if so,
+     * otherwise  returns the initial margin requirement (single token account)
      */
-    function load(uint128 id) internal pure returns (Data storage account) {
-        require(id != 0);
-        bytes32 s = keccak256(abi.encode("xyz.voltz.Account", id));
-        assembly {
-            account.slot := s
+    function imCheck(Data storage self, address collateralType) 
+        internal 
+        view 
+        returns (AccountExposure.MarginRequirements memory mr)
+    {
+        mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        
+        if (!mr.isIMSatisfied) {
+            revert AccountBelowIM(self.id, collateralType, mr);
         }
     }
 
     /**
-     * @dev Returns the liquidation margin requirement and unrealized loss given a set of taker exposures
+     * @dev Changes the account mode.
      */
-    function computeLMAndUnrealizedLossFromExposures(Exposure[] memory exposures)
-    internal
-    view
-    returns (uint256 liquidationMarginRequirement, uint256 unrealizedLoss)
-    {
-        for (uint256 i=0; i < exposures.length; i++) {
-            Exposure memory exposure = exposures[i];
-            UD60x18 riskParameter = getRiskParameter(exposure.productId, exposure.marketId);
-            uint256 liquidationMarginRequirementExposure = 
-                computeLiquidationMarginRequirement(exposure.annualizedNotional, riskParameter);
-            liquidationMarginRequirement += liquidationMarginRequirementExposure;
-            unrealizedLoss += exposure.unrealizedLoss;
+    function changeAccountMode(Data storage self, bool isMultiToken) internal {
+        if (self.isMultiToken == isMultiToken) {
+            // todo: return vs revert
+            return;
         }
 
-    }
+        self.isMultiToken = isMultiToken;
 
-    /**
- * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter
-     */
-    function computeLiquidationMarginRequirement(int256 annualizedNotional, UD60x18 riskParameter)
-    internal
-    pure
-    returns (uint256 liquidationMarginRequirement)
-    {
-
-        uint256 absAnnualizedNotional = annualizedNotional < 0 ? uint256(-annualizedNotional) : uint256(annualizedNotional);
-        liquidationMarginRequirement = mulUDxUint(riskParameter, absAnnualizedNotional);
-        return liquidationMarginRequirement;
-    }
-
-    /**
-     * @dev Returns the initial margin requirement given the liquidation margin requirement and the im multiplier
-     */
-    function computeInitialMarginRequirement(uint256 liquidationMarginRequirement, UD60x18 imMultiplier)
-    internal
-    pure
-    returns (uint256 initialMarginRequirement)
-    {
-        initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
-    }
-
-
-    function computeLMAndHighestUnrealizedLossFromLowerAndUpperExposures(
-        Exposure[] memory exposuresLower,
-        Exposure[] memory exposuresUpper
-        ) internal view
-        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
-    {
-
-        require(exposuresLower.length == exposuresUpper.length);
-
-        for (uint256 i=0; i < exposuresLower.length; i++) {
-            require(exposuresLower[i].productId == exposuresUpper[i].productId);
-            require(exposuresLower[i].marketId == exposuresUpper[i].marketId);
-            Exposure memory exposureLower = exposuresLower[i];
-            Exposure memory exposureUpper = exposuresUpper[i];
-            UD60x18 riskParameter = getRiskParameter(exposureLower.productId, exposureLower.marketId);
-            uint256 liquidationMarginRequirementExposureLower = 
-                computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
-            uint256 liquidationMarginRequirementExposureUpper =
-                computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-            if (
-                liquidationMarginRequirementExposureLower + exposureLower.unrealizedLoss >
-                liquidationMarginRequirementExposureUpper + exposureUpper.unrealizedLoss
-            ) {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureLower;
-                highestUnrealizedLoss += exposureLower.unrealizedLoss;
-            } else {
-                liquidationMarginRequirement += liquidationMarginRequirementExposureUpper;
-                highestUnrealizedLoss += exposureUpper.unrealizedLoss;
+        if (isMultiToken) {
+            self.imCheck(address(0));
+        }
+        else {
+            for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
+                address quoteToken = self.activeQuoteTokens.valueAt(i);
+                self.imCheck(quoteToken);
             }
         }
+
+        emit AccountModeUpdated(self.id, isMultiToken, block.timestamp);
     }
 
+    /**
+     * @dev Closes all account filled (i.e. attempts to fully unwind) and unfilled orders in all the markets in which the account
+     * is active
+     */
+    function closeAccount(Data storage self, address collateralType) internal {
+        SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
+            
+        for (uint256 i = 1; i <= markets.length(); i++) {
+            uint128 marketId = markets.valueAt(i).to128();
+            Market.exists(marketId).closeAccount(self.id);
+        }
+    }
+
+    function isEligibleForAutoExchange(Data storage self) internal view returns (bool) {
+
+        // note, only applies to multi-token accounts
+        // todo: needs to be exposed via e.g. the account module
+        // todo: needs implementation -> within this need to take into account product -> market changes
+
+        return false;
+    }
 }

@@ -10,10 +10,11 @@
     "@prb/math": "3.3.0",
     "@prb/test": "^0.6.0",
     "@voltz-protocol/core": "workspace:^",
+    "@voltz-protocol/oracle-manager": "workspace:^",
     "@voltz-protocol/products-dated-irs": "workspace:^",
     "@voltz-protocol/util-contracts": "workspace:^",
     "@voltz-protocol/util-modules": "workspace:^",
-    "@voltz-protocol/v2-vamm": "1.21.0",
+    "@voltz-protocol/v2-vamm": "workspace:^",
     "solmate": "6.7.0"
   },
   "scripts": {

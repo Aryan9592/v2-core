@@ -15,16 +15,6 @@ import "../storage/CollateralConfiguration.sol";
  */
 interface ICollateralConfigurationModule {
     /**
-     * @notice Emitted when a collateral type’s configuration is created or updated.
-     * @param collateralType The address of the collateral type that was just configured.
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event CollateralConfigured(
-        address indexed collateralType, CollateralConfiguration.Data config, uint256 blockTimestamp
-    );
-
-    /**
      * @notice Creates or updates the configuration for the given `collateralType`.
      * @param config The CollateralConfiguration object describing the new configuration.
      *

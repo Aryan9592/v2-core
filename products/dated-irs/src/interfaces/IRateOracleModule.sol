@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import "../storage/RateOracleReader.sol";
 
-/// @title Interface for the module for managing rate oracles connected to the Dated IRS Product
+/// @title Interface for the module for managing rate oracles connected to the Dated IRS Market Manager
 interface IRateOracleModule {
     /**
      * @notice Emitted when attempting to register a rate oracle with an invalid oracle address

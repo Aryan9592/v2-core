@@ -9,27 +9,28 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import "../interfaces/IFeeConfigurationModule.sol";
-import "../storage/MarketFeeConfiguration.sol";
+import "../storage/Market.sol";
 
 contract FeeConfigurationModule is IFeeConfigurationModule {
+    using Market for Market.Data;
+
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function configureMarketFee(MarketFeeConfiguration.Data memory config) external override {
+    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external override {
         OwnableStorage.onlyOwner();
-        MarketFeeConfiguration.set(config);
-        emit MarketFeeConfigured(config, block.timestamp);
+        Market.exists(marketId).setFeeConfiguration(config);
     }
 
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function getMarketFeeConfiguration(uint128 productId, uint128 marketId)
+    function getMarketFeeConfiguration(uint128 marketId)
         external
-        pure
+        view
         override
-        returns (MarketFeeConfiguration.Data memory config)
+        returns (Market.MarketFeeConfiguration memory config)
     {
-        return MarketFeeConfiguration.load(productId, marketId);
+        return Market.exists(marketId).feeConfig;
     }
 }

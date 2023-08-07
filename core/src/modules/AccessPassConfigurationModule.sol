@@ -23,7 +23,6 @@ contract AccessPassConfigurationModule is IAccessPassConfigurationModule {
     function configureAccessPass(AccessPassConfiguration.Data memory config) external override {
         OwnableStorage.onlyOwner();
         AccessPassConfiguration.set(config);
-        emit AccessPassConfigured(config, block.timestamp);
     }
 
 

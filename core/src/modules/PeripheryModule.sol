@@ -20,8 +20,11 @@ contract PeripheryModule is IPeripheryModule {
     /**
      * @inheritdoc IPeripheryModule
      */
-    function setPeriphery(address _peripheryAddress) external override {
+    function setPeriphery(address peripheryAddress) external override {
         OwnableStorage.onlyOwner();
-        Periphery.setPeriphery(_peripheryAddress);
+        
+        Periphery.set(Periphery.Data({
+            peripheryAddress: peripheryAddress
+        }));
     }
 }

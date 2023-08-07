@@ -13,6 +13,13 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
  * @title Tracks protocol-wide risk settings
  */
 library ProtocolRiskConfiguration {
+    /**
+     * @notice Emitted when the protocol risk configuration is created or updated
+     * @param config The object with the newly configured details.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event ProtocolRiskConfigurationUpdated(Data config, uint256 blockTimestamp);
+
     struct Data {
         /**
          * @dev IM Multiplier is used to introduce a buffer between the liquidation (LM) and initial (IM) margin requirements
@@ -45,5 +52,7 @@ library ProtocolRiskConfiguration {
         Data storage storedConfig = load();
         storedConfig.imMultiplier = config.imMultiplier;
         storedConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
+
+        emit ProtocolRiskConfigurationUpdated(storedConfig, block.timestamp);
     }
 }

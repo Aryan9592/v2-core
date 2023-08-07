@@ -2,9 +2,9 @@ pragma solidity >=0.8.19;
 
 import {IERC721} from "@voltz-protocol/util-contracts/src/interfaces/IERC721.sol";
 
-import {TickMath} from "@voltz-protocol/v2-vamm/utils/vamm-math/TickMath.sol";
-import {FullMath} from "@voltz-protocol/v2-vamm/utils/vamm-math/FullMath.sol";
-import {VAMMBase} from "@voltz-protocol/v2-vamm/utils/vamm-math/VAMMBase.sol";
+import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
+import {FullMath} from "@voltz-protocol/v2-vamm/src/libraries/math/FullMath.sol";
+import {VAMMBase} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VAMMBase.sol";
 
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 

@@ -43,11 +43,10 @@ library Dispatcher {
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
                 uint256 fee,
-                uint256 im,
-                uint256 highestUnrealizedLoss,
+                AccountExposure.MarginRequirements memory mr,
                 int24 currentTick
             ) = V2DatedIRS.swap(accountId, marketId, maturityTimestamp, baseAmount, priceLimit);
-            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, im, highestUnrealizedLoss, currentTick);
+            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, mr, currentTick);
         } else if (command == Commands.V2_DATED_IRS_INSTRUMENT_SETTLE) {
             // equivalent: abi.decode(inputs, (uint128, uint128, uint32))
             uint128 accountId;
@@ -75,7 +74,7 @@ library Dispatcher {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, uint256 im, uint256 highestUnrealizedLoss) = V2DatedIRSVamm.initiateDatedMakerOrder(
+            (uint256 fee, AccountExposure.MarginRequirements memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
                 accountId,
                 marketId,
                 maturityTimestamp,
@@ -83,16 +82,19 @@ library Dispatcher {
                 tickUpper,
                 liquidityDelta
             );
-            output = abi.encode(fee, im, highestUnrealizedLoss);
+            output = abi.encode(fee, mr);
         } else if (command == Commands.V2_CORE_CREATE_ACCOUNT) {
-            // equivalent: abi.decode(inputs, (uint128))
+            // equivalent: abi.decode(inputs, (uint128, uint128, bool))
+            // todo: double check the input offsets following changes to the core (IR)
             uint128 requestedId;
+            bool isMultiToken;
             assembly {
                 requestedId := calldataload(inputs.offset)
+                isMultiToken := calldataload(add(inputs.offset, 0x40))
             }
 
             // todo: missing tests for this flow, no tests failed after changing the implementation (IR)
-            V2Core.createAccount(requestedId);
+            V2Core.createAccount(requestedId, isMultiToken);
         } else if (command == Commands.V2_CORE_DEPOSIT) {
             // equivalent: abi.decode(inputs, (uint128, address, uint256))
             uint128 accountId;

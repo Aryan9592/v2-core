@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/products-dated-irs/src/interfaces/IProductIRSModule.sol";
+import "@voltz-protocol/products-dated-irs/src/interfaces/IMarketManagerIRSModule.sol";
 import { IVammModule } from "@voltz-protocol/v2-vamm/src/interfaces/IVammModule.sol";
 import "../storage/Config.sol";
 import "./AccessControl.sol";
@@ -16,14 +16,13 @@ library V2DatedIRS {
             int256 executedBaseAmount,
             int256 executedQuoteAmount,
             uint256 fee,
-            uint256 im,
-            uint256 highestUnrealizedLoss,
+            AccountExposure.MarginRequirements memory mr,
             int24 currentTick
         )
     {
         AccessControl.onlyOwner(accountId);
 
-        IProductIRSModule.TakerOrderParams memory params  = IProductIRSModule.TakerOrderParams({
+        IMarketManagerIRSModule.TakerOrderParams memory params  = IMarketManagerIRSModule.TakerOrderParams({
             accountId: accountId,
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
@@ -31,8 +30,8 @@ library V2DatedIRS {
             priceLimit: priceLimit
         }); 
     
-        (executedBaseAmount, executedQuoteAmount, fee, im, highestUnrealizedLoss) =
-            IProductIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
+        (executedBaseAmount, executedQuoteAmount, fee, mr) =
+            IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
                 .initiateTakerOrder(params);
 
         // Get current tick
@@ -42,6 +41,6 @@ library V2DatedIRS {
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) internal {
         AccessControl.onlyOwner(accountId);
     
-        IProductIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY).settle(accountId, marketId, maturityTimestamp);
+        IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY).settle(accountId, marketId, maturityTimestamp);
     }
 }
