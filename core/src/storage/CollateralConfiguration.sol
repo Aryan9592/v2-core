@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
+import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
@@ -220,15 +221,13 @@ library CollateralConfiguration {
 
     function changeDecimals(uint256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns(uint256) {
         if (fromDecimals < toDecimals) {
-            uint256 factor = 10 ** (toDecimals - fromDecimals);
-            return a * factor;
+            return DecimalMath.upscale(a, toDecimals - fromDecimals);
         }
 
         if (fromDecimals > toDecimals) {
             // todo: think of precision loss (e.g. revert, emit event or do nothing)
 
-            uint256 factor = 10 ** (fromDecimals - toDecimals);
-            return a / factor;
+            return DecimalMath.downscale(a, fromDecimals - toDecimals);
         }
 
         return a;
