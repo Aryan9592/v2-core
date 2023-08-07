@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import "../storage/Account.sol";
+import "../storage/CollateralPool.sol";
 import "../storage/Market.sol";
 
 /**
@@ -17,6 +18,7 @@ import "../storage/Market.sol";
  */
 library AccountActiveMarket {
     using Account for Account.Data;
+    using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
@@ -47,6 +49,13 @@ library AccountActiveMarket {
         // check if account can interact with this market
         if (self.firstMarketId == 0) {
             self.firstMarketId = marketId;
+
+            // account is linked the first time to some collateral pool - update the collateral pool balances
+            CollateralPool.Data storage collateralPool = Market.exists(marketId).getCollateralPool();
+            for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
+                address collateralType = self.activeCollaterals.valueAt(i);
+                collateralPool.increaseCollateralBalance(collateralType, self.collateralBalances[collateralType]);
+            }
         }
         else {
             // get collateral pool ID of the account
