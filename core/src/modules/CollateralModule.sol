@@ -95,12 +95,12 @@ contract CollateralModule is ICollateralModule {
     /**
      * @inheritdoc ICollateralModule
      */
-    function getAccountCollateralBalanceAvailable(uint128 accountId, address collateralType)
+    function getAccountWithdrawableCollateralBalance(uint128 accountId, address collateralType)
         external
         override
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        return Account.exists(accountId).getCollateralBalanceAvailable(collateralType);
+        return Account.exists(accountId).getWithdrawableCollateralBalance(collateralType);
     }
 }

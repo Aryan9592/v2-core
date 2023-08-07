@@ -25,30 +25,60 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
+    error UnsupportedAccountExposure(bytes32 accountMode);
+
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account and highest unrealized loss
      * for a given collateral type along with the flags for im or lm satisfied
-     * @dev If the account is single-token, the amounts are in collateral type. 
-     *      Otherwise, if the account is multi-token, the amounts are in USD.
+     * @dev If the collateral is zero address, the amounts are in USD terms. 
+     * Otherwise, the amounts are in collateral type. 
      */
-    // todo: do we want for this function to return values in USD or leave for collateral type?
     function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
         internal
         view
-        returns (Account.MarginRequirement memory mr)
+        returns (Account.MarginRequirement memory)
     {
-        uint256 collateralBalance = 0;
+        // Fetch the IM multiplier
+        UD60x18 imMultiplier = getIMMultiplier();
 
         if (self.accountMode == Account.SINGLE_TOKEN_MODE) {
-            // we don't need to convert the amounts to USD because single-token accounts have requirements in quote token
-
-            (mr.liquidationMarginRequirement, mr.highestUnrealizedLoss) = 
+            // get the margin requirements and highest unrealized loss for this particular collateral type
+            (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
                     getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
-            collateralBalance = self.getCollateralBalance(collateralType);
+            // get the collateral balance
+            uint256 collateralBalance = self.getCollateralBalance(collateralType);
+            
+            // compute the flag for LM satisfied
+            bool isLMSatisfied = collateralBalance >= liquidationMarginRequirement + highestUnrealizedLoss;
+
+            // compute the initial margin requirement
+            uint256 initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+
+            // get the flag for IM satisfied and return the available collateral balance
+            uint256 availableCollateralBalance = 0;
+            bool isIMSatisfied = false;
+            if (collateralBalance >= initialMarginRequirement + highestUnrealizedLoss) {
+                availableCollateralBalance = collateralBalance - initialMarginRequirement - highestUnrealizedLoss;
+                isIMSatisfied = true;
+            }
+
+            return Account.MarginRequirement({
+                isIMSatisfied: isIMSatisfied,
+                isLMSatisfied: isLMSatisfied,
+                initialMarginRequirement: initialMarginRequirement,
+                liquidationMarginRequirement: liquidationMarginRequirement,
+                highestUnrealizedLoss: highestUnrealizedLoss,
+                availableCollateralBalance: availableCollateralBalance,
+                collateralType: collateralType
+            });
         }
     
         if (self.accountMode == Account.MULTI_TOKEN_MODE) {
+
+            // get margin requirements and highest unrealized loss in USD terms
+            uint256 liquidationMarginRequirementInUSD = 0;
+            uint256 highestUnrealizedLossInUSD = 0;
 
             for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
                 address quoteToken = self.activeQuoteTokens.valueAt(i);
@@ -57,21 +87,58 @@ library AccountExposure {
                 (uint256 liquidationMarginRequirementInCollateral, uint256 highestUnrealizedLossInCollateral) = 
                     getRequirementsAndHighestUnrealizedLossByCollateralType(self, quoteToken);
 
-                uint256 liquidationMarginRequirementInUSD = collateral.getCollateralInUSD(liquidationMarginRequirementInCollateral);
-                uint256 highestUnrealizedLossInUSD = collateral.getCollateralInUSD(highestUnrealizedLossInCollateral);
-
-                mr.liquidationMarginRequirement += liquidationMarginRequirementInUSD;
-                mr.highestUnrealizedLoss += highestUnrealizedLossInUSD;
+                liquidationMarginRequirementInUSD += collateral.getCollateralInUSD(liquidationMarginRequirementInCollateral);
+                highestUnrealizedLossInUSD += collateral.getCollateralInUSD(highestUnrealizedLossInCollateral);
             }
 
-            collateralBalance = self.getWeightedCollateralBalanceInUSD();
+            // compute the initial margin requirement in USD
+            uint256 initialMarginRequirementInUSD = computeInitialMarginRequirement(liquidationMarginRequirementInUSD, imMultiplier);
+
+            // get the account weighted balance in USD
+            uint256 weightedCollateralBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
+
+            // compute the flag for LM satisfied
+            bool isLMSatisfied = weightedCollateralBalanceInUSD >= liquidationMarginRequirementInUSD + highestUnrealizedLossInUSD;
+
+            // get the flag for IM satisfied and get the available weighted collateral balance in USD
+            uint256 availableWeightedUSDBalance = 0;
+            bool isIMSatisfied = false;
+            if (weightedCollateralBalanceInUSD >= initialMarginRequirementInUSD + highestUnrealizedLossInUSD) {
+                isIMSatisfied = true;
+                availableWeightedUSDBalance = 
+                    weightedCollateralBalanceInUSD - initialMarginRequirementInUSD - highestUnrealizedLossInUSD;
+            }
+
+            if (collateralType == address(0)) {
+                // return the USD amounts if the collateral type is zero address
+
+                return Account.MarginRequirement({
+                    isIMSatisfied: isIMSatisfied,
+                    isLMSatisfied: isLMSatisfied,
+                    initialMarginRequirement: initialMarginRequirementInUSD,
+                    liquidationMarginRequirement: liquidationMarginRequirementInUSD,
+                    highestUnrealizedLoss: highestUnrealizedLossInUSD,
+                    availableCollateralBalance: weightedCollateralBalanceInUSD,
+                    collateralType: collateralType
+                });
+            }
+            else {
+                // return the amounts in collateral if the collateral type is non-zero address
+                CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
+
+                return Account.MarginRequirement({
+                    isIMSatisfied: isIMSatisfied,
+                    isLMSatisfied: isLMSatisfied,
+                    initialMarginRequirement: collateral.getUSDInCollateral(initialMarginRequirementInUSD),
+                    liquidationMarginRequirement: collateral.getUSDInCollateral(liquidationMarginRequirementInUSD),
+                    highestUnrealizedLoss: collateral.getUSDInCollateral(highestUnrealizedLossInUSD),
+                    availableCollateralBalance: collateral.getWeightedUSDInCollateral(availableWeightedUSDBalance),
+                    collateralType: collateralType
+                });
+            }
         }
 
-        UD60x18 imMultiplier = getIMMultiplier();
-        mr.initialMarginRequirement = computeInitialMarginRequirement(mr.liquidationMarginRequirement, imMultiplier);
-
-        mr.isIMSatisfied = collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss;
-        mr.isLMSatisfied = collateralBalance >= mr.liquidationMarginRequirement + mr.highestUnrealizedLoss;
+        revert UnsupportedAccountExposure(self.accountMode);
     }
 
     /**

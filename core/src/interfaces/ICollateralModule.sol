@@ -77,7 +77,7 @@ interface ICollateralModule {
      * @return amount The amount of collateral that is available for withdrawal (difference between balance and IM), denominated
      * in the token's native decimal representation.
      */
-    function getAccountCollateralBalanceAvailable(uint128 accountId, address collateralType)
+    function getAccountWithdrawableCollateralBalance(uint128 accountId, address collateralType)
         external
         returns (uint256 amount);
 

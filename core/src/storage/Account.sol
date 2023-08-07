@@ -64,6 +64,8 @@ library Account {
         uint256 initialMarginRequirement;
         uint256 liquidationMarginRequirement;
         uint256 highestUnrealizedLoss;
+        uint256 availableCollateralBalance;
+        address collateralType;
     }
 
     struct MarketExposure {
@@ -299,12 +301,12 @@ library Account {
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
-    function getCollateralBalanceAvailable(Data storage self, address collateralType)
+    function getWithdrawableCollateralBalance(Data storage self, address collateralType)
         internal
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        collateralBalanceAvailable = AccountCollateral.getCollateralBalanceAvailable(self, collateralType);
+        collateralBalanceAvailable = AccountCollateral.getWithdrawableCollateralBalance(self, collateralType);
     }
 
     /**
