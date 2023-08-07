@@ -165,10 +165,6 @@ contract SetupProtocol is BatchScript {
     UD60x18 liquidatorRewardParameter,
     uint128 feeCollectorAccountId
   ) public {  
-    setPeriphery({
-      peripheryAddress: address(contracts.peripheryProxy)
-    });
-
     configureProtocolRisk(
       ProtocolRiskConfiguration.Data({
         imMultiplier:imMultiplier,
@@ -540,21 +536,6 @@ contract SetupProtocol is BatchScript {
         abi.encodeCall(
           contracts.coreProxy.setDeniers,
           (feature, deniers)
-        )
-      );
-    }
-  }
-
-  function setPeriphery(address peripheryAddress) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.coreProxy.setPeriphery(peripheryAddress);
-    } else {
-      addToBatch(
-        address(contracts.coreProxy),
-        abi.encodeCall(
-          contracts.coreProxy.setPeriphery,
-          (peripheryAddress)
         )
       );
     }

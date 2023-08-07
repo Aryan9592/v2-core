@@ -10,7 +10,6 @@ import "@voltz-protocol/core/src/modules/FeatureFlagModule.sol";
 import "@voltz-protocol/core/src/modules/FeeConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/LiquidationModule.sol";
 import "@voltz-protocol/core/src/modules/OwnerUpgradeModule.sol";
-import "@voltz-protocol/core/src/modules/PeripheryModule.sol";
 import "@voltz-protocol/core/src/modules/MarketManagerModule.sol";
 import "@voltz-protocol/core/src/modules/RiskConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/AccessPassConfigurationModule.sol";
@@ -27,7 +26,6 @@ contract CoreRouter is
   FeeConfigurationModule,
   LiquidationModule,
   OwnerUpgradeModule,
-  PeripheryModule,
   MarketManagerModule,
   RiskConfigurationModule
 { }

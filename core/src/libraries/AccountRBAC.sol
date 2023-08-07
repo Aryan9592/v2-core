@@ -11,7 +11,6 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import "@voltz-protocol/util-contracts/src/errors/AddressError.sol";
 
 import "../storage/Account.sol";
-import "../storage/Periphery.sol";
 
 /**
  * @title Object for tracking an accounts permissions (role based access control).
@@ -140,8 +139,9 @@ library AccountRBAC {
         checkPermissionIsValid(permission);
 
         return (
-            (target == self.rbac.owner) || hasPermission(self, Account.ADMIN_PERMISSION, target)
-                || hasPermission(self, permission, target) || Periphery.isPeriphery(target)
+            (target == self.rbac.owner) || 
+            hasPermission(self, Account.ADMIN_PERMISSION, target) || 
+            hasPermission(self, permission, target)
         );
     }
 }

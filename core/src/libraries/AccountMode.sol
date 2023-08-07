@@ -28,7 +28,7 @@ library AccountMode {
      */
     event AccountModeUpdated(uint128 indexed accountId, bytes32 accountMode, uint256 blockTimestamp);
 
-    function checkAccountMode(bytes32 accountMode) internal {
+    function checkAccountMode(bytes32 accountMode) internal pure {
         if (accountMode == Account.SINGLE_TOKEN_MODE || accountMode == Account.MULTI_TOKEN_MODE) {
             return;
         }
