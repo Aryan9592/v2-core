@@ -66,9 +66,9 @@ library CollateralConfiguration {
         UD60x18 weight;
 
         /**
-         * @dev Amount of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
+         * @dev Percentage of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
          */
-        UD60x18 autoExchangeReward;
+        UD60x18 autoExchangeDiscount;
     }
 
     struct CachedConfig {
