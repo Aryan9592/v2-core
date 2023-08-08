@@ -333,6 +333,68 @@ library Account {
         }
     }
 
+    // todo: needs to be exposed via e.g. the account module
+    // todo: needs implementation -> within this need to take into account product -> market changes
+    function isEligibleForAutoExchange(Data storage self, address settlementType) internal view returns (bool) {
+
+        if(!isMultiToken) {
+            return false;
+        }
+
+        int256 accountValueInToken = self.getAccountValueInToken(settlementType);
+
+        if (accountValueInToken > 0) {
+            return false;
+        }
+
+        uint256 singleAutoExchangeThreshold = 
+            CollateralConfiguration.load(settlementType).singleAutoExchangeThreshold;
+
+        if ((-accountValueInToken).toUint() > singleAutoExchangeThreshold) {
+            return true;
+        }
+
+        int256 sumOfNegativeProfiles_U = 0;
+        int256 totalAccountValue_U = 0;
+        for (uint256 i = 1; i <= activeQuoteTokens.length(); i++) {
+            int256 accountValueInToken = self.getAccountValueInToken(activeQuoteTokens.valueAt(i));
+            int256 accountValueInToken_U = toUSD(accountValueInToken); // todo: define toUSD
+            if (accountValueInToken < 0) {
+                sumOfNegativeProfiles_U += accountValueInToken_U;
+            }
+            totalAccountValue_U += accountValueInToken_U;
+        }
+        
+        // todo: define multiAutoExchangeThreshold in collateral pool settings?
+        uint256 multiAutoExchangeThreshold = 0;
+        if ((-sumOfNegativeProfiles_U).toUint() > multiAutoExchangeThreshold) {
+            return true;
+        }
+
+        // todo: define relativeAutoExchangeThreashold in collateral pool settings?
+        uint256 relativeAutoExchangeThreashold = 0;
+        if (
+            (-sumOfNegativeProfiles_U).toUint() > 
+            relativeAutoExchangeThreashold * totalAccountValue_U.toUint()
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function getAccountValueInToken(
+        Data storage self,
+        uint128 collateralType
+    ) external override returns (int256) {
+        int256 unrealizedPnL = 0;
+        int256 realizedPnL = 0;
+        return self.getCollateralBalance(collateralType) + realizedPnL + unrealizedPnL;
+    }
+
+
+    //// PURE FUNCTIONS ////
+
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
     }

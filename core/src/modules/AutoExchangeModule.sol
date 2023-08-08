@@ -39,25 +39,67 @@ contract AutoExchangeModule is IAutoExchangeModule {
     /**
      * @inheritdoc IAutoExchangeModule
      */
-    function triggerAutoExchange(uint128 autoExchangeAccountId, uint128 autoExchangeTriggerAccountId,
-    uint256 amountToAutoExchange, address collateralType) external
-    override {
+    function triggerAutoExchange(
+        uint128 accountId,
+        uint128 liquidatorAccountId,
+        uint256 amountToAutoExchange_S,
+        address collateralType,
+        address settlemetType
+    ) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        Account.Data storage account = Account.exists(autoExchangeAccountId);
+        Account.Data storage account = Account.exists(accountId);
 
-        if (account.accountMode == Account.SINGLE_TOKEN_MODE) {
-            // todo: move this logic into account library (or inside isEligibleForAutoExchange) - Costin
-            revert AccountIsSingleTokenNoExposureToExchangeRateRisk(autoExchangeAccountId);
-        }
-
-        bool isEligibleForAutoExchange = account.isEligibleForAutoExchange();
+        bool isEligibleForAutoExchange = 
+            account.isEligibleForAutoExchange(accountId, settlemetType);
 
         if (!isEligibleForAutoExchange) {
-            revert AccountNotEligibleForAutoExchange(autoExchangeAccountId);
+            revert AccountNotEligibleForAutoExchange(accountId);
         }
 
-        // todo: needs the remaining implementation
+        uint256 maxExchangeableAmount_S = getMaxAmountToExchange_S(account, collateralType);
+        require(amountToAutoExchange_S <= maxExchangeableAmount_S, "Max auto-exchange"); //todo: custon error
 
+        (uint256 amountToAutoExchange_C, uint256 insuranceFundFee_C) = toUSD(amountToAutoExchange_S)
+            .toCollateralAmount_usingDiscountTwap();
+
+        // transfer settlement tokens from liquidator's account to liquidatable account
+        liquidatorAccount.decreaseCollateralBalance(settlemetType, amountToAutoExchange_S);
+        account.increaseCollateralBalance(settlemetType, amountToAutoExchange_S);
+
+        // transfer discounted collateral tokens from liquidatable account to liquidator's account
+        account.decreaseCollateralBalance(collateralType, amountToAutoExchange_C);
+        liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchange_C);
+
+        // todo: % to insurance fund
+        Account.exists(insuranceFund).increaseCollateralBalance(insuranceFundFee_C);
+    }
+
+    /// @dev Returns the maximum amount that can be exchaged, represented in settlement token
+    // todo: get liquidation ratio from config
+    // todo: apply liquidation ratio before or after comparison?
+    // todo: do we consider pnl as "collateral" that can be exchange?
+        // can use only avaiable collateral, ensuring discount doesn't break the IM invariant
+    function getMaxAmountToExchange_S(
+        Account.Data storage account,
+        address collateralType,
+        address settlementType
+    ) public returns (uint256) {
+        // get collateral + realized + unrealized Pnl in settlement token
+        int256 accountValueInSettlementToken_S = account.getAccountValueInToken(settlementType);
+        if (accountValueInSettlementToken_S > 0) {
+            return 0;
+        }
+
+        int256 accountCollateralAmount_C = account.getCollateralBalance(collateralType);
+
+        int256 accountValueInSettlementToken_U = toUSD(accountValueInSettlementToken_S * liquidationRatio, settlementToken);
+        int256 accountCollateralAmount_U = toUSD(accountCollateralAmount_C, collateralType);
+
+        if (accountValueInSettlementToken_U > accountCollateralAmount_U) {
+            return toSettlementToken(accountCollateralAmount_U);
+        }
+
+        return accountValueInSettlementToken_S * liquidationRatio;
     }
 
 }
