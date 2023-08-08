@@ -110,10 +110,18 @@ contract MarketManagerModule is IMarketManagerModule {
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
 
-        fee = distributeFees(
+        uint256 protocolFee = distributeFees(
             accountId, 
-            market.feeConfig.feeCollectorAccountId, 
-            market.feeConfig.atomicTakerFee, 
+            market.protocolFeeConfig.feeCollectorAccountId, 
+            market.protocolFeeConfig.atomicTakerFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 collateralPoolFee = distributeFees(
+            accountId, 
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            market.collateralPoolFeeConfig.atomicTakerFee, 
             collateralType, 
             annualizedNotional
         );
@@ -121,6 +129,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
+        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateMakerOrder(
@@ -134,11 +143,19 @@ contract MarketManagerModule is IMarketManagerModule {
 
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-        
-        fee = distributeFees(
+
+        uint256 protocolFee = distributeFees(
             accountId, 
-            market.feeConfig.feeCollectorAccountId, 
-            market.feeConfig.atomicMakerFee, 
+            market.protocolFeeConfig.feeCollectorAccountId, 
+            market.protocolFeeConfig.atomicMakerFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 collateralPoolFee = distributeFees(
+            accountId, 
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            market.collateralPoolFeeConfig.atomicMakerFee, 
             collateralType, 
             annualizedNotional
         );
@@ -146,6 +163,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
+        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

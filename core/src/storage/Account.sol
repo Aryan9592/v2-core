@@ -265,6 +265,10 @@ library Account {
         return Account.authorized(self, permission, target);
     }
 
+    function getCollateralPool(Data storage self) internal view returns (CollateralPool.Data storage) {
+        return Market.exists(self.firstMarketId).getCollateralPool();
+    }
+
     /**
      * @dev Increments the account's collateral balance.
      */

@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 import "../storage/Account.sol";
 import "../storage/CollateralConfiguration.sol";
 import "../storage/Market.sol";
-import "../storage/ProtocolRiskConfiguration.sol";
 
 import {mulUDxUint, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
@@ -39,7 +38,7 @@ library AccountExposure {
         returns (Account.MarginRequirement memory)
     {
         // Fetch the IM multiplier
-        UD60x18 imMultiplier = getIMMultiplier();
+        UD60x18 imMultiplier = self.getCollateralPool().riskConfig.imMultiplier;
 
         if (self.accountMode == Account.SINGLE_TOKEN_MODE) {
             // get the margin requirements and highest unrealized loss for this particular collateral type
@@ -197,13 +196,6 @@ library AccountExposure {
 
     function getRiskParameter(uint128 marketId) internal view returns (UD60x18 riskParameter) {
         return Market.exists(marketId).riskConfig.riskParameter;
-    }
-
-    /**
-     * @dev Note, im multiplier is assumed to be the same across all markets and maturities
-     */
-    function getIMMultiplier() internal view returns (UD60x18 imMultiplier) {
-        return ProtocolRiskConfiguration.load().imMultiplier;
     }
 
     /**

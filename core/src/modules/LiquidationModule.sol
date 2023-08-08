@@ -8,7 +8,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "../storage/Account.sol";
-import "../storage/ProtocolRiskConfiguration.sol";
 import "../storage/CollateralConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/errors/ParameterError.sol";
 import "../interfaces/ILiquidationModule.sol";
@@ -30,7 +29,6 @@ import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelp
  */
 
 contract LiquidationModule is ILiquidationModule {
-    using ProtocolRiskConfiguration for ProtocolRiskConfiguration.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
     using SafeCastU256 for uint256;
@@ -59,7 +57,8 @@ contract LiquidationModule is ILiquidationModule {
     ) internal returns (uint256 liquidatorRewardAmount) {
         Account.Data storage account = Account.exists(liquidatedAccountId);
 
-        UD60x18 liquidatorRewardParameter = ProtocolRiskConfiguration.load().liquidatorRewardParameter;
+        UD60x18 liquidatorRewardParameter = account.getCollateralPool().riskConfig.liquidatorRewardParameter;
+    
         liquidatorRewardAmount = mulUDxUint(liquidatorRewardParameter, coverPreClose - coverPostClose);
         account.decreaseCollateralBalance(collateralType, liquidatorRewardAmount);
     }

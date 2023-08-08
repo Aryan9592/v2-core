@@ -59,12 +59,10 @@ library AccountActiveMarket {
         }
         else {
             // get collateral pool ID of the account
-            uint128 accountCollateralPoolId = 
-                Market.exists(self.firstMarketId).getCollateralPool().id;
+            uint128 accountCollateralPoolId = self.getCollateralPool().id;
     
             // get collateral pool ID of the new market
-            uint128 marketCollateralPoolId = 
-                Market.exists(marketId).getCollateralPool().id;
+            uint128 marketCollateralPoolId = Market.exists(marketId).getCollateralPool().id;
 
             // if the collateral pools are different, account cannot engage with the new market
             if (accountCollateralPoolId != marketCollateralPoolId) {

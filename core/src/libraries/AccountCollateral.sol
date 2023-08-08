@@ -61,9 +61,7 @@ library AccountCollateral {
 
         // update the corresponding collateral pool balance if exists
         if (self.firstMarketId > 0) {
-            Market.exists(self.firstMarketId)
-                .getCollateralPool()
-                .increaseCollateralBalance(collateralType, amount);
+            self.getCollateralPool().increaseCollateralBalance(collateralType, amount);
         }
 
         // emit event
@@ -91,9 +89,7 @@ library AccountCollateral {
 
         // update the corresponding collateral pool balance
         if (self.firstMarketId > 0) {
-            Market.exists(self.firstMarketId)
-                .getCollateralPool()
-                .decreaseCollateralBalance(collateralType, amount);
+            self.getCollateralPool().decreaseCollateralBalance(collateralType, amount);
         }
 
         // emit event

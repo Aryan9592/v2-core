@@ -15,25 +15,42 @@ import "../storage/Market.sol";
  */
 interface IFeeConfigurationModule {
     /**
-     * @notice Creates or updates the fee configuration for the given `marketId`
+     * @notice Creates or updates the protocol fee configuration for the given `marketId`
      * @param config The MarketFeeConfiguration object describing the new configuration.
      *
      * Requirements:
      *
      * - `msg.sender` must be the owner of the protocol.
-     *
-     * Emits a {MarketFeeConfigured} event.
-     *
      */
-    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external;
+    function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external;
 
     /**
-     * @notice Returns detailed information pertaining the specified marketId
+     * @notice Creates or updates the collateral pool fee configuration for the given `marketId`
+     * @param config The MarketFeeConfiguration object describing the new configuration.
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the collateral pool.
+     */
+    function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external;
+
+    /**
+     * @notice Returns protocol fee configuration for the given `marketId`
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
      * @return config The fee configuration object describing the given marketId
      */
-    function getMarketFeeConfiguration(uint128 marketId)
+    function getProtocolMarketFeeConfiguration(uint128 marketId)
         external
         view
-        returns (Market.MarketFeeConfiguration memory config);
+        returns (Market.FeeConfiguration memory config);
+
+    /**
+     * @notice Returns collateral pool fee configuration for the given `marketId`
+     * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
+     * @return config The fee configuration object describing the given marketId
+     */
+    function getCollateralPoolMarketFeeConfiguration(uint128 marketId)
+        external
+        view
+        returns (Market.FeeConfiguration memory config);
 }

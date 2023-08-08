@@ -32,7 +32,7 @@ library Market {
      */
     error MarketNotFound(uint128 marketId);
 
-    struct MarketRiskConfiguration {
+    struct RiskConfiguration {
         /**
          * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
          */
@@ -44,7 +44,7 @@ library Market {
         uint32 twapLookbackWindow;
     }
 
-    struct MarketFeeConfiguration {
+    struct FeeConfiguration {
         /**
          * @dev Address of fee collector
          */
@@ -82,17 +82,17 @@ library Market {
          */
         string name;
         /**
-         * @dev Creator of the market, which has configuration access rights for the market.
-         */
-        address owner;
-        /**
          * @dev Market risk configurations
          */
-        MarketRiskConfiguration riskConfig;
+        RiskConfiguration riskConfig;
         /**
-         * @dev Market fee configurations
+         * @dev Market fee configurations for collateral pool
          */
-        MarketFeeConfiguration feeConfig;
+        FeeConfiguration collateralPoolFeeConfig;
+        /**
+         * @dev Market fee configurations for protocol
+         */
+        FeeConfiguration protocolFeeConfig;
     }
 
     /**
@@ -115,9 +115,8 @@ library Market {
         market.id = id;
         market.marketManagerAddress = marketManagerAddress;
         market.name = name;
-        market.owner = owner;
 
-        CollateralPool.create(id);
+        CollateralPool.create(id, owner);
 
         emit MarketUpdated(market, block.timestamp);
     }
@@ -155,7 +154,7 @@ library Market {
     /**
      * @dev Returns the root collateral pool id of the market
      */
-    function getCollateralPool(Data storage self) internal returns (CollateralPool.Data storage) {
+    function getCollateralPool(Data storage self) internal view returns (CollateralPool.Data storage) {
         return CollateralPool.getRoot(self.id);
     }
 
@@ -175,21 +174,34 @@ library Market {
      * @dev Sets the risk configuration for a given market
      * @param config The RiskConfiguration object with all the risk parameters
      */
-    function setRiskConfiguration(Data storage self, MarketRiskConfiguration memory config) internal {
+    function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
         self.riskConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
     }
 
     /**
-     * @dev Sets the risk configuration for a given market
+     * @dev Sets the protocol fee configuration for a given market
      * @param config The FeeConfiguration object with all the fee parameters
      */
-    function setFeeConfiguration(Data storage self, MarketFeeConfiguration memory config) internal {
+    function setProtocolFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
         // check if fee collector account exists
         Account.exists(config.feeCollectorAccountId);
 
-        self.feeConfig = config;
+        self.protocolFeeConfig = config;
+
+        emit MarketUpdated(self, block.timestamp);
+    }
+
+    /**
+     * @dev Sets the collateral pool fee configuration for a given market
+     * @param config The FeeConfiguration object with all the fee parameters
+     */
+    function setCollateralPoolFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
+        // check if fee collector account exists
+        Account.exists(config.feeCollectorAccountId);
+
+        self.collateralPoolFeeConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
     }

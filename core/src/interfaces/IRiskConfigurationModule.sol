@@ -7,12 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import "../storage/CollateralPool.sol";
 import "../storage/Market.sol";
-import "../storage/ProtocolRiskConfiguration.sol";
 
 /**
- * @title Module for configuring protocol and market wide risk parameters
- * @notice Allows the owner to configure risk parameters at protocol and market wide level
+ * @title Module for configuring collateral pool and market wide risk parameters
+ * @notice Allows the owner to configure risk parameters at collateral pool and market wide level
  */
 interface IRiskConfigurationModule {
     /**
@@ -21,12 +21,21 @@ interface IRiskConfigurationModule {
      *
      * Requirements:
      *
-     * - `msg.sender` must be the owner of the protocol.
-     *
-     * Emits a {MarketRiskConfigured} event.
+     * - `msg.sender` must be the owner of the collateral pool.
      *
      */
-    function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) external;
+    function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) external;
+
+    /**
+     * @notice Creates or updates the configuration on the collatera pool level
+     * @param config It describes the new configuration.
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the collateral pool.
+     *
+     */
+    function configureCollateralPoolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) external;
 
     /**
      * @notice Returns detailed information pertaining the specified marketId
@@ -36,24 +45,14 @@ interface IRiskConfigurationModule {
     function getMarketRiskConfiguration(uint128 marketId)
         external
         view
-        returns (Market.MarketRiskConfiguration memory config);
+        returns (Market.RiskConfiguration memory config);
 
     /**
-     * @notice Creates or updates the configuration on the protocol (i.e. system-wide) level
-     * @param config The ProtocolConfiguration object describing the new configuration.
-     *
-     * Requirements:
-     *
-     * - `msg.sender` must be the owner of the protocol.
-     *
-     * Emits a {ProtocolRiskConfigured} event.
-     *
+     * @notice Returns detailed information on collateral pool risk configuration
      */
-    function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) external;
-
-    /**
-     * @notice Returns detailed information on protocol-wide risk configuration
-     * @return config The configuration object describing the protocol-wide risk configuration
-     */
-    function getProtocolRiskConfiguration() external pure returns (ProtocolRiskConfiguration.Data memory config);
+    function getCollateralPoolRiskConfiguration(uint128 collateralPoolId) 
+        external 
+        view 
+        returns 
+        (CollateralPool.RiskConfiguration memory config);
 }

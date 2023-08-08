@@ -17,20 +17,40 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external override {
+    function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
         OwnableStorage.onlyOwner();
-        Market.exists(marketId).setFeeConfiguration(config);
+        Market.exists(marketId).setProtocolFeeConfiguration(config);
     }
 
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function getMarketFeeConfiguration(uint128 marketId)
+    function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
+        // todo: check for collateral pool owner
+        Market.exists(marketId).setProtocolFeeConfiguration(config);
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
+    function getProtocolMarketFeeConfiguration(uint128 marketId)
         external
         view
         override
-        returns (Market.MarketFeeConfiguration memory config)
+        returns (Market.FeeConfiguration memory config)
     {
-        return Market.exists(marketId).feeConfig;
+        return Market.exists(marketId).protocolFeeConfig;
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
+    function getCollateralPoolMarketFeeConfiguration(uint128 marketId)
+        external
+        view
+        override
+        returns (Market.FeeConfiguration memory config)
+    {
+        return Market.exists(marketId).collateralPoolFeeConfig;
     }
 }
