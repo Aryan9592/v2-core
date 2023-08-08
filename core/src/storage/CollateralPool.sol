@@ -52,6 +52,11 @@ library CollateralPool {
     error UninitiatedMergeProposal(uint128 childId, uint128 actualProposedParentId, uint128 parentId);
 
     /**
+     * @dev Thrown when some address tries to act as the owner of the collateral pool.
+     */
+    error Unauthorized(address owner);
+
+    /**
      * @notice Emitted when the collateral pool is created or updated
      */
     event CollateralPoolUpdated(uint128 id, uint128 rootId, RiskConfiguration riskConfig, uint256 blockTimestamp);
@@ -264,5 +269,11 @@ library CollateralPool {
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
 
         emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, block.timestamp);
+    }
+
+    function onlyOwner(Data storage self) internal view {
+        if (msg.sender != self.owner) {
+            revert Unauthorized(msg.sender);
+        }
     }
 }

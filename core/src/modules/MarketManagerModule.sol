@@ -52,8 +52,6 @@ contract MarketManagerModule is IMarketManagerModule {
      * @inheritdoc IMarketManagerModule
      */
     function registerMarket(address marketManager, string memory name) external override returns (uint128 marketId) {
-        // todo: think of the access control of registering market
-
         if (!ERC165Helper.safeSupportsInterface(marketManager, type(IMarketManager).interfaceId)) {
             revert IncorrectMarketInterface(marketManager);
         }

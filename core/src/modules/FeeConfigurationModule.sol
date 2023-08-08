@@ -12,6 +12,7 @@ import "../interfaces/IFeeConfigurationModule.sol";
 import "../storage/Market.sol";
 
 contract FeeConfigurationModule is IFeeConfigurationModule {
+    using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
 
     /**
@@ -26,8 +27,9 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
      * @inheritdoc IFeeConfigurationModule
      */
     function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
-        // todo: check for collateral pool owner
-        Market.exists(marketId).setProtocolFeeConfiguration(config);
+        Market.Data storage market = Market.exists(marketId);
+        market.getCollateralPool().onlyOwner();
+        market.setProtocolFeeConfiguration(config);
     }
 
     /**
