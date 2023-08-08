@@ -14,7 +14,7 @@ import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { mulUDxUint, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUDx, divIntUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 import "./OracleManager.sol";
@@ -169,12 +169,12 @@ library CollateralConfiguration {
      */
     function getCollateralInUSD(
         Data storage self,
-        uint256 collateralAmount
-    ) internal view returns (uint256) {
+        int256 collateralAmount
+    ) internal view returns (int256) {
         uint8 decimals = self.cachedConfig.tokenDecimals;
 
-        uint256 collateralAmountWad = changeDecimals(collateralAmount, decimals, 18);
-        return mulUDxUint(self.getCollateralPriceInUSD(), collateralAmountWad);
+        int256 collateralAmountWad = changeDecimals(collateralAmount, decimals, 18);
+        return mulUDxInt(self.getCollateralPriceInUSD(), collateralAmountWad);
     }
 
     /**
@@ -187,7 +187,10 @@ library CollateralConfiguration {
         Data storage self,
         uint256 collateralAmount
     ) internal view returns (uint256) {
-        return mulUDxUint(self.config.weight, self.getCollateralInUSD(collateralAmount));
+        return mulUDxUint(
+            self.config.weight,
+            self.getCollateralInUSD(collateralAmount.toInt()).toUint()
+        );
     }
 
     /**
@@ -198,11 +201,11 @@ library CollateralConfiguration {
      */
     function getUSDInCollateral(
         Data storage self,
-        uint256 usdAmount
-    ) internal view returns (uint256) {
+        int256 usdAmount
+    ) internal view returns (int256) {
         uint8 decimals = self.cachedConfig.tokenDecimals;
 
-        uint256 collateralAmountWad = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
+        int256 collateralAmountWad = divIntUDx(usdAmount, self.getCollateralPriceInUSD());
         return changeDecimals(collateralAmountWad, 18, decimals);
     }
 
@@ -216,10 +219,13 @@ library CollateralConfiguration {
         Data storage self,
         uint256 weightedUsdAmount
     ) internal view returns (uint256) {
-        return divUintUDx(self.getUSDInCollateral(weightedUsdAmount), self.config.weight);
+        return divUintUDx(
+            self.getUSDInCollateral(weightedUsdAmount.toInt()).toUint(),
+            self.config.weight
+        );
     }
 
-    function changeDecimals(uint256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns(uint256) {
+    function changeDecimals(int256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns(uint256) {
         if (fromDecimals < toDecimals) {
             return DecimalMath.upscale(a, toDecimals - fromDecimals);
         }

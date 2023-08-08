@@ -1,7 +1,7 @@
 pragma solidity >=0.8.19;
 
-import {UD60x18, mul as mulUD60x18, div as divUD60x18} from "@prb/math/UD60x18.sol";
-import {SD59x18, mul as mulSD59x18} from "@prb/math/SD59x18.sol";
+import {UD60x18, mul as mulUD60x18, div as divUD60x18, intoSD59x18} from "@prb/math/UD60x18.sol";
+import {SD59x18, mul as mulSD59x18, div as divSD59x18} from "@prb/math/SD59x18.sol";
 import "./SafeCast.sol";
 
 using SafeCastU256 for uint256;
@@ -25,6 +25,16 @@ function mulUDxUint(UD60x18 a, uint256 b) pure returns (uint256) {
 /// @param b denotes the unsigned wad number
 function divUintUDx(uint256 a, UD60x18 b) pure returns (uint256) {
     return UD60x18.unwrap(divUD60x18(UD60x18.wrap(a), b));
+}
+
+/// @notice Divides an signed number by an
+/// unsigned wad number. Result's precision is given by
+/// the signed number's precision.
+/// @param a denotes the signed number whose precision
+/// determines the precision of the result
+/// @param b denotes the unsigned wad number
+function divIntUDx(int256 a, UD60x18 b) pure returns (int256) {
+    return SD59x18.unwrap(divSD59x18(SD59x18.wrap(a), intoSD59x18(b)));
 }
 
 /// @notice Multiplies an unsigned wad number by a

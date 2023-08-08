@@ -59,19 +59,20 @@ contract AutoExchangeModule is IAutoExchangeModule {
         uint256 maxExchangeableAmount_S = getMaxAmountToExchange_S(account, collateralType);
         require(amountToAutoExchange_S <= maxExchangeableAmount_S, "Max auto-exchange"); //todo: custon error
 
-        (uint256 amountToAutoExchange_C, uint256 insuranceFundFee_C) = toUSD(amountToAutoExchange_S)
-            .toCollateralAmount_usingDiscountTwap();
+        // get collateral amount received by the liquidator
+        uint256 amountToAutoExchange_C = 
+            getExchangedCollateralAmount(amountToAutoExchange_S, collateralType, settlemetType);
 
         // transfer settlement tokens from liquidator's account to liquidatable account
         liquidatorAccount.decreaseCollateralBalance(settlemetType, amountToAutoExchange_S);
-        account.increaseCollateralBalance(settlemetType, amountToAutoExchange_S);
+        // subtact insurance fund fee from settlement repayment
+        uint256 insuranceFundFee_S = amountToAutoExchange_S.mul(insuranceFundFee);
+        insuranceFundAccount.increaseCollateralBalance(settlemetType, insuranceFundFee_S);
+        account.increaseCollateralBalance(settlemetType, amountToAutoExchange_S - insuranceFundFee_S);
 
         // transfer discounted collateral tokens from liquidatable account to liquidator's account
         account.decreaseCollateralBalance(collateralType, amountToAutoExchange_C);
         liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchange_C);
-
-        // todo: % to insurance fund
-        Account.exists(insuranceFund).increaseCollateralBalance(insuranceFundFee_C);
     }
 
     /// @dev Returns the maximum amount that can be exchaged, represented in settlement token
@@ -92,14 +93,37 @@ contract AutoExchangeModule is IAutoExchangeModule {
 
         int256 accountCollateralAmount_C = account.getCollateralBalance(collateralType);
 
-        int256 accountValueInSettlementToken_U = toUSD(accountValueInSettlementToken_S * liquidationRatio, settlementToken);
-        int256 accountCollateralAmount_U = toUSD(accountCollateralAmount_C, collateralType);
+        CollateralConfiguration.Data memory settlementConfiguration = 
+            CollateralConfiguration.load(settlementToken);
+        int256 accountValueInSettlementToken_U = settlementConfiguration
+            .getCollateralInUSD(accountValueInSettlementToken_S * liquidationRatio);
+        
+        
+        int256 accountCollateralAmount_U = CollateralConfiguration.load(collateralType)
+            .getCollateralInUSD(accountCollateralAmount_C);
 
         if (accountValueInSettlementToken_U > accountCollateralAmount_U) {
-            return toSettlementToken(accountCollateralAmount_U);
+            return settlementConfiguration.getUSDInCollateral(accountCollateralAmount_U);
         }
 
         return accountValueInSettlementToken_S * liquidationRatio;
+    }
+
+    function getExchangedCollateralAmount(
+        uint265 amount_S,
+        address collateralType,
+        address settlementType
+    ) public returns (uint256 discountedAmount_C) {
+        int256 amountToAutoExchange_U = CollateralConfiguration.load(settlementType)
+            .getCollateralInUSD(amountToAutoExchange_S);
+        int256 amountToAutoExchange_S = CollateralConfiguration.load(collateralType)
+            .getUSDInCollateral(amountToAutoExchange_U);
+
+        // apply discount
+        discountedAmount_C = divUintUDx(
+            amountToAutoExchange_S, 
+            ONE.sub(CollateralConfiguration.load(collateralType).autoExchangeDiscount)
+        );
     }
 
 }

@@ -21,6 +21,7 @@ library AccountExposure {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
