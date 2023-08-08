@@ -337,44 +337,48 @@ library Account {
     // todo: needs implementation -> within this need to take into account product -> market changes
     function isEligibleForAutoExchange(Data storage self, address settlementType) internal view returns (bool) {
 
-        if(!isMultiToken) {
+        if(!self.accountMode == SINGLE_TOKEN_MODE) {
             return false;
         }
 
-        int256 accountValueInToken = self.getAccountValueInToken(settlementType);
+        int256 accountValueBySettlementType = self.getAccountValueByCollateralType(settlementType);
 
-        if (accountValueInToken > 0) {
+        if (accountValueBySettlementType > 0) {
             return false;
         }
 
+        // todo
         uint256 singleAutoExchangeThreshold = 
             CollateralConfiguration.load(settlementType).singleAutoExchangeThreshold;
 
-        if ((-accountValueInToken).toUint() > singleAutoExchangeThreshold) {
+        if ((-accountValueBySettlementType).toUint() > singleAutoExchangeThreshold) {
             return true;
         }
 
-        int256 sumOfNegativeProfiles_U = 0;
+        int256 sumOfNegativeAccountValues_U = 0;
         int256 totalAccountValue_U = 0;
         for (uint256 i = 1; i <= activeQuoteTokens.length(); i++) {
-            int256 accountValueInToken = self.getAccountValueInToken(activeQuoteTokens.valueAt(i));
-            int256 accountValueInToken_U = toUSD(accountValueInToken); // todo: define toUSD
-            if (accountValueInToken < 0) {
-                sumOfNegativeProfiles_U += accountValueInToken_U;
+            address collateralType = activeQuoteTokens.valueAt(i);
+            int256 accountValueByCollateralType = self.getAccountValueByCollateralType(activeQuoteTokens.valueAt(i));
+
+            int256 accountValueByCollateralType_U = CollateralConfiguration.load(collateralType)
+                .getCollateralInUSD(accountValueByCollateralType);
+            if (accountValueByCollateralType < 0) {
+                sumOfNegativeAccountValues_U += accountValueByCollateralType_U;
             }
-            totalAccountValue_U += accountValueInToken_U;
+            totalAccountValue_U += accountValueByCollateralType_U;
         }
         
         // todo: define multiAutoExchangeThreshold in collateral pool settings?
         uint256 multiAutoExchangeThreshold = 0;
-        if ((-sumOfNegativeProfiles_U).toUint() > multiAutoExchangeThreshold) {
+        if ((-sumOfNegativeAccountValues_U).toUint() > multiAutoExchangeThreshold) {
             return true;
         }
 
         // todo: define relativeAutoExchangeThreashold in collateral pool settings?
         uint256 relativeAutoExchangeThreashold = 0;
         if (
-            (-sumOfNegativeProfiles_U).toUint() > 
+            (-sumOfNegativeAccountValues_U).toUint() > 
             relativeAutoExchangeThreashold * totalAccountValue_U.toUint()
         ) {
             return true;
@@ -383,13 +387,14 @@ library Account {
         return false;
     }
 
-    function getAccountValueInToken(
+    // todo: include realized PnL and replace unrealized loss with unrealized PnL
+    function getAccountValueByCollateralType(
         Data storage self,
         uint128 collateralType
-    ) external override returns (int256) {
-        int256 unrealizedPnL = 0;
-        int256 realizedPnL = 0;
-        return self.getCollateralBalance(collateralType) + realizedPnL + unrealizedPnL;
+    ) external override returns (int256 accountValue) {
+        (, uint256 highestUnrealizedLoss) = AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
+
+        accountValue = self.getCollateralBalance(collateralType).toInt() - highestUnrealizedLoss.toInt();
     }
 
 
@@ -410,14 +415,5 @@ library Account {
             uint128 marketId = markets.valueAt(i).to128();
             Market.exists(marketId).closeAccount(self.id);
         }
-    }
-
-    function isEligibleForAutoExchange(Data storage self) internal view returns (bool) {
-
-        // note, only applies to multi-token accounts
-        // todo: needs to be exposed via e.g. the account module
-        // todo: needs implementation -> within this need to take into account product -> market changes
-
-        return false;
     }
 }
