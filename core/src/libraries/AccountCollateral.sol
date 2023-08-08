@@ -96,10 +96,24 @@ library AccountCollateral {
         emit AccountCollateralUpdated(self.id, collateralType, -amount.toInt(), block.timestamp);
     }
 
+    /**
+     * @dev Given a collateral type, returns information about the collateral balance of the account
+     */
+    function getCollateralBalance(Account.Data storage self, address collateralType)
+        internal
+        view
+        returns (uint256)
+    {
+        return self.collateralBalances[collateralType];
+    }
+
+    /**
+     * @dev Returns the total weighted collateral in USD
+     */
     function getWeightedCollateralBalanceInUSD(Account.Data storage self) 
-    internal 
-    view
-    returns (uint256 weightedCollateralBalanceInUSD) 
+        internal 
+        view
+        returns (uint256 weightedCollateralBalanceInUSD) 
     {
         for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
             address collateralType = self.activeCollaterals.valueAt(i);

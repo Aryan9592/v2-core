@@ -43,6 +43,9 @@ library AccountMode {
         emit AccountModeUpdated(self.id, accountMode, block.timestamp);
     }
 
+    /**
+     * @dev Changes the account mode.
+     */
     function changeAccountMode(Account.Data storage self, bytes32 newAccountMode) internal {
         setAccountMode(self, newAccountMode);
     

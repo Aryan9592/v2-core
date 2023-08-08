@@ -70,6 +70,9 @@ library AccountRBAC {
         uint256 blockTimestamp
     );
 
+    /**
+     * @dev Sets the owner of the account.
+     */
     function setOwner(Account.Data storage self, address owner) internal {
         self.rbac.owner = owner;
 
@@ -85,6 +88,9 @@ library AccountRBAC {
         }
     }
 
+    /**
+     * @dev Grants a particular permission to the specified target address.
+     */
     function grantPermission(Account.Data storage self, bytes32 permission, address target) internal {
         if (target == address(0)) {
             revert AddressError.ZeroAddress();
@@ -101,6 +107,9 @@ library AccountRBAC {
         emit AccountPermissionGranted(self.id, permission, target, msg.sender, block.timestamp);
     }
 
+    /**
+     * @dev Revokes a particular permission from the specified target address.
+     */
     function revokePermission(Account.Data storage self, bytes32 permission, address target) internal {
         checkPermissionIsValid(permission);
 
@@ -113,6 +122,10 @@ library AccountRBAC {
         emit AccountPermissionRevoked(self.id, permission, target, msg.sender, block.timestamp);
     }
 
+    /**
+     * @dev Revokes all permissions for the specified target address.
+     * @notice only removes permissions for the given address, not for the entire account
+     */
     function revokeAllPermissions(Account.Data storage self, address target) internal {
         bytes32[] memory permissions = self.rbac.permissions[target].values();
 
@@ -129,12 +142,18 @@ library AccountRBAC {
         self.rbac.permissionAddresses.remove(target);
     }
 
+    /**
+     * @dev Returns wether the specified address has the given permission.
+     */
     function hasPermission(Account.Data storage self, bytes32 permission, address target) internal view returns (bool) {
         checkPermissionIsValid(permission);
 
         return target != address(0) && self.rbac.permissions[target].contains(permission);
     }
 
+    /**
+     * @dev Returns wether the specified target address has the given permission, or has the high level admin permission.
+     */
     function authorized(Account.Data storage self, bytes32 permission, address target) internal view returns (bool) {
         checkPermissionIsValid(permission);
 
