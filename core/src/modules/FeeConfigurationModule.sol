@@ -29,7 +29,7 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
         Market.Data storage market = Market.exists(marketId);
         market.getCollateralPool().onlyOwner();
-        market.setProtocolFeeConfiguration(config);
+        market.setCollateralPoolFeeConfiguration(config);
     }
 
     /**
