@@ -338,7 +338,6 @@ library Account {
         }
     }
 
-    // todo: needs to be exposed via e.g. the account module
     // todo: needs implementation -> within this need to take into account product -> market changes
     function isEligibleForAutoExchange(Data storage self, address settlementType) internal view returns (bool) {
 
@@ -363,19 +362,18 @@ library Account {
         int256 totalAccountValue_U;
         for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
             address collateralType = self.activeQuoteTokens.valueAt(i);
-            int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
-
-            uint256 accountValueByCollateralType_U = CollateralConfiguration.load(collateralType)
-                .getCollateralInUSD(
-                    accountValueByCollateralType > 0 ? 
-                        accountValueByCollateralType.toUint() :
-                        (-accountValueByCollateralType).toUint()
-                );
-            if (accountValueByCollateralType < 0) {
-                sumOfNegativeAccountValues_U += accountValueByCollateralType_U;
-                totalAccountValue_U -= accountValueByCollateralType_U.toInt();
-            } else {
-                totalAccountValue_U += accountValueByCollateralType_U.toInt();
+            int256 accountValueByCollateralType_U = self.getAccountValueByCollateralType_U(collateralType);
+            sumOfNegativeAccountValues_U += accountValueByCollateralType_U < 0 ?
+                (-accountValueByCollateralType_U).toUint() : 0;
+            totalAccountValue_U += accountValueByCollateralType_U;
+        }
+        // note: activeQuoteTokens does not include collateral tokens 
+        // that are not collaterals of active markets. These feed into the totalAccountValue_U
+        for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
+            address collateralType = self.activeCollaterals.valueAt(i);
+            if (!self.activeQuoteTokens.contains(collateralType)) {
+                int256 accountValueByCollateralType_U = self.getAccountValueByCollateralType_U(collateralType);
+                totalAccountValue_U += accountValueByCollateralType_U;
             }
         }
         
@@ -402,6 +400,23 @@ library Account {
         (, uint256 highestUnrealizedLoss) = AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
         accountValue = self.getCollateralBalance(collateralType).toInt() - highestUnrealizedLoss.toInt();
+    }
+
+    function getAccountValueByCollateralType_U(
+        Data storage self,
+        address collateralType
+    ) internal view returns (int256) {
+        int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
+
+        uint256 accountValueByCollateralType_U = CollateralConfiguration.load(collateralType)
+            .getCollateralInUSD(
+                accountValueByCollateralType > 0 ? 
+                    accountValueByCollateralType.toUint() :
+                    (-accountValueByCollateralType).toUint()
+            );
+
+        return accountValueByCollateralType > 0 ? accountValueByCollateralType_U.toInt() :
+            -accountValueByCollateralType_U.toInt();
     }
 
 
