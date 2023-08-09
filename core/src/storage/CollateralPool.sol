@@ -8,7 +8,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 
 pragma solidity >=0.8.19;
 
+import {UD60x18} from "@prb/math/UD60x18.sol";
+
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -16,6 +19,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 library CollateralPool {
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
+    using SetUtil for SetUtil.AddressSet;
 
     /**
      * @dev Thrown when a collateral pool cannot be found
@@ -33,57 +37,99 @@ library CollateralPool {
     error InsufficientCollateralInCollateralPool(uint256 requestedAmount);
 
     /**
+     * @dev Thrown when a merge proposal is initiated between one pool and itself.
+     */
+    error CannotMergePoolWithItself(uint128 id);
+
+    /**
      * @dev Thrown when an action is performed on a collateral pool that is already merged.
      */
     error InactiveCollateralPool(uint128 id);
 
     /**
-     * @notice Emitted when the collateral pool is created or updated
-     * @param id The id of the collateral pool.
-     * @param rootId The id of the root collateral pool.
+     * @dev Thrown when parent tries to accept non-existent or revoked merge proposal.
      */
-    event CollateralPoolUpdated(uint128 id, uint128 rootId);
+    error UninitiatedMergeProposal(uint128 childId, uint128 actualProposedParentId, uint128 parentId);
+
+    /**
+     * @dev Thrown when some address tries to act as the owner of the collateral pool.
+     */
+    error Unauthorized(address owner);
+
+    /**
+     * @notice Emitted when the collateral pool is created or updated
+     */
+    event CollateralPoolUpdated(uint128 id, uint128 rootId, RiskConfiguration riskConfig, uint256 blockTimestamp);
     
     /**
      * @notice Emitted when the collateral pool balance of some particular collateral type is updated.
      */
-    event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount);
+    event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount, uint256 blockTimestamp);
+
+    struct RiskConfiguration {
+        /**
+         * @dev IM Multiplier is used to introduce a buffer between the liquidation (LM) and initial (IM) margin requirements
+         * where IM = imMultiplier * LM
+         */
+        UD60x18 imMultiplier;
+        /**
+         * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward
+         * amount
+         */
+        UD60x18 liquidatorRewardParameter;
+    }
 
     struct Data {
         /**
          * @dev Collateral pool Id
          */
         uint128 id;
-
         /**
-        * @dev Address set of collaterals alongside net balances that are held by the collateral pool
+         * @dev Owner of the collateral pool, which has configuration access rights 
+         * for the collateral pool and underlying markets configuration.
+         */
+        address owner;
+        /**
+         * @dev Address set of collaterals alongside net balances that are held by the collateral pool
          */
         mapping(address => uint256) collateralBalances;
-
+        /**
+         * @dev Addresses of all collateral types in which the collateral pool has a non-zero balance
+         */
+        SetUtil.AddressSet activeCollaterals;
         /**
          * @dev Root collateral pool ID
-        */
+         */
         uint128 rootId;
+        /**
+         * @dev Collateral pool wide risk configuration 
+         */
+        RiskConfiguration riskConfig;
+        /**
+         * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
+         */
+        uint128 proposedParentId;
     }
 
     /**
      * @dev Creates an collateral pool for the given id
      */
-    function create(uint128 id) internal returns(Data storage collateralPool) {
+    function create(uint128 id, address owner) internal returns(Data storage collateralPool) {
         if (id == 0) {
             revert CollateralPoolAlreadyExists(id);
         }
 
         collateralPool = load(id);
         
-        if (collateralPool.id > 0) {
+        if (collateralPool.id != 0) {
             revert CollateralPoolAlreadyExists(id);
         }
 
         collateralPool.id = id;
+        collateralPool.owner = owner;
         collateralPool.rootId = id;
 
-        emit CollateralPoolUpdated(id, id);
+        emit CollateralPoolUpdated(id, id, collateralPool.riskConfig, block.timestamp);
     }
 
     function exists(uint128 id) internal view returns (Data storage collateralPool) {
@@ -92,6 +138,43 @@ library CollateralPool {
         if (collateralPool.id == 0) {
             revert CollateralPoolNotFound(id);
         }
+    }
+
+    function initiateMergeProposal(Data storage self, uint128 parentId) internal {
+        if (self.id == parentId) {
+            revert CannotMergePoolWithItself(self.id);
+        }
+
+        self.proposedParentId = parentId;
+    }
+
+    function acceptMergeProposal(Data storage self, uint128 childId) internal {
+        CollateralPool.Data storage child = exists(childId);
+
+        if (child.proposedParentId != self.id) {
+            revert UninitiatedMergeProposal(self.id, child.proposedParentId, childId);
+        }
+        
+        self.merge(child);
+    }
+
+    function revokeMergeProposal(Data storage self) internal {
+        self.proposedParentId = 0;
+    }
+
+    function merge(Data storage parent, Data storage child) internal {
+        parent.checkRoot();
+        child.checkRoot();
+
+        for (uint256 i = 1; i <= child.activeCollaterals.length(); i++) {
+            address activeCollateral = child.activeCollaterals.valueAt(i);
+
+            parent.increaseCollateralBalance(activeCollateral, child.collateralBalances[activeCollateral]);
+        }
+
+        child.rootId = parent.id;
+
+        emit CollateralPoolUpdated(child.id, child.rootId, child.riskConfig, block.timestamp);
     }
 
     function checkRoot(Data storage self) internal view {
@@ -103,24 +186,7 @@ library CollateralPool {
     /**
      * @dev Returns the root collateral pool of any collateral pool.
      */
-    function getRoot(uint128 id) internal returns (Data storage collateralPool) {
-        Data storage self = exists(id);
-        Data storage root = self;
-
-        while (root.rootId != root.id) {
-            root = load(root.id);
-        }
-
-        self.rootId = root.id;
-        emit CollateralPoolUpdated(self.id, self.rootId);
-
-        return root;
-    }
-
-    /**
-     * @dev Returns the root collateral pool of any collateral pool but it does not propagate.
-     */
-    function getRootWithoutPropagation(uint128 id) internal view returns (Data storage collateralPool) {
+    function getRoot(uint128 id) internal view returns (Data storage collateralPool) {
         Data storage root = exists(id);
 
         while (root.rootId != root.id) {
@@ -160,7 +226,14 @@ library CollateralPool {
 
         self.collateralBalances[collateralType] += amount;
 
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, amount.toInt());
+        // add the collateral type to the active collaterals if missing
+        if (self.collateralBalances[collateralType] > 0) {
+            if (!self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.add(collateralType);
+            }
+        }
+
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, amount.toInt(), block.timestamp);
     }
 
     /**
@@ -175,7 +248,32 @@ library CollateralPool {
 
         self.collateralBalances[collateralType] -= amount;
 
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, -amount.toInt());
+        // remove the collateral type from the active collaterals if balance goes to zero
+        if (self.collateralBalances[collateralType] == 0) {
+            if (self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.remove(collateralType);
+            }
+        }
+
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, -amount.toInt(), block.timestamp);
     }
 
+    /**
+     * @dev Set the collateral pool wide risk configuration
+     * @param config The ProtocolRiskConfiguration object with all the protocol-wide risk parameters
+     */
+    function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
+        self.checkRoot();
+
+        self.riskConfig.imMultiplier = config.imMultiplier;
+        self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
+
+        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, block.timestamp);
+    }
+
+    function onlyOwner(Data storage self) internal view {
+        if (msg.sender != self.owner) {
+            revert Unauthorized(msg.sender);
+        }
+    }
 }

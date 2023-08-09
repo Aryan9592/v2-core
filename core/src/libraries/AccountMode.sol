@@ -18,7 +18,7 @@ library AccountMode {
     using Account for Account.Data;
     using SetUtil for SetUtil.AddressSet;
 
-    error UnknwonAccountMode(uint8 accountMode);
+    error UnknwonAccountMode(bytes32 accountMode);
 
     /**
      * @notice Emitted when the account mode is switched.
@@ -26,9 +26,9 @@ library AccountMode {
      * @param accountMode The new mode of the account.
      * @param blockTimestamp The current block timestamp.
      */
-    event AccountModeUpdated(uint128 indexed accountId, uint8 accountMode, uint256 blockTimestamp);
+    event AccountModeUpdated(uint128 indexed accountId, bytes32 accountMode, uint256 blockTimestamp);
 
-    function checkAccountMode(uint8 accountMode) internal {
+    function checkAccountMode(bytes32 accountMode) internal pure {
         if (accountMode == Account.SINGLE_TOKEN_MODE || accountMode == Account.MULTI_TOKEN_MODE) {
             return;
         }
@@ -36,14 +36,17 @@ library AccountMode {
         revert UnknwonAccountMode(accountMode);
     }
     
-    function setAccountMode(Account.Data storage self, uint8 accountMode) internal {
+    function setAccountMode(Account.Data storage self, bytes32 accountMode) internal {
         checkAccountMode(accountMode);
         self.accountMode = accountMode;
 
         emit AccountModeUpdated(self.id, accountMode, block.timestamp);
     }
 
-    function changeAccountMode(Account.Data storage self, uint8 newAccountMode) internal {
+    /**
+     * @dev Changes the account mode.
+     */
+    function changeAccountMode(Account.Data storage self, bytes32 newAccountMode) internal {
         setAccountMode(self, newAccountMode);
     
         if (newAccountMode == Account.SINGLE_TOKEN_MODE) {

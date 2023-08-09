@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 import "../interfaces/IMarketManagerIRSModule.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
-import "@voltz-protocol/core/src/storage/AccountRBAC.sol";
 import "../storage/Portfolio.sol";
 import "../storage/MarketConfiguration.sol";
 import "../storage/MarketManagerConfiguration.sol";
@@ -41,7 +40,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         (executedBaseAmount, executedQuoteAmount) =
@@ -101,7 +100,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         address poolAddress = MarketManagerConfiguration.getPoolAddress();
@@ -158,7 +157,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         if (
-            !IAccountModule(coreProxy).isAuthorized(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender)
+            !IAccountModule(coreProxy).isAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender)
                 && msg.sender != MarketManagerConfiguration.getCoreProxyAddress()
         ) {
             revert NotAuthorized(msg.sender, "closeAccount");

@@ -108,7 +108,8 @@ contract ConfigProtocol is SetupProtocol {
       pausers: pausers
     });
 
-    configureProtocol({
+    configureCollateralPool({
+      collateralPoolId: 1,
       imMultiplier: ud60x18(1.5e18),
       liquidatorRewardParameter: ud60x18(0.05e18),
       feeCollectorAccountId: 999
@@ -215,7 +216,8 @@ contract ConfigProtocol is SetupProtocol {
       pausers: pausers
     });
 
-    configureProtocol({
+    configureCollateralPool({
+      collateralPoolId: 1,
       imMultiplier: ud60x18(1.5e18),
       liquidatorRewardParameter: ud60x18(0.05e18),
       feeCollectorAccountId: 999
@@ -296,7 +298,8 @@ contract ConfigProtocol is SetupProtocol {
     enableFeatureFlags({
       pausers: pausers
     });
-    configureProtocol({
+    configureCollateralPool({
+      collateralPoolId: 1,
       imMultiplier: ud60x18(2e18),
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999

@@ -10,27 +10,42 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "./AccountRBAC.sol";
 import "./Market.sol";
 
 import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
 import "../libraries/AccountMode.sol";
+import "../libraries/AccountRBAC.sol";
+
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
     using Account for Account.Data;
-    using AccountRBAC for AccountRBAC.Data;
     using Market for Market.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
-    uint8 constant public SINGLE_TOKEN_MODE = 1;
-    uint8 constant public MULTI_TOKEN_MODE = 2;
+    /**
+     * @dev All account permissions used by the system
+     * need to be hardcoded here.
+     */
+    bytes32 internal constant ADMIN_PERMISSION = "ADMIN";
+
+    /**
+     * @dev All account modes used by the system
+     * need to be hardcoded here.
+     */
+    bytes32 constant public SINGLE_TOKEN_MODE = "SINGLE_TOKEN_MODE";
+    bytes32 constant public MULTI_TOKEN_MODE = "MULTI_TOKEN_MODE";
+
+    /**
+     * @dev Thrown when an account is already created
+     */
+    error AccountAlreadyExists(uint128 id);
 
     /**
      * @dev Thrown when the given target address does not own the given account.
@@ -48,23 +63,52 @@ library Account {
      */
     error AccountNotFound(uint128 accountId);
 
+    /**
+     * @dev Structure for tracking margin requirement information.
+     */
     struct MarginRequirement {
         bool isIMSatisfied;
         bool isLMSatisfied;
         uint256 initialMarginRequirement;
         uint256 liquidationMarginRequirement;
         uint256 highestUnrealizedLoss;
+        uint256 availableCollateralBalance;
+        address collateralType;
     }
 
+    /**
+     * @dev Structure for tracking one-side market exposure.
+     */
     struct MarketExposure {
         int256 annualizedNotional;
         // note, in context of dated irs with the current accounting logic it also includes accruedInterest
         uint256 unrealizedLoss;
     }
 
+    /**
+     * @dev Structure for tracking maker (two-side) market exposure.
+     */
     struct MakerMarketExposure {
         MarketExposure lower;
         MarketExposure upper;
+    }
+
+    /**
+     * @dev Structure for tracking access control for the account.
+     */
+    struct RBAC {
+        /**
+         * @dev The owner of the account
+         */
+        address owner;
+        /**
+         * @dev Set of permissions for each address enabled by the account.
+         */
+        mapping(address => SetUtil.Bytes32Set) permissions;
+        /**
+         * @dev Array of addresses that this account has given permissions to.
+         */
+        SetUtil.AddressSet permissionAddresses;
     }
 
     struct Data {
@@ -77,7 +121,7 @@ library Account {
         /**
          * @dev Role based access control data for the account.
          */
-        AccountRBAC.Data rbac;
+        RBAC rbac;
     
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
@@ -105,12 +149,9 @@ library Account {
         uint128 firstMarketId;
 
         /**
-         * @dev If this boolean is set to true then the account is able to cross-collateral margin
-         * @dev If this boolean is set to false then the account uses a single-token mode
-         * @dev Single token mode means the account has a separate health factor for each collateral type
+         * @dev Account mode (i.e. single-token or multi-token mode)
          */
-        // todo: should we change this from boolean to something more general? What if we're gonna have some other mode? 
-        uint8 accountMode;
+        bytes32 accountMode;
 
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
@@ -119,21 +160,27 @@ library Account {
 
     /**
      * @dev Creates an account for the given id, and associates it to the given owner.
-     *
-     * Note: Will not fail if the account already exists, and if so, will overwrite the existing owner.
-     *  Whatever calls this internal function must first check that the account doesn't exist before re-creating it.
      */
-    function create(uint128 id, address owner, uint8 accountMode) 
+    function create(uint128 id, address owner, bytes32 accountMode) 
         internal 
         returns (Data storage account) 
     {
-        // Disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
-        require(id != 0);
+        // disallowing account ID 0 means we can use a non-zero accountId as an existence flag in structs like Position
+        if (id == 0) {
+            revert AccountAlreadyExists(id);
+        }
 
+        // load the account data
         account = load(id);
 
+        // if the account id is non-zero, it means that the account has already been created
+        if (account.id != 0) {
+            revert AccountAlreadyExists(id);
+        }
+
+        // set the account details
         account.id = id;
-        account.rbac.setOwner(owner);
+        account.setOwner(owner);
         AccountMode.setAccountMode(account, accountMode);
     }
 
@@ -141,7 +188,10 @@ library Account {
      * @dev Returns the account stored at the specified account id.
      */
     function load(uint128 id) internal pure returns (Data storage account) {
-        require(id != 0);
+        if (id == 0) {
+            revert AccountNotFound(id);
+        }
+
         bytes32 s = keccak256(abi.encode("xyz.voltz.Account", id));
         assembly {
             account.slot := s
@@ -153,7 +203,9 @@ library Account {
      */
     function exists(uint128 id) internal view returns (Data storage account) {
         Data storage a = load(id);
-        if (a.rbac.owner == address(0)) {
+
+        // if the account id is zero, it means that the account has not been created yet
+        if (a.id == 0) {
             revert AccountNotFound(id);
         }
 
@@ -162,10 +214,7 @@ library Account {
 
     /**
      * @dev Loads the Account object for the specified accountId,
-     * and validates that sender has the specified permission. It also resets
-     * the interaction timeout. These are different actions but they are merged
-     * in a single function because loading an account and checking for a
-     * permission is a very common use case in other parts of the code.
+     * and validates that sender has the specified permission.
      */
     function loadAccountAndValidateOwnership(uint128 accountId, address senderAddress)
         internal
@@ -180,10 +229,7 @@ library Account {
 
     /**
      * @dev Loads the Account object for the specified accountId,
-     * and validates that sender has the specified permission. It also resets
-     * the interaction timeout. These are different actions but they are merged
-     * in a single function because loading an account and checking for a
-     * permission is a very common use case in other parts of the code.
+     * and validates that sender has the specified permission.
      */
     function loadAccountAndValidatePermission(uint128 accountId, bytes32 permission, address senderAddress)
         internal
@@ -191,58 +237,74 @@ library Account {
         returns (Data storage account)
     {
         account = Account.load(accountId);
-        if (!account.rbac.authorized(permission, senderAddress)) {
+        if (!account.authorized(permission, senderAddress)) {
             revert PermissionDenied(accountId, senderAddress);
         }
     }
 
+    function setOwner(Data storage self, address owner) internal {
+        AccountRBAC.setOwner(self, owner);
+    }
+
+    function grantPermission(Data storage self, bytes32 permission, address target) internal {
+        AccountRBAC.grantPermission(self, permission, target);
+    }
+    
+    function revokePermission(Data storage self, bytes32 permission, address target) internal {
+        AccountRBAC.revokePermission(self, permission, target);
+    }
+    
+    function revokeAllPermissions(Data storage self, address target) internal {
+        AccountRBAC.revokeAllPermissions(self, target);
+    }
+
+    function hasPermission(Data storage self, bytes32 permission, address target) internal view returns (bool) {
+        return AccountRBAC.hasPermission(self, permission, target);
+    }
+    
+    function authorized(Data storage self, bytes32 permission, address target) internal view returns (bool) {
+        return AccountRBAC.authorized(self, permission, target);
+    }
+
     /**
-     * @dev Increments the account's collateral balance.
+     * @dev Returns the root collateral pool of the account
      */
+    function getCollateralPool(Data storage self) internal view returns (CollateralPool.Data storage) {
+        return Market.exists(self.firstMarketId).getCollateralPool();
+    }
+
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
     }
 
-    /**
-     * @dev Decrements the account's collateral balance.
-     */
     function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         AccountCollateral.decreaseCollateralBalance(self, collateralType, amount);
     }
 
-    /**
-     * @dev Given a collateral type, returns information about the collateral balance of the account
-     */
     function getCollateralBalance(Data storage self, address collateralType)
         internal
         view
-        returns (uint256 collateralBalance)
+        returns (uint256)
     {
-        collateralBalance = self.collateralBalances[collateralType];
+        return AccountCollateral.getCollateralBalance(self, collateralType);
     }
 
     function getWeightedCollateralBalanceInUSD(Data storage self) 
         internal 
         view
-        returns (uint256 weightedCollateralBalanceInUSD) 
+        returns (uint256) 
     {
-        weightedCollateralBalanceInUSD = AccountCollateral.getWeightedCollateralBalanceInUSD(self);
+        return AccountCollateral.getWeightedCollateralBalanceInUSD(self);
     }
 
-    /**
-     * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
-     */
-    function getCollateralBalanceAvailable(Data storage self, address collateralType)
+    function getWithdrawableCollateralBalance(Data storage self, address collateralType)
         internal
         view
-        returns (uint256 collateralBalanceAvailable)
+        returns (uint256)
     {
-        collateralBalanceAvailable = AccountCollateral.getCollateralBalanceAvailable(self, collateralType);
+        return AccountCollateral.getWithdrawableCollateralBalance(self, collateralType);
     }
 
-    /**
-     * @dev Marks that the account is active on particular market.
-     */
     function markActiveMarket(Data storage self, address collateralType, uint128 marketId) internal {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
@@ -271,10 +333,7 @@ library Account {
         }
     }
 
-    /**
-     * @dev Changes the account mode.
-     */
-    function changeAccountMode(Data storage self, uint8 newAccountMode) internal {
+    function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
     }
 

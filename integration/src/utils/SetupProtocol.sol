@@ -14,7 +14,7 @@ import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.s
 
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
 import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
-import {ProtocolRiskConfiguration} from "@voltz-protocol/core/src/storage/ProtocolRiskConfiguration.sol";
+import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.sol";
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
@@ -160,17 +160,15 @@ contract SetupProtocol is BatchScript {
     });
   }
 
-  function configureProtocol(
+  function configureCollateralPool(
+    uint128 collateralPoolId,
     UD60x18 imMultiplier,
     UD60x18 liquidatorRewardParameter,
     uint128 feeCollectorAccountId
   ) public {  
-    setPeriphery({
-      peripheryAddress: address(contracts.peripheryProxy)
-    });
-
     configureProtocolRisk(
-      ProtocolRiskConfiguration.Data({
+      collateralPoolId,
+      CollateralPool.RiskConfiguration({
         imMultiplier:imMultiplier,
         liquidatorRewardParameter: liquidatorRewardParameter
       })
@@ -196,7 +194,7 @@ contract SetupProtocol is BatchScript {
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
       accountOwner: metadata.owner,
-      accountMode: 1
+      accountMode: "SINGLE_TOKEN_MODE"
     });
   }
 
@@ -253,18 +251,28 @@ contract SetupProtocol is BatchScript {
       maturityIndexCachingWindowInSeconds: maturityIndexCachingWindowInSeconds
     });
 
-    configureMarketFee(
+    configureProtocolMarketFee(
       marketId,
-      Market.MarketFeeConfiguration({
+      Market.FeeConfiguration({
         feeCollectorAccountId: feeCollectorAccountId,
         atomicMakerFee: atomicMakerFee,
         atomicTakerFee: atomicTakerFee
       })
     );
 
+    // todo: customise this configuration
+    configureCollateralPoolMarketFee(
+      marketId,
+      Market.FeeConfiguration({
+        feeCollectorAccountId: 0,
+        atomicMakerFee: UD60x18.wrap(0),
+        atomicTakerFee: UD60x18.wrap(0)
+      })
+    );
+
     configureMarketRisk(
       marketId,
-      Market.MarketRiskConfiguration({
+      Market.RiskConfiguration({
         riskParameter: riskParameter,
         twapLookbackWindow: twapLookbackWindow
       })
@@ -545,22 +553,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function setPeriphery(address peripheryAddress) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.coreProxy.setPeriphery(peripheryAddress);
-    } else {
-      addToBatch(
-        address(contracts.coreProxy),
-        abi.encodeCall(
-          contracts.coreProxy.setPeriphery,
-          (peripheryAddress)
-        )
-      );
-    }
-  }
-
-  function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) public {
+  function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.coreProxy.configureMarketRisk(marketId, config);
@@ -575,16 +568,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) public {
+  function configureProtocolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureProtocolRisk(config);
+      contracts.coreProxy.configureCollateralPoolRisk(collateralPoolId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
-          contracts.coreProxy.configureProtocolRisk,
-          (config)
+          contracts.coreProxy.configureCollateralPoolRisk,
+          (collateralPoolId, config)
         )
       );
     }
@@ -635,7 +628,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.coreProxy.createAccount(requestedAccountId, accountOwner, accountMode);
@@ -650,15 +643,30 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) public {
+  function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureMarketFee(marketId, config);
+      contracts.coreProxy.configureProtocolMarketFee(marketId, config);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
-          contracts.coreProxy.configureMarketFee,
+          contracts.coreProxy.configureProtocolMarketFee,
+          (marketId, config)
+        )
+      );
+    }
+  }
+
+  function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) public {
+    if (!settings.multisig) {
+      broadcastOrPrank();
+      contracts.coreProxy.configureCollateralPoolMarketFee(marketId, config);
+    } else {
+      addToBatch(
+        address(contracts.coreProxy),
+        abi.encodeCall(
+          contracts.coreProxy.configureCollateralPoolMarketFee,
           (marketId, config)
         )
       );

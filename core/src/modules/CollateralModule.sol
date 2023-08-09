@@ -21,7 +21,6 @@ contract CollateralModule is ICollateralModule {
     using ERC20Helper for address;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
-    using AccountRBAC for AccountRBAC.Data;
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
 
@@ -70,7 +69,7 @@ contract CollateralModule is ICollateralModule {
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account =
-            Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+            Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         account.decreaseCollateralBalance(collateralType, tokenAmount);
 
@@ -96,12 +95,12 @@ contract CollateralModule is ICollateralModule {
     /**
      * @inheritdoc ICollateralModule
      */
-    function getAccountCollateralBalanceAvailable(uint128 accountId, address collateralType)
+    function getAccountWithdrawableCollateralBalance(uint128 accountId, address collateralType)
         external
         override
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        return Account.exists(accountId).getCollateralBalanceAvailable(collateralType);
+        return Account.exists(accountId).getWithdrawableCollateralBalance(collateralType);
     }
 }

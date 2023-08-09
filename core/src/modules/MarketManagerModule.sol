@@ -52,8 +52,6 @@ contract MarketManagerModule is IMarketManagerModule {
      * @inheritdoc IMarketManagerModule
      */
     function registerMarket(address marketManager, string memory name) external override returns (uint128 marketId) {
-        // todo: think of the access control of registering market
-
         if (!ERC165Helper.safeSupportsInterface(marketManager, type(IMarketManager).interfaceId)) {
             revert IncorrectMarketInterface(marketManager);
         }
@@ -69,7 +67,7 @@ contract MarketManagerModule is IMarketManagerModule {
 
     function closeAccount(uint128 marketId, uint128 accountId) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        Account.loadAccountAndValidatePermission(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
         Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
     }
@@ -110,10 +108,18 @@ contract MarketManagerModule is IMarketManagerModule {
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
 
-        fee = distributeFees(
+        uint256 protocolFee = distributeFees(
             accountId, 
-            market.feeConfig.feeCollectorAccountId, 
-            market.feeConfig.atomicTakerFee, 
+            market.protocolFeeConfig.feeCollectorAccountId, 
+            market.protocolFeeConfig.atomicTakerFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 collateralPoolFee = distributeFees(
+            accountId, 
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            market.collateralPoolFeeConfig.atomicTakerFee, 
             collateralType, 
             annualizedNotional
         );
@@ -121,6 +127,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
+        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateMakerOrder(
@@ -134,11 +141,19 @@ contract MarketManagerModule is IMarketManagerModule {
 
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-        
-        fee = distributeFees(
+
+        uint256 protocolFee = distributeFees(
             accountId, 
-            market.feeConfig.feeCollectorAccountId, 
-            market.feeConfig.atomicMakerFee, 
+            market.protocolFeeConfig.feeCollectorAccountId, 
+            market.protocolFeeConfig.atomicMakerFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 collateralPoolFee = distributeFees(
+            accountId, 
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            market.collateralPoolFeeConfig.atomicMakerFee, 
             collateralType, 
             annualizedNotional
         );
@@ -146,6 +161,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
+        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

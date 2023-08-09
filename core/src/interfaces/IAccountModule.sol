@@ -38,50 +38,6 @@ interface IAccountModule {
     event AccountCreated(uint128 indexed accountId, address indexed owner, address indexed trigger, uint256 blockTimestamp);
 
     /**
-     * @notice Emitted when an account token with id `accountId` is transferred to `newOwner`.
-     * @param accountId The id of the account.
-     * @param newOwner The address of the new owner.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AccountOwnerUpdated(
-        uint128 indexed accountId, 
-        address indexed newOwner,
-        uint256 blockTimestamp
-    );
-
-    /**
-     * @notice Emitted when `user` is granted `permission` by `sender` for account `accountId`.
-     * @param accountId The id of the account that granted the permission.
-     * @param permission The bytes32 identifier of the permission.
-     * @param user The target address to whom the permission was granted.
-     * @param sender The Address that granted the permission.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event PermissionGranted(
-        uint128 indexed accountId,
-        bytes32 indexed permission,
-        address indexed user,
-        address sender,
-        uint256 blockTimestamp
-    );
-
-    /**
-     * @notice Emitted when `user` has `permission` renounced or revoked by `sender` for account `accountId`.
-     * @param accountId The id of the account that has had the permission revoked.
-     * @param permission The bytes32 identifier of the permission.
-     * @param user The target address for which the permission was revoked.
-     * @param sender The address that revoked the permission.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event PermissionRevoked(
-        uint128 indexed accountId,
-        bytes32 indexed permission,
-        address indexed user,
-        address sender,
-        uint256 blockTimestamp
-    );
-
-    /**
      * @dev Data structure for tracking each user's permissions.
      */
     struct AccountPermissions {
@@ -115,7 +71,7 @@ interface IAccountModule {
      *
      * Emits a {AccountCreated} event.
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner, uint8 accountMode) external;
+    function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) external;
 
     /**
      * @notice Called by AccountTokenModule to notify the system when the account token is transferred.
@@ -139,7 +95,7 @@ interface IAccountModule {
      *
      * - `msg.sender` must own the account token with ID `accountId` or have the "admin" permission.
      *
-     * Emits a {PermissionGranted} event.
+     * Emits a {AccountPermissionGranted} event.
      */
     function grantPermission(uint128 accountId, bytes32 permission, address user) external;
 
@@ -153,7 +109,7 @@ interface IAccountModule {
      *
      * - `msg.sender` must own the account token with ID `accountId` or have the "admin" permission.
      *
-     * Emits a {PermissionRevoked} event.
+     * Emits a {AccountPermissionRevoked} event.
      */
     function revokePermission(uint128 accountId, bytes32 permission, address user) external;
 
@@ -162,7 +118,7 @@ interface IAccountModule {
      * @param accountId The id of the account whose permission was renounced.
      * @param permission The bytes32 identifier of the permission.
      *
-     * Emits a {PermissionRevoked} event.
+     * Emits a {AccountPermissionRevoked} event.
      */
     function renouncePermission(uint128 accountId, bytes32 permission) external;
 

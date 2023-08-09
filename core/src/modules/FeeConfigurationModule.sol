@@ -12,25 +12,47 @@ import "../interfaces/IFeeConfigurationModule.sol";
 import "../storage/Market.sol";
 
 contract FeeConfigurationModule is IFeeConfigurationModule {
+    using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
 
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function configureMarketFee(uint128 marketId, Market.MarketFeeConfiguration memory config) external override {
+    function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
         OwnableStorage.onlyOwner();
-        Market.exists(marketId).setFeeConfiguration(config);
+        Market.exists(marketId).setProtocolFeeConfiguration(config);
     }
 
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function getMarketFeeConfiguration(uint128 marketId)
+    function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
+        Market.Data storage market = Market.exists(marketId);
+        market.getCollateralPool().onlyOwner();
+        market.setCollateralPoolFeeConfiguration(config);
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
+    function getProtocolMarketFeeConfiguration(uint128 marketId)
         external
         view
         override
-        returns (Market.MarketFeeConfiguration memory config)
+        returns (Market.FeeConfiguration memory config)
     {
-        return Market.exists(marketId).feeConfig;
+        return Market.exists(marketId).protocolFeeConfig;
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
+    function getCollateralPoolMarketFeeConfiguration(uint128 marketId)
+        external
+        view
+        override
+        returns (Market.FeeConfiguration memory config)
+    {
+        return Market.exists(marketId).collateralPoolFeeConfig;
     }
 }

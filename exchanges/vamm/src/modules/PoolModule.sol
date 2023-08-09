@@ -8,7 +8,6 @@ import "../storage/DatedIrsVamm.sol";
 import "../storage/PoolConfiguration.sol";
 import "@voltz-protocol/products-dated-irs/src/interfaces/IMarketManagerIRSModule.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import "@voltz-protocol/core/src/storage/AccountRBAC.sol";
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -72,7 +71,7 @@ contract PoolModule is IPoolModule {
 
         IAccountModule(
             irsProduct.getCoreProxyAddress()
-        ).onlyAuthorized(accountId, AccountRBAC._ADMIN_PERMISSION, msg.sender);
+        ).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         PoolConfiguration.whenNotPaused();
         

@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import "../interfaces/IRiskConfigurationModule.sol";
 import "../storage/Market.sol";
-import "../storage/ProtocolRiskConfiguration.sol";
+import "../storage/CollateralPool.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
@@ -17,22 +17,25 @@ import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
  * @dev See IRiskConfigurationModule
  */
 contract RiskConfigurationModule is IRiskConfigurationModule {
+    using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
 
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function configureMarketRisk(uint128 marketId, Market.MarketRiskConfiguration memory config) external override {
-        OwnableStorage.onlyOwner();
-        Market.exists(marketId).setRiskConfiguration(config);
+    function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) external override {
+        Market.Data storage market = Market.exists(marketId);
+        market.getCollateralPool().onlyOwner();
+        market.setRiskConfiguration(config);
     }
 
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function configureProtocolRisk(ProtocolRiskConfiguration.Data memory config) external override {
-        OwnableStorage.onlyOwner();
-        ProtocolRiskConfiguration.set(config);
+    function configureCollateralPoolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) external override {
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
+        collateralPool.onlyOwner();
+        collateralPool.setRiskConfiguration(config);
     }
 
     /**
@@ -42,7 +45,7 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
         external
         view
         override
-        returns (Market.MarketRiskConfiguration memory)
+        returns (Market.RiskConfiguration memory)
     {
         return Market.exists(marketId).riskConfig;
     }
@@ -50,7 +53,11 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getProtocolRiskConfiguration() external pure returns (ProtocolRiskConfiguration.Data memory) {
-        return ProtocolRiskConfiguration.load();
+    function getCollateralPoolRiskConfiguration(uint128 collateralPoolId) 
+        external 
+        view 
+        returns (CollateralPool.RiskConfiguration memory) 
+    {
+        return CollateralPool.exists(collateralPoolId).riskConfig;
     }
 }

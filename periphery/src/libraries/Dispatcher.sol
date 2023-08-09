@@ -87,7 +87,7 @@ library Dispatcher {
             // equivalent: abi.decode(inputs, (uint128, uint128, bool))
             // todo: double check the input offsets following changes to the core (IR)
             uint128 requestedId;
-            uint8 accountMode;
+            bytes32 accountMode;
             assembly {
                 requestedId := calldataload(inputs.offset)
                 accountMode := calldataload(add(inputs.offset, 0x40))

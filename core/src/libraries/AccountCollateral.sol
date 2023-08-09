@@ -59,10 +59,10 @@ library AccountCollateral {
             }
         }
 
-        // update the corresponding collateral pool balance
-        Market.exists(self.firstMarketId)
-            .getCollateralPool()
-            .increaseCollateralBalance(collateralType, amount);
+        // update the corresponding collateral pool balance if exists
+        if (self.firstMarketId != 0) {
+            self.getCollateralPool().increaseCollateralBalance(collateralType, amount);
+        }
 
         // emit event
         emit AccountCollateralUpdated(self.id, collateralType, amount.toInt(), block.timestamp);
@@ -88,18 +88,32 @@ library AccountCollateral {
         }
 
         // update the corresponding collateral pool balance
-        Market.exists(self.firstMarketId)
-            .getCollateralPool()
-            .decreaseCollateralBalance(collateralType, amount);
+        if (self.firstMarketId != 0) {
+            self.getCollateralPool().decreaseCollateralBalance(collateralType, amount);
+        }
 
         // emit event
         emit AccountCollateralUpdated(self.id, collateralType, -amount.toInt(), block.timestamp);
     }
 
+    /**
+     * @dev Given a collateral type, returns information about the collateral balance of the account
+     */
+    function getCollateralBalance(Account.Data storage self, address collateralType)
+        internal
+        view
+        returns (uint256)
+    {
+        return self.collateralBalances[collateralType];
+    }
+
+    /**
+     * @dev Returns the total weighted collateral in USD
+     */
     function getWeightedCollateralBalanceInUSD(Account.Data storage self) 
-    internal 
-    view
-    returns (uint256 weightedCollateralBalanceInUSD) 
+        internal 
+        view
+        returns (uint256 weightedCollateralBalanceInUSD) 
     {
         for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
             address collateralType = self.activeCollaterals.valueAt(i);
@@ -116,52 +130,22 @@ library AccountCollateral {
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
-    function getCollateralBalanceAvailable(Account.Data storage self, address collateralType)
+    function getWithdrawableCollateralBalance(Account.Data storage self, address collateralType)
         internal
         view
-        returns (uint256 collateralBalanceAvailable)
+        returns (uint256 withdrawableCollateralBalance)
     {
-        if (self.accountMode == Account.SINGLE_TOKEN_MODE) {
-            // get im and lm requirements and highest unrealized pnl in collateral
-            Account.MarginRequirement memory mr = 
-                self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // get im and lm requirements and highest unrealized pnl in collateral
+        Account.MarginRequirement memory mr = 
+            self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
-            // get the account collateral balance
-            uint256 collateralBalance = self.getCollateralBalance(collateralType);
+        // get the account collateral balance
+        uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
-            if (collateralBalance >= mr.initialMarginRequirement + mr.highestUnrealizedLoss) {
-                // return the available collateral balance
-                collateralBalanceAvailable = collateralBalance - mr.initialMarginRequirement - mr.highestUnrealizedLoss;
-            }
-        }
-
-        if (self.accountMode == Account.MULTI_TOKEN_MODE) {
-            // get im and lm requirements and highest unrealized pnl in USD
-            Account.MarginRequirement memory mrInUSD = 
-                self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
-
-            // get account weighted balance in USD
-            uint256 weightedBalanceInUSD = self.getWeightedCollateralBalanceInUSD();
-
-            // check if there's any available balance in USD
-            if (weightedBalanceInUSD >= mrInUSD.initialMarginRequirement + mrInUSD.highestUnrealizedLoss) {
-                // get the available weighted balance in USD
-                uint256 availableWeightedBalanceInUSD = 
-                    weightedBalanceInUSD - mrInUSD.initialMarginRequirement - mrInUSD.highestUnrealizedLoss;
-
-                // convert weighted balance in USD to collateral
-                uint256 availableAmountInCollateral = 
-                    CollateralConfiguration.load(collateralType).getWeightedUSDInCollateral(availableWeightedBalanceInUSD);
-
-                // get the account collateral balance
-                uint256 collateralBalance = self.getCollateralBalance(collateralType);
-
-                // return the minimum between account collateral balance and available collateral
-                collateralBalanceAvailable = 
-                    (collateralBalance < availableAmountInCollateral) 
-                        ? collateralBalance 
-                        : availableAmountInCollateral;
-            }
-        }
+        // get minimum between account collateral balance and available collateral
+        withdrawableCollateralBalance = 
+            (collateralBalance >= mr.availableCollateralBalance) 
+                ? mr.availableCollateralBalance
+                : collateralBalance;
     }
 }
