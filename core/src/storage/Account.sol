@@ -174,7 +174,7 @@ library Account {
         account = load(id);
 
         // if the account id is non-zero, it means that the account has already been created
-        if (account.id > 0) {
+        if (account.id != 0) {
             revert AccountAlreadyExists(id);
         }
 

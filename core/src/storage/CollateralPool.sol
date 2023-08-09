@@ -121,7 +121,7 @@ library CollateralPool {
 
         collateralPool = load(id);
         
-        if (collateralPool.id > 0) {
+        if (collateralPool.id != 0) {
             revert CollateralPoolAlreadyExists(id);
         }
 
