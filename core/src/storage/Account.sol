@@ -368,7 +368,7 @@ library Account {
             totalAccountValue_U += accountValueByCollateralType_U;
         }
         // note: activeQuoteTokens does not include collateral tokens 
-        // that are not collaterals of active markets. These feed into the totalAccountValue_U
+        // that are not collaterals of active markets. These also count towards totalAccountValue_U
         for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
             address collateralType = self.activeCollaterals.valueAt(i);
             if (!self.activeQuoteTokens.contains(collateralType)) {
@@ -397,9 +397,16 @@ library Account {
         Data storage self,
         address collateralType
     ) internal view returns (int256 accountValue) {
-        (, uint256 highestUnrealizedLoss) = AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
+        (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
+            AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
-        accountValue = self.getCollateralBalance(collateralType).toInt() - highestUnrealizedLoss.toInt();
+        UD60x18 imMultiplier = AccountExposure.getIMMultiplier();
+        uint256 initialMarginRequirement = 
+            AccountExposure.computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+
+        accountValue = self.getCollateralBalance(collateralType).toInt() - 
+            highestUnrealizedLoss.toInt() - 
+            initialMarginRequirement.toInt();
     }
 
     function getAccountValueByCollateralType_U(
