@@ -234,7 +234,7 @@ contract SetupProtocol is BatchScript {
         cap: cap,
         oracleNodeId: "0x",
         weight: UD60x18.wrap(1e18),
-        autoExchangeReward: UD60x18.wrap(0)
+        autoExchangeDiscount: UD60x18.wrap(0)
       })
     );
 

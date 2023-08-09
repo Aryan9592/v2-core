@@ -23,13 +23,13 @@ library AutoExchangeConfiguration {
          * @dev Auto-exchange occurs when an account has a negative balance for one collateral asset in USD terms
          * is below the singleAutoExchangeThreshold (e.g. 5,000 USD)
          */
-        UD60x18 singleAutoExchangeThreshold;
+        uint256 singleAutoExchangeThreshold;
 
         /**
          * @dev Auto-exchange can also occur when the sum of all negative balances for an account in USD terms is
          * below the totalAutoExchangeThreshold (e.g. 10,000 USD)
          */
-        UD60x18 totalAutoExchangeThreshold;
+        uint256 totalAutoExchangeThreshold;
 
         // todo: need to dig deeper into this edge case
         /**
@@ -38,6 +38,16 @@ library AutoExchangeConfiguration {
          * value in USD terms
          */
         UD60x18 negativeCollateralBalancesMultiplier;
+
+        /**
+         * @dev Maximum ratio of debt that can be repaid by auto-exchange
+         */
+        UD60x18 autoExchangeRatio;
+
+        /**
+         * @dev Portion of settlement tokens paid to the insurance fund.
+         */
+        UD60x18 insuranceFundFee;
 
     }
 
@@ -61,6 +71,8 @@ library AutoExchangeConfiguration {
         storedConfig.singleAutoExchangeThreshold = config.singleAutoExchangeThreshold;
         storedConfig.totalAutoExchangeThreshold = config.totalAutoExchangeThreshold;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
+        storedConfig.autoExchangeRatio = config.autoExchangeRatio;
+        storedConfig.insuranceFundFee = config.insuranceFundFee;
 
         emit AutoExchangeConfigurationUpdated(storedConfig, block.timestamp);
     }

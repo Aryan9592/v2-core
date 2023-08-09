@@ -11,6 +11,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import "./Market.sol";
+import "./AutoExchangeConfiguration.sol";
 
 import "../libraries/AccountActiveMarket.sol";
 import "../libraries/AccountCollateral.sol";
@@ -19,13 +20,17 @@ import "../libraries/AccountMode.sol";
 import "../libraries/AccountRBAC.sol";
 
 
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
     using Account for Account.Data;
     using Market for Market.Data;
+    using CollateralConfiguration for CollateralConfiguration.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
@@ -337,7 +342,7 @@ library Account {
     // todo: needs implementation -> within this need to take into account product -> market changes
     function isEligibleForAutoExchange(Data storage self, address settlementType) internal view returns (bool) {
 
-        if(!self.accountMode == SINGLE_TOKEN_MODE) {
+        if(self.accountMode == SINGLE_TOKEN_MODE) {
             return false;
         }
 
@@ -347,39 +352,41 @@ library Account {
             return false;
         }
 
-        // todo
-        uint256 singleAutoExchangeThreshold = 
-            CollateralConfiguration.load(settlementType).singleAutoExchangeThreshold;
+        AutoExchangeConfiguration.Data memory autoExchangeConfig = 
+            AutoExchangeConfiguration.load();
 
-        if ((-accountValueBySettlementType).toUint() > singleAutoExchangeThreshold) {
+        if ((-accountValueBySettlementType).toUint() > autoExchangeConfig.singleAutoExchangeThreshold) {
             return true;
         }
 
-        int256 sumOfNegativeAccountValues_U = 0;
-        int256 totalAccountValue_U = 0;
-        for (uint256 i = 1; i <= activeQuoteTokens.length(); i++) {
-            address collateralType = activeQuoteTokens.valueAt(i);
-            int256 accountValueByCollateralType = self.getAccountValueByCollateralType(activeQuoteTokens.valueAt(i));
+        uint256 sumOfNegativeAccountValues_U;
+        int256 totalAccountValue_U;
+        for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
+            address collateralType = self.activeQuoteTokens.valueAt(i);
+            int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
 
-            int256 accountValueByCollateralType_U = CollateralConfiguration.load(collateralType)
-                .getCollateralInUSD(accountValueByCollateralType);
+            uint256 accountValueByCollateralType_U = CollateralConfiguration.load(collateralType)
+                .getCollateralInUSD(
+                    accountValueByCollateralType > 0 ? 
+                        accountValueByCollateralType.toUint() :
+                        (-accountValueByCollateralType).toUint()
+                );
             if (accountValueByCollateralType < 0) {
                 sumOfNegativeAccountValues_U += accountValueByCollateralType_U;
+                totalAccountValue_U -= accountValueByCollateralType_U.toInt();
+            } else {
+                totalAccountValue_U += accountValueByCollateralType_U.toInt();
             }
-            totalAccountValue_U += accountValueByCollateralType_U;
         }
         
-        // todo: define multiAutoExchangeThreshold in collateral pool settings?
-        uint256 multiAutoExchangeThreshold = 0;
-        if ((-sumOfNegativeAccountValues_U).toUint() > multiAutoExchangeThreshold) {
+        if (sumOfNegativeAccountValues_U > autoExchangeConfig.totalAutoExchangeThreshold) {
             return true;
         }
 
-        // todo: define relativeAutoExchangeThreashold in collateral pool settings?
-        uint256 relativeAutoExchangeThreashold = 0;
+        // todo: this will fail if totalAccountValue_U is negative. decide on action.
         if (
-            (-sumOfNegativeAccountValues_U).toUint() > 
-            relativeAutoExchangeThreashold * totalAccountValue_U.toUint()
+            sumOfNegativeAccountValues_U > 
+            mulUDxUint(autoExchangeConfig.negativeCollateralBalancesMultiplier, totalAccountValue_U.toUint())
         ) {
             return true;
         }
@@ -390,8 +397,8 @@ library Account {
     // todo: include realized PnL and replace unrealized loss with unrealized PnL
     function getAccountValueByCollateralType(
         Data storage self,
-        uint128 collateralType
-    ) external override returns (int256 accountValue) {
+        address collateralType
+    ) internal view returns (int256 accountValue) {
         (, uint256 highestUnrealizedLoss) = AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
         accountValue = self.getCollateralBalance(collateralType).toInt() - highestUnrealizedLoss.toInt();
