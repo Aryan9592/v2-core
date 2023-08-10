@@ -35,11 +35,11 @@ contract AutoExchangeModule is IAutoExchangeModule {
     /**
      * @inheritdoc IAutoExchangeModule
      */
-    function isEligibleForAutoExchange(uint128 accountId, address settlemetType) external view override returns (
+    function isEligibleForAutoExchange(uint128 accountId, address settlementType) external view override returns (
         bool isEligibleForAutoExchange
     ) {
         Account.Data storage account = Account.exists(accountId);
-        return account.isEligibleForAutoExchange(settlemetType);
+        return account.isEligibleForAutoExchange(settlementType);
     }
 
     /**
@@ -50,7 +50,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         uint128 liquidatorAccountId,
         uint256 amountToAutoExchngeQuote,
         address collateralType,
-        address settlemetType
+        address settlementType
     ) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(accountId);
@@ -58,28 +58,28 @@ contract AutoExchangeModule is IAutoExchangeModule {
         Account.Data storage insuranceFundAccount = Account.exists(999); // todo: get from collateral pool
 
         bool isEligibleForAutoExchange = 
-            account.isEligibleForAutoExchange(settlemetType);
+            account.isEligibleForAutoExchange(settlementType);
 
         if (!isEligibleForAutoExchange) {
             revert AccountNotEligibleForAutoExchange(accountId);
         }
 
-        uint256 maxExchangeableAmountQuote = getMaxAmountToExchangeQuote(accountId, collateralType, settlemetType);
+        uint256 maxExchangeableAmountQuote = getMaxAmountToExchangeQuote(accountId, collateralType, settlementType);
         require(amountToAutoExchngeQuote <= maxExchangeableAmountQuote, "Max auto-exchange"); //todo: custon error
 
         // get collateral amount received by the liquidator
         uint256 amountToAutoExchangeCollateral = 
-            getExchangedCollateralAmount(amountToAutoExchngeQuote, collateralType, settlemetType);
+            getExchangedCollateralAmount(amountToAutoExchngeQuote, collateralType, settlementType);
 
         // transfer settlement tokens from liquidator's account to liquidatable account
-        liquidatorAccount.decreaseCollateralBalance(settlemetType, amountToAutoExchngeQuote);
+        liquidatorAccount.decreaseCollateralBalance(settlementType, amountToAutoExchngeQuote);
         // subtract insurance fund fee from settlement repayment
         uint256 insuranceFundFeeQuote = mulUDxUint(
             AutoExchangeConfiguration.load().autoExchangeRatio,
             amountToAutoExchngeQuote
         );
-        insuranceFundAccount.increaseCollateralBalance(settlemetType, insuranceFundFeeQuote);
-        account.increaseCollateralBalance(settlemetType, amountToAutoExchngeQuote - insuranceFundFeeQuote);
+        insuranceFundAccount.increaseCollateralBalance(settlementType, insuranceFundFeeQuote);
+        account.increaseCollateralBalance(settlementType, amountToAutoExchngeQuote - insuranceFundFeeQuote);
 
         // transfer discounted collateral tokens from liquidatable account to liquidator's account
         account.decreaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
