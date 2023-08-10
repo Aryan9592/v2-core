@@ -48,7 +48,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
     function triggerAutoExchange(
         uint128 accountId,
         uint128 liquidatorAccountId,
-        uint256 amountToAutoExchange_S,
+        uint256 amountToAutoExchngeQuote,
         address collateralType,
         address settlemetType
     ) external override {
@@ -64,26 +64,26 @@ contract AutoExchangeModule is IAutoExchangeModule {
             revert AccountNotEligibleForAutoExchange(accountId);
         }
 
-        uint256 maxExchangeableAmount_S = getMaxAmountToExchange_S(accountId, collateralType, settlemetType);
-        require(amountToAutoExchange_S <= maxExchangeableAmount_S, "Max auto-exchange"); //todo: custon error
+        uint256 maxExchangeableAmountQuote = getMaxAmountToExchangeQuote(accountId, collateralType, settlemetType);
+        require(amountToAutoExchngeQuote <= maxExchangeableAmountQuote, "Max auto-exchange"); //todo: custon error
 
         // get collateral amount received by the liquidator
-        uint256 amountToAutoExchange_C = 
-            getExchangedCollateralAmount(amountToAutoExchange_S, collateralType, settlemetType);
+        uint256 amountToAutoExchangeCollateral = 
+            getExchangedCollateralAmount(amountToAutoExchngeQuote, collateralType, settlemetType);
 
         // transfer settlement tokens from liquidator's account to liquidatable account
-        liquidatorAccount.decreaseCollateralBalance(settlemetType, amountToAutoExchange_S);
+        liquidatorAccount.decreaseCollateralBalance(settlemetType, amountToAutoExchngeQuote);
         // subtract insurance fund fee from settlement repayment
-        uint256 insuranceFundFee_S = mulUDxUint(
+        uint256 insuranceFundFeeQuote = mulUDxUint(
             AutoExchangeConfiguration.load().autoExchangeRatio,
-            amountToAutoExchange_S
+            amountToAutoExchngeQuote
         );
-        insuranceFundAccount.increaseCollateralBalance(settlemetType, insuranceFundFee_S);
-        account.increaseCollateralBalance(settlemetType, amountToAutoExchange_S - insuranceFundFee_S);
+        insuranceFundAccount.increaseCollateralBalance(settlemetType, insuranceFundFeeQuote);
+        account.increaseCollateralBalance(settlemetType, amountToAutoExchngeQuote - insuranceFundFeeQuote);
 
         // transfer discounted collateral tokens from liquidatable account to liquidator's account
-        account.decreaseCollateralBalance(collateralType, amountToAutoExchange_C);
-        liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchange_C);
+        account.decreaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
+        liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
     }
 
     /// @dev Returns the maximum amount that can be exchaged, represented in settlement token
@@ -91,54 +91,54 @@ contract AutoExchangeModule is IAutoExchangeModule {
     // todo: apply liquidation ratio before or after comparison?
     // todo: do we consider pnl as "collateral" that can be exchange?
         // can use only avaiable collateral, ensuring discount doesn't break the IM invariant
-    function getMaxAmountToExchange_S(
+    function getMaxAmountToExchangeQuote(
         uint128 accountId,
         address collateralType,
         address settlementType
-    ) public returns (uint256 maxAmount_S) {
+    ) public returns (uint256 maxAmountQuote) {
         Account.Data storage account = Account.exists(accountId);
 
-        int256 accountValueInSettlementToken_S = account.getAccountValueByCollateralType(settlementType);
-        if (accountValueInSettlementToken_S > 0) {
+        int256 accountValueInSettlementTokenQuote = account.getAccountValueByCollateralType(settlementType);
+        if (accountValueInSettlementTokenQuote > 0) {
             return 0;
         }
 
-        maxAmount_S = mulUDxUint(
+        maxAmountQuote = mulUDxUint(
             AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-accountValueInSettlementToken_S).toUint()
+            (-accountValueInSettlementTokenQuote).toUint()
         );
 
-        uint256 accountCollateralAmount_C = account.getCollateralBalance(collateralType);
+        uint256 accountCollateralAmountCollateral = account.getCollateralBalance(collateralType);
 
         CollateralConfiguration.Data storage settlementConfiguration = 
             CollateralConfiguration.load(settlementType);
         uint256 accountValueInSettlementToken_U = settlementConfiguration
-            .getCollateralInUSD(maxAmount_S);
+            .getCollateralInUSD(maxAmountQuote);
         
         
         uint256 accountCollateralAmount_U = CollateralConfiguration.load(collateralType)
-            .getCollateralInUSD(accountCollateralAmount_C);
+            .getCollateralInUSD(accountCollateralAmountCollateral);
 
         if (accountValueInSettlementToken_U > accountCollateralAmount_U) {
-            maxAmount_S = settlementConfiguration
+            maxAmountQuote = settlementConfiguration
                 .getUSDInCollateral(accountCollateralAmount_U);
         }
     }
 
     // todo: find a better name for this function
     function getExchangedCollateralAmount(
-        uint256 amount_S,
+        uint256 amountQuote,
         address collateralType,
         address settlementType
-    ) public returns (uint256 discountedAmount_C) {
+    ) public returns (uint256 discountedAmountCollateral) {
         uint256 amountToAutoExchange_U = CollateralConfiguration.load(settlementType)
-            .getCollateralInUSD(amount_S);
-        uint256 amountToAutoExchange_S = CollateralConfiguration.load(collateralType)
+            .getCollateralInUSD(amountQuote);
+        uint256 amountToAutoExchngeQuote = CollateralConfiguration.load(collateralType)
             .getUSDInCollateral(amountToAutoExchange_U);
 
         // apply discount
-        discountedAmount_C = divUintUDx(
-            amountToAutoExchange_S, 
+        discountedAmountCollateral = divUintUDx(
+            amountToAutoExchngeQuote, 
             UNIT.sub(CollateralConfiguration.load(collateralType).config.autoExchangeDiscount)
         );
     }
