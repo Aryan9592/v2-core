@@ -95,6 +95,13 @@ library Oracle {
     ) internal returns (uint16 indexUpdated, uint16 cardinalityUpdated) {
         Observation memory last = self[index];
 
+        // overwrite last observation if it took place in the same block
+        if (last.blockTimestamp == blockTimestamp) {
+            Observation memory lastButOne = (index > 0) ? self[index-1] : self[cardinality-1];
+            self[index] = transform(lastButOne, blockTimestamp, tick);
+            return (index, cardinality);
+        }
+
         // early return if we've already written an observation recently
         if (last.blockTimestamp + MIN_SECONDS_SINCE_LAST_UPDATE > blockTimestamp) return (index, cardinality);
 
