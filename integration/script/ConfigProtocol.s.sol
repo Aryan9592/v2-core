@@ -71,6 +71,8 @@ contract ConfigProtocol is SetupProtocol {
         priceImpactPhi: ud60x18(0),
         priceImpactBeta: ud60x18(0),
         spread: ud60x18(0.001e18),
+        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
+        minSecondsBetweenOracleObservations: 3600,
         minTick: -15780,  // 4.85%
         maxTick: 15780    // 0.2%
       }),
@@ -150,6 +152,8 @@ contract ConfigProtocol is SetupProtocol {
         priceImpactPhi: ud60x18(0),
         priceImpactBeta: ud60x18(0),
         spread: ud60x18(0.001e18),
+        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
+        minSecondsBetweenOracleObservations: 3600,
         minTick: -30000,  // 20.08%
         maxTick: 30000    // 0.049%
       }),
@@ -257,6 +261,8 @@ contract ConfigProtocol is SetupProtocol {
         priceImpactPhi: ud60x18(0),
         priceImpactBeta: ud60x18(0),
         spread: ud60x18(0.001e18),
+        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
+        minSecondsBetweenOracleObservations: 3600,
         minTick: -15780,  // 4.85%
         maxTick: 15780    // 0.2%
       }),
@@ -335,6 +341,8 @@ contract ConfigProtocol is SetupProtocol {
         priceImpactPhi: ud60x18(1e17), // 0.1
         priceImpactBeta: ud60x18(125e15), // 0.125
         spread: ud60x18(3e15), // 0.3%
+        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
+        minSecondsBetweenOracleObservations: 3600,
         minTick: TickMath.DEFAULT_MIN_TICK,
         maxTick: TickMath.DEFAULT_MAX_TICK
       }),

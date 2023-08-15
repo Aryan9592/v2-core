@@ -673,7 +673,8 @@ library DatedIrsVamm {
                 Time.blockTimestampTruncated(),
                 self.vars.tick,
                 self.vars.observationCardinality,
-                self.vars.observationCardinalityNext
+                self.vars.observationCardinalityNext,
+                self.mutableConfig.minSecondsBetweenOracleObservations
             );
             (self.vars.sqrtPriceX96, self.vars.tick ) = (
                 state.sqrtPriceX96,

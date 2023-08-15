@@ -21,6 +21,10 @@ library VammConfiguration {
         /// @dev the spread taken by LPs on each trade. 
         ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
         UD60x18 spread;
+        /// @dev rate oracle from which the vamm extracts the liquidity index
+        IRateOracle rateOracle;
+        /// @dev minimum seconds between observation entries in the oracle buffer
+        uint32 minSecondsBetweenOracleObservations;
         /// @dev The minimum tick of the vamm
         int24 minTick;
         /// @dev The maximum tick of the vamm
