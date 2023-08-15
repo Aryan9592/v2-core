@@ -278,8 +278,7 @@ library DatedIrsVamm {
             secondsAgos[0] = secondsAgo;
             secondsAgos[1] = 0;
 
-            (int56[] memory tickCumulatives,) =
-                observe(self, secondsAgos);
+            int56[] memory tickCumulatives = observe(self, secondsAgos);
 
             int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
             arithmeticMeanTick = int24(tickCumulativesDelta / int56(uint56(secondsAgo)));
@@ -289,23 +288,20 @@ library DatedIrsVamm {
         }
     }
 
-    /// @notice Returns the cumulative tick and liquidity as of each timestamp `secondsAgo` from the current block timestamp
+    /// @notice Returns the cumulative tick as of each timestamp `secondsAgo` from the current block timestamp
     /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one representing
     /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted average tick,
     /// you must call it with secondsAgos = [3600, 0].
     /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
     /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
-    /// @param secondsAgos From how long ago each cumulative tick and liquidity value should be returned
+    /// @param secondsAgos From how long ago each cumulative tick value should be returned
     /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
-    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value 
-    ///     as of each `secondsAgos` from the current block
-    /// timestamp
     function observe(
         Data storage self,
         uint32[] memory secondsAgos)
         internal
         view
-        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+        returns (int56[] memory tickCumulatives)
     {
         return
             self.vars.observations.observe(
@@ -313,7 +309,6 @@ library DatedIrsVamm {
                 secondsAgos,
                 self.vars.tick,
                 self.vars.observationIndex,
-                0, // liquidity is untracked
                 self.vars.observationCardinality
             );
     }
@@ -677,7 +672,6 @@ library DatedIrsVamm {
                 self.vars.observationIndex,
                 Time.blockTimestampTruncated(),
                 self.vars.tick,
-                0, // Liquidity not currently being tracked
                 self.vars.observationCardinality,
                 self.vars.observationCardinalityNext
             );
