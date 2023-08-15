@@ -10,4 +10,4 @@ coverage: true
 corpusDir: corpora/harness_corpus
 # whether or not to generate a coverage report
 coverageReport: true
-codeSize: 0x10000
+codeSize: 0x40000
