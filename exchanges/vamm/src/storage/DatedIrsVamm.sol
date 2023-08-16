@@ -4,16 +4,16 @@ pragma solidity >=0.8.13;
 import "./LPPosition.sol";
 import "./PoolConfiguration.sol";
 
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+
 import "../libraries/vamm-utils/VAMMBase.sol";
 import "../libraries//vamm-utils/SwapMath.sol";
 import "../libraries/math/FixedAndVariableMath.sol";
-
 import "../libraries/errors/VammCustomErrors.sol";
 
 import { UD60x18, convert } from "@prb/math/UD60x18.sol";
 import { SD59x18 } from "@prb/math/SD59x18.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
@@ -164,8 +164,15 @@ library DatedIrsVamm {
 
         self.mutableConfig.priceImpactPhi = _config.priceImpactPhi;
         self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
-        self.mutableConfig.rateOracle = _config.rateOracle;
         self.mutableConfig.spread = _config.spread;
+
+        address productAddress = PoolConfiguration.load().productAddress;
+        address rateOracleAddress = IRateOracleModule(productAddress)
+                    .getVariableOracleAddress(self.immutableConfig.marketId);
+        if(rateOracleAddress == address(0)) {
+            revert VammCustomErrors.RateOracleNotSet(self.immutableConfig.marketId);
+        }
+        self.mutableConfig.rateOracle = IRateOracle(rateOracleAddress);
 
         self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
     }
