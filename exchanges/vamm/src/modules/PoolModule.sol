@@ -5,7 +5,7 @@ import { UD60x18, ZERO } from "@prb/math/UD60x18.sol";
 
 import "../interfaces/IPoolModule.sol";
 import "../storage/DatedIrsVamm.sol";
-import "../storage/PoolConfiguration.sol";
+import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
 import "@voltz-protocol/products-dated-irs/src/interfaces/IMarketManagerIRSModule.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 
