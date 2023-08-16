@@ -15,7 +15,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import { mulUDxUint, mulUDxInt, divUintUDx, divIntUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 import "./OracleManager.sol";
 
@@ -231,5 +231,30 @@ library CollateralConfiguration {
         }
 
         return a;
+    }
+
+
+    /**
+     * @dev Returns the amount of colletaral A in collateral B.
+     * @param collateralB The CollateralConfiguration object of collateral B.
+     * @param amountCollateralA The amount of collateral A.
+     * @param collateralA The address of collateral A.
+     * @return discountedAmountCollateralB The corresponding collateral B amount of 
+     * the collateral A.
+     */
+    function getCollateralAInCollateralBWithDiscount(
+        Data storage collateralB,
+        uint256 amountCollateralA,
+        address collateralA
+    ) internal view returns (uint256 discountedAmountCollateralB) {
+        uint256 amountUSD = CollateralConfiguration.load(collateralA)
+            .getCollateralInUSD(amountCollateralA);
+        uint256 amountCollateralB = collateralB.getUSDInCollateral(amountUSD);
+
+        // apply discount
+        discountedAmountCollateralB = divUintUDx(
+            amountCollateralB, 
+            UNIT.sub(collateralB.config.autoExchangeDiscount)
+        );
     }
 }
