@@ -83,10 +83,10 @@ contract PoolModule is IPoolModule {
             accountId,
             marketId,
             maturityTimestamp,
-            VAMMBase.baseAmountFromLiquidity(
+            VammBase.baseAmountFromLiquidity(
                 liquidityDelta,
-                vamm.getSqrtRatioAtTickSafe(tickLower),
-                vamm.getSqrtRatioAtTickSafe(tickUpper)
+                VammTicks.getSqrtRatioAtTickSafe(vamm, tickLower),
+                VammTicks.getSqrtRatioAtTickSafe(vamm, tickUpper)
             )
         );
 

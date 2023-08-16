@@ -1,0 +1,190 @@
+//SPDX-License-Identifier: MIT
+pragma solidity >=0.8.13;
+
+import "../ticks/Tick.sol";
+
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+
+import "../../storage/Oracle.sol";
+import "../../storage/DatedIrsVamm.sol";
+import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+
+/**
+ * @title Tracks configurations for dated irs markets
+ */
+library VammTwap {
+    using DatedIrsVamm for DatedIrsVamm.Data;
+    using Oracle for Oracle.Observation[65535];
+    using VammTwap for DatedIrsVamm.Data;
+
+    /// @notice Emitted by the pool for increases to the number of observations that can be stored
+    /// @dev observationCardinalityNext is not the observation cardinality until an observation is written at the index
+    /// just before a mint/swap/burn.
+    /// @param observationCardinalityNextOld The previous value of the next observation cardinality
+    /// @param observationCardinalityNextNew The updated value of the next observation cardinality
+    event IncreaseObservationCardinalityNext(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint16 observationCardinalityNextOld,
+        uint16 observationCardinalityNextNew,
+        uint256 blockTimestamp
+    );
+
+    /// @dev see DatedIrsVamm
+    modifier lock(DatedIrsVamm.Data storage self) {
+        if (!self.vars.unlocked) {
+            revert VammCustomErrors.CanOnlyTradeIfUnlocked();
+        }
+        self.vars.unlocked = false;
+        _;
+        if (self.vars.unlocked) {
+            revert VammCustomErrors.CanOnlyUnlockIfLocked();
+        }
+        self.vars.unlocked = true;
+    }
+
+
+    /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
+    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
+    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
+    ///     Must not be zero if either of the boolean params is true because it used to indicate the direction of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`
+    /// @param adjustForPriceImpact Whether or not to adjust the returned price by the VAMM's configured spread.
+    /// @param adjustForSpread Whether or not to adjust the returned price by the VAMM's configured spread.
+    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
+    ///     May return zero if adjustments would take the price to or below zero - e.g. when anticipated price impact is large because the order size is large.
+    function twap(
+        DatedIrsVamm.Data storage self,
+        uint32 secondsAgo,
+        int256 orderSize, 
+        bool adjustForPriceImpact,
+        bool adjustForSpread
+    )
+        internal
+        view
+        returns (UD60x18 geometricMeanPrice)
+    {
+        int24 arithmeticMeanTick = observe(self, secondsAgo);
+
+        // Not yet adjusted
+        geometricMeanPrice = VammTicks.getPriceFromTick(self, arithmeticMeanTick).div(convert(100));
+        UD60x18 spreadImpactDelta = ZERO;
+        UD60x18 priceImpactAsFraction = ZERO;
+
+        if (adjustForSpread) {
+            if (orderSize == 0) {
+                revert VammCustomErrors.TwapNotAdjustable();
+            }
+            spreadImpactDelta = self.mutableConfig.spread;
+        }
+
+        if (adjustForPriceImpact) {
+            if (orderSize == 0) {
+                revert VammCustomErrors.TwapNotAdjustable();
+            }
+            // IMPORTANT: note below before setting non-zero values for phi and beta
+            // note: the order size is already scaled by token decimals
+            // convert() further scales it by WAD, resulting in a bigger price
+            // impact than expected when phi and beta are non-zero
+            // proposed solution: descale by token decimals prior to this operation
+            priceImpactAsFraction = self.mutableConfig.priceImpactPhi.mul(
+                convert(uint256(orderSize > 0 ? orderSize : -orderSize)).pow(self.mutableConfig.priceImpactBeta)
+            );
+        }
+
+        // The projected price impact and spread of a trade will move the price up for buys, down for sells
+        if (orderSize > 0) {
+            geometricMeanPrice = geometricMeanPrice.mul(UNIT.add(priceImpactAsFraction)).add(spreadImpactDelta);
+        } else {
+            if (spreadImpactDelta.gte(geometricMeanPrice)) {
+                // The spread is higher than the price
+                return ZERO;
+            }
+            if (priceImpactAsFraction.gte(UNIT)) {
+                // The model suggests that the price will drop below zero after price impact
+                return ZERO;
+            }
+            geometricMeanPrice = geometricMeanPrice.mul(UNIT.sub(priceImpactAsFraction)).sub(spreadImpactDelta);
+        }
+
+        return geometricMeanPrice;
+    }
+
+    /// @notice Calculates time-weighted arithmetic mean tick
+    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
+    function observe(DatedIrsVamm.Data storage self, uint32 secondsAgo)
+        internal
+        view
+        returns (int24 arithmeticMeanTick)
+    {
+        if (secondsAgo == 0) {
+            // return the current tick if secondsAgo == 0
+            arithmeticMeanTick = self.vars.tick;
+        } else {
+            uint32[] memory secondsAgos = new uint32[](2);
+            secondsAgos[0] = secondsAgo;
+            secondsAgos[1] = 0;
+
+            (int56[] memory tickCumulatives,) =
+                observe(self, secondsAgos);
+
+            int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
+            arithmeticMeanTick = int24(tickCumulativesDelta / int56(uint56(secondsAgo)));
+
+            // Always round to negative infinity
+            if (tickCumulativesDelta < 0 && (tickCumulativesDelta % int56(uint56(secondsAgo)) != 0)) arithmeticMeanTick--;
+        }
+    }
+
+    /// @notice Returns the cumulative tick and liquidity as of each timestamp `secondsAgo` from the current block timestamp
+    /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one representing
+    /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted average tick,
+    /// you must call it with secondsAgos = [3600, 0].
+    /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
+    /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
+    /// @param secondsAgos From how long ago each cumulative tick and liquidity value should be returned
+    /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
+    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value 
+    ///     as of each `secondsAgos` from the current block
+    /// timestamp
+    function observe(
+        DatedIrsVamm.Data storage self,
+        uint32[] memory secondsAgos)
+        internal
+        view
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+    {
+        return
+            self.vars.observations.observe(
+                Time.blockTimestampTruncated(),
+                secondsAgos,
+                self.vars.tick,
+                self.vars.observationIndex,
+                0, // liquidity is untracked
+                self.vars.observationCardinality
+            );
+    }
+
+    /// @notice Increase the maximum number of price and liquidity observations that this pool will store
+    /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
+    /// the input observationCardinalityNext.
+    /// @param observationCardinalityNext The desired minimum number of observations for the pool to store
+    function increaseObservationCardinalityNext(DatedIrsVamm.Data storage self, uint16 observationCardinalityNext)
+        internal
+        lock(self)
+    {
+        uint16 observationCardinalityNextOld =  self.vars.observationCardinalityNext; // for the event
+        uint16 observationCardinalityNextNew =  self.vars.observations.grow(
+            observationCardinalityNextOld,
+            observationCardinalityNext
+        );
+         self.vars.observationCardinalityNext = observationCardinalityNextNew;
+        if (observationCardinalityNextOld != observationCardinalityNextNew)
+            emit IncreaseObservationCardinalityNext(
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp,
+                observationCardinalityNextOld,
+                observationCardinalityNextNew,
+                block.timestamp
+            );
+    }
+}

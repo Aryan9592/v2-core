@@ -3,14 +3,19 @@ pragma solidity >=0.8.13;
 
 import "./LPPosition.sol";
 import "./PoolConfiguration.sol";
+import "./Oracle.sol";
 
-import "../libraries/vamm-utils/VAMMBase.sol";
-import "../libraries//vamm-utils/SwapMath.sol";
+import "../libraries/vamm-utils/VammBase.sol";
+import "../libraries/vamm-utils/VammTicks.sol";
+import "../libraries/vamm-utils/SwapMath.sol";
+import "../libraries/vamm-utils/VammConfiguration.sol";
+
 import "../libraries/math/FixedAndVariableMath.sol";
-
+import "../libraries/time/Time.sol";
+import "../libraries/ticks/TickBitmap.sol";
 import "../libraries/errors/VammCustomErrors.sol";
 
-import { UD60x18, convert } from "@prb/math/UD60x18.sol";
+import { UD60x18, convert, UNIT } from "@prb/math/UD60x18.sol";
 import { SD59x18 } from "@prb/math/SD59x18.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
@@ -21,29 +26,15 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
  *
  */
 library DatedIrsVamm {
-    UD60x18 constant ONE = VAMMBase.ONE;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SafeCastU128 for uint128;
-    using VAMMBase for bool;
+    using VammBase for bool;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
     using Oracle for Oracle.Observation[65535];
     using LPPosition for LPPosition.Data;
     using DatedIrsVamm for Data;
-
-    /// @notice Emitted by the pool for increases to the number of observations that can be stored
-    /// @dev observationCardinalityNext is not the observation cardinality until an observation is written at the index
-    /// just before a mint/swap/burn.
-    /// @param observationCardinalityNextOld The previous value of the next observation cardinality
-    /// @param observationCardinalityNextNew The updated value of the next observation cardinality
-    event IncreaseObservationCardinalityNext(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        uint16 observationCardinalityNextOld,
-        uint16 observationCardinalityNextNew,
-        uint256 blockTimestamp
-    );
 
     /// @dev Internal, frequently-updated state of the VAMM, which is compressed into one storage slot.
     struct Data {
@@ -92,106 +83,6 @@ library DatedIrsVamm {
         }
     }
 
-    /**
-     * @dev Finds the vamm id using market id and maturity and
-     * returns the vamm stored at the specified vamm id. Reverts if no such VAMM is found.
-     */
-    function create(
-        uint128 _marketId,
-        uint160 _sqrtPriceX96,
-        uint32[] memory times,
-        int24[] memory observedTicks,
-        VammConfiguration.Immutable memory _config,
-        VammConfiguration.Mutable memory _mutableConfig
-    ) internal returns (Data storage irsVamm) {
-        uint256 id = uint256(keccak256(abi.encodePacked(_marketId, _config.maturityTimestamp)));
-        irsVamm = load(id);
-
-        if (irsVamm.immutableConfig.maturityTimestamp != 0) {
-            revert VammCustomErrors.MarketAndMaturityCombinaitonAlreadyExists(_marketId, _config.maturityTimestamp);
-        }
-
-        if (_config.maturityTimestamp <= block.timestamp) {
-            revert VammCustomErrors.MaturityMustBeInFuture(block.timestamp, _config.maturityTimestamp);
-        }
-
-        // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
-        // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
-        // 16384 ticks represents a >5x price change with ticks of 1 bips
-        require(_config._tickSpacing > 0 && _config._tickSpacing < Tick.MAXIMUM_TICK_SPACING, "TSOOB");
-
-        irsVamm.immutableConfig.maturityTimestamp = _config.maturityTimestamp;
-        irsVamm.immutableConfig._maxLiquidityPerTick = _config._maxLiquidityPerTick;
-        irsVamm.immutableConfig._tickSpacing = _config._tickSpacing;
-        irsVamm.immutableConfig.marketId = _marketId;
-
-        initialize(irsVamm, _sqrtPriceX96, times, observedTicks);
-        
-        configure(irsVamm, _mutableConfig);
-    }
-
-    /// @dev not locked because it initializes unlocked
-    function initialize(
-        Data storage self,
-        uint160 sqrtPriceX96,
-        uint32[] memory times,
-        int24[] memory observedTicks
-    ) internal {
-        if (sqrtPriceX96 == 0) {
-            revert VammCustomErrors.ExpectedNonZeroSqrtPriceForInit(sqrtPriceX96);
-        }
-        if (self.vars.sqrtPriceX96 != 0) {
-            revert VammCustomErrors.ExpectedSqrtPriceZeroBeforeInit(self.vars.sqrtPriceX96);
-        }
-
-        int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
-
-        (self.vars.observationCardinality, self.vars.observationCardinalityNext) = 
-            self.vars.observations.initialize(times, observedTicks);
-        self.vars.observationIndex = self.vars.observationCardinality - 1;
-        self.vars.unlocked = true;
-        self.vars.tick = tick;
-        self.vars.sqrtPriceX96 = sqrtPriceX96;
-    }
-
-    function configure(
-        Data storage self,
-        VammConfiguration.Mutable memory _config) internal {
-
-        if (_config.priceImpactPhi.gt(ONE) || _config.priceImpactBeta.gt(ONE)) {
-            revert VammCustomErrors.PriceImpactOutOfBounds();
-        }
-
-        self.mutableConfig.priceImpactPhi = _config.priceImpactPhi;
-        self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
-        self.mutableConfig.rateOracle = _config.rateOracle;
-        self.mutableConfig.spread = _config.spread;
-
-        self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
-    }
-
-    function setMinAndMaxTicks(
-        Data storage self,
-        int24 _minTick,
-        int24 _maxTick
-    ) internal {
-        if(
-            _minTick < TickMath.MIN_TICK_LIMIT || _maxTick > TickMath.MAX_TICK_LIMIT ||
-            self.vars.tick < _minTick || self.vars.tick > _maxTick
-        ) {
-            revert VammCustomErrors.ExceededTickLimits(_minTick, _maxTick);
-        }
-
-        if(_minTick + _maxTick != 0) {
-            revert VammCustomErrors.AsymmetricTicks(_minTick, _maxTick);
-        }
-
-        self.mutableConfig.minTick = _minTick;
-        self.mutableConfig.maxTick = _maxTick;
-        self.minSqrtRatio = TickMath.getSqrtRatioAtTick(_minTick);
-        self.maxSqrtRatio = TickMath.getSqrtRatioAtTick(_maxTick);
-    }
-
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
     /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
     /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
@@ -205,144 +96,6 @@ library DatedIrsVamm {
             revert VammCustomErrors.CanOnlyUnlockIfLocked();
         }
         self.vars.unlocked = true;
-    }
-
-    /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
-    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
-    ///     Must not be zero if either of the boolean params is true because it used to indicate the direction of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`
-    /// @param adjustForPriceImpact Whether or not to adjust the returned price by the VAMM's configured spread.
-    /// @param adjustForSpread Whether or not to adjust the returned price by the VAMM's configured spread.
-    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
-    ///     May return zero if adjustments would take the price to or below zero - e.g. when anticipated price impact is large because the order size is large.
-    function twap(Data storage self, uint32 secondsAgo, int256 orderSize, bool adjustForPriceImpact,  bool adjustForSpread)
-        internal
-        view
-        returns (UD60x18 geometricMeanPrice)
-    {
-        int24 arithmeticMeanTick = observe(self, secondsAgo);
-
-        // Not yet adjusted
-        geometricMeanPrice = self.getPriceFromTick(arithmeticMeanTick).div(convert(100));
-        UD60x18 spreadImpactDelta = ZERO;
-        UD60x18 priceImpactAsFraction = ZERO;
-
-        if (adjustForSpread) {
-            if (orderSize == 0) {
-                revert VammCustomErrors.TwapNotAdjustable();
-            }
-            spreadImpactDelta = self.mutableConfig.spread;
-        }
-
-        if (adjustForPriceImpact) {
-            if (orderSize == 0) {
-                revert VammCustomErrors.TwapNotAdjustable();
-            }
-            // IMPORTANT: note below before setting non-zero values for phi and beta
-            // note: the order size is already scaled by token decimals
-            // convert() further scales it by WAD, resulting in a bigger price
-            // impact than expected when phi and beta are non-zero
-            // proposed solution: descale by token decimals prior to this operation
-            priceImpactAsFraction = self.mutableConfig.priceImpactPhi.mul(
-                convert(uint256(orderSize > 0 ? orderSize : -orderSize)).pow(self.mutableConfig.priceImpactBeta)
-            );
-        }
-
-        // The projected price impact and spread of a trade will move the price up for buys, down for sells
-        if (orderSize > 0) {
-            geometricMeanPrice = geometricMeanPrice.mul(ONE.add(priceImpactAsFraction)).add(spreadImpactDelta);
-        } else {
-            if (spreadImpactDelta.gte(geometricMeanPrice)) {
-                // The spread is higher than the price
-                return ZERO;
-            }
-            if (priceImpactAsFraction.gte(ONE)) {
-                // The model suggests that the price will drop below zero after price impact
-                return ZERO;
-            }
-            geometricMeanPrice = geometricMeanPrice.mul(ONE.sub(priceImpactAsFraction)).sub(spreadImpactDelta);
-        }
-
-        return geometricMeanPrice;
-    }
-
-    /// @notice Calculates time-weighted arithmetic mean tick
-    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    function observe(Data storage self, uint32 secondsAgo)
-        internal
-        view
-        returns (int24 arithmeticMeanTick)
-    {
-        if (secondsAgo == 0) {
-            // return the current tick if secondsAgo == 0
-            arithmeticMeanTick = self.vars.tick;
-        } else {
-            uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = secondsAgo;
-            secondsAgos[1] = 0;
-
-            (int56[] memory tickCumulatives,) =
-                observe(self, secondsAgos);
-
-            int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
-            arithmeticMeanTick = int24(tickCumulativesDelta / int56(uint56(secondsAgo)));
-
-            // Always round to negative infinity
-            if (tickCumulativesDelta < 0 && (tickCumulativesDelta % int56(uint56(secondsAgo)) != 0)) arithmeticMeanTick--;
-        }
-    }
-
-    /// @notice Returns the cumulative tick and liquidity as of each timestamp `secondsAgo` from the current block timestamp
-    /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one representing
-    /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted average tick,
-    /// you must call it with secondsAgos = [3600, 0].
-    /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
-    /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
-    /// @param secondsAgos From how long ago each cumulative tick and liquidity value should be returned
-    /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
-    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value 
-    ///     as of each `secondsAgos` from the current block
-    /// timestamp
-    function observe(
-        Data storage self,
-        uint32[] memory secondsAgos)
-        internal
-        view
-        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
-    {
-        return
-            self.vars.observations.observe(
-                Time.blockTimestampTruncated(),
-                secondsAgos,
-                self.vars.tick,
-                self.vars.observationIndex,
-                0, // liquidity is untracked
-                self.vars.observationCardinality
-            );
-    }
-
-    /// @notice Increase the maximum number of price and liquidity observations that this pool will store
-    /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
-    /// the input observationCardinalityNext.
-    /// @param observationCardinalityNext The desired minimum number of observations for the pool to store
-    function increaseObservationCardinalityNext(Data storage self, uint16 observationCardinalityNext)
-        internal
-        lock(self)
-    {
-        uint16 observationCardinalityNextOld =  self.vars.observationCardinalityNext; // for the event
-        uint16 observationCardinalityNextNew =  self.vars.observations.grow(
-            observationCardinalityNextOld,
-            observationCardinalityNext
-        );
-         self.vars.observationCardinalityNext = observationCardinalityNextNew;
-        if (observationCardinalityNextOld != observationCardinalityNextNew)
-            emit IncreaseObservationCardinalityNext(
-                self.immutableConfig.marketId,
-                self.immutableConfig.maturityTimestamp,
-                observationCardinalityNextOld,
-                observationCardinalityNextNew,
-                block.timestamp
-            );
     }
 
     /**
@@ -363,7 +116,7 @@ library DatedIrsVamm {
     internal
     { 
         uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
-        VAMMBase.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
+        VammBase.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
         
         (LPPosition.Data storage position, bool newlyCreated) = 
             LPPosition._ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
@@ -389,7 +142,7 @@ library DatedIrsVamm {
 
         _updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
 
-        emit VAMMBase.LiquidityChange(
+        emit VammBase.LiquidityChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,
@@ -465,12 +218,12 @@ library DatedIrsVamm {
     ) internal
       lock(self)
     {
-        VAMMBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
+        VammBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
 
         if (liquidityDelta > 0) {
-            self.checkTicksInRange(tickLower, tickUpper);
+            VammTicks.checkTicksInRange(self, tickLower, tickUpper);
         } else {
-            checkTicksLimits(tickLower, tickUpper);
+            VammTicks.checkTicksLimits(tickLower, tickUpper);
         }
         
         bool flippedLower;
@@ -521,13 +274,13 @@ library DatedIrsVamm {
         lock(self)
         returns (int256 quoteTokenDelta, int256 baseTokenDelta)
     {
-        VAMMBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
+        VammBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
 
-        self.checksBeforeSwap(params.amountSpecified, params.sqrtPriceLimitX96, params.amountSpecified > 0);
+        VammTicks.checksBeforeSwap(self, params.amountSpecified, params.sqrtPriceLimitX96, params.amountSpecified > 0);
 
         uint128 liquidityStart = self.vars.liquidity;
 
-        VAMMBase.SwapState memory state = VAMMBase.SwapState({
+        VammBase.SwapState memory state = VammBase.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
@@ -550,7 +303,7 @@ library DatedIrsVamm {
             state.amountSpecifiedRemaining != 0 &&
             state.sqrtPriceX96 != params.sqrtPriceLimitX96
         ) {
-            VAMMBase.StepComputations memory step;
+            VammBase.StepComputations memory step;
 
             ///// GET NEXT TICK /////
 
@@ -572,7 +325,7 @@ library DatedIrsVamm {
                 step.tickNext = vammMinMaxTicks[0];
             }
             // get the price for the next tick
-            step.sqrtPriceNextX96 = self.getSqrtRatioAtTickSafe(step.tickNext);
+            step.sqrtPriceNextX96 = VammTicks.getSqrtRatioAtTickSafe(self, step.tickNext);
 
             ///// GET SWAP RESULTS /////
 
@@ -588,7 +341,7 @@ library DatedIrsVamm {
             ) = SwapMath.computeSwapStep(
                 SwapMath.SwapStepParams({
                     sqrtRatioCurrentX96: state.sqrtPriceX96,
-                    sqrtRatioTargetX96: VAMMBase.getSqrtRatioTargetX96(
+                    sqrtRatioTargetX96: VammBase.getSqrtRatioTargetX96(
                         params.amountSpecified,
                         step.sqrtPriceNextX96,
                         params.sqrtPriceLimitX96
@@ -614,7 +367,7 @@ library DatedIrsVamm {
             ///// UPDATE TRACKERS /////
             state.amountSpecifiedRemaining -= step.baseTokenDelta;
             if (state.liquidity > 0) {
-                step.quoteTokenDelta = VAMMBase.calculateQuoteTokenDelta(
+                step.quoteTokenDelta = VammBase.calculateQuoteTokenDelta(
                     step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
                     FixedAndVariableMath.accrualFact(secondsTillMaturity),
@@ -625,7 +378,7 @@ library DatedIrsVamm {
                 (
                     state.trackerQuoteTokenGrowthGlobalX128,
                     state.trackerBaseTokenGrowthGlobalX128
-                ) = VAMMBase.calculateGlobalTrackerValues(
+                ) = VammBase.calculateGlobalTrackerValues(
                     state,
                     step.quoteTokenDelta,
                     step.baseTokenDelta
@@ -687,14 +440,14 @@ library DatedIrsVamm {
         self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
         self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
 
-        emit VAMMBase.VAMMPriceChange(
+        emit VammBase.VAMMPriceChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
-        emit VAMMBase.Swap(
+        emit VammBase.Swap(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,
@@ -861,7 +614,7 @@ library DatedIrsVamm {
             -(unfilledBaseTokensLeft).toInt()
         );
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
-        uint256 unfilledQuoteTokensLeft = VAMMBase.calculateQuoteTokenDelta(
+        uint256 unfilledQuoteTokensLeft = VammBase.calculateQuoteTokenDelta(
             unbalancedQuoteTokensLeft,
             -(unfilledBaseTokensLeft).toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
@@ -900,7 +653,7 @@ library DatedIrsVamm {
         );
 
         // unfilledQuoteTokensRight is negative
-        uint256 unfilledQuoteTokensRight = (-VAMMBase.calculateQuoteTokenDelta(
+        uint256 unfilledQuoteTokensRight = (-VammBase.calculateQuoteTokenDelta(
             unbalancedQuoteTokensRight,
             unfilledBaseTokensRight.toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
@@ -920,7 +673,7 @@ library DatedIrsVamm {
         int256 trackerBaseTokenGrowthBetween
     )
     {
-        checkTicksLimits(tickLower, tickUpper);
+        VammTicks.checkTicksLimits(tickLower, tickUpper);
 
         int256 trackerQuoteTokenBelowLowerTick;
         int256 trackerBaseTokenBelowLowerTick;
@@ -965,7 +718,7 @@ library DatedIrsVamm {
         returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
     {
 
-        checkTicksLimits(tickLower, tickUpper);
+        VammTicks.checkTicksLimits(tickLower, tickUpper);
 
         baseTokenGrowthInsideX128 = self.vars._ticks.getBaseTokenGrowthInside(
             Tick.BaseTokenGrowthInsideParams({
@@ -985,26 +738,6 @@ library DatedIrsVamm {
             })
         );
 
-    }
-
-    function getSqrtRatioAtTickSafe(Data storage self, int24 tick) internal view returns (uint160 sqrtPriceX96){
-        uint256 absTick = tick < 0
-            ? uint256(-int256(tick))
-            : uint256(int256(tick));
-        require(absTick <= uint256(int256(self.mutableConfig.maxTick)), "T");
-
-        sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
-    }
-
-    function getTickAtSqrtRatioSafe(Data storage self, uint160 sqrtPriceX96) internal view returns (int24 tick){
-        // second inequality must be < because the price can never reach the price at the max tick
-        require(
-            sqrtPriceX96 >= self.minSqrtRatio &&
-                sqrtPriceX96 < self.maxSqrtRatio,
-            "R"
-        );
-
-        tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
     }
 
     function flipTicks(
@@ -1050,48 +783,6 @@ library DatedIrsVamm {
         }
     }
 
-    /// @dev Common checks for valid tick inputs inside the min & max ticks
-    function checkTicksInRange(Data storage self, int24 tickLower, int24 tickUpper) internal view {
-        require(tickLower < tickUpper, "TLUR");
-        require(tickLower >= self.mutableConfig.minTick, "TLMR");
-        require(tickUpper <= self.mutableConfig.maxTick, "TUMR");
-    }
-
-    /// @dev Common checks for valid tick inputs inside the tick limits
-    function checkTicksLimits(int24 tickLower, int24 tickUpper) internal pure {
-        require(tickLower < tickUpper, "TLUL");
-        require(tickLower >= TickMath.MIN_TICK_LIMIT, "TLML");
-        require(tickUpper <= TickMath.MAX_TICK_LIMIT, "TUML");
-    }
-
-    function checksBeforeSwap(
-        Data storage self,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bool isFT
-    ) internal view {
-
-        if (amountSpecified == 0) {
-            revert VammCustomErrors.IRSNotionalAmountSpecifiedMustBeNonZero();
-        }
-
-        /// @dev if a trader is an FT, they consume fixed in return for variable
-        /// @dev Movement from right to left along the VAMM, hence the sqrtPriceLimitX96 needs to be higher 
-        // than the current sqrtPriceX96, but lower than the MAX_SQRT_RATIO
-        /// @dev if a trader is a VT, they consume variable in return for fixed
-        /// @dev Movement from left to right along the VAMM, hence the sqrtPriceLimitX96 needs to be lower 
-        // than the current sqrtPriceX96, but higher than the MIN_SQRT_RATIO
-
-        require(
-            isFT
-                ? sqrtPriceLimitX96 > self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 < self.maxSqrtRatio
-                : sqrtPriceLimitX96 < self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 > self.minSqrtRatio,
-            "SPL"
-        );
-    }
-
     /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
     /// The answer must be a valid `int256`. Reverts on overflow.
     function baseBetweenTicks(
@@ -1101,11 +792,11 @@ library DatedIrsVamm {
         int128 _liquidityPerTick
     ) internal view returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = self.getSqrtRatioAtTickSafe(_tickLower);
+        uint160 sqrtRatioAX96 = VammTicks.getSqrtRatioAtTickSafe(self, _tickLower);
 
-        uint160 sqrtRatioBX96 = self.getSqrtRatioAtTickSafe(_tickUpper);
+        uint160 sqrtRatioBX96 = VammTicks.getSqrtRatioAtTickSafe(self, _tickUpper);
 
-        return VAMMBase.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
+        return VammBase.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
     }
 
     function unbalancedQuoteBetweenTicks(
@@ -1115,16 +806,10 @@ library DatedIrsVamm {
         int256 baseAmount
     ) internal view returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = self.getSqrtRatioAtTickSafe(_tickLower);
+        uint160 sqrtRatioAX96 = VammTicks.getSqrtRatioAtTickSafe(self, _tickLower);
 
-        uint160 sqrtRatioBX96 = self.getSqrtRatioAtTickSafe(_tickUpper);
+        uint160 sqrtRatioBX96 = VammTicks.getSqrtRatioAtTickSafe(self, _tickUpper);
 
-        return VAMMBase.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function getPriceFromTick(Data storage self, int24 _tick) internal view returns (UD60x18 price) {
-        uint160 sqrtPriceX96 = self.getSqrtRatioAtTickSafe(_tick);
-        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-        return UD60x18.wrap(FullMath.mulDiv(1e18, FixedPoint96.Q96, priceX96));
+        return VammBase.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
 }

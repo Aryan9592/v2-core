@@ -3,6 +3,7 @@ pragma solidity >=0.8.13;
 
 import "../interfaces/IVammModule.sol";
 import "../storage/DatedIrsVamm.sol";
+import "../libraries/vamm-utils/VammTwap.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
@@ -11,6 +12,8 @@ import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
  */
 contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
+    using VammConfiguration for DatedIrsVamm.Data;
+    using VammTwap for DatedIrsVamm.Data;
 
     /**
      * @inheritdoc IVammModule
@@ -24,7 +27,7 @@ contract VammModule is IVammModule {
         VammConfiguration.Mutable calldata _mutableConfig
     ) external override {
         OwnableStorage.onlyOwner();
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.create(
+        DatedIrsVamm.Data storage vamm = VammConfiguration.create(
             _marketId,
             _sqrtPriceX96,
             times,

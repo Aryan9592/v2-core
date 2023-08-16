@@ -3,15 +3,19 @@ pragma solidity >=0.8.13;
 
 import "../ticks/Tick.sol";
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 import "../../storage/Oracle.sol";
+import "../../storage/DatedIrsVamm.sol";
 import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
 /**
  * @title Tracks configurations for dated irs markets
  */
 library VammConfiguration {
+    using DatedIrsVamm for DatedIrsVamm.Data;
+    using Oracle for Oracle.Observation[65535];
+    using VammConfiguration for DatedIrsVamm.Data;
 
     struct Mutable {
         /// @dev the phi value to use when adjusting a TWAP price for the likely price impact of liquidation
@@ -76,5 +80,105 @@ library VammConfiguration {
         mapping(int24 => Tick.Info) _ticks;
         /// @dev map from tick to tick bitmap
         mapping(int16 => uint256) _tickBitmap;
+    }
+
+    /**
+     * @dev Finds the vamm id using market id and maturity and
+     * returns the vamm stored at the specified vamm id. Reverts if no such VAMM is found.
+     */
+    function create(
+        uint128 _marketId,
+        uint160 _sqrtPriceX96,
+        uint32[] memory times,
+        int24[] memory observedTicks,
+        Immutable memory _config,
+        Mutable memory _mutableConfig
+    ) internal returns (DatedIrsVamm.Data storage irsVamm) {
+        uint256 id = uint256(keccak256(abi.encodePacked(_marketId, _config.maturityTimestamp)));
+        irsVamm = DatedIrsVamm.load(id);
+
+        if (irsVamm.immutableConfig.maturityTimestamp != 0) {
+            revert VammCustomErrors.MarketAndMaturityCombinaitonAlreadyExists(_marketId, _config.maturityTimestamp);
+        }
+
+        if (_config.maturityTimestamp <= block.timestamp) {
+            revert VammCustomErrors.MaturityMustBeInFuture(block.timestamp, _config.maturityTimestamp);
+        }
+
+        // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
+        // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
+        // 16384 ticks represents a >5x price change with ticks of 1 bips
+        require(_config._tickSpacing > 0 && _config._tickSpacing < Tick.MAXIMUM_TICK_SPACING, "TSOOB");
+
+        irsVamm.immutableConfig.maturityTimestamp = _config.maturityTimestamp;
+        irsVamm.immutableConfig._maxLiquidityPerTick = _config._maxLiquidityPerTick;
+        irsVamm.immutableConfig._tickSpacing = _config._tickSpacing;
+        irsVamm.immutableConfig.marketId = _marketId;
+
+        initialize(irsVamm, _sqrtPriceX96, times, observedTicks);
+        
+        configure(irsVamm, _mutableConfig);
+    }
+
+    /// @dev not locked because it initializes unlocked
+    function initialize(
+        DatedIrsVamm.Data storage self,
+        uint160 sqrtPriceX96,
+        uint32[] memory times,
+        int24[] memory observedTicks
+    ) internal {
+        if (sqrtPriceX96 == 0) {
+            revert VammCustomErrors.ExpectedNonZeroSqrtPriceForInit(sqrtPriceX96);
+        }
+        if (self.vars.sqrtPriceX96 != 0) {
+            revert VammCustomErrors.ExpectedSqrtPriceZeroBeforeInit(self.vars.sqrtPriceX96);
+        }
+
+        int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
+
+        (self.vars.observationCardinality, self.vars.observationCardinalityNext) = 
+            self.vars.observations.initialize(times, observedTicks);
+        self.vars.observationIndex = self.vars.observationCardinality - 1;
+        self.vars.unlocked = true;
+        self.vars.tick = tick;
+        self.vars.sqrtPriceX96 = sqrtPriceX96;
+    }
+
+    function configure(
+        DatedIrsVamm.Data storage self,
+        Mutable memory _config) internal {
+
+        if (_config.priceImpactPhi.gt(UNIT) || _config.priceImpactBeta.gt(UNIT)) {
+            revert VammCustomErrors.PriceImpactOutOfBounds();
+        }
+
+        self.mutableConfig.priceImpactPhi = _config.priceImpactPhi;
+        self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
+        self.mutableConfig.rateOracle = _config.rateOracle;
+        self.mutableConfig.spread = _config.spread;
+
+        self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
+    }
+
+    function setMinAndMaxTicks(
+        DatedIrsVamm.Data storage self,
+        int24 _minTick,
+        int24 _maxTick
+    ) internal {
+        if(
+            _minTick < TickMath.MIN_TICK_LIMIT || _maxTick > TickMath.MAX_TICK_LIMIT ||
+            self.vars.tick < _minTick || self.vars.tick > _maxTick
+        ) {
+            revert VammCustomErrors.ExceededTickLimits(_minTick, _maxTick);
+        }
+
+        if(_minTick + _maxTick != 0) {
+            revert VammCustomErrors.AsymmetricTicks(_minTick, _maxTick);
+        }
+
+        self.mutableConfig.minTick = _minTick;
+        self.mutableConfig.maxTick = _maxTick;
+        self.minSqrtRatio = TickMath.getSqrtRatioAtTick(_minTick);
+        self.maxSqrtRatio = TickMath.getSqrtRatioAtTick(_maxTick);
     }
 }
