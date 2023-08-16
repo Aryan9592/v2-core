@@ -160,6 +160,9 @@ library VammConfiguration {
         address productAddress = PoolConfiguration.load().productAddress;
         address rateOracleAddress = IRateOracleModule(productAddress)
                     .getVariableOracleAddress(self.immutableConfig.marketId);
+        if(rateOracleAddress == address(0)) {
+            revert VammCustomErrors.RateOracleNotSet(self.immutableConfig.marketId);
+        }
         self.mutableConfig.rateOracle = IRateOracle(rateOracleAddress);
 
         self.setMinAndMaxTicks(_config.minTick, _config.maxTick);

@@ -40,6 +40,9 @@ interface VammCustomErrors {
    /// @dev Error which ensures the VAMM maturity is in the future
    error MaturityMustBeInFuture(uint256 currentTime, uint256 requestedMaturity);
 
+   /// @dev Thrown rate oracle is not found in product
+   error RateOracleNotSet(uint128 marketId);
+
    /**
      * @dev Thrown when a specified vamm is not found.
      */
