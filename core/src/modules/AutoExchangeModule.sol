@@ -40,7 +40,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
      * @inheritdoc IAutoExchangeModule
      */
     function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view override returns (
-        bool isEligibleForAutoExchange
+        bool
     ) {
         Account.Data storage account = Account.exists(accountId);
         return account.isEligibleForAutoExchange(quoteType);
@@ -62,10 +62,10 @@ contract AutoExchangeModule is IAutoExchangeModule {
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
         Account.Data storage insuranceFundAccount = Account.exists(999); // todo: get from collateral pool
 
-        bool isEligibleForAutoExchange = 
+        bool _isEligibleForAutoExchange = 
             account.isEligibleForAutoExchange(quoteType);
 
-        if (!isEligibleForAutoExchange) {
+        if (!_isEligibleForAutoExchange) {
             revert AccountNotEligibleForAutoExchange(accountId);
         }
 
