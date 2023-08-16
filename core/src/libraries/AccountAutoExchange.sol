@@ -87,7 +87,7 @@ library AccountAutoExchange {
         (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
             AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
-        UD60x18 imMultiplier = AccountExposure.getIMMultiplier();
+        UD60x18 imMultiplier = self.getCollateralPool().riskConfig.imMultiplier;
         uint256 initialMarginRequirement = 
             AccountExposure.computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
 
