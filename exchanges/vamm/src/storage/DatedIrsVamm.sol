@@ -2,9 +2,7 @@
 pragma solidity >=0.8.13;
 
 import "./LPPosition.sol";
-import "./PoolConfiguration.sol";
-
-import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {PoolConfiguration} from "./PoolConfiguration.sol";
 
 import "../libraries/vamm-utils/VAMMBase.sol";
 import "../libraries//vamm-utils/SwapMath.sol";
@@ -165,14 +163,6 @@ library DatedIrsVamm {
         self.mutableConfig.priceImpactPhi = _config.priceImpactPhi;
         self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
         self.mutableConfig.spread = _config.spread;
-
-        address productAddress = PoolConfiguration.load().productAddress;
-        address rateOracleAddress = IRateOracleModule(productAddress)
-                    .getVariableOracleAddress(self.immutableConfig.marketId);
-        if(rateOracleAddress == address(0)) {
-            revert VammCustomErrors.RateOracleNotSet(self.immutableConfig.marketId);
-        }
-        self.mutableConfig.rateOracle = IRateOracle(rateOracleAddress);
 
         self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
     }
@@ -517,6 +507,14 @@ library DatedIrsVamm {
         }
     }
 
+    /// @dev Stores fixed values required in each swap step 
+    struct SwapFixedValues {
+        uint256 secondsTillMaturity;
+        int24 minTick;
+        int24 maxTick;
+        UD60x18 liquidityIndex;
+    }
+
     /// @dev amountSpecified The amount of the swap in base tokens, 
     ///     which implicitly configures the swap as exact input (positive), or exact output (negative)
     /// @dev sqrtPriceLimitX96 The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
@@ -546,10 +544,14 @@ library DatedIrsVamm {
         });
 
         // The following are used n times within the loop, but will not change so they are calculated here
-        uint256 secondsTillMaturity = self.immutableConfig.maturityTimestamp - block.timestamp;
-        int24[] memory vammMinMaxTicks = new int24[](2);
-        vammMinMaxTicks[0] = self.mutableConfig.minTick;
-        vammMinMaxTicks[1] = self.mutableConfig.maxTick;
+        SwapFixedValues memory util = SwapFixedValues({
+            secondsTillMaturity: self.immutableConfig.maturityTimestamp - block.timestamp,
+            minTick: self.mutableConfig.minTick,
+            maxTick: self.mutableConfig.maxTick,
+            liquidityIndex: PoolConfiguration
+                .getRateOracle(self.immutableConfig.marketId)
+                .getCurrentIndex()
+        });
 
         // continue swapping as long as we haven't used the entire input/output and haven't 
         //     reached the price (implied fixed rate) limit
@@ -572,11 +574,11 @@ library DatedIrsVamm {
                 .nextInitializedTickWithinOneWord(state.tick, self.immutableConfig._tickSpacing, !(params.amountSpecified > 0));
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-            if (params.amountSpecified > 0 && step.tickNext > vammMinMaxTicks[1]) {
-                step.tickNext = vammMinMaxTicks[1];
+            if (params.amountSpecified > 0 && step.tickNext > util.maxTick) {
+                step.tickNext = util.maxTick;
             }
-            if (!(params.amountSpecified > 0) && step.tickNext < vammMinMaxTicks[0]) {
-                step.tickNext = vammMinMaxTicks[0];
+            if (!(params.amountSpecified > 0) && step.tickNext < util.minTick) {
+                step.tickNext = util.minTick;
             }
             // get the price for the next tick
             step.sqrtPriceNextX96 = self.getSqrtRatioAtTickSafe(step.tickNext);
@@ -602,7 +604,7 @@ library DatedIrsVamm {
                     ),
                     liquidity: state.liquidity,
                     amountRemaining: state.amountSpecifiedRemaining,
-                    timeToMaturityInSeconds: secondsTillMaturity
+                    timeToMaturityInSeconds: util.secondsTillMaturity
                 })
             );
 
@@ -624,8 +626,8 @@ library DatedIrsVamm {
                 step.quoteTokenDelta = VAMMBase.calculateQuoteTokenDelta(
                     step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
-                    FixedAndVariableMath.accrualFact(secondsTillMaturity),
-                    self.mutableConfig.rateOracle.getCurrentIndex(),
+                    FixedAndVariableMath.accrualFact(util.secondsTillMaturity),
+                    util.liquidityIndex,
                     self.mutableConfig.spread
                 );
 
@@ -872,7 +874,7 @@ library DatedIrsVamm {
             unbalancedQuoteTokensLeft,
             -(unfilledBaseTokensLeft).toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            self.mutableConfig.rateOracle.getCurrentIndex(),
+            PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex(),
             self.mutableConfig.spread
         ).toUint();
 
@@ -911,7 +913,9 @@ library DatedIrsVamm {
             unbalancedQuoteTokensRight,
             unfilledBaseTokensRight.toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            self.mutableConfig.rateOracle.getCurrentIndex(),
+            PoolConfiguration
+                .getRateOracle(self.immutableConfig.marketId)
+                .getCurrentIndex(),
             self.mutableConfig.spread
         )).toUint();
 

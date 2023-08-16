@@ -5,7 +5,7 @@ import "@voltz-protocol/util-contracts/src/proxy/UUPSProxyWithOwner.sol";
 import "@voltz-protocol/v2-vamm/src/modules/AccountBalanceModule.sol";
 import { FeatureFlagModule as FeatureFlagModuleVamm } from "@voltz-protocol/v2-vamm/src/modules/FeatureFlagModule.sol";
 import "@voltz-protocol/v2-vamm/src/modules/OwnerUpgradeModule.sol";
-import "@voltz-protocol/v2-vamm/src/modules/PoolConfigurationModule.sol";
+import {PoolConfigurationModule} from "@voltz-protocol/v2-vamm/src/modules/PoolConfigurationModule.sol";
 import "@voltz-protocol/v2-vamm/src/modules/PoolModule.sol";
 import "@voltz-protocol/v2-vamm/src/modules/VammModule.sol";
 
