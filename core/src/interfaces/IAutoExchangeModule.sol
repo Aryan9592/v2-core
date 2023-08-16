@@ -29,16 +29,29 @@ interface IAutoExchangeModule {
     /**
      * @notice Checks if a multi-token account is eligble for auto-exchange
      * @param accountId The id of the account that is being checked for auto-exchange eligibility
-     * @param settlementType The settlement token's address to be covered in the auto exchange
+     * @param quoteType The settlement token's address to be covered in the auto exchange
      * @return isEligibleForAutoExchange True if the account is liquidatable
      */
-    function isEligibleForAutoExchange(uint128 accountId, address settlementType) external view returns (
+    function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view returns (
         bool isEligibleForAutoExchange
     );
 
 
     // todo: consider returning relevant information post auto-exchange
     function triggerAutoExchange(uint128 autoExchangeAccountId, uint128 autoExchangeTriggerAccountId,
-        uint256 amountToAutoExchange, address collateralType, address settlementType) external;
+        uint256 amountToAutoExchange, address collateralType, address quoteType) external;
+
+    /** 
+    * @notice Returns the maximum amount that can be exchanged, represented in quote token
+    * @dev maxAmountQuote = min(
+        abs(min(0, collateralBalanceInQuote + rPnLInQuote + uPnLInQuote)) * autoExchangeRatio,
+        collateralBalanceInCollateralTokenRepresentedInQuote 
+        )
+    */
+    function getMaxAmountToExchangeQuote(
+        uint128 accountId,
+        address collateralType,
+        address quoteType
+    ) external returns (uint256 maxAmountQuote);
 
 }
