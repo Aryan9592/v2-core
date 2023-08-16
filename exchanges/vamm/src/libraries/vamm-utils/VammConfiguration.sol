@@ -146,7 +146,8 @@ library VammConfiguration {
 
     function configure(
         DatedIrsVamm.Data storage self,
-        Mutable memory _config) internal {
+        Mutable memory _config
+    ) internal {
 
         if (_config.priceImpactPhi.gt(UNIT) || _config.priceImpactBeta.gt(UNIT)) {
             revert VammCustomErrors.PriceImpactOutOfBounds();
@@ -154,8 +155,12 @@ library VammConfiguration {
 
         self.mutableConfig.priceImpactPhi = _config.priceImpactPhi;
         self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
-        self.mutableConfig.rateOracle = _config.rateOracle;
         self.mutableConfig.spread = _config.spread;
+
+        address productAddress = PoolConfiguration.load().productAddress;
+        address rateOracleAddress = IRateOracleModule(productAddress)
+                    .getVariableOracleAddress(self.immutableConfig.marketId);
+        self.mutableConfig.rateOracle = IRateOracle(rateOracleAddress);
 
         self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
     }

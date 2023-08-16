@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+
 /// @title Pool configuration
 library PoolConfiguration {
     event PauseState(bool newPauseState, uint256 blockTimestamp);
@@ -33,5 +35,9 @@ library PoolConfiguration {
 
     function whenNotPaused() internal view {
         require(!PoolConfiguration.load().paused, "Paused");
+    }
+
+    function getOracleFromProduct() internal view returns (IRateOracleModule) {
+        return IRateOracleModule(PoolConfiguration.load().productAddress);
     }
 }
