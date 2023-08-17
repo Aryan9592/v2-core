@@ -7,22 +7,26 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Portfolio.sol";
-import "@voltz-protocol/core/src/storage/Account.sol";
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import {Portfolio} from "../storage/Portfolio.sol";
+import {Market} from "../storage/Market.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
+
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
+
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "../storage/RateOracleReader.sol";
-import "../interfaces/IPool.sol";
-import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import "../storage/MarketManagerConfiguration.sol";
+import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
  */
 library ExposureHelpers {
     using SafeCastU256 for uint256;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
 
     struct PoolExposureState {
         uint128 marketId;
@@ -68,14 +72,10 @@ library ExposureHelpers {
     {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
 
-        UD60x18 currentLiquidityIndex = RateOracleReader.load(marketId).getRateIndexCurrent();
-
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        uint32 lookbackWindow =
-            IRiskConfigurationModule(coreProxy).getMarketRiskConfiguration(marketId).twapLookbackWindow;
-
-        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(marketId, maturityTimestamp, -baseAmount, lookbackWindow);
+        Market.Data storage market = Market.exists(marketId);
+        UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
+    
+        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(marketId, maturityTimestamp, -baseAmount, market.marketConfig.twapLookbackWindow);
 
         unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
     }
@@ -87,7 +87,7 @@ library ExposureHelpers {
      * underlying rate oracle (e.g. aUSDC lend rate oracle)
      */
     function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18 factor) {
-        UD60x18 currentLiquidityIndex = RateOracleReader.load(marketId).getRateIndexCurrent();
+        UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
         factor = currentLiquidityIndex.mul(timeDeltaAnnualized);
     }

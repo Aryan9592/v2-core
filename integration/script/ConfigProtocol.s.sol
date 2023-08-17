@@ -40,255 +40,6 @@ contract ConfigProtocol is SetupProtocol {
 
   }
 
-  function run_rollover_goerli() public {
-    // Populate with transactions
-    backfillRateIndexAtMaturityCache({
-      marketId: 1, 
-      maturityTimestamp: 1690545600, 
-      rateIndexAtMaturity: ud60x18(1002367514412561319)
-    });
-
-    setVariableOracle({
-      marketId: 1,
-      oracleAddress: address(contracts.aaveV3RateOracle),
-      maturityIndexCachingWindowInSeconds: 3600
-    });
-
-    uint32[] memory times = new uint32[](2);
-     times[0] = uint32(block.timestamp - 86400*4); // note goes back 4 days, while lookback is 3 days, so should be fine?
-     times[1] = uint32(block.timestamp - 86400*3);
-    int24[] memory observedTicks = new int24[](2);
-     observedTicks[0] = -12240; // 3.4% note worth double checking
-     observedTicks[1] = -12240; // 3.4%
-    deployPool({
-      immutableConfig: VammConfiguration.Immutable({
-        maturityTimestamp: 1691150400,                                // 	Fri Aug 04 2023 12:00:00 GMT+0000
-        _maxLiquidityPerTick: type(uint128).max,
-        _tickSpacing: 60,
-        marketId: 1
-      }),
-      mutableConfig: VammConfiguration.Mutable({
-        priceImpactPhi: ud60x18(0),
-        priceImpactBeta: ud60x18(0),
-        spread: ud60x18(0.001e18),
-        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
-        minSecondsBetweenOracleObservations: 3600,
-        minTick: -15780,  // 4.85%
-        maxTick: 15780    // 0.2%
-      }),
-      initTick: -12240, // 3.4%
-      // todo: note, is this sufficient, or should we increase? what's the min gap between consecutive observations?
-      observationCardinalityNext: 744, // sufficient for 1 month of data
-      makerPositionsPerAccountLimit: 1,
-      times: times,
-      observedTicks: observedTicks
-    });
-    mintOrBurn(MintOrBurnParams({
-      marketId: 1,
-      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      accountId: 445,
-      maturityTimestamp: 1691150400,
-      marginAmount: 1000e6,
-      notionalAmount: 1000e6 * 10,
-      tickLower: -15420, // 4.67%
-      tickUpper: -8580, // 2.35%
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      peripheryExecuteDeadline: block.timestamp + 360
-    }));
-
-    execute_multisig_batch();
-  }
-
-  function run_goerli() public {
-    address[] memory pausers = new address[](0);
-      // pausers[0] = 0x140d001689979ee77C2FB4c8d4B5F3E209135776;
-      // pausers[1] = 0xA73d7b822Bfad43500a26aC38956dfEaBD3E066d;
-      // pausers[2] = 0x4a02c244dCED6797d864B408F646Afe470147159;
-      // pausers[3] = 0xf94e5Cdf41247E268d4847C30A0DC2893B33e85d;
-    enableFeatureFlags({
-      pausers: pausers
-    });
-
-    configureCollateralPool({
-      collateralPoolId: 1,
-      imMultiplier: ud60x18(1.5e18),
-      liquidatorRewardParameter: ud60x18(0.05e18),
-      feeCollectorAccountId: 999
-    });
-
-    registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1,
-      isTrusted: true
-    });
-
-    configureMarket({
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      // note, let's keep as bridged usdc for now
-      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      productId: 1,
-      marketId: 1,
-      feeCollectorAccountId: 999,
-      cap: type(uint256).max,
-      atomicMakerFee: ud60x18(0),
-      atomicTakerFee: ud60x18(0.0002e18),
-      riskParameter: ud60x18(0.013e18),
-      twapLookbackWindow: 259200,
-      maturityIndexCachingWindowInSeconds: 3600
-    });
-    uint32[] memory times = new uint32[](2);
-     times[0] = uint32(block.timestamp - 86400*4); // note goes back 4 days, while lookback is 3 days, so should be fine?
-     times[1] = uint32(block.timestamp - 86400*3);
-    int24[] memory observedTicks = new int24[](2);
-     observedTicks[0] = 18960; // 0.15%
-     observedTicks[1] = 18960; // 0.15%
-    deployPool({
-      immutableConfig: VammConfiguration.Immutable({
-        maturityTimestamp: 1690545600,                                // Fri Jul 28 2023 12:00:00 GMT+0000
-        _maxLiquidityPerTick: type(uint128).max,
-        _tickSpacing: 60,
-        marketId: 1
-      }),
-      mutableConfig: VammConfiguration.Mutable({
-        priceImpactPhi: ud60x18(0),
-        priceImpactBeta: ud60x18(0),
-        spread: ud60x18(0.001e18),
-        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
-        minSecondsBetweenOracleObservations: 3600,
-        minTick: -30000,  // 20.08%
-        maxTick: 30000    // 0.049%
-      }),
-      initTick: 16095, // 0.2%
-      // todo: note, is this sufficient, or should we increase? what's the min gap between consecutive observations?
-      observationCardinalityNext: 744, // sufficient for 1 month of data
-      makerPositionsPerAccountLimit: 1,
-      times: times,
-      observedTicks: observedTicks
-    });
-    mintOrBurn(MintOrBurnParams({
-      marketId: 1,
-      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      accountId: 444,
-      maturityTimestamp: 1690545600,
-      marginAmount: 1000e6,
-      notionalAmount: 1000e6 * 100,
-      tickLower: 10500 , // 0.35%
-      tickUpper: 23040, // 0.10%
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      peripheryExecuteDeadline: block.timestamp + 360
-    }));
-
-    execute_multisig_batch();
-  }
-
-  function run_mainnet() public {
-    // upgradeProxy(
-    //   address(contracts.coreProxy), 
-    //   0x44E1D5aEcb7B4d191F37f1933A30343046bD9ADB
-    // ); // todo: populate with latest router
-    
-    // upgradeProxy(
-    //   address(contracts.datedIrsProxy), 
-    //   0x2463Db784786e04d266d9D91E77E1Fd650204fDD
-    // ); // todo: populate with latest router
-    
-    // upgradeProxy(
-    //   address(contracts.peripheryProxy), 
-    //   0x2457D958DBEBaCc9daA41B47592faCA5845f8Fc3
-    // ); // todo: populate with latest router
-    
-    // upgradeProxy(
-    //   address(contracts.vammProxy), 
-    //   0x8b6663217C62D5510F191de84d1c3a403D304016
-    // ); // todo: populate with latest router
-    
-    // initOrUpgradeNft({
-    //   id: 0x6163636f756e744e465400000000000000000000000000000000000000000000,
-    //   name: "Voltz V2 Account NFT", 
-    //   symbol: "VOLTZ", 
-    //   uri: "https://www.voltz.xyz/", 
-    //   impl: 0x935b397d9888C70027eCF8F7Dc6a68AbdCceBEd4 // todo: populate with latest router
-    // });
-
-    address[] memory pausers = new address[](4);
-      pausers[0] = 0x140d001689979ee77C2FB4c8d4B5F3E209135776;
-      pausers[1] = 0xA73d7b822Bfad43500a26aC38956dfEaBD3E066d;
-      pausers[2] = 0x4a02c244dCED6797d864B408F646Afe470147159;
-      pausers[3] = 0xf94e5Cdf41247E268d4847C30A0DC2893B33e85d;
-    enableFeatureFlags({
-      pausers: pausers
-    });
-
-    configureCollateralPool({
-      collateralPoolId: 1,
-      imMultiplier: ud60x18(1.5e18),
-      liquidatorRewardParameter: ud60x18(0.05e18),
-      feeCollectorAccountId: 999
-    });
-
-    registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1,
-      isTrusted: true
-    });
-
-    configureMarket({
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      // note, let's keep as bridged usdc for now
-      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      productId: 1,
-      marketId: 1,
-      feeCollectorAccountId: 999,
-      cap: 100000e6,
-      atomicMakerFee: ud60x18(0),
-      atomicTakerFee: ud60x18(0.0002e18),
-      riskParameter: ud60x18(0.013e18),
-      twapLookbackWindow: 259200,
-      maturityIndexCachingWindowInSeconds: 3600
-    });
-    uint32[] memory times = new uint32[](2);
-     times[0] = uint32(block.timestamp - 86400*4); // note goes back 4 days, while lookback is 3 days, so should be fine?
-     times[1] = uint32(block.timestamp - 86400*3);
-    int24[] memory observedTicks = new int24[](2);
-     observedTicks[0] = -12240; // 3.4% note worth double checking
-     observedTicks[1] = -12240; // 3.4%
-    deployPool({
-      immutableConfig: VammConfiguration.Immutable({
-        maturityTimestamp: 1692360000,                                // Fri Aug 18 2023 12:00:00 GMT+0000
-        _maxLiquidityPerTick: type(uint128).max,
-        _tickSpacing: 60,
-        marketId: 1
-      }),
-      mutableConfig: VammConfiguration.Mutable({
-        priceImpactPhi: ud60x18(0),
-        priceImpactBeta: ud60x18(0),
-        spread: ud60x18(0.001e18),
-        rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
-        minSecondsBetweenOracleObservations: 3600,
-        minTick: -15780,  // 4.85%
-        maxTick: 15780    // 0.2%
-      }),
-      initTick: -12240, // 3.4%
-      // todo: note, is this sufficient, or should we increase? what's the min gap between consecutive observations?
-      observationCardinalityNext: 744, // sufficient for 1 month of data
-      makerPositionsPerAccountLimit: 1,
-      times: times,
-      observedTicks: observedTicks
-    });
-    mintOrBurn(MintOrBurnParams({
-      marketId: 1,
-      tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      accountId: 444,
-      maturityTimestamp: 1692356400,
-      marginAmount: 25000e6,
-      notionalAmount: 25000e6 * 500,
-      tickLower: -15420, // 4.67%
-      tickUpper: -8580, // 2.35%
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      peripheryExecuteDeadline: block.timestamp + 360
-    }));
-
-    execute_multisig_batch();
-  }
-
   function configure_protocol() public {
     // upgradeProxy(address(contracts.coreProxy), address(0));
     // upgradeProxy(address(contracts.datedIrsProxy), address(0));
@@ -308,13 +59,11 @@ contract ConfigProtocol is SetupProtocol {
       feeCollectorAccountId: 999
     });
     registerDatedIrsProduct({
-      takerPositionsPerAccountLimit: 1,
       isTrusted: true
     });
     configureMarket({
       rateOracleAddress: address(contracts.aaveV3RateOracle),
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
-      productId: 1,
       marketId: 1,
       feeCollectorAccountId: 999,
       cap: 1000e6,
@@ -322,7 +71,8 @@ contract ConfigProtocol is SetupProtocol {
       atomicTakerFee: ud60x18(5e16),
       riskParameter: ud60x18(1e18),
       twapLookbackWindow: 120,
-      maturityIndexCachingWindowInSeconds: 3600
+      maturityIndexCachingWindowInSeconds: 3600,
+      takerPositionsPerAccountLimit: 1
     });
     uint32[] memory times = new uint32[](2);
     times[0] = uint32(block.timestamp - 86400);

@@ -7,22 +7,21 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Pack.sol";
-import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
-import "./Position.sol";
-import "./RateOracleReader.sol";
-import "./MarketConfiguration.sol";
-import "./MarketManagerConfiguration.sol";
-import "../interfaces/IPool.sol";
-import "../libraries/ExposureHelpers.sol";
-import "@voltz-protocol/core/src/storage/Account.sol";
-import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import { SD59x18 } from "@prb/math/SD59x18.sol";
-import { mulUDxUint, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {Position} from "./Position.sol";
+import {Market} from "./Market.sol";
+import {MarketManagerConfiguration} from "./MarketManagerConfiguration.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -33,7 +32,7 @@ library Portfolio {
     using SetUtil for SetUtil.UintSet;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastU256 for uint256;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
 
     /**
      * @dev Thrown when a portfolio cannot be found.
@@ -189,7 +188,7 @@ library Portfolio {
     function closeAccount(Data storage self) internal {
         IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
 
-        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
+        address collateralType = Market.load(self.marketId).quoteToken;
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
@@ -217,7 +216,7 @@ library Portfolio {
                 mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
             );
 
-            RateOracleReader.load(self.marketId).updateOracleStateIfNeeded();
+            Market.load(self.marketId).updateOracleStateIfNeeded();
 
             emit PositionUpdated(
                 self.accountId, 
@@ -270,7 +269,7 @@ library Portfolio {
 
         Position.Data storage position = self.positions[maturityTimestamp];
 
-        UD60x18 liquidityIndexMaturity = RateOracleReader.load(marketId).getRateIndexMaturity(maturityTimestamp);
+        UD60x18 liquidityIndexMaturity = Market.load(marketId).getRateIndexMaturity(maturityTimestamp);
 
         self.deactivateMarketMaturity(maturityTimestamp);
 
@@ -299,7 +298,9 @@ library Portfolio {
      */
     function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         // check if market/maturity exist
-        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
+        Market.Data storage market = Market.exists(self.marketId);
+
+        address collateralType = market.quoteToken;
 
         if (collateralType == address(0)) {
             revert UnknownMarket(self.marketId);
@@ -308,7 +309,7 @@ library Portfolio {
         if (!self.activeMaturities.contains(maturityTimestamp)) {
             if (
                 self.activeMaturities.length() >= 
-                MarketManagerConfiguration.load().takerPositionsPerAccountLimit
+                market.marketConfig.takerPositionsPerAccountLimit
             ) {
                 revert TooManyTakerPositions(self.accountId, self.marketId);
             }

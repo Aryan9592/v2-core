@@ -37,11 +37,6 @@ library Market {
          * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
          */
         UD60x18 riskParameter;
-    
-        /**
-         * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
-         */
-        uint32 twapLookbackWindow;
     }
 
     struct FeeConfiguration {

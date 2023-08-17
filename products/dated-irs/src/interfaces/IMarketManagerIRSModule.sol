@@ -121,4 +121,16 @@ interface IMarketManagerIRSModule is IMarketManager {
      * @notice Returns core proxy address from MarketManagerConfigruation
      */
     function getCoreProxyAddress() external returns (address);
+
+    function name() external pure returns (string memory);
+
+    function getAccountTakerAndMakerExposures(
+        uint128 accountId,
+        uint128 marketId
+    )
+        external
+        view
+        returns (Account.MakerMarketExposure[] memory exposures);
+
+    function closeAccount(uint128 accountId, uint128 marketId) external;
 }

@@ -7,11 +7,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IRateOracle.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { Market } from "../storage/Market.sol";
+import { IRateOracle } from "../interfaces/IRateOracle.sol";
+
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+
 import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
 
-library RateOracleReader {
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+
+library MarketRateOracle {
     using { unwrap } for UD60x18;
     /**
      * @dev Thrown if the index-at-maturity is requested before maturity.
@@ -45,50 +50,31 @@ library RateOracleReader {
         uint128 indexed marketId, address oracleAddress, uint32 timestamp, uint256 rate, uint256 blockTimestamp
     );
 
-    struct Data {
-        uint128 marketId;
-        address oracleAddress;
-        uint256 maturityIndexCachingWindowInSeconds;
-        mapping(uint256 => UD60x18) rateIndexAtMaturity;
+    function validateOracleInterface(address oracleAddress) internal view returns (bool isValid) {
+        return IERC165(oracleAddress).supportsInterface(type(IRateOracle).interfaceId);
     }
 
-    function load(uint128 marketId) internal pure returns (Data storage oracle) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.RateOracleReader", marketId));
-        assembly {
-            oracle.slot := s
-        }
-    }
-
-    function set(uint128 marketId, address oracleAddress, uint256 maturityIndexCachingWindowInSeconds)
-        internal returns (Data storage oracle) {
-        oracle = load(marketId);
-        oracle.marketId = marketId;
-        oracle.oracleAddress = oracleAddress;
-        oracle.maturityIndexCachingWindowInSeconds = maturityIndexCachingWindowInSeconds;
-    }
-
-    function backfillRateIndexAtMaturityCache(Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {
-
+    function backfillRateIndexAtMaturityCache(Market.Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {
         if (Time.blockTimestampTruncated() < maturityTimestamp) {
             revert MaturityNotReached();
         }
 
-        if (Time.blockTimestampTruncated() < maturityTimestamp + self.maturityIndexCachingWindowInSeconds) {
+        if (Time.blockTimestampTruncated() < maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds) {
             revert MaturityIndexCachingWindowOngoing();
         }
 
         self.rateIndexAtMaturity[maturityTimestamp] = rateIndexAtMaturity;
 
         emit RateOracleCacheUpdated(
-            self.marketId,
-            self.oracleAddress,
+            self.id,
+            self.rateOracleConfig.oracleAddress,
             maturityTimestamp,
             self.rateIndexAtMaturity[maturityTimestamp].unwrap(),
             block.timestamp
         );
     }
 
-    function updateRateIndexAtMaturityCache(Data storage self, uint32 maturityTimestamp) internal {
+    function updateRateIndexAtMaturityCache(Market.Data storage self, uint32 maturityTimestamp) internal {
 
         if (self.rateIndexAtMaturity[maturityTimestamp].unwrap() == 0) {
 
@@ -96,15 +82,15 @@ library RateOracleReader {
                 revert MaturityNotReached();
             }
 
-            if (Time.blockTimestampTruncated() > maturityTimestamp + self.maturityIndexCachingWindowInSeconds) {
+            if (Time.blockTimestampTruncated() > maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds) {
                 revert MaturityIndexCachingWindowElapsed();
             }
 
-            self.rateIndexAtMaturity[maturityTimestamp] = IRateOracle(self.oracleAddress).getCurrentIndex();
+            self.rateIndexAtMaturity[maturityTimestamp] = IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
 
             emit RateOracleCacheUpdated(
-                self.marketId,
-                self.oracleAddress,
+                self.id,
+                self.rateOracleConfig.oracleAddress,
                 maturityTimestamp,
                 self.rateIndexAtMaturity[maturityTimestamp].unwrap(),
                 block.timestamp
@@ -113,15 +99,15 @@ library RateOracleReader {
 
     }
 
-    function getRateIndexCurrent(Data storage self) internal view returns (UD60x18 rateIndexCurrent) {
+    function getRateIndexCurrent(Market.Data storage self) internal view returns (UD60x18 rateIndexCurrent) {
         /*
             Note, need thoughts here for protocols where current index does not correspond to the current timestamp (block.timestamp)
             ref. Lido and Rocket
         */
-        return IRateOracle(self.oracleAddress).getCurrentIndex();
+        return IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
     }
 
-    function getRateIndexMaturity(Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18 rateIndexMaturity) {
+    function getRateIndexMaturity(Market.Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18 rateIndexMaturity) {
 
         /*
             Note, for some period of time (until cache is captured) post maturity, the rate index cached for the maturity
@@ -135,9 +121,12 @@ library RateOracleReader {
         return self.rateIndexAtMaturity[maturityTimestamp];
     }
 
-    function updateOracleStateIfNeeded(Data storage self) internal {
-        if (IRateOracle(self.oracleAddress).hasState() && IRateOracle(self.oracleAddress).earliestStateUpdate() <= block.timestamp) {
-            IRateOracle(self.oracleAddress).updateState();
+    function updateOracleStateIfNeeded(Market.Data storage self) internal {
+        if (
+            IRateOracle(self.rateOracleConfig.oracleAddress).hasState() && 
+            IRateOracle(self.rateOracleConfig.oracleAddress).earliestStateUpdate() <= block.timestamp
+        ) {
+            IRateOracle(self.rateOracleConfig.oracleAddress).updateState();
         }
     }
 }

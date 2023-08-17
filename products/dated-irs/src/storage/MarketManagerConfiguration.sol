@@ -26,13 +26,6 @@ library MarketManagerConfiguration {
          * @dev Address of the pool address the market manager is linked to
          */
         address poolAddress;
-
-        // todo: revise the fact that taker position limit is only per market and not per all markets
-        
-        /**
-         * @dev Maximum number of positions of an account in this market
-         */
-        uint256 takerPositionsPerAccountLimit;
     }
 
     /**
@@ -57,7 +50,6 @@ library MarketManagerConfiguration {
 
         storedConfig.coreProxy = config.coreProxy;
         storedConfig.poolAddress = config.poolAddress;
-        storedConfig.takerPositionsPerAccountLimit = config.takerPositionsPerAccountLimit;
     }
 
     function getPoolAddress() internal view returns (address storedPoolAddress) {
@@ -68,10 +60,5 @@ library MarketManagerConfiguration {
     function getCoreProxyAddress() internal view returns (address storedProxyAddress) {
         Data storage storedConfig = load();
         storedProxyAddress = storedConfig.coreProxy;
-    }
-
-    function getTakerPositionsPerAccountLimit() internal view returns (uint256 takerPositionsPerAccountLimit) {
-        Data storage storedConfig = load();
-        takerPositionsPerAccountLimit = storedConfig.takerPositionsPerAccountLimit;
     }
 }

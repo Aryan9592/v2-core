@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import "../storage/Account.sol";

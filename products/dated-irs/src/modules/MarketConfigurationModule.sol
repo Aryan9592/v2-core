@@ -7,32 +7,37 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IMarketConfigurationModule.sol";
-import "../storage/MarketConfiguration.sol";
-import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import {IMarketConfigurationModule} from "../interfaces/IMarketConfigurationModule.sol";
+import {Market} from "../storage/Market.sol";
+
+import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
  * @title Module for configuring a market
  * @dev See IMarketConfigurationModule.
  */
 contract MarketConfigurationModule is IMarketConfigurationModule {
-    using MarketConfiguration for MarketConfiguration.Data;
+    using Market for Market.Data;
 
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function configureMarket(MarketConfiguration.Data memory config) external {
+    function createMarket(uint128 marketId, address quoteToken) external override {
         OwnableStorage.onlyOwner();
-
-        MarketConfiguration.set(config);
-
-        emit MarketConfigured(config, block.timestamp);
+        Market.create(marketId, quoteToken);
     }
 
     /**
      * @inheritdoc IMarketConfigurationModule
      */
-    function getMarketConfiguration(uint128 irsMarketId) external pure returns (MarketConfiguration.Data memory config) {
-        return MarketConfiguration.load(irsMarketId);
+    function setMarketConfiguration(uint128 marketId, Market.MarketConfiguration memory marketConfig) external override {
+        OwnableStorage.onlyOwner();
+        Market.Data storage market = Market.exists(marketId);
+        market.setMarketConfiguration(marketConfig);
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function getMarketConfiguration(uint128 marketId) external view override returns (Market.MarketConfiguration memory) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.marketConfig;
     }
 }
