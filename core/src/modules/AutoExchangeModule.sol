@@ -31,6 +31,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using Account for Account.Data;
     using AccountAutoExchange for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
+    using Market for Market.Data;
 
     bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
@@ -60,7 +61,12 @@ contract AutoExchangeModule is IAutoExchangeModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-        Account.Data storage insuranceFundAccount = Account.exists(999); // todo: get from collateral pool
+        Account.Data storage insuranceFundAccount = Account.exists(
+            Market.load(account.firstMarketId)
+                .getCollateralPool()
+                .insuranceFundConfig
+                .accountId
+        );
 
         bool _isEligibleForAutoExchange = 
             account.isEligibleForAutoExchange(quoteType);

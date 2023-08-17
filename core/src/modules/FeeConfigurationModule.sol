@@ -35,6 +35,18 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     /**
      * @inheritdoc IFeeConfigurationModule
      */
+    function configureCollateralPoolInsuranceFund(
+        uint128 collateralPoolId,
+        CollateralPool.InsuranceFundConfig memory config
+    ) external override {
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
+        collateralPool.onlyOwner();
+        collateralPool.setInsuranceFundConfig(config);
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
     function getProtocolMarketFeeConfiguration(uint128 marketId)
         external
         view
@@ -54,5 +66,17 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
         returns (Market.FeeConfiguration memory config)
     {
         return Market.exists(marketId).collateralPoolFeeConfig;
+    }
+
+    /**
+     * @inheritdoc IFeeConfigurationModule
+     */
+    function getCollateralPoolInsuranceFundConfiguration(uint128 collateralPoolId)
+        external
+        view
+        override
+        returns (CollateralPool.InsuranceFundConfig memory config)
+    {
+        return CollateralPool.exists(collateralPoolId).insuranceFundConfig;
     }
 }

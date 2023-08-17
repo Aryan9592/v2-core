@@ -12,6 +12,7 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "./Account.sol";
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -59,7 +60,13 @@ library CollateralPool {
     /**
      * @notice Emitted when the collateral pool is created or updated
      */
-    event CollateralPoolUpdated(uint128 id, uint128 rootId, RiskConfiguration riskConfig, uint256 blockTimestamp);
+    event CollateralPoolUpdated(
+        uint128 id,
+        uint128 rootId,
+        RiskConfiguration riskConfig,
+        InsuranceFundConfig insuranceFundConfig,
+        uint256 blockTimestamp
+    );
     
     /**
      * @notice Emitted when the collateral pool balance of some particular collateral type is updated.
@@ -77,6 +84,23 @@ library CollateralPool {
          * amount
          */
         UD60x18 liquidatorRewardParameter;
+    }
+
+    struct InsuranceFundConfig {
+        /**
+         * @dev Pool's insurance fund account ID
+         */
+        uint128 accountId;
+        /**
+         * @dev Percentage of the collateral pool maker and taker fees that 
+         * @dev go towards the insurance fund. (e.g. 0.1 * 1e18 = 10%)
+         */
+        UD60x18 makerAndTakerFee;
+        /**
+         * @dev Percentage of quote tokens paid to the insurance fund 
+         * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
+         */
+        UD60x18 autoExchangeFee;
     }
 
     struct Data {
@@ -109,6 +133,10 @@ library CollateralPool {
          * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
          */
         uint128 proposedParentId;
+        /**
+         * @dev Collateral pool wide insurance fund configuration 
+         */
+        InsuranceFundConfig insuranceFundConfig;
     }
 
     /**
@@ -129,7 +157,7 @@ library CollateralPool {
         collateralPool.owner = owner;
         collateralPool.rootId = id;
 
-        emit CollateralPoolUpdated(id, id, collateralPool.riskConfig, block.timestamp);
+        emit CollateralPoolUpdated(id, id, collateralPool.riskConfig, collateralPool.insuranceFundConfig, block.timestamp);
     }
 
     function exists(uint128 id) internal view returns (Data storage collateralPool) {
@@ -174,7 +202,7 @@ library CollateralPool {
 
         child.rootId = parent.id;
 
-        emit CollateralPoolUpdated(child.id, child.rootId, child.riskConfig, block.timestamp);
+        emit CollateralPoolUpdated(child.id, child.rootId, child.riskConfig, child.insuranceFundConfig,  block.timestamp);
     }
 
     function checkRoot(Data storage self) internal view {
@@ -268,7 +296,26 @@ library CollateralPool {
         self.riskConfig.imMultiplier = config.imMultiplier;
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
 
-        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, block.timestamp);
+        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, self.insuranceFundConfig, block.timestamp);
+    }
+
+    /**
+     * @dev Set the collateral pool wide insurance fund configuration
+     * @param config The InsuranceFundConfig object with the account id and fee config
+     */
+    function setInsuranceFundConfig(Data storage self, InsuranceFundConfig memory config) internal {
+        self.checkRoot();
+
+        // create account if none
+        if (self.insuranceFundConfig.accountId == 0) {
+            Account.create(config.accountId, self.owner, Account.MULTI_TOKEN_MODE);
+        }
+
+        self.insuranceFundConfig.accountId = config.accountId;
+        self.insuranceFundConfig.makerAndTakerFee = config.makerAndTakerFee;
+        self.insuranceFundConfig.autoExchangeFee = config.autoExchangeFee;
+
+        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, self.insuranceFundConfig, block.timestamp);
     }
 
     function onlyOwner(Data storage self) internal view {
