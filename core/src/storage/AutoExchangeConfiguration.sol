@@ -43,12 +43,6 @@ library AutoExchangeConfiguration {
          * @dev Maximum ratio of debt that can be repaid by auto-exchange
          */
         UD60x18 autoExchangeRatio;
-
-        /**
-         * @dev Portion of settlement tokens paid to the insurance fund.
-         */
-        UD60x18 insuranceFundFee;
-
     }
 
     /**
@@ -72,7 +66,6 @@ library AutoExchangeConfiguration {
         storedConfig.totalAutoExchangeThresholdInUSD = config.totalAutoExchangeThresholdInUSD;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
         storedConfig.autoExchangeRatio = config.autoExchangeRatio;
-        storedConfig.insuranceFundFee = config.insuranceFundFee;
 
         emit AutoExchangeConfigurationUpdated(storedConfig, block.timestamp);
     }

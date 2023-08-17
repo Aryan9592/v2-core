@@ -59,18 +59,16 @@ contract AutoExchangeModule is IAutoExchangeModule {
         address quoteType
     ) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+        CollateralPool.InsuranceFundConfig memory insuranceFundConfig = 
+            Market.load(account.firstMarketId).getCollateralPool().insuranceFundConfig;
         Account.Data storage insuranceFundAccount = Account.exists(
-            Market.load(account.firstMarketId)
-                .getCollateralPool()
-                .insuranceFundConfig
-                .accountId
+            insuranceFundConfig.accountId
         );
 
-        bool _isEligibleForAutoExchange = 
-            account.isEligibleForAutoExchange(quoteType);
-
+        bool _isEligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
         if (!_isEligibleForAutoExchange) {
             revert AccountNotEligibleForAutoExchange(accountId);
         }
@@ -88,7 +86,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         liquidatorAccount.decreaseCollateralBalance(quoteType, amountToAutoExchangeQuote);
         // subtract insurance fund fee from quote repayment
         uint256 insuranceFundFeeQuote = mulUDxUint(
-            AutoExchangeConfiguration.load().autoExchangeRatio,
+            insuranceFundConfig.autoExchangeFee,
             amountToAutoExchangeQuote
         );
         insuranceFundAccount.increaseCollateralBalance(quoteType, insuranceFundFeeQuote);
