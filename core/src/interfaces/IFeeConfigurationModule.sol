@@ -35,6 +35,19 @@ interface IFeeConfigurationModule {
     function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external;
 
     /**
+     * @notice Creates or updates the collateral pool insurance fund configuration for the given id
+     * @param config The InsuranceFundConfig object describing the new configuration.
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the collateral pool.
+     */
+    function configureCollateralPoolInsuranceFund(
+        uint128 collateralPoolId,
+        CollateralPool.InsuranceFundConfig memory config
+    ) external;
+
+    /**
      * @notice Returns protocol fee configuration for the given `marketId`
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
      * @return config The fee configuration object describing the given marketId
@@ -53,4 +66,15 @@ interface IFeeConfigurationModule {
         external
         view
         returns (Market.FeeConfiguration memory config);
+
+
+    /**
+     * @notice Returns collateral pool insurance fund configuration for the given id
+     * @param collateralPoolId Id that uniquely identifies the collateral pool
+     * @return config The insurance fund configuration of that collateral pool
+     */
+    function getCollateralPoolInsuranceFundConfiguration(uint128 collateralPoolId)
+        external
+        view
+        returns (CollateralPool.InsuranceFundConfig memory config);
 }
