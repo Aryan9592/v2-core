@@ -279,6 +279,9 @@ library Account {
     }
 
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
+        if (self.id == 0) {
+            revert AccountNotFound(self.id);
+        }
         AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
     }
 
