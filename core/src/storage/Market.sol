@@ -154,7 +154,7 @@ library Market {
     /**
      * @dev Returns the root collateral pool of the market
      */
-    function getCollateralPool(Data storage self) internal view returns (CollateralPool.Data storage) {
+    function getCollateralPool(Data memory self) internal view returns (CollateralPool.Data storage) {
         return CollateralPool.getRoot(self.id);
     }
 

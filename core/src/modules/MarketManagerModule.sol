@@ -119,9 +119,20 @@ contract MarketManagerModule is IMarketManagerModule {
         uint256 collateralPoolFee = distributeFees(
             accountId, 
             market.collateralPoolFeeConfig.feeCollectorAccountId, 
-            market.collateralPoolFeeConfig.atomicTakerFee, 
+            market.collateralPoolFeeConfig.atomicTakerFee,
             collateralType, 
             annualizedNotional
+        );
+
+        // distribute a portion of collateralPoolFee into the insurance fund 
+        CollateralPool.InsuranceFundConfig memory insuranceFund = 
+            market.getCollateralPool().insuranceFundConfig;
+        distributeFees(
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            insuranceFund.accountId, 
+            insuranceFund.makerAndTakerFee,
+            collateralType, 
+            collateralPoolFee.toInt()
         );
 
         account.markActiveMarket(collateralType, marketId);
@@ -156,6 +167,17 @@ contract MarketManagerModule is IMarketManagerModule {
             market.collateralPoolFeeConfig.atomicMakerFee, 
             collateralType, 
             annualizedNotional
+        );
+
+        // distribute a portion of collateralPoolFee into the insurance fund 
+        CollateralPool.InsuranceFundConfig memory insuranceFund = 
+            market.getCollateralPool().insuranceFundConfig;
+        distributeFees(
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            insuranceFund.accountId, 
+            insuranceFund.makerAndTakerFee,
+            collateralType, 
+            collateralPoolFee.toInt()
         );
 
         account.markActiveMarket(collateralType, marketId);
