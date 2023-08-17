@@ -41,6 +41,7 @@ interface IFeeConfigurationModule {
      * Requirements:
      *
      * - `msg.sender` must be the owner of the collateral pool.
+     * - the given account must already exist
      */
     function configureCollateralPoolInsuranceFund(
         uint128 collateralPoolId,

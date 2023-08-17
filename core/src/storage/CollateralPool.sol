@@ -306,10 +306,8 @@ library CollateralPool {
     function setInsuranceFundConfig(Data storage self, InsuranceFundConfig memory config) internal {
         self.checkRoot();
 
-        // create account if none
-        if (self.insuranceFundConfig.accountId == 0) {
-            Account.create(config.accountId, self.owner, Account.MULTI_TOKEN_MODE);
-        }
+        // ensure the given account exists
+        Account.exists(config.accountId);
 
         self.insuranceFundConfig.accountId = config.accountId;
         self.insuranceFundConfig.makerAndTakerFee = config.makerAndTakerFee;
