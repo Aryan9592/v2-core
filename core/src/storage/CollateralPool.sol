@@ -92,8 +92,8 @@ library CollateralPool {
          */
         uint128 accountId;
         /**
-         * @dev Percentage of the collateral pool maker and taker fees that 
-         * @dev go towards the insurance fund. (e.g. 0.1 * 1e18 = 10%)
+         * @dev Maker And Taker Fee is multiplied by the annualised notional traded
+         * @dev to derived the fee received by the insurance fund on a trade.
          */
         UD60x18 makerAndTakerFee;
         /**

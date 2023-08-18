@@ -68,8 +68,8 @@ contract AutoExchangeModule is IAutoExchangeModule {
             insuranceFundConfig.accountId
         );
 
-        bool _isEligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
-        if (!_isEligibleForAutoExchange) {
+        bool eligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
+        if (!eligibleForAutoExchange) {
             revert AccountNotEligibleForAutoExchange(accountId);
         }
 
