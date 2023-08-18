@@ -62,7 +62,6 @@ contract ConfigProtocol is SetupProtocol {
       isTrusted: true
     });
     configureMarket({
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
       marketId: 1,
       feeCollectorAccountId: 999,
@@ -71,7 +70,9 @@ contract ConfigProtocol is SetupProtocol {
       atomicTakerFee: ud60x18(5e16),
       riskParameter: ud60x18(1e18),
       twapLookbackWindow: 120,
+      markPriceBand: ud60x18(0.005e18),
       maturityIndexCachingWindowInSeconds: 3600,
+      rateOracleAddress: address(contracts.aaveV3RateOracle),
       takerPositionsPerAccountLimit: 1
     });
     uint32[] memory times = new uint32[](2);
@@ -93,8 +94,8 @@ contract ConfigProtocol is SetupProtocol {
         spread: ud60x18(3e15), // 0.3%
         rateOracle: IRateOracle(address(contracts.aaveV3RateOracle)),
         minSecondsBetweenOracleObservations: 3600,
-        minTick: TickMath.DEFAULT_MIN_TICK,
-        maxTick: TickMath.DEFAULT_MAX_TICK
+        minTickAllowed: TickMath.DEFAULT_MIN_TICK,
+        maxTickAllowed: TickMath.DEFAULT_MAX_TICK
       }),
       initTick: -13860, // price = 4%
       observationCardinalityNext: 16,

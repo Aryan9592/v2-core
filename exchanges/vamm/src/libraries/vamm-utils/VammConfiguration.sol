@@ -25,10 +25,10 @@ library VammConfiguration {
         IRateOracle rateOracle;
         /// @dev minimum seconds between observation entries in the oracle buffer
         uint32 minSecondsBetweenOracleObservations;
-        /// @dev The minimum tick of the vamm
-        int24 minTick;
-        /// @dev The maximum tick of the vamm
-        int24 maxTick;
+        /// @dev The minimum allowed tick of the vamm
+        int24 minTickAllowed;
+        /// @dev The maximum allowed tick of the vamm
+        int24 maxTickAllowed;
     }
 
     struct Immutable {

@@ -35,6 +35,7 @@ library TickMath {
         uint256 absTick = tick < 0
             ? uint256(-int256(tick))
             : uint256(int256(tick));
+        require(absTick <= uint256(uint24(MAX_TICK_LIMIT)), "T");
 
         uint256 ratio = absTick & 0x1 != 0
             ? 0xfffcb933bd6fad37aa2d162d1a594001

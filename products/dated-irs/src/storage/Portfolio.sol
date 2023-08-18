@@ -202,8 +202,25 @@ library Portfolio {
 
             int256 unwindBase = -(position.baseBalance + filledBasePool);
 
+            Market.Data storage market = Market.exists(self.marketId);
+
+            // todo: check with @ab if we want it adjusted or not
+            UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
+                self.marketId, 
+                maturityTimestamp, 
+                unwindBase, 
+                market.marketConfig.twapLookbackWindow
+            );
+
             (int256 executedBaseAmount, int256 executedQuoteAmount) =
-                pool.executeDatedTakerOrder(self.marketId, maturityTimestamp, unwindBase, 0);
+                pool.executeDatedTakerOrder(
+                    self.marketId, 
+                    maturityTimestamp, 
+                    unwindBase, 
+                    0, 
+                    markPrice, 
+                    market.marketConfig.markPriceBand
+                );
 
             position.update(executedBaseAmount, executedQuoteAmount);
 

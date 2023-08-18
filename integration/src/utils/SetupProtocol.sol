@@ -214,16 +214,17 @@ contract SetupProtocol is BatchScript {
   }
 
   function configureMarket(
-    address rateOracleAddress,
-    address tokenAddress,
     uint128 marketId,
+    address tokenAddress,
     uint128 feeCollectorAccountId,
     uint256 cap,
     UD60x18 atomicMakerFee,
     UD60x18 atomicTakerFee,
     UD60x18 riskParameter,
     uint32 twapLookbackWindow,
+    UD60x18 markPriceBand,
     uint256 maturityIndexCachingWindowInSeconds,
+    address rateOracleAddress,
     uint256 takerPositionsPerAccountLimit
   ) public {
     configureCollateral(
@@ -246,6 +247,7 @@ contract SetupProtocol is BatchScript {
       marketId: marketId,
       marketConfig: DatedIrsMarket.MarketConfiguration({
         twapLookbackWindow: twapLookbackWindow,
+        markPriceBand: markPriceBand,
         takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
       })
     });

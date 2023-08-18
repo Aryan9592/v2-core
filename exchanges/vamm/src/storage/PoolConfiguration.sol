@@ -40,7 +40,7 @@ library PoolConfiguration {
 
     function getRateOracle(uint128 marketId) internal view returns (IRateOracle) {
         address rateOracleAddress = IRateOracleModule(load().productAddress)
-            .getVariableOracleAddress(marketId);
+            .getRateOracleConfiguration(marketId).oracleAddress;
         return IRateOracle(rateOracleAddress);
     }
 }

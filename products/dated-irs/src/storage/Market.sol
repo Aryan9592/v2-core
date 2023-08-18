@@ -67,6 +67,11 @@ library Market {
         uint32 twapLookbackWindow;
 
         /**
+         * Mark price band used to compute dynamic price limits
+         */
+        UD60x18 markPriceBand;
+
+        /**
          * @dev Maximum number of positions of an account in this market
          */
         uint256 takerPositionsPerAccountLimit;

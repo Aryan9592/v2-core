@@ -22,6 +22,8 @@ import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/Ownable
 import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 /**
  * @title Dated Interest Rate Swap Market Manager
  * @dev See IMarketManagerIRSModule
@@ -45,10 +47,26 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         // check account access permissions
         IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
 
-        // check if market id is valid + check there is an active pool with maturityTimestamp requested
+        IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
+        Market.Data storage market = Market.exists(params.marketId);
+
+        // todo: check with @ab if we want it adjusted or not
+        UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
+            params.marketId, 
+            params.maturityTimestamp, 
+            params.baseAmount, 
+            market.marketConfig.twapLookbackWindow
+        );
+
+        // todo: check there is an active pool with maturityTimestamp requested
         (executedBaseAmount, executedQuoteAmount) =
-            IPool(MarketManagerConfiguration.getPoolAddress()).executeDatedTakerOrder(
-                params.marketId, params.maturityTimestamp, params.baseAmount, params.priceLimit
+            pool.executeDatedTakerOrder(
+                params.marketId, 
+                params.maturityTimestamp, 
+                params.baseAmount, 
+                params.priceLimit, 
+                markPrice, 
+                market.marketConfig.markPriceBand
             );
 
         Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
