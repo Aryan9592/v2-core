@@ -99,6 +99,9 @@ contract MarketManagerModule is IMarketManagerModule {
         receivingAccount.increaseCollateralBalance(collateralType, fee);
     }
 
+    // todo: propagateTakerOrder and propagateMakerOrder look very similar 
+    // think of merging them or pushing the common part into another internal function
+
     function propagateTakerOrder(
         uint128 accountId,
         uint128 marketId,
@@ -132,6 +135,12 @@ contract MarketManagerModule is IMarketManagerModule {
         // distribute a portion of collateralPoolFee into the insurance fund 
         CollateralPool.InsuranceFundConfig memory insuranceFund = 
             market.getCollateralPool().insuranceFundConfig;
+
+        // todo: make sure distributeFees for insurance fund are tracked in the output "fee"
+        
+        // todo: should be the same insurance fund fee for both makers and takers? 
+        // Don't we want the flexibility to choose?
+        
         distributeFees(
             accountId, 
             insuranceFund.accountId, 
@@ -179,6 +188,8 @@ contract MarketManagerModule is IMarketManagerModule {
         // distribute a portion of collateralPoolFee into the insurance fund 
         CollateralPool.InsuranceFundConfig memory insuranceFund = 
             market.getCollateralPool().insuranceFundConfig;
+
+        // todo: make sure distributeFees for insurance fund are tracked in the output "fee"
         distributeFees(
             accountId,
             insuranceFund.accountId, 
