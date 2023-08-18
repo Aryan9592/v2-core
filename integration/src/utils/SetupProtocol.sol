@@ -198,8 +198,9 @@ contract SetupProtocol is BatchScript {
     });
   }
 
-  function registerDatedIrsProduct(bool isTrusted) public {
-    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product", isTrusted);
+  // todo: alex return new product id to be used in ConfigProtocol.s.sol
+  function registerDatedIrsProduct() public {
+    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product");
     
     configureProduct(
       MarketManagerConfiguration.Data({
@@ -605,7 +606,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function registerProduct(address product, string memory name, bool isTrusted) public {
+  function registerProduct(address product, string memory name) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.coreProxy.registerMarket(product, name);

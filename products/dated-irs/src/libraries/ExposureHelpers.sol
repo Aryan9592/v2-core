@@ -10,10 +10,8 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {IPool} from "../interfaces/IPool.sol";
-import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
-import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
@@ -75,7 +73,12 @@ library ExposureHelpers {
         Market.Data storage market = Market.exists(marketId);
         UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
     
-        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(marketId, maturityTimestamp, -baseAmount, market.marketConfig.twapLookbackWindow);
+        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(
+            marketId, 
+            maturityTimestamp, 
+            -baseAmount, 
+            market.marketConfig.twapLookbackWindow
+        );
 
         unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
     }

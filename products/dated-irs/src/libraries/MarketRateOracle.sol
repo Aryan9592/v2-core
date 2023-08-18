@@ -54,7 +54,11 @@ library MarketRateOracle {
         return IERC165(oracleAddress).supportsInterface(type(IRateOracle).interfaceId);
     }
 
-    function backfillRateIndexAtMaturityCache(Market.Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {
+    function backfillRateIndexAtMaturityCache(
+        Market.Data storage self, 
+        uint32 maturityTimestamp, 
+        UD60x18 rateIndexAtMaturity
+    ) internal {
         if (Time.blockTimestampTruncated() < maturityTimestamp) {
             revert MaturityNotReached();
         }
@@ -107,13 +111,14 @@ library MarketRateOracle {
         return IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
     }
 
-    function getRateIndexMaturity(Market.Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18 rateIndexMaturity) {
-
+    function getRateIndexMaturity(
+        Market.Data storage self, 
+        uint32 maturityTimestamp
+    ) internal view returns (UD60x18 rateIndexMaturity) {
         /*
             Note, for some period of time (until cache is captured) post maturity, the rate index cached for the maturity
             will be zero
         */
-
         if (Time.blockTimestampTruncated() <= maturityTimestamp) {
             revert MaturityNotReached();
         }
