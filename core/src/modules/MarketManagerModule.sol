@@ -132,6 +132,8 @@ contract MarketManagerModule is IMarketManagerModule {
             annualizedNotional
         );
 
+        // todo: should the insurance fund fee be per collateral pool or we want the granularity to be per market?
+
         // distribute a portion of collateralPoolFee into the insurance fund 
         CollateralPool.InsuranceFundConfig memory insuranceFund = 
             market.getCollateralPool().insuranceFundConfig;
