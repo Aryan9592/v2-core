@@ -57,7 +57,7 @@ interface IFeeConfigurationModule {
      *
      * - `msg.sender` must be the owner of the collateral pool.
      */
-    function configureCollateralPoolInsuranceFundMarketFee(
+    function configureInsuranceFundMarketFee(
         uint128 marketId,
         UD60x18 insuranceFundMakerFee,
         UD60x18 insuranceFundTakerFee

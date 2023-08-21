@@ -47,13 +47,14 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     /**
      * @inheritdoc IFeeConfigurationModule
      */
-    function configureCollateralPoolInsuranceFundMarketFee(
+    function configureInsuranceFundMarketFee(
         uint128 marketId,
         UD60x18 insuranceFundMakerFee,
         UD60x18 insuranceFundTakerFee
     ) external override {
-        OwnableStorage.onlyOwner();
-        Market.exists(marketId).setInsuranceFundFeeConfiguration(
+        Market.Data storage market = Market.exists(marketId);
+        market.getCollateralPool().onlyOwner();
+        market.setInsuranceFundFeeConfiguration(
             insuranceFundMakerFee,
             insuranceFundTakerFee
         );
