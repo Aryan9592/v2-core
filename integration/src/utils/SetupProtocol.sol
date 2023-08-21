@@ -254,17 +254,16 @@ contract SetupProtocol is BatchScript {
     configureProtocolMarketFee(
       marketId,
       Market.FeeConfiguration({
-        feeCollectorAccountId: feeCollectorAccountId,
         atomicMakerFee: atomicMakerFee,
         atomicTakerFee: atomicTakerFee
-      })
+      }),
+      feeCollectorAccountId
     );
 
     // todo: customise this configuration
     configureCollateralPoolMarketFee(
       marketId,
       Market.FeeConfiguration({
-        feeCollectorAccountId: 0,
         atomicMakerFee: UD60x18.wrap(0),
         atomicTakerFee: UD60x18.wrap(0)
       })
@@ -643,16 +642,20 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) public {
+  function configureProtocolMarketFee(
+    uint128 marketId,
+    Market.FeeConfiguration memory config,
+    uint128 feeCollectorAccountId
+  ) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.configureProtocolMarketFee(marketId, config);
+      contracts.coreProxy.configureProtocolMarketFee(marketId, config, feeCollectorAccountId);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.configureProtocolMarketFee,
-          (marketId, config)
+          (marketId, config, feeCollectorAccountId)
         )
       );
     }
