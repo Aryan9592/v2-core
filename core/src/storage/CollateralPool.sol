@@ -22,6 +22,8 @@ library CollateralPool {
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
 
+    bytes32 private constant _COLLATERAL_POOL_ENABLED_FEATURE_FLAG = "collateralPoolEnabled";
+
     /**
      * @dev Thrown when a collateral pool cannot be found
      */
@@ -320,5 +322,9 @@ library CollateralPool {
         if (msg.sender != self.owner) {
             revert Unauthorized(msg.sender);
         }
+    }
+
+    function getEnabledFeatureFlagId(Data storage self) internal view returns(bytes32) {
+        return keccak256(abi.encode(_COLLATERAL_POOL_ENABLED_FEATURE_FLAG, self.id));
     }
 }

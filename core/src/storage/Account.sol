@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import "./Market.sol";
 import "./AutoExchangeConfiguration.sol";
@@ -29,6 +30,7 @@ library Account {
     using Account for Account.Data;
     using Market for Market.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
+    using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
@@ -278,6 +280,19 @@ library Account {
         return Market.exists(self.firstMarketId).getCollateralPool();
     }
 
+    /**
+     * @dev Reverts if the underlying collateral pool of the account is paused.
+     */
+    function ensureEnabledCollateralPool(Data storage self) internal view {
+        // check if account is assigned to any collateral pool
+        if (self.firstMarketId != 0) {
+            // check if the underlying collateral pool is paused
+
+            bytes32 flagId = self.getCollateralPool().getEnabledFeatureFlagId();
+            FeatureFlag.ensureAccessToFeature(flagId);
+        }
+    }
+
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
         if (self.id == 0) {
             revert AccountNotFound(self.id);
@@ -341,8 +356,6 @@ library Account {
         }
     }
 
-
-    //// PURE FUNCTIONS ////
 
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);

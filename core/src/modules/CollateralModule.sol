@@ -21,6 +21,7 @@ contract CollateralModule is ICollateralModule {
     using ERC20Helper for address;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
+    using CollateralPool for CollateralPool.Data;
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
 
@@ -37,6 +38,8 @@ contract CollateralModule is ICollateralModule {
 
         // grab the account and check its existance
         Account.Data storage account = Account.exists(accountId);
+
+        account.ensureEnabledCollateralPool();
 
         address depositFrom = msg.sender;
         address self = address(this);
@@ -70,6 +73,8 @@ contract CollateralModule is ICollateralModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account =
             Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
+
+        account.ensureEnabledCollateralPool();
 
         account.decreaseCollateralBalance(collateralType, tokenAmount);
 
