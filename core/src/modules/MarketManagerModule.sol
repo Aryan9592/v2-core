@@ -137,13 +137,11 @@ contract MarketManagerModule is IMarketManagerModule {
         // distribute a portion of collateralPoolFee into the insurance fund 
         CollateralPool.InsuranceFundConfig memory insuranceFund = 
             market.getCollateralPool().insuranceFundConfig;
-
-        // todo: make sure distributeFees for insurance fund are tracked in the output "fee"
         
         // todo: should be the same insurance fund fee for both makers and takers? 
         // Don't we want the flexibility to choose?
         
-        distributeFees(
+        uint256 insuranceFundFee = distributeFees(
             accountId, 
             insuranceFund.accountId, 
             insuranceFund.makerAndTakerFee,
@@ -154,7 +152,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee;
+        fee = protocolFee + collateralPoolFee + insuranceFundFee;
     }
 
     function propagateMakerOrder(
@@ -191,8 +189,7 @@ contract MarketManagerModule is IMarketManagerModule {
         CollateralPool.InsuranceFundConfig memory insuranceFund = 
             market.getCollateralPool().insuranceFundConfig;
 
-        // todo: make sure distributeFees for insurance fund are tracked in the output "fee"
-        distributeFees(
+        uint256 insuranceFundFee = distributeFees(
             accountId,
             insuranceFund.accountId, 
             insuranceFund.makerAndTakerFee,
@@ -203,7 +200,7 @@ contract MarketManagerModule is IMarketManagerModule {
         account.markActiveMarket(collateralType, marketId);
 
         mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee;
+        fee = protocolFee + collateralPoolFee + insuranceFundFee;
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)
