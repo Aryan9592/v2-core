@@ -23,7 +23,11 @@ interface IFeeConfigurationModule {
      *
      * - `msg.sender` must be the owner of the protocol.
      */
-    function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config, uint128 feeCollectorAccountId) external;
+    function configureProtocolMarketFee(
+        uint128 marketId,
+        Market.FeeConfiguration memory config,
+        uint128 feeCollectorAccountId
+    ) external;
 
     /**
      * @notice Creates or updates the collateral pool fee configuration for the given `marketId`
