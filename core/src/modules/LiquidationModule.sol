@@ -31,6 +31,7 @@ import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelp
 contract LiquidationModule is ILiquidationModule {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
+    using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
 
@@ -72,6 +73,8 @@ contract LiquidationModule is ILiquidationModule {
     {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Account.Data storage account = Account.exists(liquidatedAccountId);
+
+        account.ensureEnabledCollateralPool();
 
         if (account.accountMode == Account.MULTI_TOKEN_MODE) {
             revert AccountIsMultiToken(liquidatedAccountId);

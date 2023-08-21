@@ -67,7 +67,10 @@ contract MarketManagerModule is IMarketManagerModule {
 
     function closeAccount(uint128 marketId, uint128 accountId) external override {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
+        Account.Data storage account = Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
+
+        account.ensureEnabledCollateralPool();
+
         Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
     }
@@ -107,6 +110,8 @@ contract MarketManagerModule is IMarketManagerModule {
 
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
+
+        account.ensureEnabledCollateralPool();
 
         uint256 protocolFee = distributeFees(
             accountId, 
@@ -153,6 +158,8 @@ contract MarketManagerModule is IMarketManagerModule {
         Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
 
+        account.ensureEnabledCollateralPool();
+
         uint256 protocolFee = distributeFees(
             accountId, 
             market.protocolFeeConfig.feeCollectorAccountId, 
@@ -190,10 +197,12 @@ contract MarketManagerModule is IMarketManagerModule {
         external
         override
     {
+        Account.Data storage account = Account.exists(accountId);
+
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
+        account.ensureEnabledCollateralPool();
 
-        Account.Data storage account = Account.exists(accountId);
         if (amount > 0) {
             account.increaseCollateralBalance(collateralType, amount.toUint());
         } else {
