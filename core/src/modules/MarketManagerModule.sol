@@ -99,8 +99,53 @@ contract MarketManagerModule is IMarketManagerModule {
         receivingAccount.increaseCollateralBalance(collateralType, fee);
     }
 
-    // todo: propagateTakerOrder and propagateMakerOrder look very similar 
-    // think of merging them or pushing the common part into another internal function
+     function propagateOrder(
+        uint128 accountId,
+        Market.Data memory market,
+        address collateralType,
+        int256 annualizedNotional,
+        UD60x18 protocolFee, 
+        UD60x18 collateralPoolFee, 
+        UD60x18 insuranceFundFee
+    ) internal returns (uint256 fee, Account.MarginRequirement memory mr) {
+        Account.Data storage account = Account.exists(accountId);
+
+        account.ensureEnabledCollateralPool();
+
+        uint256 protocolFeeAmount = distributeFees(
+            accountId, 
+            market.protocolFeeConfig.feeCollectorAccountId, 
+            protocolFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 collateralPoolFeeAmount = distributeFees(
+            accountId, 
+            market.collateralPoolFeeConfig.feeCollectorAccountId, 
+            collateralPoolFee,
+            collateralType, 
+            annualizedNotional
+        );
+
+        // distribute a portion of collateralPoolFee into the insurance fund 
+        CollateralPool.InsuranceFundConfig memory insuranceFund = 
+            market.getCollateralPool().insuranceFundConfig;
+        
+        uint256 insuranceFundFeeAmount = distributeFees(
+            accountId, 
+            insuranceFund.accountId, 
+            insuranceFundFee,
+            collateralType, 
+            annualizedNotional
+        );
+
+        account.markActiveMarket(collateralType, market.id);
+
+        mr = account.imCheck(collateralType);
+        fee = protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
+    }
+
 
     function propagateTakerOrder(
         uint128 accountId,
@@ -111,48 +156,16 @@ contract MarketManagerModule is IMarketManagerModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
-        Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-
-        account.ensureEnabledCollateralPool();
-
-        uint256 protocolFee = distributeFees(
-            accountId, 
-            market.protocolFeeConfig.feeCollectorAccountId, 
-            market.protocolFeeConfig.atomicTakerFee, 
-            collateralType, 
-            annualizedNotional
+        return propagateOrder(
+                accountId,
+                market,
+                collateralType,
+                annualizedNotional,
+                market.protocolFeeConfig.atomicMakerFee,
+                market.collateralPoolFeeConfig.atomicMakerFee,
+                market.insuranceFundMakerFee
         );
-
-        uint256 collateralPoolFee = distributeFees(
-            accountId, 
-            market.collateralPoolFeeConfig.feeCollectorAccountId, 
-            market.collateralPoolFeeConfig.atomicTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        // todo: should the insurance fund fee be per collateral pool or we want the granularity to be per market?
-
-        // distribute a portion of collateralPoolFee into the insurance fund 
-        CollateralPool.InsuranceFundConfig memory insuranceFund = 
-            market.getCollateralPool().insuranceFundConfig;
-        
-        // todo: should be the same insurance fund fee for both makers and takers? 
-        // Don't we want the flexibility to choose?
-        
-        uint256 insuranceFundFee = distributeFees(
-            accountId, 
-            insuranceFund.accountId, 
-            insuranceFund.makerAndTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        account.markActiveMarket(collateralType, marketId);
-
-        mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee + insuranceFundFee;
     }
 
     function propagateMakerOrder(
@@ -164,43 +177,16 @@ contract MarketManagerModule is IMarketManagerModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
-        Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-
-        account.ensureEnabledCollateralPool();
-
-        uint256 protocolFee = distributeFees(
-            accountId, 
-            market.protocolFeeConfig.feeCollectorAccountId, 
-            market.protocolFeeConfig.atomicMakerFee, 
-            collateralType, 
-            annualizedNotional
+        return propagateOrder(
+                accountId,
+                market,
+                collateralType,
+                annualizedNotional,
+                market.protocolFeeConfig.atomicTakerFee,
+                market.collateralPoolFeeConfig.atomicTakerFee,
+                market.insuranceFundMakerFee
         );
-
-        uint256 collateralPoolFee = distributeFees(
-            accountId, 
-            market.collateralPoolFeeConfig.feeCollectorAccountId, 
-            market.collateralPoolFeeConfig.atomicMakerFee, 
-            collateralType, 
-            annualizedNotional
-        );
-
-        // distribute a portion of collateralPoolFee into the insurance fund 
-        CollateralPool.InsuranceFundConfig memory insuranceFund = 
-            market.getCollateralPool().insuranceFundConfig;
-
-        uint256 insuranceFundFee = distributeFees(
-            accountId,
-            insuranceFund.accountId, 
-            insuranceFund.makerAndTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        account.markActiveMarket(collateralType, marketId);
-
-        mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee + insuranceFundFee;
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

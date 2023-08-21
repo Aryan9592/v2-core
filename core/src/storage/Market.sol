@@ -93,6 +93,16 @@ library Market {
          * @dev Market fee configurations for protocol
          */
         FeeConfiguration protocolFeeConfig;
+        /**
+         * @dev Insurance Fund Maker Fee is multiplied by the annualised notional traded
+         * @dev to derived the maker fee deposited in the insurance fund.
+         */
+        UD60x18 insuranceFundMakerFee;
+        /**
+         * @dev Insurance Fund Taker Fee is multiplied by the annualised notional traded
+         * @dev to derived the taker fee deposited in the insurance fund.
+         */
+        UD60x18 insuranceFundTakerFee;
     }
 
     /**
@@ -189,6 +199,22 @@ library Market {
         Account.exists(config.feeCollectorAccountId);
 
         self.protocolFeeConfig = config;
+
+        emit MarketUpdated(self, block.timestamp);
+    }
+
+    /**
+     * @dev Sets the insurance fund fee configuration for a given market
+     * @param insuranceFundMakerFee Insurance fee percentage to be charged for maker orders
+     * @param insuranceFundTakerFee Insurance fee percentage to be charged for taker orders
+     */
+    function setInsuranceFundFeeConfiguration(
+        Data storage self,
+        UD60x18 insuranceFundMakerFee,
+        UD60x18 insuranceFundTakerFee
+    ) internal {
+        self.insuranceFundMakerFee = insuranceFundMakerFee;
+        self.insuranceFundTakerFee = insuranceFundTakerFee;
 
         emit MarketUpdated(self, block.timestamp);
     }

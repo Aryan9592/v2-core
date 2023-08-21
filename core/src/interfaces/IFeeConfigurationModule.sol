@@ -49,6 +49,21 @@ interface IFeeConfigurationModule {
     ) external;
 
     /**
+     * @notice Creates or updates the insurance fund fees applied on the market's maker and taker orders 
+     * @param insuranceFundMakerFee Percentage of a maker order distrubuted to insurance fund.
+     * @param insuranceFundTakerFee Percentage of a taker order distrubuted to insurance fund.
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the collateral pool.
+     */
+    function configureCollateralPoolInsuranceFundMarketFee(
+        uint128 marketId,
+        UD60x18 insuranceFundMakerFee,
+        UD60x18 insuranceFundTakerFee
+    ) external;
+
+    /**
      * @notice Returns protocol fee configuration for the given `marketId`
      * @param marketId Id that uniquely identifies the market (e.g. aUSDC lend) for which we want to query the risk config
      * @return config The fee configuration object describing the given marketId

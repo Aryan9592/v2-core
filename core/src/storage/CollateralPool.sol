@@ -94,11 +94,6 @@ library CollateralPool {
          */
         uint128 accountId;
         /**
-         * @dev Maker And Taker Fee is multiplied by the annualised notional traded
-         * @dev to derived the fee received by the insurance fund on a trade.
-         */
-        UD60x18 makerAndTakerFee;
-        /**
          * @dev Percentage of quote tokens paid to the insurance fund 
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
@@ -312,7 +307,6 @@ library CollateralPool {
         Account.exists(config.accountId);
 
         self.insuranceFundConfig.accountId = config.accountId;
-        self.insuranceFundConfig.makerAndTakerFee = config.makerAndTakerFee;
         self.insuranceFundConfig.autoExchangeFee = config.autoExchangeFee;
 
         emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, self.insuranceFundConfig, block.timestamp);
