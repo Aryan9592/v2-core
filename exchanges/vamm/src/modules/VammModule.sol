@@ -146,9 +146,9 @@ contract VammModule is IVammModule {
     }
 
     function getVammPosition(uint128 positionId)
-        external pure override returns (LPPosition.Data memory) {
+        external view override returns (LPPosition.Data memory) {
 
-        LPPosition.Data storage position = LPPosition.load(positionId);
+        LPPosition.Data storage position = LPPosition.exists(positionId);
         return position;
     }
 

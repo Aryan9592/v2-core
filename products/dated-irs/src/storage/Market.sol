@@ -136,7 +136,7 @@ library Market {
      * @param id Id of the IRS market that we want to load the configurations for
      * @return market The CollateralConfiguration object.
      */
-    function load(uint128 id) internal pure returns (Data storage market) {
+    function load(uint128 id) private pure returns (Data storage market) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Market", id));
         assembly {
             market.slot := s

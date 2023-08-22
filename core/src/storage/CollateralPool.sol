@@ -239,7 +239,7 @@ library CollateralPool {
         Data storage root = exists(id);
 
         while (root.rootId != root.id) {
-            root = load(root.id);
+            root = exists(root.id);
         }
 
         return root;
@@ -248,7 +248,7 @@ library CollateralPool {
     /**
      * @dev Returns the collateral pool stored at the specified id.
      */
-    function load(uint128 id) internal pure returns (Data storage collateralPool) {
+    function load(uint128 id) private pure returns (Data storage collateralPool) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.CollateralPool", id));
         assembly {
             collateralPool.slot := s

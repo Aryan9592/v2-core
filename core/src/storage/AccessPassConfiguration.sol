@@ -18,6 +18,11 @@ library AccessPassConfiguration {
     }
 
     /**
+     * Thrown when access pass configuration was not set
+     */
+    error AccessPassNotConfigured();
+
+    /**
      * @notice Emitted when the access pass configuration is created or updated
      * @param config The object with the newly configured details.
      * @param blockTimestamp The current block timestamp.
@@ -28,10 +33,21 @@ library AccessPassConfiguration {
      * @dev Loads the AccessPassConfiguration object.
      * @return config The AccessPassConfiguration object.
      */
-    function load() internal pure returns (Data storage config) {
+    function load() private pure returns (Data storage config) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.AccessPassConfiguration"));
         assembly {
             config.slot := s
+        }
+    }
+
+    /**
+     * @dev Returns the access pass configuration
+     */
+    function exists() internal view returns (Data storage config) {
+        config = load();
+
+        if (config.accessPassNFTAddress == address(0)) {
+            revert AccessPassNotConfigured();
         }
     }
 

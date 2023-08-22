@@ -123,7 +123,7 @@ library AccountCollateral {
 
             // aggregate the corresponding weighted amount in USD 
             weightedCollateralBalanceInUSD += 
-                CollateralConfiguration.load(collateralType).getWeightedCollateralInUSD(collateralBalance);
+                CollateralConfiguration.exists(collateralType).getWeightedCollateralInUSD(collateralBalance);
         }
     }
 

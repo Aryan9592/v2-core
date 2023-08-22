@@ -78,7 +78,7 @@ library DatedIrsVamm {
     /**
      * @dev Returns the vamm stored at the specified vamm id.
      */
-    function load(uint256 id) internal pure returns (Data storage irsVamm) {
+    function load(uint256 id) private pure returns (Data storage irsVamm) {
         if (id == 0) {
             revert VammCustomErrors.IRSVammNotFound(0);
         }
@@ -367,7 +367,7 @@ library DatedIrsVamm {
         VAMMBase.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
         
         (LPPosition.Data storage position, bool newlyCreated) = 
-            LPPosition._ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
+            LPPosition.ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
         if (newlyCreated) {
             uint256 positionsPerAccountLimit = PoolConfiguration.load().makerPositionsPerAccountLimit;
             if (self.vars.positionsInAccount[accountId].length >= positionsPerAccountLimit) {
@@ -770,7 +770,7 @@ library DatedIrsVamm {
         internal
         view
         returns ( uint256, uint256, uint256, uint256 ) {
-        LPPosition.Data storage position = LPPosition.load(positionId);
+        LPPosition.Data storage position = LPPosition.exists(positionId);
         (
             uint256 unfilledShortBase,
             uint256 unfilledLongBase,
@@ -799,7 +799,7 @@ library DatedIrsVamm {
         uint256 numPositions = self.vars.positionsInAccount[accountId].length;
 
         for (uint256 i = 0; i < numPositions; i++) {
-            LPPosition.Data storage position = LPPosition.load(self.vars.positionsInAccount[accountId][i]);
+            LPPosition.Data storage position = LPPosition.exists(self.vars.positionsInAccount[accountId][i]);
             (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth) = 
                 growthBetweenTicks(self, position.tickLower, position.tickUpper);
             (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = 

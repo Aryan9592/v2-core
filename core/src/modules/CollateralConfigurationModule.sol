@@ -43,7 +43,7 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
         uint256 returningConfig = 0;
         for (uint256 i = 1; i <= numCollaterals; i++) {
             address collateralType = collateralTypes.valueAt(i);
-            CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
+            CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralType);
 
             if (!hideDisabled || collateral.config.depositingEnabled) {
                 returningConfig++;
@@ -55,7 +55,7 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
         returningConfig = 0;
         for (uint256 i = 1; i <= numCollaterals; i++) {
             address collateralType = collateralTypes.valueAt(i);
-            CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
+            CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralType);
 
             if (!hideDisabled || collateral.config.depositingEnabled) {
                 filteredCollaterals[returningConfig++] = collateral;
@@ -70,10 +70,10 @@ contract CollateralConfigurationModule is ICollateralConfigurationModule {
      */
     function getCollateralConfiguration(address collateralType)
         external
-        pure
+        view
         override
         returns (CollateralConfiguration.Data memory)
     {
-        return CollateralConfiguration.load(collateralType);
+        return CollateralConfiguration.exists(collateralType);
     }
 }

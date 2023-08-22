@@ -32,7 +32,7 @@ library MarketManagerConfiguration {
      * @dev Loads the MarketManagerConfiguration object
      * @return marketManagerConfig The MarketManagerConfiguration object.
      */
-    function load() internal pure returns (Data storage marketManagerConfig) {
+    function load() private pure returns (Data storage marketManagerConfig) {
         bytes32 s = _SLOT_MARKET_MANAGER_CONFIGURATION;
         assembly {
             marketManagerConfig.slot := s

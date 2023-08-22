@@ -128,5 +128,5 @@ interface IVammModule {
         external view returns (Oracle.Observation memory);
 
   function getVammPosition(uint128 positionId)
-        external pure returns (LPPosition.Data memory);
+        external view returns (LPPosition.Data memory);
 }

@@ -120,7 +120,7 @@ contract PoolModule is IPoolModule {
         uint128[] memory positions = vamm.vars.positionsInAccount[accountId];
 
         for (uint256 i = 0; i < positions.length; i++) {
-            LPPosition.Data memory position = LPPosition.load(positions[i]);
+            LPPosition.Data memory position = LPPosition.exists(positions[i]);
             vamm.executeDatedMakerOrder(
                 accountId, 
                 marketId,

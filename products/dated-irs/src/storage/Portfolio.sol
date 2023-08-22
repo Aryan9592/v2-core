@@ -137,7 +137,7 @@ library Portfolio {
      * @dev Returns the portfolio stored at the specified portfolio id
      * @dev Same as account id of the account that owns the portfolio of dated irs positions
      */
-    function load(uint128 accountId, uint128 marketId) internal pure returns (Data storage portfolio) {
+    function load(uint128 accountId, uint128 marketId) private pure returns (Data storage portfolio) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Portfolio", accountId, marketId));
         assembly {
             portfolio.slot := s

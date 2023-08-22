@@ -69,7 +69,7 @@ contract AccountModule is IAccountModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         FeatureFlag.ensureAccessToFeature(_CREATE_ACCOUNT_FEATURE_FLAG);
 
-        address accessPassNFTAddress = AccessPassConfiguration.load().accessPassNFTAddress;
+        address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
 
         uint256 ownerAccessPassBalance = IAccessPassNFT(accessPassNFTAddress).balanceOf(accountOwner);
         if (ownerAccessPassBalance == 0) {
