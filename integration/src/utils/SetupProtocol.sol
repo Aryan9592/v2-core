@@ -204,8 +204,7 @@ contract SetupProtocol is BatchScript {
     
     configureProduct(
       MarketManagerConfiguration.Data({
-        coreProxy: address(contracts.coreProxy),
-        poolAddress: address(contracts.vammProxy)
+        coreProxy: address(contracts.coreProxy)
       })
     );
 
@@ -247,6 +246,7 @@ contract SetupProtocol is BatchScript {
     setMarketConfiguration({
       marketId: marketId,
       marketConfig: DatedIrsMarket.MarketConfiguration({
+        poolAddress: address(contracts.vammProxy),
         twapLookbackWindow: twapLookbackWindow,
         markPriceBand: markPriceBand,
         takerPositionsPerAccountLimit: takerPositionsPerAccountLimit

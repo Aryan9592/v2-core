@@ -14,18 +14,18 @@ pragma solidity >=0.8.19;
 library MarketManagerConfiguration {
     bytes32 private constant _SLOT_MARKET_MANAGER_CONFIGURATION = keccak256(abi.encode("xyz.voltz.MarketManagerConfiguration"));
 
+    /**
+     * @notice Emitted when the market manager is (re-)configured
+     * @param marketManagerConfig The new market manager configuration
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketManagerConfigured(Data marketManagerConfig, uint256 blockTimestamp);
+
     struct Data {
         /**
          * @dev Address of the core proxy
          */
         address coreProxy;
-
-        // todo: revise the fact that pool address is per market manager and not per market
-
-        /**
-         * @dev Address of the pool address the market manager is linked to
-         */
-        address poolAddress;
     }
 
     /**
@@ -45,16 +45,8 @@ library MarketManagerConfiguration {
      */
     function set(Data memory config) internal {
         Data storage storedConfig = load();
-
-        //todo: check interface id of pool address (AB)
-
         storedConfig.coreProxy = config.coreProxy;
-        storedConfig.poolAddress = config.poolAddress;
-    }
-
-    function getPoolAddress() internal view returns (address storedPoolAddress) {
-        Data storage storedConfig = load();
-        storedPoolAddress = storedConfig.poolAddress;
+        emit MarketManagerConfigured(storedConfig, block.timestamp);
     }
 
     function getCoreProxyAddress() internal view returns (address storedProxyAddress) {

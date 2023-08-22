@@ -7,9 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {MarketRateOracle} from "../libraries/MarketRateOracle.sol"; 
 
-import { MarketRateOracle } from "../libraries/MarketRateOracle.sol"; 
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+
+import {UD60x18} from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks configurations and metadata for dated irs markets
@@ -29,6 +32,12 @@ library Market {
      * @dev Thrown when a market is created with a zero quote token address
      */
     error ZeroQuoteTokenAddress();
+
+    /**
+     * Emitted when attempting to register a pool address with an invalid pool address
+     * @param poolAddress Invalid pool address
+     */
+    error InvalidPoolAddress(address poolAddress);
 
     /**
      * @notice Emitted when attempting to register a rate oracle with an invalid oracle address
@@ -61,6 +70,11 @@ library Market {
     event MarketRateOracleConfigUpdated(uint128 id, RateOracleConfiguration rateOracleConfiguration, uint256 blockTimestamp);
 
     struct MarketConfiguration {
+         /**
+         * @dev Address of the pool address the market is linked to
+         */
+        address poolAddress;
+
         /**
          * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
          */
@@ -163,6 +177,10 @@ library Market {
     }
 
     function setMarketConfiguration(Data storage self, MarketConfiguration memory marketConfig) internal {
+        if (!IERC165(marketConfig.poolAddress).supportsInterface(type(IPool).interfaceId)) {
+            revert InvalidPoolAddress(marketConfig.poolAddress);
+        }
+
         self.marketConfig = marketConfig;
         emit MarketConfigUpdated(self.id, marketConfig, block.timestamp);
     }

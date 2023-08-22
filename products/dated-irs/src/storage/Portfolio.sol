@@ -52,6 +52,18 @@ library Portfolio {
     error UnknownMarket(uint128 marketId);
 
     /**
+     * @notice Emitted when a portfolio is created
+     * @param accountId The account id of the new portfolio
+     * @param marketId The market id of the new portfolio
+     * @param blockTimestamp The current block timestamp
+     */
+    event PortfolioCreated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint256 blockTimestamp
+    );
+
+    /**
      * @notice Emitted when a position in updated.
      * @param accountId The id of the account.
      * @param marketId The id of the market.
@@ -66,6 +78,34 @@ library Portfolio {
         uint32 indexed maturityTimestamp,
         int256 baseDelta,
         int256 quoteDelta,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Emitted when a new market maturity is activated
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The new active maturity timestamp
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketMaturityActivated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint32 maturityTimestamp,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Emitted when an existing market maturity is deactivated
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The deactivated maturity timestamp
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketMaturityDeactivated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint32 maturityTimestamp,
         uint256 blockTimestamp
     );
 
@@ -110,6 +150,7 @@ library Portfolio {
         if (portfolio.accountId == 0)  {
             portfolio.accountId = accountId;
             portfolio.marketId = marketId;
+            emit PortfolioCreated(accountId, marketId, block.timestamp);
         }
     }
 
@@ -161,7 +202,8 @@ library Portfolio {
         view
         returns (Account.MakerMarketExposure[] memory exposures)
     {
-        address poolAddress = MarketManagerConfiguration.getPoolAddress();
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
@@ -186,26 +228,26 @@ library Portfolio {
      * poolAddress in which to close the account, note in the beginning we'll only have a single pool
      */
     function closeAccount(Data storage self) internal {
-        IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
-
-        address collateralType = Market.load(self.marketId).quoteToken;
+        Market.Data storage market = Market.exists(self.marketId);
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
             Position.Data storage position = self.positions[maturityTimestamp];
 
-            pool.closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
+            IPool(
+                market.marketConfig.poolAddress
+            ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
-            (int256 filledBasePool,) = pool.getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
+            (int256 filledBasePool,) = IPool(
+                market.marketConfig.poolAddress
+            ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
 
             int256 unwindBase = -(position.baseBalance + filledBasePool);
 
-            Market.Data storage market = Market.exists(self.marketId);
-
             // todo: check with @ab if we want it adjusted or not
-            UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
+            UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
                 self.marketId, 
                 maturityTimestamp, 
                 unwindBase, 
@@ -213,7 +255,7 @@ library Portfolio {
             );
 
             (int256 executedBaseAmount, int256 executedQuoteAmount) =
-                pool.executeDatedTakerOrder(
+                IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
                     self.marketId, 
                     maturityTimestamp, 
                     unwindBase, 
@@ -229,11 +271,11 @@ library Portfolio {
             IMarketManagerModule(MarketManagerConfiguration.getCoreProxyAddress()).propagateTakerOrder(
                 self.accountId,
                 self.marketId,
-                collateralType,
+                market.quoteToken,
                 mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
             );
 
-            Market.load(self.marketId).updateOracleStateIfNeeded();
+            market.updateOracleStateIfNeeded();
 
             emit PositionUpdated(
                 self.accountId, 
@@ -286,7 +328,7 @@ library Portfolio {
 
         Position.Data storage position = self.positions[maturityTimestamp];
 
-        UD60x18 liquidityIndexMaturity = Market.load(marketId).getRateIndexMaturity(maturityTimestamp);
+        UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
 
         self.deactivateMarketMaturity(maturityTimestamp);
 
@@ -332,6 +374,12 @@ library Portfolio {
             }
 
             self.activeMaturities.add(maturityTimestamp);
+            emit MarketMaturityActivated(
+                self.accountId,
+                self.marketId,
+                maturityTimestamp,
+                block.timestamp
+            );
         }
     }
 
@@ -342,6 +390,12 @@ library Portfolio {
     function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         if (self.activeMaturities.contains(maturityTimestamp)) {
             self.activeMaturities.remove(maturityTimestamp);
+            emit MarketMaturityDeactivated(
+                self.accountId,
+                self.marketId,
+                maturityTimestamp,
+                block.timestamp
+            );
         }
     }
 }

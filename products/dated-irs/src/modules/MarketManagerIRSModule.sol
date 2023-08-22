@@ -47,8 +47,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         // check account access permissions
         IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
 
-        IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
         Market.Data storage market = Market.exists(params.marketId);
+        IPool pool = IPool(market.marketConfig.poolAddress);
 
         // todo: check with @ab if we want it adjusted or not
         UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
@@ -74,7 +74,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         );
 
         // propagate order
-        address quoteToken = Market.load(params.marketId).quoteToken;
         int256 annualizedNotionalAmount = getSingleAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
@@ -82,17 +81,17 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         (fee, mr) = IMarketManagerModule(coreProxy).propagateTakerOrder(
             params.accountId,
             params.marketId,
-            quoteToken,
+            market.quoteToken,
             annualizedNotionalAmount
         );
 
-        Market.load(params.marketId).updateOracleStateIfNeeded();
+        market.updateOracleStateIfNeeded();
 
         emit TakerOrder(
             params.accountId,
             params.marketId,
             params.maturityTimestamp,
-            quoteToken,
+            market.quoteToken,
             executedBaseAmount,
             executedQuoteAmount,
             annualizedNotionalAmount,
@@ -115,8 +114,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     // note: return settlementCashflowInQuote?
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) external override {
-
-        Market.load(marketId).updateRateIndexAtMaturityCache(maturityTimestamp);
+        Market.Data storage market = Market.exists(marketId);
+        market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -124,10 +123,9 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        address poolAddress = MarketManagerConfiguration.getPoolAddress();
-        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, poolAddress);
+        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
 
-        address quoteToken = Market.load(marketId).quoteToken;
+        address quoteToken = market.quoteToken;
 
         IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
 
@@ -210,8 +208,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint32 maturityTimestamp,
         int256 baseAmount
     ) external returns (uint256 fee, Account.MarginRequirement memory mr) {
-
-        if (msg.sender != MarketManagerConfiguration.getPoolAddress()) {
+        Market.Data storage market = Market.exists(marketId);
+        if (msg.sender != market.marketConfig.poolAddress) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");
         }
 
@@ -223,11 +221,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         (fee, mr) = IMarketManagerModule(coreProxy).propagateMakerOrder(
             accountId,
             marketId,
-            Market.load(marketId).quoteToken,
+            market.quoteToken,
             annualizedNotionalAmount
         );
 
-        Market.load(marketId).updateOracleStateIfNeeded();
+        market.updateOracleStateIfNeeded();
     }
 
     /**
