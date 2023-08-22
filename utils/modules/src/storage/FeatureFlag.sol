@@ -30,7 +30,7 @@ library FeatureFlag {
         feature.owner = owner;
     }
 
-    function checkOwner(Data storage feature) internal view {
+    function onlyOwner(Data storage feature) internal view {
         address featureOwner = feature.owner;
 
         if (featureOwner == address(0)) {
