@@ -1,9 +1,9 @@
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/ownership/Ownable.sol";
-import "../storage/FeatureFlag.sol";
 
 import "../interfaces/IFeatureFlagModule.sol";
+import "../storage/FeatureFlag.sol";
 
 /**
  * @title Module for granular enabling and disabling of system features and functions.
@@ -17,8 +17,10 @@ contract FeatureFlagModule is IFeatureFlagModule {
      * @inheritdoc IFeatureFlagModule
      */
     function setFeatureFlagAllowAll(bytes32 feature, bool allowAll) external override {
-        OwnableStorage.onlyOwner();
-        FeatureFlag.load(feature).allowAll = allowAll;
+        FeatureFlag.Data storage flag = FeatureFlag.load(feature);
+        flag.checkOwner();
+
+        flag.allowAll = allowAll;
 
         if (allowAll) {
             FeatureFlag.load(feature).denyAll = false;
@@ -34,7 +36,7 @@ contract FeatureFlagModule is IFeatureFlagModule {
         FeatureFlag.Data storage flag = FeatureFlag.load(feature);
 
         if (!denyAll || !flag.isDenier(msg.sender)) {
-            OwnableStorage.onlyOwner();
+            flag.checkOwner();
         }
 
         flag.denyAll = denyAll;
@@ -46,7 +48,8 @@ contract FeatureFlagModule is IFeatureFlagModule {
      * @inheritdoc IFeatureFlagModule
      */
     function addToFeatureFlagAllowlist(bytes32 feature, address account) external override {
-        OwnableStorage.onlyOwner();
+        FeatureFlag.Data storage flag = FeatureFlag.load(feature);
+        flag.checkOwner();
 
         SetUtil.AddressSet storage permissionedAddresses = FeatureFlag.load(feature).permissionedAddresses;
 
@@ -60,7 +63,8 @@ contract FeatureFlagModule is IFeatureFlagModule {
      * @inheritdoc IFeatureFlagModule
      */
     function removeFromFeatureFlagAllowlist(bytes32 feature, address account) external override {
-        OwnableStorage.onlyOwner();
+        FeatureFlag.Data storage flag = FeatureFlag.load(feature);
+        flag.checkOwner();
 
         SetUtil.AddressSet storage permissionedAddresses = FeatureFlag.load(feature).permissionedAddresses;
 
@@ -74,8 +78,8 @@ contract FeatureFlagModule is IFeatureFlagModule {
      * @inheritdoc IFeatureFlagModule
      */
     function setDeniers(bytes32 feature, address[] memory deniers) external override {
-        OwnableStorage.onlyOwner();
         FeatureFlag.Data storage flag = FeatureFlag.load(feature);
+        flag.checkOwner();
 
         // resize array (its really dumb how you have to do this)
         uint256 storageLen = flag.deniers.length;

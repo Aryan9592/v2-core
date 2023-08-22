@@ -12,6 +12,13 @@ pragma solidity >=0.8.19;
  */
 interface IFeatureFlagModule {
     /**
+     * @notice Emitted when the feature owner is changed.
+     * @param feature The bytes32 id of the feature.
+     * @param owner The new owner address of the feature.
+     */
+    event FeatureFlagOwnerUpdated(bytes32 indexed feature, address owner);
+
+    /**
      * @notice Emitted when general access has been given or removed for a feature.
      * @param feature The bytes32 id of the feature.
      * @param allowAll True if the feature was allowed for everyone and false if it is only allowed for those
