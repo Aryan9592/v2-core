@@ -1,0 +1,173 @@
+/*
+Licensed under the Voltz v2 License (the "License"); you 
+may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
+*/
+pragma solidity >=0.8.19;
+
+import "../interfaces/external/ICommandExecutorModule.sol";
+import "../interfaces/external/IVoltzContract.sol";
+import "../storage/Account.sol";
+import "./CollateralModule.sol";
+import "./AccountModule.sol";
+
+import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
+/**
+ * @title Executor Module
+ * @dev Module for managing external protocol interaction.
+ */
+contract ExecutorModule {
+
+    using Account for Account.Data;
+    using SafeCastI256 for int256;
+
+    error InvalidCommandType(uint256 commandType);
+    error NotAVoltzContract(address receivingContract);
+
+    bytes1 internal constant COMMAND_TYPE_MASK = 0x3f;
+    // Command Types. Maximum supported command at this moment is 0x3f.
+    uint256 constant V2_CORE_CREATE_ACCOUNT = 0x00;
+    uint256 constant V2_CORE_DEPOSIT = 0x01;
+    uint256 constant V2_CORE_WITHDRAW = 0x02;
+
+    struct Command {
+        bytes1 commandType;
+        uint128 accountId;
+        address collateralType;
+        bytes inputs;
+        address receivingContract;
+        int256 referenceIndex;
+    }
+
+    struct AccountCollateralPair {
+        uint128 accountId;
+        address collateralType;
+    }
+    
+    function execute(
+        Command[] calldata commands
+    ) external returns (bytes[] memory outputs) {
+
+        AccountCollateralPair[] memory accountCollateralPairs = 
+            new AccountCollateralPair[](commands.length);
+
+        outputs = new bytes[](commands.length);
+        for (uint256 i = 0; i < commands.length; i++) {
+            (uint128 accountId, address collateralType, AccountCollateralPair memory newAccountCollateralPair) = 
+                getAccountIdByReference(commands, i);
+            accountCollateralPairs[i] = newAccountCollateralPair;
+
+
+            if (commands[i].receivingContract == address(this)) {
+                executeCoreCommand(
+                    accountId,
+                    collateralType,
+                    commands[i].commandType,
+                    commands[i].inputs
+                );
+            } else {
+                // ensures no collision with known contracts
+                if (
+                    !IERC165(commands[i].receivingContract)
+                    .supportsInterface(type(IVoltzContract).interfaceId)
+                ) {
+                    revert NotAVoltzContract(commands[i].receivingContract);
+                }
+
+                outputs[i] = ICommandExecutorModule(commands[i].receivingContract)
+                    .executeCommand(
+                        accountId,
+                        collateralType,
+                        commands[i].commandType,
+                        commands[i].inputs
+                    );
+            }
+        }
+
+        for (uint256 i = 0; i < accountCollateralPairs.length; i++) {
+            if (accountCollateralPairs[i].collateralType == address(0)) continue;
+            Account.load(accountCollateralPairs[i].accountId).imCheck(accountCollateralPairs[i].collateralType);
+        }
+    }
+
+    /// @dev executes given command & signals if affected account id is wrong
+    function executeCoreCommand(
+        uint128 affectedAccountId,
+        address affectedCollateralType,
+        bytes1 commandType,
+        bytes calldata inputs
+    ) internal {
+        uint256 command = uint8(commandType & COMMAND_TYPE_MASK);
+        if (command == V2_CORE_CREATE_ACCOUNT) {
+            // equivalent: abi.decode(inputs, (uint128, uint128, bool))
+            // todo: double check the input offsets following changes to the core (IR)
+            uint128 requestedId;
+            bytes32 accountMode;
+            assembly {
+                requestedId := calldataload(inputs.offset)
+                accountMode := calldataload(add(inputs.offset, 0x40))
+            }
+            require(affectedAccountId == requestedId, "AccountId missmatch");
+            require(affectedCollateralType == address(0), "Collateral missmatch");
+            AccountModule(address(this)).createAccount(requestedId, msg.sender, accountMode);
+        } else if (command == V2_CORE_DEPOSIT) {
+            // equivalent: abi.decode(inputs, (uint128, address, uint256))
+            uint128 accountId;
+            address collateralType;
+            uint256 tokenAmount;
+            assembly {
+                accountId := calldataload(inputs.offset)
+                collateralType := calldataload(add(inputs.offset, 0x20))
+                tokenAmount := calldataload(add(inputs.offset, 0x40))
+            }
+            require(accountId == affectedAccountId, "AccountId missmatch");
+            require(affectedCollateralType == collateralType, "Collateral missmatch");
+            CollateralModule(address(this)).deposit(accountId, collateralType, tokenAmount);
+        } else if (command == V2_CORE_WITHDRAW) {
+            // equivalent: abi.decode(inputs, (uint128, address, uint256))
+            uint128 accountId;
+            address collateralType;
+            uint256 tokenAmount;
+            assembly {
+                accountId := calldataload(inputs.offset)
+                collateralType := calldataload(add(inputs.offset, 0x20))
+                tokenAmount := calldataload(add(inputs.offset, 0x40))
+            }
+            require(accountId == affectedAccountId, "AccountId missmatch");
+            require(affectedCollateralType == collateralType, "Collateral missmatch");
+            CollateralModule(address(this)).withdraw(accountId, collateralType, tokenAmount);
+        } else {
+            revert InvalidCommandType(command);
+        }
+
+    }
+
+    // todo: explain
+    function getAccountIdByReference(
+        Command[] calldata commands,
+        uint256 index
+    ) internal pure returns (
+        uint128 accountId,
+        address collateralType,
+        AccountCollateralPair memory newAccountCollateralPair
+    ) {
+        if(commands[index].referenceIndex >= 0) {
+            // reference to another pair
+            accountId = commands[commands[index].referenceIndex.toUint()].accountId;
+            collateralType = commands[commands[index].referenceIndex.toUint()].collateralType;
+        } else {
+            // new account collateral pair
+            newAccountCollateralPair = AccountCollateralPair({
+                accountId: commands[index].accountId,
+                collateralType: commands[index].collateralType
+            });
+            accountId = commands[index].accountId;
+            collateralType = commands[index].collateralType;
+        }
+    }
+}
