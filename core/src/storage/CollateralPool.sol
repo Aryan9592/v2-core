@@ -12,6 +12,8 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+
 import "./Account.sol";
 
 /**
@@ -19,6 +21,7 @@ import "./Account.sol";
  */
 library CollateralPool {
     using CollateralPool for CollateralPool.Data;
+    using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
 
@@ -158,6 +161,8 @@ library CollateralPool {
         collateralPool.id = id;
         collateralPool.owner = owner;
         collateralPool.rootId = id;
+
+        FeatureFlag.load(collateralPool.getEnabledFeatureFlagId()).setOwner(owner);
 
         emit CollateralPoolUpdated(
             id,
