@@ -67,6 +67,7 @@ library CollateralPool {
         uint128 rootId,
         RiskConfiguration riskConfig,
         InsuranceFundConfig insuranceFundConfig,
+        uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
     
@@ -93,11 +94,6 @@ library CollateralPool {
          * @dev Pool's insurance fund account ID
          */
         uint128 accountId;
-        /**
-         * @dev Maker And Taker Fee is multiplied by the annualised notional traded
-         * @dev to derived the fee received by the insurance fund on a trade.
-         */
-        UD60x18 makerAndTakerFee;
         /**
          * @dev Percentage of quote tokens paid to the insurance fund 
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
@@ -139,6 +135,10 @@ library CollateralPool {
          * @dev Collateral pool wide insurance fund configuration 
          */
         InsuranceFundConfig insuranceFundConfig;
+        /**
+         * @dev Account id for the collector of protocol fees
+         */
+        uint128 feeCollectorAccountId;
     }
 
     /**
@@ -159,7 +159,14 @@ library CollateralPool {
         collateralPool.owner = owner;
         collateralPool.rootId = id;
 
-        emit CollateralPoolUpdated(id, id, collateralPool.riskConfig, collateralPool.insuranceFundConfig, block.timestamp);
+        emit CollateralPoolUpdated(
+            id,
+            id,
+            collateralPool.riskConfig,
+            collateralPool.insuranceFundConfig,
+            collateralPool.feeCollectorAccountId,
+            block.timestamp
+        );
     }
 
     function exists(uint128 id) internal view returns (Data storage collateralPool) {
@@ -204,7 +211,14 @@ library CollateralPool {
 
         child.rootId = parent.id;
 
-        emit CollateralPoolUpdated(child.id, child.rootId, child.riskConfig, child.insuranceFundConfig,  block.timestamp);
+        emit CollateralPoolUpdated(
+            child.id,
+            child.rootId,
+            child.riskConfig,
+            child.insuranceFundConfig,
+            child.feeCollectorAccountId,
+            block.timestamp
+        );
     }
 
     function checkRoot(Data storage self) internal view {
@@ -298,7 +312,14 @@ library CollateralPool {
         self.riskConfig.imMultiplier = config.imMultiplier;
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
 
-        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, self.insuranceFundConfig, block.timestamp);
+        emit CollateralPoolUpdated(
+            self.id, 
+            self.rootId,
+            self.riskConfig,
+            self.insuranceFundConfig,
+            self.feeCollectorAccountId,
+            block.timestamp
+        );
     }
 
     /**
@@ -312,10 +333,34 @@ library CollateralPool {
         Account.exists(config.accountId);
 
         self.insuranceFundConfig.accountId = config.accountId;
-        self.insuranceFundConfig.makerAndTakerFee = config.makerAndTakerFee;
         self.insuranceFundConfig.autoExchangeFee = config.autoExchangeFee;
 
-        emit CollateralPoolUpdated(self.id, self.rootId, self.riskConfig, self.insuranceFundConfig, block.timestamp);
+        emit CollateralPoolUpdated(
+            self.id,
+            self.rootId,
+            self.riskConfig,
+            self.insuranceFundConfig,
+            self.feeCollectorAccountId,
+            block.timestamp
+        );
+    }
+
+    function setFeeCollectorAccountId(Data storage self, uint128 accountId) internal {
+        self.checkRoot();
+
+        // ensure the given account exists
+        Account.exists(accountId);
+
+        self.feeCollectorAccountId = accountId;
+
+        emit CollateralPoolUpdated(
+            self.id,
+            self.rootId,
+            self.riskConfig,
+            self.insuranceFundConfig,
+            self.feeCollectorAccountId,
+            block.timestamp
+        );
     }
 
     function onlyOwner(Data storage self) internal view {

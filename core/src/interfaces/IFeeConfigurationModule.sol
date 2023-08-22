@@ -17,12 +17,17 @@ interface IFeeConfigurationModule {
     /**
      * @notice Creates or updates the protocol fee configuration for the given `marketId`
      * @param config The MarketFeeConfiguration object describing the new configuration.
+     * @param feeCollectorAccountId The account id ofthe protocol fee collector.
      *
      * Requirements:
      *
      * - `msg.sender` must be the owner of the protocol.
      */
-    function configureProtocolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external;
+    function configureProtocolMarketFee(
+        uint128 marketId,
+        Market.FeeConfiguration memory config,
+        uint128 feeCollectorAccountId
+    ) external;
 
     /**
      * @notice Creates or updates the collateral pool fee configuration for the given `marketId`
@@ -46,6 +51,19 @@ interface IFeeConfigurationModule {
     function configureCollateralPoolInsuranceFund(
         uint128 collateralPoolId,
         CollateralPool.InsuranceFundConfig memory config
+    ) external;
+
+    /**
+     * @notice Creates or updates the insurance fund fees applied on the market's maker and taker orders 
+     * @param config The MarketFeeConfiguration object describing the new configuration.
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the collateral pool.
+     */
+    function configureInsuranceFundMarketFee(
+        uint128 marketId,
+        Market.FeeConfiguration memory config
     ) external;
 
     /**

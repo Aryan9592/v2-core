@@ -99,6 +99,53 @@ contract MarketManagerModule is IMarketManagerModule {
         receivingAccount.increaseCollateralBalance(collateralType, fee);
     }
 
+     function propagateOrder(
+        uint128 accountId,
+        Market.Data memory market,
+        address collateralType,
+        int256 annualizedNotional,
+        UD60x18 protocolFee, 
+        UD60x18 collateralPoolFee, 
+        UD60x18 insuranceFundFee
+    ) internal returns (uint256 fee, Account.MarginRequirement memory mr) {
+        Account.Data storage account = Account.exists(accountId);
+
+        account.ensureEnabledCollateralPool();
+
+        uint256 protocolFeeAmount = distributeFees(
+            accountId, 
+            market.protocolFeeCollectorAccountId, 
+            protocolFee, 
+            collateralType, 
+            annualizedNotional
+        );
+
+        CollateralPool.Data storage collateralPool = 
+            market.getCollateralPool();
+
+        uint256 collateralPoolFeeAmount = distributeFees(
+            accountId, 
+            collateralPool.feeCollectorAccountId, 
+            collateralPoolFee,
+            collateralType, 
+            annualizedNotional
+        );
+
+        uint256 insuranceFundFeeAmount = distributeFees(
+            accountId, 
+            collateralPool.insuranceFundConfig.accountId, 
+            insuranceFundFee,
+            collateralType, 
+            annualizedNotional
+        );
+
+        account.markActiveMarket(collateralType, market.id);
+
+        mr = account.imCheck(collateralType);
+        fee = protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
+    }
+
+
     function propagateTakerOrder(
         uint128 accountId,
         uint128 marketId,
@@ -108,42 +155,16 @@ contract MarketManagerModule is IMarketManagerModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
-        Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-
-        account.ensureEnabledCollateralPool();
-
-        uint256 protocolFee = distributeFees(
-            accountId, 
-            market.protocolFeeConfig.feeCollectorAccountId, 
-            market.protocolFeeConfig.atomicTakerFee, 
-            collateralType, 
-            annualizedNotional
+        return propagateOrder(
+                accountId,
+                market,
+                collateralType,
+                annualizedNotional,
+                market.protocolFeeConfig.atomicMakerFee,
+                market.collateralPoolFeeConfig.atomicMakerFee,
+                market.insuranceFundFeeConfig.atomicMakerFee
         );
-
-        uint256 collateralPoolFee = distributeFees(
-            accountId, 
-            market.collateralPoolFeeConfig.feeCollectorAccountId, 
-            market.collateralPoolFeeConfig.atomicTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        // distribute a portion of collateralPoolFee into the insurance fund 
-        CollateralPool.InsuranceFundConfig memory insuranceFund = 
-            market.getCollateralPool().insuranceFundConfig;
-        distributeFees(
-            accountId, 
-            insuranceFund.accountId, 
-            insuranceFund.makerAndTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        account.markActiveMarket(collateralType, marketId);
-
-        mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateMakerOrder(
@@ -155,42 +176,16 @@ contract MarketManagerModule is IMarketManagerModule {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
         Market.onlyMarketAddress(marketId, msg.sender);
 
-        Account.Data storage account = Account.exists(accountId);
         Market.Data memory market = Market.exists(marketId);
-
-        account.ensureEnabledCollateralPool();
-
-        uint256 protocolFee = distributeFees(
-            accountId, 
-            market.protocolFeeConfig.feeCollectorAccountId, 
-            market.protocolFeeConfig.atomicMakerFee, 
-            collateralType, 
-            annualizedNotional
+        return propagateOrder(
+                accountId,
+                market,
+                collateralType,
+                annualizedNotional,
+                market.protocolFeeConfig.atomicTakerFee,
+                market.collateralPoolFeeConfig.atomicTakerFee,
+                market.insuranceFundFeeConfig.atomicTakerFee
         );
-
-        uint256 collateralPoolFee = distributeFees(
-            accountId, 
-            market.collateralPoolFeeConfig.feeCollectorAccountId, 
-            market.collateralPoolFeeConfig.atomicMakerFee, 
-            collateralType, 
-            annualizedNotional
-        );
-
-        // distribute a portion of collateralPoolFee into the insurance fund 
-        CollateralPool.InsuranceFundConfig memory insuranceFund = 
-            market.getCollateralPool().insuranceFundConfig;
-        distributeFees(
-            accountId,
-            insuranceFund.accountId, 
-            insuranceFund.makerAndTakerFee,
-            collateralType, 
-            annualizedNotional
-        );
-
-        account.markActiveMarket(collateralType, marketId);
-
-        mr = account.imCheck(collateralType);
-        fee = protocolFee + collateralPoolFee;
     }
 
     function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount)

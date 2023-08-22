@@ -46,10 +46,6 @@ library Market {
 
     struct FeeConfiguration {
         /**
-         * @dev Address of fee collector
-         */
-        uint128 feeCollectorAccountId;
-        /**
          * @dev Atomic Maker Fee is multiplied by the annualised notional traded
          * @dev to derived the maker fee.
          */
@@ -90,9 +86,17 @@ library Market {
          */
         FeeConfiguration collateralPoolFeeConfig;
         /**
+         * @dev Market fee configurations for insurance fund
+         */
+        FeeConfiguration insuranceFundFeeConfig;
+        /**
          * @dev Market fee configurations for protocol
          */
         FeeConfiguration protocolFeeConfig;
+        /**
+         * @dev Address of fee collector
+         */
+        uint128 protocolFeeCollectorAccountId;
     }
 
     /**
@@ -184,11 +188,22 @@ library Market {
      * @dev Sets the protocol fee configuration for a given market
      * @param config The FeeConfiguration object with all the fee parameters
      */
-    function setProtocolFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
+    function setProtocolFeeConfiguration(Data storage self, FeeConfiguration memory config, uint128 accountId) internal {
         // check if fee collector account exists
-        Account.exists(config.feeCollectorAccountId);
+        Account.exists(accountId);
 
+        self.protocolFeeCollectorAccountId = accountId;
         self.protocolFeeConfig = config;
+
+        emit MarketUpdated(self, block.timestamp);
+    }
+
+    /**
+     * @dev Sets the insurance fund fee configuration for a given market
+     * @param config The FeeConfiguration object with all the insurance fund fee parameters
+     */
+    function setInsuranceFundFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
+        self.insuranceFundFeeConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
     }
@@ -198,9 +213,6 @@ library Market {
      * @param config The FeeConfiguration object with all the fee parameters
      */
     function setCollateralPoolFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
-        // check if fee collector account exists
-        Account.exists(config.feeCollectorAccountId);
-
         self.collateralPoolFeeConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
