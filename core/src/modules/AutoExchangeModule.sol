@@ -12,8 +12,8 @@ import "../storage/Account.sol";
 import "../libraries/AccountAutoExchange.sol";
 import "../interfaces/IAutoExchangeModule.sol";
 import "../storage/AutoExchangeConfiguration.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UNIT } from "@prb/math/UD60x18.sol";
@@ -32,8 +32,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using AccountAutoExchange for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
-
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
     error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address collateralType, address quoteType);
 
@@ -58,7 +56,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         address collateralType,
         address quoteType
     ) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
 
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);

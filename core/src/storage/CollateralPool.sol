@@ -15,6 +15,7 @@ import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import "./Account.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -24,8 +25,6 @@ library CollateralPool {
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
-
-    bytes32 private constant _COLLATERAL_POOL_ENABLED_FEATURE_FLAG = "collateralPoolEnabled";
 
     /**
      * @dev Thrown when a collateral pool cannot be found
@@ -159,10 +158,8 @@ library CollateralPool {
         }
 
         collateralPool.id = id;
-        collateralPool.owner = owner;
         collateralPool.rootId = id;
-
-        FeatureFlag.load(collateralPool.getEnabledFeatureFlagId()).setOwner(owner);
+        setOwner(collateralPool, owner);
 
         emit CollateralPoolUpdated(
             id,
@@ -172,6 +169,14 @@ library CollateralPool {
             collateralPool.feeCollectorAccountId,
             block.timestamp
         );
+    }
+
+    function setOwner(Data storage self, address owner) private {
+        self.owner = owner;
+
+        FeatureFlag.load(
+            FeatureFlagSupport.getCollateralPoolEnabledFeatureFlagId(self.id)
+        ).setOwner(owner);
     }
 
     function exists(uint128 id) internal view returns (Data storage collateralPool) {
@@ -372,9 +377,5 @@ library CollateralPool {
         if (msg.sender != self.owner) {
             revert Unauthorized(msg.sender);
         }
-    }
-
-    function getEnabledFeatureFlagId(Data storage self) internal view returns(bytes32) {
-        return keccak256(abi.encode(_COLLATERAL_POOL_ENABLED_FEATURE_FLAG, self.id));
     }
 }

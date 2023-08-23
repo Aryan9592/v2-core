@@ -13,7 +13,7 @@ import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import "../storage/Account.sol";
 import "../storage/AccessPassConfiguration.sol";
 import "../interfaces/external/IAccessPassNFT.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 /**
  * @title Account Manager.
@@ -24,11 +24,7 @@ contract AccountModule is IAccountModule {
     using SetUtil for SetUtil.Bytes32Set;
     using Account for Account.Data;
 
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
     bytes32 private constant _ACCOUNT_SYSTEM = "accountNFT";
-    bytes32 private constant _CREATE_ACCOUNT_FEATURE_FLAG = "createAccount";
-    bytes32 private constant _NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG = "notifyAccountTransfer";
-
     /**
      * @inheritdoc IAccountModule
      */
@@ -66,8 +62,8 @@ contract AccountModule is IAccountModule {
             During the alpha phase of the protocol, the create account feature will only be available to the Periphery
             which will need to be separately set and the periphery will need to make sure accountOwner == msg.sender
         */
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        FeatureFlag.ensureAccessToFeature(_CREATE_ACCOUNT_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
+        FeatureFlagSupport.ensureCreateAccountAccess();
 
         address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
 
@@ -91,8 +87,8 @@ contract AccountModule is IAccountModule {
         /*
             Note, denying account transfers also blocks Margin Account token transfers.
         */
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
-        FeatureFlag.ensureAccessToFeature(_NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
+        FeatureFlagSupport.ensureNotifyAccountTransferAccess();
         _onlyAccountToken();
 
         Account.Data storage account = Account.exists(accountId);
@@ -139,7 +135,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function grantPermission(uint128 accountId, bytes32 permission, address user) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
         account.grantPermission(permission, user);
@@ -149,7 +145,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function revokePermission(uint128 accountId, bytes32 permission, address user) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
         account.revokePermission(permission, user);
@@ -159,7 +155,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function renouncePermission(uint128 accountId, bytes32 permission) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
         if (!Account.exists(accountId).hasPermission(permission, msg.sender)) {
             revert PermissionNotGranted(accountId, permission, msg.sender);
         }

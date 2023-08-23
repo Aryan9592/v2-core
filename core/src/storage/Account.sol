@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 import "./Market.sol";
 import "./AutoExchangeConfiguration.sol";
@@ -19,7 +18,6 @@ import "../libraries/AccountCollateral.sol";
 import "../libraries/AccountExposure.sol";
 import "../libraries/AccountMode.sol";
 import "../libraries/AccountRBAC.sol";
-
 
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
@@ -288,8 +286,8 @@ library Account {
         if (self.firstMarketId != 0) {
             // check if the underlying collateral pool is paused
 
-            bytes32 flagId = self.getCollateralPool().getEnabledFeatureFlagId();
-            FeatureFlag.ensureAccessToFeature(flagId);
+            uint128 collateralPoolId = self.getCollateralPool().id;
+            FeatureFlagSupport.ensureEnabledCollateralPool(collateralPoolId);
         }
     }
 
