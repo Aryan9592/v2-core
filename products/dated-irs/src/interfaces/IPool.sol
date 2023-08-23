@@ -19,7 +19,9 @@ interface IPool is IERC165 {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount,
-        uint160 priceLimit
+        uint160 sqrtPriceLimitX96,
+        UD60x18 markPrice,
+        UD60x18 markPriceBand
     )
         external
         returns (int256 executedBaseAmount, int256 executedQuoteAmount);

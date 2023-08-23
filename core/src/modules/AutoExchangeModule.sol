@@ -63,7 +63,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
         CollateralPool.InsuranceFundConfig memory insuranceFundConfig = 
-            Market.load(account.firstMarketId).getCollateralPool().insuranceFundConfig;
+            Market.exists(account.firstMarketId).getCollateralPool().insuranceFundConfig;
         Account.Data storage insuranceFundAccount = Account.exists(
             insuranceFundConfig.accountId
         );
@@ -79,7 +79,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         }
 
         // get collateral amount received by the liquidator
-        uint256 amountToAutoExchangeCollateral = CollateralConfiguration.load(collateralType).
+        uint256 amountToAutoExchangeCollateral = CollateralConfiguration.exists(collateralType).
             getCollateralAInCollateralBWithDiscount(amountToAutoExchangeQuote, quoteType);
 
         // transfer quote tokens from liquidator's account to liquidatable account
@@ -120,12 +120,12 @@ contract AutoExchangeModule is IAutoExchangeModule {
         uint256 accountCollateralAmountInCollateral = account.getCollateralBalance(collateralType);
 
         CollateralConfiguration.Data storage quoteConfiguration = 
-            CollateralConfiguration.load(quoteType);
+            CollateralConfiguration.exists(quoteType);
         uint256 maxAmountQuoteInUSD = quoteConfiguration
             .getCollateralInUSD(maxAmountQuote);
         
         
-        uint256 accountCollateralAmountInUSD = CollateralConfiguration.load(collateralType)
+        uint256 accountCollateralAmountInUSD = CollateralConfiguration.exists(collateralType)
             .getCollateralInUSD(accountCollateralAmountInCollateral);
 
         if (maxAmountQuoteInUSD > accountCollateralAmountInUSD) {

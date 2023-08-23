@@ -58,10 +58,17 @@ library LPPosition {
     /**
      * @dev Loads the LPPosition object for the given position Id
      */
-    function load(uint128 positionId) internal pure returns (Data storage position) {
+    function load(uint128 positionId) private pure returns (Data storage position) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.LPPosition", positionId));
         assembly {
             position.slot := s
+        }
+    }
+
+    function exists(uint128 positionId) internal view returns (Data storage position) {
+        position = load(positionId);
+        if (position.accountId == 0) {
+            revert PositionNotFound();
         }
     }
 
@@ -113,8 +120,7 @@ library LPPosition {
         self.liquidity = LiquidityMath.addDelta(self.liquidity, liquidityDelta);
     }
 
-    /// @dev Private but labelled internal for testability.
-    function _ensurePositionOpened(
+    function ensurePositionOpened(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp,

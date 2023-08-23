@@ -7,17 +7,22 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IMarketManagerIRSModule.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import "@voltz-protocol/core/src/storage/Account.sol";
-import "../storage/Portfolio.sol";
-import "../storage/MarketConfiguration.sol";
-import "../storage/MarketManagerConfiguration.sol";
-import "../storage/RateOracleReader.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
-import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import {IMarketManagerIRSModule} from "../interfaces/IMarketManagerIRSModule.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {Portfolio} from "../storage/Portfolio.sol";
+import {Market} from "../storage/Market.sol";
+import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
+import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+
+import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+
+import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Dated Interest Rate Swap Market Manager
@@ -25,7 +30,7 @@ import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
  */
 
 contract MarketManagerIRSModule is IMarketManagerIRSModule {
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
     using Portfolio for Portfolio.Data;
     using SafeCastI256 for int256;
 
@@ -42,10 +47,26 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         // check account access permissions
         IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
 
-        // check if market id is valid + check there is an active pool with maturityTimestamp requested
+        Market.Data storage market = Market.exists(params.marketId);
+        IPool pool = IPool(market.marketConfig.poolAddress);
+
+        // todo: check with @ab if we want it adjusted or not
+        UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
+            params.marketId, 
+            params.maturityTimestamp, 
+            params.baseAmount, 
+            market.marketConfig.twapLookbackWindow
+        );
+
+        // todo: check there is an active pool with maturityTimestamp requested
         (executedBaseAmount, executedQuoteAmount) =
-            IPool(MarketManagerConfiguration.getPoolAddress()).executeDatedTakerOrder(
-                params.marketId, params.maturityTimestamp, params.baseAmount, params.priceLimit
+            pool.executeDatedTakerOrder(
+                params.marketId, 
+                params.maturityTimestamp, 
+                params.baseAmount, 
+                params.priceLimit, 
+                markPrice, 
+                market.marketConfig.markPriceBand
             );
 
         Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
@@ -53,7 +74,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         );
 
         // propagate order
-        address quoteToken = MarketConfiguration.load(params.marketId).quoteToken;
         int256 annualizedNotionalAmount = getSingleAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
@@ -61,17 +81,17 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         (fee, mr) = IMarketManagerModule(coreProxy).propagateTakerOrder(
             params.accountId,
             params.marketId,
-            quoteToken,
+            market.quoteToken,
             annualizedNotionalAmount
         );
 
-        RateOracleReader.load(params.marketId).updateOracleStateIfNeeded();
+        market.updateOracleStateIfNeeded();
 
         emit TakerOrder(
             params.accountId,
             params.marketId,
             params.maturityTimestamp,
-            quoteToken,
+            market.quoteToken,
             executedBaseAmount,
             executedQuoteAmount,
             annualizedNotionalAmount,
@@ -94,8 +114,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     // note: return settlementCashflowInQuote?
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) external override {
-
-        RateOracleReader.load(marketId).updateRateIndexAtMaturityCache(maturityTimestamp);
+        Market.Data storage market = Market.exists(marketId);
+        market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -103,10 +123,9 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        address poolAddress = MarketManagerConfiguration.getPoolAddress();
-        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, poolAddress);
+        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
 
-        address quoteToken = MarketConfiguration.load(marketId).quoteToken;
+        address quoteToken = market.quoteToken;
 
         IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
 
@@ -116,7 +135,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManager
+     * @inheritdoc IMarketManagerIRSModule
      */
     function name() external pure override returns (string memory) {
         return "Dated IRS Market Manager";
@@ -136,7 +155,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManager
+     * @inheritdoc IMarketManagerIRSModule
      */
     function getAccountTakerAndMakerExposures(
         uint128 accountId,
@@ -151,7 +170,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManager
+     * @inheritdoc IMarketManagerIRSModule
      */
     function closeAccount(uint128 accountId, uint128 marketId) external override {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
@@ -189,8 +208,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint32 maturityTimestamp,
         int256 baseAmount
     ) external returns (uint256 fee, Account.MarginRequirement memory mr) {
-
-        if (msg.sender != MarketManagerConfiguration.getPoolAddress()) {
+        Market.Data storage market = Market.exists(marketId);
+        if (msg.sender != market.marketConfig.poolAddress) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");
         }
 
@@ -202,17 +221,17 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         (fee, mr) = IMarketManagerModule(coreProxy).propagateMakerOrder(
             accountId,
             marketId,
-            MarketConfiguration.load(marketId).quoteToken,
+            market.quoteToken,
             annualizedNotionalAmount
         );
 
-        RateOracleReader.load(marketId).updateOracleStateIfNeeded();
+        market.updateOracleStateIfNeeded();
     }
 
     /**
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) external pure override(IERC165) returns (bool) {
-        return interfaceId == type(IMarketManager).interfaceId || interfaceId == this.supportsInterface.selector;
+        return interfaceId == type(IMarketManagerIRSModule).interfaceId || interfaceId == this.supportsInterface.selector;
     }
 }

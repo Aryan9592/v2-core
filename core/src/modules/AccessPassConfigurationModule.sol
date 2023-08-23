@@ -29,7 +29,7 @@ contract AccessPassConfigurationModule is IAccessPassConfigurationModule {
     /**
      * @inheritdoc IAccessPassConfigurationModule
      */
-    function getAccessPassConfiguration() external pure returns (AccessPassConfiguration.Data memory config) {
-        return AccessPassConfiguration.load();
+    function getAccessPassConfiguration() external view returns (AccessPassConfiguration.Data memory config) {
+        return AccessPassConfiguration.exists();
     }
 }

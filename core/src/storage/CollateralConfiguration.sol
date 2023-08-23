@@ -44,6 +44,12 @@ library CollateralConfiguration {
      */
     error CollateralDepositDisabled(address collateralType);
 
+    /**
+     * @dev Thrown when collateral is not configured
+     * @param collateralType The address of the collateral type.
+     */
+    error CollateralNotConfigured(address collateralType);
+
     struct Config {
         /**
          * @dev Allows the owner to control deposits and delegation of collateral types.
@@ -93,10 +99,22 @@ library CollateralConfiguration {
      * @param token The address of the collateral type.
      * @return collateralConfiguration The CollateralConfiguration object.
      */
-    function load(address token) internal pure returns (Data storage collateralConfiguration) {
+    function load(address token) private pure returns (Data storage collateralConfiguration) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.CollateralConfiguration", token));
         assembly {
             collateralConfiguration.slot := s
+        }
+    }
+
+    /**
+     * @dev Returns the collateral configuration
+     * @param token The address of the collateral type
+     */
+    function exists(address token) internal view returns (Data storage collateralConfiguration) {
+        collateralConfiguration = load(token);
+
+        if (collateralConfiguration.cachedConfig.tokenAddress == address(0)) {
+            revert CollateralNotConfigured(token);
         }
     }
 
@@ -142,7 +160,7 @@ library CollateralConfiguration {
      * @param token The address of the collateral being queried.
      */
     function collateralEnabled(address token) internal view {
-        if (!load(token).config.depositingEnabled) {
+        if (!exists(token).config.depositingEnabled) {
             revert CollateralDepositDisabled(token);
         }
     }
@@ -153,7 +171,7 @@ library CollateralConfiguration {
      * @return The price of the collateral with 18 decimals of precision.
      */
     function getCollateralPriceInUSD(Data storage self) internal view returns (UD60x18) {
-        OracleManager.Data memory oracleManager = OracleManager.load();
+        OracleManager.Data memory oracleManager = OracleManager.exists();
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
             self.config.oracleNodeId
         );
@@ -247,7 +265,7 @@ library CollateralConfiguration {
         uint256 amountCollateralA,
         address collateralA
     ) internal view returns (uint256 discountedAmountCollateralB) {
-        uint256 amountUSD = CollateralConfiguration.load(collateralA)
+        uint256 amountUSD = exists(collateralA)
             .getCollateralInUSD(amountCollateralA);
         uint256 amountCollateralB = collateralB.getUSDInCollateral(amountUSD);
 

@@ -7,28 +7,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {Market} from "../storage/Market.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import "../storage/RateOracleReader.sol";
 
 /// @title Interface for the module for managing rate oracles connected to the Dated IRS Market Manager
 interface IRateOracleModule {
-    /**
-     * @notice Emitted when attempting to register a rate oracle with an invalid oracle address
-     * @param oracleAddress Invalid oracle address
-     */
-    error InvalidVariableOracleAddress(address oracleAddress);
-
-    /**
-     * @notice Emitted when an oracle is configured for a market.
-     * @param marketId The id of the market (e.g. aUSDC lend) associated with the rate oracle
-     * @param oracleAddress Address of the variable rate oracle contract
-     * @param blockTimestamp The current block timestamp.
-     * @param maturityIndexCachingWindowInSeconds The number of seconds that need to
-        elapse post maturity to have to backfill the maturity rate index
-     */
-    event RateOracleConfigured(uint128 indexed marketId, address indexed oracleAddress, uint256 blockTimestamp,
-        uint256 maturityIndexCachingWindowInSeconds);
-
     /**
      * @notice Requests a rate index snapshot at a maturity timestamp of a given interest rate market (e.g. aUSDC lend)
      * @param marketId Id of the market (e.g. aUSDC lend) for which we're requesting a rate index value
@@ -46,21 +29,18 @@ interface IRateOracleModule {
     function getRateIndexCurrent(uint128 marketId) external returns (UD60x18 rateIndexCurrent);
 
     /**
-     * @notice Get a variable rate oracle address for a given marketId
+     * @notice Get the rate oracle configuration for a given market
      * @param marketId Market Id
-     * @return variableOracleAddress Variable rate oracle address
+     * @return rateOracleConfig The rate oracle configuration
      */
-    function getVariableOracleAddress(uint128 marketId) external view returns (address variableOracleAddress);
+    function getRateOracleConfiguration(uint128 marketId) external view returns (Market.RateOracleConfiguration memory);
 
     /**
-     * @notice Register a variable rate oralce
+     * @notice Set rate oracle configuration for a given market
      * @param marketId Market Id
-     * @param oracleAddress Oracle Address
-     * @param maturityIndexCachingWindowInSeconds The number of seconds that need to elapse post maturity to
-      have to backfill the maturity rate index
+     * @param rateOracleConfig Rate Oracle Configuration
      */
-    function setVariableOracle(uint128 marketId, address oracleAddress,
-        uint256 maturityIndexCachingWindowInSeconds) external;
+    function setRateOracleConfiguration(uint128 marketId, Market.RateOracleConfiguration memory rateOracleConfig) external;
 
     /**
      * @notice Update the rate index at maturity cache for a given marketId & maturity timestamp

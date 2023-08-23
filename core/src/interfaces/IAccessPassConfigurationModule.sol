@@ -33,5 +33,5 @@ interface IAccessPassConfigurationModule {
      * @notice Returns detailed information on protocol-wide risk configuration
      * @return config The configuration object describing the protocol-wide risk configuration
      */
-    function getAccessPassConfiguration() external pure returns (AccessPassConfiguration.Data memory config);
+    function getAccessPassConfiguration() external view returns (AccessPassConfiguration.Data memory config);
 }

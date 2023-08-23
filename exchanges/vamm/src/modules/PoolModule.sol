@@ -28,7 +28,9 @@ contract PoolModule is IPoolModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount,
-        uint160 sqrtPriceLimitX96
+        uint160 sqrtPriceLimitX96,
+        UD60x18 markPrice,
+        UD60x18 markPriceBand
     )
         external override
         returns (int256 executedBaseAmount, int256 executedQuoteAmount) {
@@ -42,13 +44,18 @@ contract PoolModule is IPoolModule {
 
         DatedIrsVamm.SwapParams memory swapParams;
         swapParams.amountSpecified = -baseAmount;
-        swapParams.sqrtPriceLimitX96 = sqrtPriceLimitX96 == 0
-                ? (
-                    baseAmount > 0 // VT
-                        ? vamm.minSqrtRatio + 1
-                        : vamm.maxSqrtRatio - 1
-                )
-                : sqrtPriceLimitX96;
+        if (sqrtPriceLimitX96 == 0) {
+            DatedIrsVamm.TickLimits memory currentTickLimits = vamm.getCurrentTickLimits(markPrice, markPriceBand);
+            swapParams.sqrtPriceLimitX96 = (
+                baseAmount > 0 // VT
+                    ? currentTickLimits.minSqrtRatio + 1
+                    : currentTickLimits.maxSqrtRatio - 1
+            );
+        } else {
+            swapParams.sqrtPriceLimitX96 = sqrtPriceLimitX96;
+        }
+        swapParams.markPrice = markPrice;
+        swapParams.markPriceBand = markPriceBand;
 
         (executedQuoteAmount, executedBaseAmount) = vamm.vammSwap(swapParams);
     }
@@ -85,8 +92,8 @@ contract PoolModule is IPoolModule {
             maturityTimestamp,
             VAMMBase.baseAmountFromLiquidity(
                 liquidityDelta,
-                vamm.getSqrtRatioAtTickSafe(tickLower),
-                vamm.getSqrtRatioAtTickSafe(tickUpper)
+                TickMath.getSqrtRatioAtTick(tickLower),
+                TickMath.getSqrtRatioAtTick(tickUpper)
             )
         );
 
@@ -113,7 +120,7 @@ contract PoolModule is IPoolModule {
         uint128[] memory positions = vamm.vars.positionsInAccount[accountId];
 
         for (uint256 i = 0; i < positions.length; i++) {
-            LPPosition.Data memory position = LPPosition.load(positions[i]);
+            LPPosition.Data memory position = LPPosition.exists(positions[i]);
             vamm.executeDatedMakerOrder(
                 accountId, 
                 marketId,

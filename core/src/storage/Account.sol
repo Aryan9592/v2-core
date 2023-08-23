@@ -194,7 +194,7 @@ library Account {
      /**
      * @dev Returns the account stored at the specified account id.
      */
-    function load(uint128 id) internal pure returns (Data storage account) {
+    function load(uint128 id) private pure returns (Data storage account) {
         if (id == 0) {
             revert AccountNotFound(id);
         }
@@ -228,7 +228,7 @@ library Account {
         view
         returns (Data storage account)
     {
-        account = Account.load(accountId);
+        account = Account.exists(accountId);
         if (account.rbac.owner != senderAddress) {
             revert PermissionDenied(accountId, senderAddress);
         }
@@ -243,7 +243,7 @@ library Account {
         view
         returns (Data storage account)
     {
-        account = Account.load(accountId);
+        account = Account.exists(accountId);
         if (!account.authorized(permission, senderAddress)) {
             revert PermissionDenied(accountId, senderAddress);
         }

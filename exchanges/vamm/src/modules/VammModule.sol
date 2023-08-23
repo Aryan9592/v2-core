@@ -68,11 +68,9 @@ contract VammModule is IVammModule {
      */
     function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSize, uint32 lookbackWindow) 
         external view override returns (UD60x18 datedIRSTwap) 
-    {
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        
+    {   
         bool nonZeroOrderSize = orderSize != 0;
-        datedIRSTwap = vamm.twap(lookbackWindow, orderSize, nonZeroOrderSize, nonZeroOrderSize);
+        return getDatedIRSTwap(marketId, maturityTimestamp, orderSize, lookbackWindow, nonZeroOrderSize, nonZeroOrderSize);
     }
 
     /**
@@ -86,7 +84,7 @@ contract VammModule is IVammModule {
         bool adjustForPriceImpact,
         bool adjustForSpread
     ) 
-        external view override returns (UD60x18 datedIRSTwap) 
+        public view override returns (UD60x18 datedIRSTwap) 
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         datedIRSTwap = vamm.twap(lookbackWindow, orderSize, adjustForPriceImpact, adjustForSpread);
@@ -148,9 +146,9 @@ contract VammModule is IVammModule {
     }
 
     function getVammPosition(uint128 positionId)
-        external pure override returns (LPPosition.Data memory) {
+        external view override returns (LPPosition.Data memory) {
 
-        LPPosition.Data storage position = LPPosition.load(positionId);
+        LPPosition.Data storage position = LPPosition.exists(positionId);
         return position;
     }
 
@@ -166,13 +164,6 @@ contract VammModule is IVammModule {
         
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(_marketId, _maturityTimestamp);
         return vamm.vars.trackerBaseTokenGrowthGlobalX128;
-    }
-
-    function getVammMinAndMaxSqrtRatio(uint128 _marketId, uint32 _maturityTimestamp)
-        external view override returns (uint160, uint160) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(_marketId, _maturityTimestamp);
-        return (vamm.minSqrtRatio, vamm.maxSqrtRatio);
     }
 
     function getVammObservationInfo(uint128 _marketId, uint32 _maturityTimestamp)

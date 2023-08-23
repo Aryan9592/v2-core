@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/MarketConfiguration.sol";
+import { Market } from "../storage/Market.sol";
 
 /**
  * @title Module for configuring a market
@@ -16,28 +16,36 @@ import "../storage/MarketConfiguration.sol";
 
 interface IMarketConfigurationModule {
     /**
-     * @notice Emitted when a market configuration is created or updated
-     * @param config The object with the newly configured details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event MarketConfigured(MarketConfiguration.Data config, uint256 blockTimestamp);
-
-    /**
-     * @notice Creates or updates the market configuration
-     * @param config The MarketConfiguration object describing the new configuration.
+     * @notice Creates a market
+     * @param marketId The market id
+     * @param quoteToken The quote token of the market
      *
      * Requirements:
      *
-     * - `msg.sender` must be the owner of the dated irs market.
+     * - `msg.sender` must be the owner of the dated irs instrument.
      *
-     * Emits a {MarketConfigured} event.
+     * Emits a {MarketCreated} event.
      *
      */
-    function configureMarket(MarketConfiguration.Data memory config) external;
+    function createMarket(uint128 marketId, address quoteToken) external;
+
+    /**
+     * @notice Sets the market configuration
+     * @param marketId The market id
+     * @param marketConfig The new market configuration
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the dated irs instrument.
+     *
+     * Emits a {MarketConfigUpdated} event.
+     *
+     */
+    function setMarketConfiguration(uint128 marketId, Market.MarketConfiguration memory marketConfig) external;
 
     /**
      * @notice Returns the market configuration
-     * @return config The configuration object describing the market
+     * @return config The market configuration
      */
-    function getMarketConfiguration(uint128 irsMarketId) external view returns (MarketConfiguration.Data memory config);
+    function getMarketConfiguration(uint128 marketId) external view returns (Market.MarketConfiguration memory);
 }

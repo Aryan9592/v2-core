@@ -7,22 +7,21 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "@voltz-protocol/util-contracts/src/helpers/Pack.sol";
-import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
-import "./Position.sol";
-import "./RateOracleReader.sol";
-import "./MarketConfiguration.sol";
-import "./MarketManagerConfiguration.sol";
-import "../interfaces/IPool.sol";
-import "../libraries/ExposureHelpers.sol";
-import "@voltz-protocol/core/src/storage/Account.sol";
-import "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import { SD59x18 } from "@prb/math/SD59x18.sol";
-import { mulUDxUint, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {Position} from "./Position.sol";
+import {Market} from "./Market.sol";
+import {MarketManagerConfiguration} from "./MarketManagerConfiguration.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -33,7 +32,7 @@ library Portfolio {
     using SetUtil for SetUtil.UintSet;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastU256 for uint256;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
 
     /**
      * @dev Thrown when a portfolio cannot be found.
@@ -53,6 +52,18 @@ library Portfolio {
     error UnknownMarket(uint128 marketId);
 
     /**
+     * @notice Emitted when a portfolio is created
+     * @param accountId The account id of the new portfolio
+     * @param marketId The market id of the new portfolio
+     * @param blockTimestamp The current block timestamp
+     */
+    event PortfolioCreated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint256 blockTimestamp
+    );
+
+    /**
      * @notice Emitted when a position in updated.
      * @param accountId The id of the account.
      * @param marketId The id of the market.
@@ -67,6 +78,34 @@ library Portfolio {
         uint32 indexed maturityTimestamp,
         int256 baseDelta,
         int256 quoteDelta,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Emitted when a new market maturity is activated
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The new active maturity timestamp
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketMaturityActivated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint32 maturityTimestamp,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Emitted when an existing market maturity is deactivated
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The deactivated maturity timestamp
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketMaturityDeactivated(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint32 maturityTimestamp,
         uint256 blockTimestamp
     );
 
@@ -98,7 +137,7 @@ library Portfolio {
      * @dev Returns the portfolio stored at the specified portfolio id
      * @dev Same as account id of the account that owns the portfolio of dated irs positions
      */
-    function load(uint128 accountId, uint128 marketId) internal pure returns (Data storage portfolio) {
+    function load(uint128 accountId, uint128 marketId) private pure returns (Data storage portfolio) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Portfolio", accountId, marketId));
         assembly {
             portfolio.slot := s
@@ -111,6 +150,7 @@ library Portfolio {
         if (portfolio.accountId == 0)  {
             portfolio.accountId = accountId;
             portfolio.marketId = marketId;
+            emit PortfolioCreated(accountId, marketId, block.timestamp);
         }
     }
 
@@ -162,7 +202,8 @@ library Portfolio {
         view
         returns (Account.MakerMarketExposure[] memory exposures)
     {
-        address poolAddress = MarketManagerConfiguration.getPoolAddress();
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
@@ -187,24 +228,41 @@ library Portfolio {
      * poolAddress in which to close the account, note in the beginning we'll only have a single pool
      */
     function closeAccount(Data storage self) internal {
-        IPool pool = IPool(MarketManagerConfiguration.getPoolAddress());
-
-        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
+        Market.Data storage market = Market.exists(self.marketId);
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
             Position.Data storage position = self.positions[maturityTimestamp];
 
-            pool.closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
+            IPool(
+                market.marketConfig.poolAddress
+            ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
-            (int256 filledBasePool,) = pool.getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
+            (int256 filledBasePool,) = IPool(
+                market.marketConfig.poolAddress
+            ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
 
             int256 unwindBase = -(position.baseBalance + filledBasePool);
 
+            // todo: check with @ab if we want it adjusted or not
+            UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
+                self.marketId, 
+                maturityTimestamp, 
+                unwindBase, 
+                market.marketConfig.twapLookbackWindow
+            );
+
             (int256 executedBaseAmount, int256 executedQuoteAmount) =
-                pool.executeDatedTakerOrder(self.marketId, maturityTimestamp, unwindBase, 0);
+                IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
+                    self.marketId, 
+                    maturityTimestamp, 
+                    unwindBase, 
+                    0, 
+                    markPrice, 
+                    market.marketConfig.markPriceBand
+                );
 
             position.update(executedBaseAmount, executedQuoteAmount);
 
@@ -213,11 +271,11 @@ library Portfolio {
             IMarketManagerModule(MarketManagerConfiguration.getCoreProxyAddress()).propagateTakerOrder(
                 self.accountId,
                 self.marketId,
-                collateralType,
+                market.quoteToken,
                 mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
             );
 
-            RateOracleReader.load(self.marketId).updateOracleStateIfNeeded();
+            market.updateOracleStateIfNeeded();
 
             emit PositionUpdated(
                 self.accountId, 
@@ -270,7 +328,7 @@ library Portfolio {
 
         Position.Data storage position = self.positions[maturityTimestamp];
 
-        UD60x18 liquidityIndexMaturity = RateOracleReader.load(marketId).getRateIndexMaturity(maturityTimestamp);
+        UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
 
         self.deactivateMarketMaturity(maturityTimestamp);
 
@@ -299,7 +357,9 @@ library Portfolio {
      */
     function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         // check if market/maturity exist
-        address collateralType = MarketConfiguration.load(self.marketId).quoteToken;
+        Market.Data storage market = Market.exists(self.marketId);
+
+        address collateralType = market.quoteToken;
 
         if (collateralType == address(0)) {
             revert UnknownMarket(self.marketId);
@@ -308,12 +368,18 @@ library Portfolio {
         if (!self.activeMaturities.contains(maturityTimestamp)) {
             if (
                 self.activeMaturities.length() >= 
-                MarketManagerConfiguration.load().takerPositionsPerAccountLimit
+                market.marketConfig.takerPositionsPerAccountLimit
             ) {
                 revert TooManyTakerPositions(self.accountId, self.marketId);
             }
 
             self.activeMaturities.add(maturityTimestamp);
+            emit MarketMaturityActivated(
+                self.accountId,
+                self.marketId,
+                maturityTimestamp,
+                block.timestamp
+            );
         }
     }
 
@@ -324,6 +390,12 @@ library Portfolio {
     function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         if (self.activeMaturities.contains(maturityTimestamp)) {
             self.activeMaturities.remove(maturityTimestamp);
+            emit MarketMaturityDeactivated(
+                self.accountId,
+                self.marketId,
+                maturityTimestamp,
+                block.timestamp
+            );
         }
     }
 }

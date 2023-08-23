@@ -102,7 +102,7 @@ library AccountAutoExchange {
     ) internal view returns (int256) {
         int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
 
-        uint256 accountValueByCollateralTypeInUSD= CollateralConfiguration.load(collateralType)
+        uint256 accountValueByCollateralTypeInUSD = CollateralConfiguration.exists(collateralType)
             .getCollateralInUSD(
                 accountValueByCollateralType > 0 ? 
                     accountValueByCollateralType.toUint() :

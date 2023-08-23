@@ -19,6 +19,11 @@ library OracleManager {
      * @param blockTimestamp The current block timestamp.
      */
     event OracleManagerUpdated(Data oracleManager, uint256 blockTimestamp);
+    
+    /**
+     * Thrown when oracle manager is not configured
+     */
+    error OracleManagerNotConfigured();
 
     struct Data {
         /**
@@ -30,10 +35,21 @@ library OracleManager {
     /**
      * @dev Loads the singleton storage info about the oracle manager.
      */
-    function load() internal pure returns (Data storage oracleManager) {
+    function load() private pure returns (Data storage oracleManager) {
         bytes32 s = _SLOT_ORACLE_MANAGER;
         assembly {
             oracleManager.slot := s
+        }
+    }
+
+    /**
+     * @dev Returns the market stored at the specified market id.
+     */
+    function exists() internal view returns (Data storage oracleManager) {
+        oracleManager = load();
+
+        if (oracleManager.oracleManagerAddress == address(0)) {
+            revert OracleManagerNotConfigured();
         }
     }
 

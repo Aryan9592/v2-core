@@ -14,10 +14,10 @@ library PoolConfiguration {
         uint256 makerPositionsPerAccountLimit;
     }
 
-    function load() internal pure returns (Data storage self) {
+    function load() internal pure returns (Data storage config) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.PoolConfiguration"));
         assembly {
-            self.slot := s
+            config.slot := s
         }
     }
 
@@ -40,7 +40,7 @@ library PoolConfiguration {
 
     function getRateOracle(uint128 marketId) internal view returns (IRateOracle) {
         address rateOracleAddress = IRateOracleModule(load().productAddress)
-            .getVariableOracleAddress(marketId);
+            .getRateOracleConfiguration(marketId).oracleAddress;
         return IRateOracle(rateOracleAddress);
     }
 }

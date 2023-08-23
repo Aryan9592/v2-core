@@ -82,7 +82,7 @@ library AccountExposure {
 
             for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
                 address quoteToken = self.activeQuoteTokens.valueAt(i);
-                CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(quoteToken);
+                CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(quoteToken);
 
                 (uint256 liquidationMarginRequirementInCollateral, uint256 highestUnrealizedLossInCollateral) = 
                     getRequirementsAndHighestUnrealizedLossByCollateralType(self, quoteToken);
@@ -124,7 +124,7 @@ library AccountExposure {
             }
             else {
                 // return the amounts in collateral if the collateral type is non-zero address
-                CollateralConfiguration.Data storage collateral = CollateralConfiguration.load(collateralType);
+                CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralType);
 
                 return Account.MarginRequirement({
                     isIMSatisfied: isIMSatisfied,

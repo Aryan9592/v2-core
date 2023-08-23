@@ -9,10 +9,9 @@ import "../libraries//vamm-utils/SwapMath.sol";
 import "../libraries/math/FixedAndVariableMath.sol";
 import "../libraries/errors/VammCustomErrors.sol";
 
-import { UD60x18, convert } from "@prb/math/UD60x18.sol";
-import { SD59x18 } from "@prb/math/SD59x18.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18, convert, ud } from "@prb/math/UD60x18.sol";
+
+import {SafeCastU256, SafeCastI256, SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -51,10 +50,10 @@ library DatedIrsVamm {
         VammConfiguration.Mutable mutableConfig;
         /// @dev vamm state frequently-updated
         VammConfiguration.State vars;
-        /// @dev Equivalent to getSqrtRatioAtTick(MAX_TICK)
-        uint160 minSqrtRatio;
-        /// @dev Equivalent to getSqrtRatioAtTick(MIN_TICK)
-        uint160 maxSqrtRatio;
+        /// @dev Equivalent to getSqrtRatioAtTick(minTickAllowed)
+        uint160 minSqrtRatioAllowed;
+        /// @dev Equivalent to getSqrtRatioAtTick(maxTickAllowed)
+        uint160 maxSqrtRatioAllowed;
     }
 
     struct SwapParams {
@@ -63,12 +62,23 @@ library DatedIrsVamm {
         int256 amountSpecified;
         /// @dev The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
         uint160 sqrtPriceLimitX96;
+        /// @dev Mark price used to compute dynamic price limits
+        UD60x18 markPrice;
+        /// @dev Fixed Mark Price Band applied to the mark price to compute the dynamic price limits
+        UD60x18 markPriceBand;
+    }
+
+    struct TickLimits {
+        int24 minTick;
+        int24 maxTick;
+        uint160 minSqrtRatio;
+        uint160 maxSqrtRatio;
     }
 
     /**
      * @dev Returns the vamm stored at the specified vamm id.
      */
-    function load(uint256 id) internal pure returns (Data storage irsVamm) {
+    function load(uint256 id) private pure returns (Data storage irsVamm) {
         if (id == 0) {
             revert VammCustomErrors.IRSVammNotFound(0);
         }
@@ -164,29 +174,33 @@ library DatedIrsVamm {
         self.mutableConfig.priceImpactBeta = _config.priceImpactBeta;
         self.mutableConfig.spread = _config.spread;
 
-        self.setMinAndMaxTicks(_config.minTick, _config.maxTick);
+        self.setMinAndMaxTicks(_config.minTickAllowed, _config.maxTickAllowed);
     }
 
     function setMinAndMaxTicks(
         Data storage self,
-        int24 _minTick,
-        int24 _maxTick
+        int24 _minTickAllowed,
+        int24 _maxTickAllowed
     ) internal {
+        // todo: might be able to remove self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
+        // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
+        // does not have unwanted consequences
         if(
-            _minTick < TickMath.MIN_TICK_LIMIT || _maxTick > TickMath.MAX_TICK_LIMIT ||
-            self.vars.tick < _minTick || self.vars.tick > _maxTick
+            _minTickAllowed < TickMath.MIN_TICK_LIMIT || _maxTickAllowed > TickMath.MAX_TICK_LIMIT ||
+            self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
         ) {
-            revert VammCustomErrors.ExceededTickLimits(_minTick, _maxTick);
+            revert VammCustomErrors.ExceededTickLimits(_minTickAllowed, _maxTickAllowed);
         }
 
-        if(_minTick + _maxTick != 0) {
-            revert VammCustomErrors.AsymmetricTicks(_minTick, _maxTick);
+        // todo: can this be removed in the future for better flexibility?
+        if(_minTickAllowed + _maxTickAllowed != 0) {
+            revert VammCustomErrors.AsymmetricTicks(_minTickAllowed, _maxTickAllowed);
         }
 
-        self.mutableConfig.minTick = _minTick;
-        self.mutableConfig.maxTick = _maxTick;
-        self.minSqrtRatio = TickMath.getSqrtRatioAtTick(_minTick);
-        self.maxSqrtRatio = TickMath.getSqrtRatioAtTick(_maxTick);
+        self.mutableConfig.minTickAllowed = _minTickAllowed;
+        self.mutableConfig.maxTickAllowed = _maxTickAllowed;
+        self.minSqrtRatioAllowed = TickMath.getSqrtRatioAtTick(_minTickAllowed);
+        self.maxSqrtRatioAllowed = TickMath.getSqrtRatioAtTick(_maxTickAllowed);
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
@@ -217,10 +231,11 @@ library DatedIrsVamm {
         view
         returns (UD60x18 geometricMeanPrice)
     {
+        /// Note that the logarithm of the weighted geometric mean is the arithmetic mean of the logarithms
         int24 arithmeticMeanTick = observe(self, secondsAgo);
 
         // Not yet adjusted
-        geometricMeanPrice = self.getPriceFromTick(arithmeticMeanTick).div(convert(100));
+        geometricMeanPrice = getPriceFromTick(arithmeticMeanTick).div(convert(100));
         UD60x18 spreadImpactDelta = ZERO;
         UD60x18 priceImpactAsFraction = ZERO;
 
@@ -259,8 +274,6 @@ library DatedIrsVamm {
             }
             geometricMeanPrice = geometricMeanPrice.mul(ONE.sub(priceImpactAsFraction)).sub(spreadImpactDelta);
         }
-
-        return geometricMeanPrice;
     }
 
     /// @notice Calculates time-weighted arithmetic mean tick
@@ -278,8 +291,7 @@ library DatedIrsVamm {
             secondsAgos[0] = secondsAgo;
             secondsAgos[1] = 0;
 
-            (int56[] memory tickCumulatives,) =
-                observe(self, secondsAgos);
+            int56[] memory tickCumulatives = observe(self, secondsAgos);
 
             int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
             arithmeticMeanTick = int24(tickCumulativesDelta / int56(uint56(secondsAgo)));
@@ -289,23 +301,20 @@ library DatedIrsVamm {
         }
     }
 
-    /// @notice Returns the cumulative tick and liquidity as of each timestamp `secondsAgo` from the current block timestamp
+    /// @notice Returns the cumulative tick as of each timestamp `secondsAgo` from the current block timestamp
     /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one representing
     /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted average tick,
     /// you must call it with secondsAgos = [3600, 0].
     /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
     /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
-    /// @param secondsAgos From how long ago each cumulative tick and liquidity value should be returned
+    /// @param secondsAgos From how long ago each cumulative tick value should be returned
     /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
-    /// @return secondsPerLiquidityCumulativeX128s Cumulative seconds per liquidity-in-range value 
-    ///     as of each `secondsAgos` from the current block
-    /// timestamp
     function observe(
         Data storage self,
         uint32[] memory secondsAgos)
         internal
         view
-        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
+        returns (int56[] memory tickCumulatives)
     {
         return
             self.vars.observations.observe(
@@ -313,7 +322,6 @@ library DatedIrsVamm {
                 secondsAgos,
                 self.vars.tick,
                 self.vars.observationIndex,
-                0, // liquidity is untracked
                 self.vars.observationCardinality
             );
     }
@@ -363,7 +371,7 @@ library DatedIrsVamm {
         VAMMBase.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
         
         (LPPosition.Data storage position, bool newlyCreated) = 
-            LPPosition._ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
+            LPPosition.ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
         if (newlyCreated) {
             uint256 positionsPerAccountLimit = PoolConfiguration.load().makerPositionsPerAccountLimit;
             if (self.vars.positionsInAccount[accountId].length >= positionsPerAccountLimit) {
@@ -465,7 +473,7 @@ library DatedIrsVamm {
         VAMMBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
 
         if (liquidityDelta > 0) {
-            self.checkTicksInRange(tickLower, tickUpper);
+            self.checkTicksInAllowedRange(tickLower, tickUpper);
         } else {
             checkTicksLimits(tickLower, tickUpper);
         }
@@ -510,8 +518,7 @@ library DatedIrsVamm {
     /// @dev Stores fixed values required in each swap step 
     struct SwapFixedValues {
         uint256 secondsTillMaturity;
-        int24 minTick;
-        int24 maxTick;
+        TickLimits tickLimits;
         UD60x18 liquidityIndex;
     }
 
@@ -528,7 +535,19 @@ library DatedIrsVamm {
     {
         VAMMBase.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
 
-        self.checksBeforeSwap(params.amountSpecified, params.sqrtPriceLimitX96, params.amountSpecified > 0);
+        SwapFixedValues memory swapFixedValues = SwapFixedValues({
+            secondsTillMaturity: self.immutableConfig.maturityTimestamp - block.timestamp,
+            tickLimits: self.getCurrentTickLimits(params.markPrice, params.markPriceBand),
+            liquidityIndex: PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex()
+        });
+
+        self.checksBeforeSwap(
+            params.amountSpecified, 
+            params.sqrtPriceLimitX96, 
+            params.amountSpecified > 0,
+            swapFixedValues.tickLimits.minSqrtRatio,
+            swapFixedValues.tickLimits.maxSqrtRatio
+        );
 
         uint128 liquidityStart = self.vars.liquidity;
 
@@ -541,16 +560,6 @@ library DatedIrsVamm {
             trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
             quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
             baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
-        });
-
-        // The following are used n times within the loop, but will not change so they are calculated here
-        SwapFixedValues memory util = SwapFixedValues({
-            secondsTillMaturity: self.immutableConfig.maturityTimestamp - block.timestamp,
-            minTick: self.mutableConfig.minTick,
-            maxTick: self.mutableConfig.maxTick,
-            liquidityIndex: PoolConfiguration
-                .getRateOracle(self.immutableConfig.marketId)
-                .getCurrentIndex()
         });
 
         // continue swapping as long as we haven't used the entire input/output and haven't 
@@ -574,14 +583,14 @@ library DatedIrsVamm {
                 .nextInitializedTickWithinOneWord(state.tick, self.immutableConfig._tickSpacing, !(params.amountSpecified > 0));
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-            if (params.amountSpecified > 0 && step.tickNext > util.maxTick) {
-                step.tickNext = util.maxTick;
+            if (params.amountSpecified > 0 && step.tickNext > swapFixedValues.tickLimits.maxTick) {
+                step.tickNext = swapFixedValues.tickLimits.maxTick;
             }
-            if (!(params.amountSpecified > 0) && step.tickNext < util.minTick) {
-                step.tickNext = util.minTick;
+            if (!(params.amountSpecified > 0) && step.tickNext < swapFixedValues.tickLimits.minTick) {
+                step.tickNext = swapFixedValues.tickLimits.minTick;
             }
             // get the price for the next tick
-            step.sqrtPriceNextX96 = self.getSqrtRatioAtTickSafe(step.tickNext);
+            step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.tickNext);
 
             ///// GET SWAP RESULTS /////
 
@@ -604,7 +613,7 @@ library DatedIrsVamm {
                     ),
                     liquidity: state.liquidity,
                     amountRemaining: state.amountSpecifiedRemaining,
-                    timeToMaturityInSeconds: util.secondsTillMaturity
+                    timeToMaturityInSeconds: swapFixedValues.secondsTillMaturity
                 })
             );
 
@@ -626,8 +635,8 @@ library DatedIrsVamm {
                 step.quoteTokenDelta = VAMMBase.calculateQuoteTokenDelta(
                     step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
-                    FixedAndVariableMath.accrualFact(util.secondsTillMaturity),
-                    util.liquidityIndex,
+                    FixedAndVariableMath.accrualFact(swapFixedValues.secondsTillMaturity),
+                    swapFixedValues.liquidityIndex,
                     self.mutableConfig.spread
                 );
 
@@ -677,9 +686,9 @@ library DatedIrsVamm {
                 self.vars.observationIndex,
                 Time.blockTimestampTruncated(),
                 self.vars.tick,
-                0, // Liquidity not currently being tracked
                 self.vars.observationCardinality,
-                self.vars.observationCardinalityNext
+                self.vars.observationCardinalityNext,
+                self.mutableConfig.minSecondsBetweenOracleObservations
             );
             (self.vars.sqrtPriceX96, self.vars.tick ) = (
                 state.sqrtPriceX96,
@@ -765,7 +774,7 @@ library DatedIrsVamm {
         internal
         view
         returns ( uint256, uint256, uint256, uint256 ) {
-        LPPosition.Data storage position = LPPosition.load(positionId);
+        LPPosition.Data storage position = LPPosition.exists(positionId);
         (
             uint256 unfilledShortBase,
             uint256 unfilledLongBase,
@@ -794,7 +803,7 @@ library DatedIrsVamm {
         uint256 numPositions = self.vars.positionsInAccount[accountId].length;
 
         for (uint256 i = 0; i < numPositions; i++) {
-            LPPosition.Data storage position = LPPosition.load(self.vars.positionsInAccount[accountId][i]);
+            LPPosition.Data storage position = LPPosition.exists(self.vars.positionsInAccount[accountId][i]);
             (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth) = 
                 growthBetweenTicks(self, position.tickLower, position.tickUpper);
             (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = 
@@ -853,7 +862,7 @@ library DatedIrsVamm {
         internal view
         returns (uint256, uint256) {
         
-        uint256 unfilledBaseTokensLeft = self.baseBetweenTicks(
+        uint256 unfilledBaseTokensLeft = baseBetweenTicks(
             leftLowerTick,
             leftUpperTick,
             liquidityPerTick
@@ -864,7 +873,7 @@ library DatedIrsVamm {
         }
 
         // unfilledBaseTokensLeft is negative
-        int256 unbalancedQuoteTokensLeft = self.unbalancedQuoteBetweenTicks(
+        int256 unbalancedQuoteTokensLeft = unbalancedQuoteBetweenTicks(
             leftLowerTick,
             leftUpperTick,
             -(unfilledBaseTokensLeft).toInt()
@@ -891,7 +900,7 @@ library DatedIrsVamm {
         internal view
         returns (uint256, uint256){
         
-        uint256 unfilledBaseTokensRight = self.baseBetweenTicks(
+        uint256 unfilledBaseTokensRight = baseBetweenTicks(
             rightLowerTick,
             rightUpperTick,
             liquidityPerTick
@@ -902,7 +911,7 @@ library DatedIrsVamm {
         }
 
         // unbalancedQuoteTokensRight is positive
-        int256 unbalancedQuoteTokensRight = self.unbalancedQuoteBetweenTicks(
+        int256 unbalancedQuoteTokensRight = unbalancedQuoteBetweenTicks(
             rightLowerTick,
             rightUpperTick,
             unfilledBaseTokensRight.toInt()
@@ -998,26 +1007,6 @@ library DatedIrsVamm {
 
     }
 
-    function getSqrtRatioAtTickSafe(Data storage self, int24 tick) internal view returns (uint160 sqrtPriceX96){
-        uint256 absTick = tick < 0
-            ? uint256(-int256(tick))
-            : uint256(int256(tick));
-        require(absTick <= uint256(int256(self.mutableConfig.maxTick)), "T");
-
-        sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
-    }
-
-    function getTickAtSqrtRatioSafe(Data storage self, uint160 sqrtPriceX96) internal view returns (int24 tick){
-        // second inequality must be < because the price can never reach the price at the max tick
-        require(
-            sqrtPriceX96 >= self.minSqrtRatio &&
-                sqrtPriceX96 < self.maxSqrtRatio,
-            "R"
-        );
-
-        tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
-    }
-
     function flipTicks(
         Data storage self,
         int24 tickLower,
@@ -1062,10 +1051,10 @@ library DatedIrsVamm {
     }
 
     /// @dev Common checks for valid tick inputs inside the min & max ticks
-    function checkTicksInRange(Data storage self, int24 tickLower, int24 tickUpper) internal view {
+    function checkTicksInAllowedRange(Data storage self, int24 tickLower, int24 tickUpper) internal view {
         require(tickLower < tickUpper, "TLUR");
-        require(tickLower >= self.mutableConfig.minTick, "TLMR");
-        require(tickUpper <= self.mutableConfig.maxTick, "TUMR");
+        require(tickLower >= self.mutableConfig.minTickAllowed, "TLMR");
+        require(tickUpper <= self.mutableConfig.maxTickAllowed, "TUMR");
     }
 
     /// @dev Common checks for valid tick inputs inside the tick limits
@@ -1079,7 +1068,9 @@ library DatedIrsVamm {
         Data storage self,
         int256 amountSpecified,
         uint160 sqrtPriceLimitX96,
-        bool isFT
+        bool isFT,
+        uint160 currentMinSqrtRatio,
+        uint160 currentMaxSqrtRatio
     ) internal view {
 
         if (amountSpecified == 0) {
@@ -1096,9 +1087,9 @@ library DatedIrsVamm {
         require(
             isFT
                 ? sqrtPriceLimitX96 > self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 < self.maxSqrtRatio
+                    sqrtPriceLimitX96 < currentMaxSqrtRatio
                 : sqrtPriceLimitX96 < self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 > self.minSqrtRatio,
+                    sqrtPriceLimitX96 > currentMinSqrtRatio,
             "SPL"
         );
     }
@@ -1106,36 +1097,76 @@ library DatedIrsVamm {
     /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
     /// The answer must be a valid `int256`. Reverts on overflow.
     function baseBetweenTicks(
-        Data storage self,
         int24 _tickLower,
         int24 _tickUpper,
         int128 _liquidityPerTick
-    ) internal view returns(int256) {
+    ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = self.getSqrtRatioAtTickSafe(_tickLower);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
 
-        uint160 sqrtRatioBX96 = self.getSqrtRatioAtTickSafe(_tickUpper);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
 
         return VAMMBase.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
     }
 
     function unbalancedQuoteBetweenTicks(
-        Data storage self,
         int24 _tickLower,
         int24 _tickUpper,
         int256 baseAmount
-    ) internal view returns(int256) {
+    ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = self.getSqrtRatioAtTickSafe(_tickLower);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
 
-        uint160 sqrtRatioBX96 = self.getSqrtRatioAtTickSafe(_tickUpper);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
 
         return VAMMBase.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
 
-    function getPriceFromTick(Data storage self, int24 _tick) internal view returns (UD60x18 price) {
-        uint160 sqrtPriceX96 = self.getSqrtRatioAtTickSafe(_tick);
+    function getPriceFromTick(int24 _tick) internal pure returns (UD60x18 price) {
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_tick);
         uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
         return UD60x18.wrap(FullMath.mulDiv(1e18, FixedPoint96.Q96, priceX96));
+    }
+
+    function getTickFromPrice(UD60x18 price) internal pure returns (int24 tick) {
+        UD60x18 sqrtPrice = price.sqrt();
+        uint160 sqrtPriceX96 = uint160(sqrtPrice.mul(ud(FixedPoint96.Q96)).unwrap());
+        return TickMath.getTickAtSqrtRatio(sqrtPriceX96);
+    }
+
+    function dynamicTickLimits(
+        UD60x18 markPrice, UD60x18 markPriceBand
+    ) internal pure returns (int24 dynamicMinTick, int24 dynamicMaxTick) {
+        UD60x18 minPrice = (markPrice.gt(markPriceBand)) ? markPrice.sub(markPriceBand) : ZERO;
+        UD60x18 maxPrice = markPrice.add(markPriceBand);
+        
+        dynamicMinTick = getTickFromPrice(maxPrice);
+        dynamicMaxTick = getTickFromPrice(minPrice);
+    }
+
+    // todo: further review during testing
+    function getCurrentTickLimits(Data storage self, UD60x18 markPrice, UD60x18 markPriceBand) internal view returns (
+        TickLimits memory currentTickLimits
+    ) {
+        (int24 dynamicMinTick, int24 dynamicMaxTick) = dynamicTickLimits(markPrice, markPriceBand);
+        if (self.mutableConfig.minTickAllowed < dynamicMinTick) {
+            currentTickLimits.minTick = dynamicMinTick;
+            currentTickLimits.minSqrtRatio = TickMath.getSqrtRatioAtTick(currentTickLimits.minTick);
+        } else {
+            currentTickLimits.minTick = self.mutableConfig.minTickAllowed;
+            currentTickLimits.minSqrtRatio = self.minSqrtRatioAllowed;
+        }
+
+        if (dynamicMaxTick < self.mutableConfig.maxTickAllowed) {
+            currentTickLimits.maxTick = dynamicMaxTick;
+            currentTickLimits.maxSqrtRatio = TickMath.getSqrtRatioAtTick(currentTickLimits.maxTick);
+        } else {
+            currentTickLimits.maxTick = self.mutableConfig.maxTickAllowed;
+            currentTickLimits.maxSqrtRatio = self.maxSqrtRatioAllowed;
+        }
+
+        if (!(currentTickLimits.minTick <= self.vars.tick && self.vars.tick <= currentTickLimits.maxTick)) {
+            revert VammCustomErrors.ExceededTickLimits(currentTickLimits.minTick, currentTickLimits.maxTick);
+        }
     }
 }

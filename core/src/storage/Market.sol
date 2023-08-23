@@ -37,11 +37,6 @@ library Market {
          * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
          */
         UD60x18 riskParameter;
-    
-        /**
-         * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
-         */
-        uint32 twapLookbackWindow;
     }
 
     struct FeeConfiguration {
@@ -114,7 +109,7 @@ library Market {
         returns (Data storage market)
     {
         uint128 id = MarketStore.advanceMarketId();
-        market = Market.load(id);
+        market = load(id);
     
         market.id = id;
         market.marketManagerAddress = marketManagerAddress;
@@ -128,7 +123,7 @@ library Market {
     /**
      * @dev Returns the market stored at the specified market id.
      */
-    function load(uint128 id) internal pure returns (Data storage market) {
+    function load(uint128 id) private pure returns (Data storage market) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Market", id));
         assembly {
             market.slot := s

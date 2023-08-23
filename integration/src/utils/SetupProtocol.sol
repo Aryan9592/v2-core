@@ -20,7 +20,7 @@ import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/A
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
 
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
-import {MarketConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketConfiguration.sol";
+import {Market as DatedIrsMarket} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
@@ -198,14 +198,13 @@ contract SetupProtocol is BatchScript {
     });
   }
 
-  function registerDatedIrsProduct(uint256 takerPositionsPerAccountLimit, bool isTrusted) public {
-    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product", isTrusted);
+  // todo: alex return new product id to be used in ConfigProtocol.s.sol
+  function registerDatedIrsProduct() public {
+    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product");
     
     configureProduct(
       MarketManagerConfiguration.Data({
-        coreProxy: address(contracts.coreProxy),
-        poolAddress: address(contracts.vammProxy),
-        takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
+        coreProxy: address(contracts.coreProxy)
       })
     );
 
@@ -215,17 +214,18 @@ contract SetupProtocol is BatchScript {
   }
 
   function configureMarket(
-    address rateOracleAddress,
-    address tokenAddress,
-    uint128 productId,
     uint128 marketId,
+    address tokenAddress,
     uint128 feeCollectorAccountId,
     uint256 cap,
     UD60x18 atomicMakerFee,
     UD60x18 atomicTakerFee,
     UD60x18 riskParameter,
     uint32 twapLookbackWindow,
-    uint256 maturityIndexCachingWindowInSeconds
+    UD60x18 markPriceBand,
+    uint256 maturityIndexCachingWindowInSeconds,
+    address rateOracleAddress,
+    uint256 takerPositionsPerAccountLimit
   ) public {
     configureCollateral(
       tokenAddress,
@@ -238,17 +238,27 @@ contract SetupProtocol is BatchScript {
       })
     );
 
-    configureMarket(
-      MarketConfiguration.Data({
-        marketId: marketId,
-        quoteToken: tokenAddress
-      })
-    );
-
-    setVariableOracle({
+    createMarket({
       marketId: marketId,
-      oracleAddress: rateOracleAddress,
-      maturityIndexCachingWindowInSeconds: maturityIndexCachingWindowInSeconds
+      quoteToken: tokenAddress
+    });
+
+    setMarketConfiguration({
+      marketId: marketId,
+      marketConfig: DatedIrsMarket.MarketConfiguration({
+        poolAddress: address(contracts.vammProxy),
+        twapLookbackWindow: twapLookbackWindow,
+        markPriceBand: markPriceBand,
+        takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
+      })
+    });
+
+    setRateOracleConfiguration({
+      marketId: marketId,
+      rateOracleConfig: DatedIrsMarket.RateOracleConfiguration({
+        oracleAddress: rateOracleAddress,
+        maturityIndexCachingWindowInSeconds: maturityIndexCachingWindowInSeconds
+      })
     });
 
     configureProtocolMarketFee(
@@ -272,8 +282,7 @@ contract SetupProtocol is BatchScript {
     configureMarketRisk(
       marketId,
       Market.RiskConfiguration({
-        riskParameter: riskParameter,
-        twapLookbackWindow: twapLookbackWindow
+        riskParameter: riskParameter
       })
     );
   }
@@ -597,7 +606,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function registerProduct(address product, string memory name, bool isTrusted) public {
+  function registerProduct(address product, string memory name) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.coreProxy.registerMarket(product, name);
@@ -695,31 +704,46 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarket(MarketConfiguration.Data memory config) public {
+  function createMarket(uint128 marketId, address quoteToken) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.datedIrsProxy.configureMarket(config);
+      contracts.datedIrsProxy.createMarket(marketId, quoteToken);
     } else {
       addToBatch(
         address(contracts.datedIrsProxy),
         abi.encodeCall(
-          contracts.datedIrsProxy.configureMarket,
-          (config)
+          contracts.datedIrsProxy.createMarket,
+          (marketId, quoteToken)
         )
       );
     }
   }
 
-  function setVariableOracle(uint128 marketId, address oracleAddress, uint256 maturityIndexCachingWindowInSeconds) public {
+  function setMarketConfiguration(uint128 marketId, DatedIrsMarket.MarketConfiguration memory marketConfig) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.datedIrsProxy.setVariableOracle(marketId, oracleAddress, maturityIndexCachingWindowInSeconds);
+      contracts.datedIrsProxy.setMarketConfiguration(marketId, marketConfig);
     } else {
       addToBatch(
         address(contracts.datedIrsProxy),
         abi.encodeCall(
-          contracts.datedIrsProxy.setVariableOracle,
-          (marketId, oracleAddress, maturityIndexCachingWindowInSeconds)
+          contracts.datedIrsProxy.setMarketConfiguration,
+          (marketId, marketConfig)
+        )
+      );
+    }
+  }
+
+  function setRateOracleConfiguration(uint128 marketId, DatedIrsMarket.RateOracleConfiguration memory rateOracleConfig) public {
+    if (!settings.multisig) {
+      broadcastOrPrank();
+      contracts.datedIrsProxy.setRateOracleConfiguration(marketId, rateOracleConfig);
+    } else {
+      addToBatch(
+        address(contracts.datedIrsProxy),
+        abi.encodeCall(
+          contracts.datedIrsProxy.setRateOracleConfiguration,
+          (marketId, rateOracleConfig)
         )
       );
     }

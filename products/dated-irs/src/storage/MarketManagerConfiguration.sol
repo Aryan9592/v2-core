@@ -14,32 +14,25 @@ pragma solidity >=0.8.19;
 library MarketManagerConfiguration {
     bytes32 private constant _SLOT_MARKET_MANAGER_CONFIGURATION = keccak256(abi.encode("xyz.voltz.MarketManagerConfiguration"));
 
+    /**
+     * @notice Emitted when the market manager is (re-)configured
+     * @param marketManagerConfig The new market manager configuration
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MarketManagerConfigured(Data marketManagerConfig, uint256 blockTimestamp);
+
     struct Data {
         /**
          * @dev Address of the core proxy
          */
         address coreProxy;
-
-        // todo: revise the fact that pool address is per market manager and not per market
-
-        /**
-         * @dev Address of the pool address the market manager is linked to
-         */
-        address poolAddress;
-
-        // todo: revise the fact that taker position limit is only per market and not per all markets
-        
-        /**
-         * @dev Maximum number of positions of an account in this market
-         */
-        uint256 takerPositionsPerAccountLimit;
     }
 
     /**
      * @dev Loads the MarketManagerConfiguration object
      * @return marketManagerConfig The MarketManagerConfiguration object.
      */
-    function load() internal pure returns (Data storage marketManagerConfig) {
+    function load() private pure returns (Data storage marketManagerConfig) {
         bytes32 s = _SLOT_MARKET_MANAGER_CONFIGURATION;
         assembly {
             marketManagerConfig.slot := s
@@ -52,26 +45,12 @@ library MarketManagerConfiguration {
      */
     function set(Data memory config) internal {
         Data storage storedConfig = load();
-
-        //todo: check interface id of pool address (AB)
-
         storedConfig.coreProxy = config.coreProxy;
-        storedConfig.poolAddress = config.poolAddress;
-        storedConfig.takerPositionsPerAccountLimit = config.takerPositionsPerAccountLimit;
-    }
-
-    function getPoolAddress() internal view returns (address storedPoolAddress) {
-        Data storage storedConfig = load();
-        storedPoolAddress = storedConfig.poolAddress;
+        emit MarketManagerConfigured(storedConfig, block.timestamp);
     }
 
     function getCoreProxyAddress() internal view returns (address storedProxyAddress) {
         Data storage storedConfig = load();
         storedProxyAddress = storedConfig.coreProxy;
-    }
-
-    function getTakerPositionsPerAccountLimit() internal view returns (uint256 takerPositionsPerAccountLimit) {
-        Data storage storedConfig = load();
-        takerPositionsPerAccountLimit = storedConfig.takerPositionsPerAccountLimit;
     }
 }
