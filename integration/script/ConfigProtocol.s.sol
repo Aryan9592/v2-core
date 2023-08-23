@@ -18,7 +18,6 @@ contract ConfigProtocol is SetupProtocol {
       SetupProtocol.Contracts({
         coreProxy: CoreProxy(payable(vm.envAddress("CORE_PROXY"))),
         datedIrsProxy: DatedIrsProxy(payable(vm.envAddress("DATED_IRS_PROXY"))),
-        peripheryProxy: PeripheryProxy(payable(vm.envAddress("PERIPHERY_PROXY"))),
         vammProxy: VammProxy(payable(vm.envAddress("VAMM_PROXY"))),
         aaveV3RateOracle: AaveV3RateOracle(vm.envAddress("AAVE_V3_RATE_ORACLE")),
         aaveV3BorrowRateOracle: AaveV3BorrowRateOracle(vm.envAddress("AAVE_V3_BORROW_RATE_ORACLE"))
@@ -43,7 +42,6 @@ contract ConfigProtocol is SetupProtocol {
   function configure_protocol() public {
     // upgradeProxy(address(contracts.coreProxy), address(0));
     // upgradeProxy(address(contracts.datedIrsProxy), address(0));
-    // upgradeProxy(address(contracts.peripheryProxy), address(0));
     // upgradeProxy(address(contracts.vammProxy), address(0));
 
     acceptOwnerships();
@@ -109,8 +107,7 @@ contract ConfigProtocol is SetupProtocol {
       notionalAmount: 100e6,
       tickLower: -14100, // 4.1%
       tickUpper: -13620, // 3.9%
-      rateOracleAddress: address(contracts.aaveV3RateOracle),
-      peripheryExecuteDeadline: block.timestamp + 360
+      rateOracleAddress: address(contracts.aaveV3RateOracle)
     }));
 
     execute_multisig_batch();

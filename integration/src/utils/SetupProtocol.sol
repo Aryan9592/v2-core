@@ -7,7 +7,6 @@ import "../../test/fuzzing/Hevm.sol";
 
 import {CoreProxy, AccountNftProxy} from "../proxies/Core.sol";
 import {DatedIrsProxy} from "../proxies/DatedIrs.sol";
-import {PeripheryProxy} from "../proxies/Periphery.sol";
 import {VammProxy} from "../proxies/Vamm.sol";
 
 import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.sol";
@@ -24,8 +23,6 @@ import {Market as DatedIrsMarket} from "@voltz-protocol/products-dated-irs/src/s
 
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
-import {Config} from "@voltz-protocol/periphery/src/storage/Config.sol";
-
 import {Ownable} from "@voltz-protocol/util-contracts/src/ownership/Ownable.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
@@ -37,16 +34,12 @@ import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {IRateOracle} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
-import {Commands} from "@voltz-protocol/periphery/src/libraries/Commands.sol";
-import {IWETH9} from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";
-
 import {Utils} from "./Utils.sol";
 
 contract SetupProtocol is BatchScript {
   struct Contracts {
     CoreProxy coreProxy;
     DatedIrsProxy datedIrsProxy;
-    PeripheryProxy peripheryProxy;
     VammProxy vammProxy;
 
     AaveV3RateOracle aaveV3RateOracle;
@@ -132,7 +125,6 @@ contract SetupProtocol is BatchScript {
     acceptOwnership(address(contracts.coreProxy));
     acceptOwnership(address(contracts.datedIrsProxy));
     acceptOwnership(address(contracts.vammProxy));
-    acceptOwnership(address(contracts.peripheryProxy));
   }
 
   function enableFeatureFlags(address[] memory pausers) public {
@@ -171,15 +163,6 @@ contract SetupProtocol is BatchScript {
       CollateralPool.RiskConfiguration({
         imMultiplier:imMultiplier,
         liquidatorRewardParameter: liquidatorRewardParameter
-      })
-    );
-
-    periphery_configure(
-      Config.Data({
-        WETH9: IWETH9(Utils.getWETH9Address(metadata.chainId)),
-        VOLTZ_V2_CORE_PROXY: address(contracts.coreProxy),
-        VOLTZ_V2_DATED_IRS_PROXY: address(contracts.datedIrsProxy),
-        VOLTZ_V2_DATED_IRS_VAMM_PROXY: address(contracts.vammProxy)
       })
     );
 
@@ -338,7 +321,6 @@ contract SetupProtocol is BatchScript {
     int24 tickLower;
     int24 tickUpper;
     address rateOracleAddress;
-    uint256 peripheryExecuteDeadline;
   }
 
   function mintOrBurn(
@@ -350,30 +332,29 @@ contract SetupProtocol is BatchScript {
 
     erc20_approve(
       IERC20(params.tokenAddress), 
-      address(contracts.peripheryProxy), 
+      address(contracts.coreProxy), 
       params.marginAmount
     );
 
     bytes memory commands;
     bytes[] memory inputs;
-    if (Utils.existsAccountNft(metadata.accountNftProxy, params.accountId)) {
-      commands = abi.encodePacked(
-        bytes1(uint8(Commands.TRANSFER_FROM)),
-        bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
-        bytes1(uint8(Commands.V2_VAMM_EXCHANGE_LP))
-      );
-      inputs = new bytes[](3);
-    } else {
-      commands = abi.encodePacked(
-        bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)),
-        bytes1(uint8(Commands.TRANSFER_FROM)),
-        bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
-        bytes1(uint8(Commands.V2_VAMM_EXCHANGE_LP))
-      );
+    // todo: update with executor commands (IR)
+    // if (Utils.existsAccountNft(metadata.accountNftProxy, params.accountId)) {
+    //   commands = abi.encodePacked(
+    //     bytes1(uint8(ExecutorModule.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(CommandExecutorModule.V2_DATED_IRS_EXCHANGE_LP))
+    //   );
+    //   inputs = new bytes[](3);
+    // } else {
+    //   commands = abi.encodePacked(
+    //     bytes1(uint8(ExecutorModule.V2_CORE_CREATE_ACCOUNT)),
+    //     bytes1(uint8(ExecutorModule.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(CommandExecutorModule.V2_DATED_IRS_EXCHANGE_LP))
+    //   );
 
-      inputs = new bytes[](4);
-      inputs[0] = abi.encode(params.accountId);
-    }
+    //   inputs = new bytes[](4);
+    //   inputs[0] = abi.encode(params.accountId);
+    // }
 
     inputs[inputs.length-3] = 
       abi.encode(params.tokenAddress, params.marginAmount);
@@ -387,7 +368,7 @@ contract SetupProtocol is BatchScript {
       Utils.getLiquidityForBase(params.tickLower, params.tickUpper, baseAmount)    
     );
 
-    return periphery_execute(commands, inputs, params.peripheryExecuteDeadline)[inputs.length-1];
+    return core_operate(commands, inputs)[inputs.length-1];
   }
 
   function swap(
@@ -405,30 +386,31 @@ contract SetupProtocol is BatchScript {
 
     erc20_approve(
       IERC20(tokenAddress), 
-      address(contracts.peripheryProxy), 
+      address(contracts.coreProxy), 
       marginAmount
     );
 
     bytes memory commands;
     bytes[] memory inputs;
-    if (Utils.existsAccountNft(metadata.accountNftProxy, accountId)) {
-      commands = abi.encodePacked(
-        bytes1(uint8(Commands.TRANSFER_FROM)),
-        bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
-        bytes1(uint8(Commands.V2_DATED_IRS_INSTRUMENT_SWAP))
-      );
-      inputs = new bytes[](3);
-    } else {
-      commands = abi.encodePacked(
-        bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)),
-        bytes1(uint8(Commands.TRANSFER_FROM)),
-        bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
-        bytes1(uint8(Commands.V2_DATED_IRS_INSTRUMENT_SWAP))
-      );
+    // todo: update with executor commands
+    // if (Utils.existsAccountNft(metadata.accountNftProxy, accountId)) {
+    //   commands = abi.encodePacked(
+    //     bytes1(uint8(Commands.TRANSFER_FROM)),
+    //     bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(Commands.V2_DATED_IRS_INSTRUMENT_SWAP))
+    //   );
+    //   inputs = new bytes[](3);
+    // } else {
+    //   commands = abi.encodePacked(
+    //     bytes1(uint8(Commands.V2_CORE_CREATE_ACCOUNT)),
+    //     bytes1(uint8(Commands.TRANSFER_FROM)),
+    //     bytes1(uint8(Commands.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(Commands.V2_DATED_IRS_INSTRUMENT_SWAP))
+    //   );
 
-      inputs = new bytes[](4);
-      inputs[0] = abi.encode(accountId);
-    }
+    //   inputs = new bytes[](4);
+    //   inputs[0] = abi.encode(accountId);
+    // }
     inputs[inputs.length-3] = abi.encode(tokenAddress, marginAmount);
     inputs[inputs.length-2] = abi.encode(accountId, tokenAddress, marginAmount);
     inputs[inputs.length-1] = abi.encode(
@@ -439,7 +421,7 @@ contract SetupProtocol is BatchScript {
       0
     );
 
-    return periphery_execute(commands, inputs, block.timestamp + 100)[inputs.length-1];  
+    return core_operate(commands, inputs)[inputs.length-1];  
   }
 
   ////////////////////////////////////////////////////////////////////
@@ -899,37 +881,24 @@ contract SetupProtocol is BatchScript {
   }
 
   ////////////////////////////////////////////////////////////////////
-  /////////////////             PERIPHERY            /////////////////
+  /////////////////             COMMAND EXECUTOR            /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function periphery_configure(Config.Data memory config) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.peripheryProxy.configure(config);
-    } else {
-      addToBatch(
-        address(contracts.peripheryProxy),
-        abi.encodeCall(
-          contracts.peripheryProxy.configure,
-          (config)
-        )
-      );
-    }
-  }
-
-  function periphery_execute(bytes memory commands, bytes[] memory inputs, uint256 deadline)
+  function core_operate(bytes memory commands, bytes[] memory inputs)
      public returns (bytes[] memory output) {
     if (!settings.multisig) {
       broadcastOrPrank();
-      output = contracts.peripheryProxy.execute(commands, inputs, deadline);
+      // todo: to complete (IR)
+      //output = contracts.coreProxy.operate();
     } else {
-      addToBatch(
-        address(contracts.peripheryProxy),
-        abi.encodeCall(
-          contracts.peripheryProxy.execute,
-          (commands, inputs, deadline)
-        )
-      );
+      // todo: to complete (IR)
+      // addToBatch(
+      //   address(contracts.coreProxy),
+      //   abi.encodeCall(
+      //     contracts.coreProxy.execute,
+      //     (commands, inputs)
+      //   )
+      // );
     }
   }
 
