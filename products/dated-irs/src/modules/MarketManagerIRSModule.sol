@@ -13,6 +13,7 @@ import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
@@ -42,6 +43,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         override
         returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirement memory mr)
     {
+        FeatureFlagSupport.ensureEnabledMarket(params.marketId);
+
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
@@ -114,9 +117,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     // note: return settlementCashflowInQuote?
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) external override {
+        FeatureFlagSupport.ensureEnabledMarket(marketId);
+        
         Market.Data storage market = Market.exists(marketId);
         market.updateRateIndexAtMaturityCache(maturityTimestamp);
-
+    
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
@@ -173,6 +178,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      * @inheritdoc IMarketManagerIRSModule
      */
     function closeAccount(uint128 accountId, uint128 marketId) external override {
+        FeatureFlagSupport.ensureEnabledMarket(marketId);
+    
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         if (
@@ -208,6 +215,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint32 maturityTimestamp,
         int256 baseAmount
     ) external returns (uint256 fee, Account.MarginRequirement memory mr) {
+        FeatureFlagSupport.ensureEnabledMarket(marketId);
+
         Market.Data storage market = Market.exists(marketId);
         if (msg.sender != market.marketConfig.poolAddress) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");

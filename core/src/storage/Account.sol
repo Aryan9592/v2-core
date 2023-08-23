@@ -7,20 +7,22 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "./Market.sol";
-import "./AutoExchangeConfiguration.sol";
+import {Account} from "./Account.sol";
+import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
+import {CollateralConfiguration} from "./CollateralConfiguration.sol";
+import {CollateralPool} from "./CollateralPool.sol";
+import {Market} from "./Market.sol";
 
-import "../libraries/AccountActiveMarket.sol";
-import "../libraries/AccountCollateral.sol";
-import "../libraries/AccountExposure.sol";
-import "../libraries/AccountMode.sol";
-import "../libraries/AccountRBAC.sol";
+import {AccountActiveMarket} from "../libraries/AccountActiveMarket.sol";
+import {AccountCollateral} from "../libraries/AccountCollateral.sol";
+import {AccountExposure} from "../libraries/AccountExposure.sol";
+import {AccountMode} from "../libraries/AccountMode.sol";
+import {AccountRBAC} from "../libraries/AccountRBAC.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
@@ -288,8 +290,8 @@ library Account {
         if (self.firstMarketId != 0) {
             // check if the underlying collateral pool is paused
 
-            bytes32 flagId = self.getCollateralPool().getEnabledFeatureFlagId();
-            FeatureFlag.ensureAccessToFeature(flagId);
+            uint128 collateralPoolId = self.getCollateralPool().id;
+            FeatureFlagSupport.ensureEnabledCollateralPool(collateralPoolId);
         }
     }
 

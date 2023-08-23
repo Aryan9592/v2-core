@@ -7,11 +7,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/ICollateralModule.sol";
-import "../storage/Account.sol";
-import "../storage/CollateralConfiguration.sol";
-import "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {Account} from "../storage/Account.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
+import {ICollateralModule} from "../interfaces/ICollateralModule.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import {ERC20Helper} from "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 
 /**
  * @title Module for managing user collateral.
@@ -21,17 +24,14 @@ contract CollateralModule is ICollateralModule {
     using ERC20Helper for address;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
-    using CollateralPool for CollateralPool.Data;
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
-
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
     /**
      * @inheritdoc ICollateralModule
      */
     function deposit(uint128 accountId, address collateralType, uint256 tokenAmount) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
 
         // check if collateral is enabled
         CollateralConfiguration.collateralEnabled(collateralType);
@@ -70,7 +70,8 @@ contract CollateralModule is ICollateralModule {
      * @inheritdoc ICollateralModule
      */
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
+        
         Account.Data storage account =
             Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
 

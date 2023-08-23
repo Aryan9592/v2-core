@@ -7,17 +7,18 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {Account} from "../storage/Account.sol";
+import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
+import {CollateralPool} from "../storage/CollateralPool.sol";
+import {Market} from "../storage/Market.sol";
+import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
+import {AccountAutoExchange} from "../libraries/AccountAutoExchange.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import "../storage/Account.sol";
-import "../libraries/AccountAutoExchange.sol";
-import "../interfaces/IAutoExchangeModule.sol";
-import "../storage/AutoExchangeConfiguration.sol";
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UNIT } from "@prb/math/UD60x18.sol";
-
 
 // todo: consider forcing auto-exchange at settlement for maturity-based markets (AB)
 /**
@@ -32,8 +33,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using AccountAutoExchange for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
-
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
 
     error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address collateralType, address quoteType);
 
@@ -58,7 +57,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         address collateralType,
         address quoteType
     ) external override {
-        FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
+        FeatureFlagSupport.ensureGlobalAccess();
 
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);

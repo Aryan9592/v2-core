@@ -7,10 +7,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Account.sol";
+import {AccountExposure} from "./AccountExposure.sol";
+import {Account} from "../storage/Account.sol";
+import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Object for managing account auto-echange utilities.
