@@ -22,6 +22,15 @@ interface IMarketManagerIRSModule is IMarketManager {
         uint160 priceLimit;
     }
 
+    struct MakerOrderParams {
+        uint128 accountId;
+        uint128 marketId;
+        uint32 maturityTimestamp;
+        int24 tickLower;
+        int24 tickUpper;
+        int128 liquidityDelta;
+    }
+
     /**
      * @notice Emitted when a taker order of the account token with id `accountId` is initiated.
      * @param accountId The id of the account.
@@ -41,6 +50,28 @@ interface IMarketManagerIRSModule is IMarketManager {
         int256 executedBaseAmount,
         int256 executedQuoteAmount,
         int256 annualizedNotionalAmount,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Emitted after a successful mint or burn of liquidity on a given LP position
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The maturity timestamp of the position.
+     * @param sender Address that called the initiate maker order function.
+     * @param tickLower Lower tick of the range order
+     * @param tickUpper Upper tick of the range order
+     * @param liquidityDelta Liquidity added (positive values) or removed (negative values) within the tick range
+     * @param blockTimestamp The current block timestamp.
+     */
+    event MakerOrder(
+        uint128 indexed accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        address sender,
+        int24 indexed tickLower,
+        int24 indexed tickUpper,
+        int128 liquidityDelta,
         uint256 blockTimestamp
     );
 
@@ -91,6 +122,19 @@ interface IMarketManagerIRSModule is IMarketManager {
         returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirement memory mr);
 
     /**
+     * @notice Initiates a maker order for a given account by providing or burining liquidity in the given tick range
+     * param accountId Id of the `Account` with which the lp wants to provide liqudity
+     * param marketId Id of the market in which the lp wants to provide liqudiity
+     * param maturityTimestamp Timestamp at which a given market matures
+     * param tickLower Lower tick of the range order
+     * param tickUpper Upper tick of the range order
+     * param liquidityDelta Liquidity to add (positive values) or remove (negative values) within the tick range
+     */
+    function initiateMakerOrder(MakerOrderParams memory params)
+        external
+        returns (uint256 fee, Account.MarginRequirement memory mr);
+
+    /**
      * @notice Creates or updates the configuration for the given market manager.
      * @param config The MarketConfiguration object describing the new configuration.
      *
@@ -102,20 +146,6 @@ interface IMarketManagerIRSModule is IMarketManager {
      *
      */
     function configureMarketManager(MarketManagerConfiguration.Data memory config) external;
-
-    /**
-     * @notice Propagates maker order to core to check margin requirements
-     * @param accountId Id of the account that wants to initiate a taker order
-     * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
-     * @param maturityTimestamp Maturity of the market's pool in which the account want to initiate a taker order
-     * @param baseAmount The base amount of the order
-     */
-    function propagateMakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 baseAmount
-    ) external returns (uint256 fee, Account.MarginRequirement memory mr);
 
     /**
      * @notice Returns core proxy address from MarketManagerConfigruation

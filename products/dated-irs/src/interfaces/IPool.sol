@@ -26,6 +26,15 @@ interface IPool is IERC165 {
         external
         returns (int256 executedBaseAmount, int256 executedQuoteAmount);
 
+    function executeDatedMakerOrder(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidityDelta
+    ) external returns (int256 baseAmount);
+
     function getAccountFilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,

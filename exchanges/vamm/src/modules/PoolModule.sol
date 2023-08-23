@@ -63,7 +63,7 @@ contract PoolModule is IPoolModule {
     /**
      * @inheritdoc IPoolModule
      */
-    function initiateDatedMakerOrder(
+    function executeDatedMakerOrder(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -71,14 +71,11 @@ contract PoolModule is IPoolModule {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        external override returns (uint256 fee, Account.MarginRequirement memory mr)
+        external override returns (int256 baseAmount)
     {
-
-        IMarketManagerIRSModule irsProduct = IMarketManagerIRSModule(PoolConfiguration.load().productAddress);
-
-        IAccountModule(
-            irsProduct.getCoreProxyAddress()
-        ).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
+        if (msg.sender != PoolConfiguration.load().productAddress) {
+            revert NotAuthorized(msg.sender, "executeDatedMakerOrder");
+        }
 
         PoolConfiguration.whenNotPaused();
         
@@ -86,11 +83,7 @@ contract PoolModule is IPoolModule {
 
         vamm.executeDatedMakerOrder(accountId, marketId, tickLower, tickUpper, liquidityDelta);
 
-        (fee, mr) = irsProduct.propagateMakerOrder(
-            accountId,
-            marketId,
-            maturityTimestamp,
-            VAMMBase.baseAmountFromLiquidity(
+        return VAMMBase.baseAmountFromLiquidity(
                 liquidityDelta,
                 TickMath.getSqrtRatioAtTick(tickLower),
                 TickMath.getSqrtRatioAtTick(tickUpper)

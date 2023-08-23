@@ -102,6 +102,49 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         );
     }
 
+    /**
+     * @inheritdoc IMarketManagerIRSModule
+     */
+    function initiateMakerOrder(MakerOrderParams memory params)
+        external
+        override
+        returns (uint256 fee, Account.MarginRequirement memory mr)
+    {
+        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+
+        // check account access permissions
+        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
+
+        // check if market id is valid + check there is an active pool with maturityTimestamp requested
+        int256 baseAmount =
+            IPool(MarketManagerConfiguration.getPoolAddress()).executeDatedMakerOrder(
+                params.accountId,
+                params.marketId,
+                params.maturityTimestamp,
+                params.tickLower,
+                params.tickUpper,
+                params.liquidityDelta
+            );
+        
+        (fee, mr) = propagateMakerOrder(
+            params.accountId,
+            params.marketId,
+            params.maturityTimestamp,
+            baseAmount
+        );
+
+        emit MakerOrder(
+            params.accountId,
+            params.marketId,
+            params.maturityTimestamp,
+            msg.sender,
+            params.tickLower,
+            params.tickUpper,
+            params.liquidityDelta,
+            block.timestamp
+        );
+    }
+
     function getSingleAnnualizedExposure(
         int256 executedBaseAmount,
         uint128 marketId,
@@ -207,14 +250,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManagerIRSModule
-     */
+     * @notice Propagates maker order to core to check margin requirements
+     * @param accountId Id of the account that wants to initiate a taker order
+     * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
+     * @param maturityTimestamp Maturity of the market's pool in which the account want to initiate a taker order
+     * @param baseAmount The base amount of the order
+    */
     function propagateMakerOrder(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount
-    ) external returns (uint256 fee, Account.MarginRequirement memory mr) {
+    ) internal returns (uint256 fee, Account.MarginRequirement memory mr) {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
 
         Market.Data storage market = Market.exists(marketId);

@@ -4,7 +4,6 @@ pragma solidity >=0.8.19;
 import "./Constants.sol";
 import "./Commands.sol";
 import "./V2DatedIRS.sol";
-import "./V2DatedIRSVamm.sol";
 import "./V2Core.sol";
 import "./Payments.sol";
 
@@ -74,7 +73,7 @@ library Dispatcher {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, Account.MarginRequirement memory mr) = V2DatedIRSVamm.initiateDatedMakerOrder(
+            (uint256 fee, Account.MarginRequirement memory mr) = V2DatedIRS.initiateDatedMakerOrder(
                 accountId,
                 marketId,
                 maturityTimestamp,
