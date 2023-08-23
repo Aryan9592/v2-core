@@ -28,6 +28,7 @@ contract ExecutorModule {
 
     error InvalidCommandType(uint256 commandType);
     error NotAVoltzContract(address receivingContract);
+    error AccountMismatch(uint128 affectedAccountId, uint128 decodedAccounntId);
 
     bytes1 internal constant COMMAND_TYPE_MASK = 0x3f;
     // Command Types. Maximum supported command at this moment is 0x3f.
@@ -66,9 +67,9 @@ contract ExecutorModule {
         int256 referenceIndex;
     }
 
-    function execute(
+    function operate(
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs) {
+    ) external returns (bytes[] memory outputs, Account.MarginRequirement[] memory marginRequirements) {
 
         uint128[] memory affectedAccounts = verifyAccounts(commands);
 
@@ -105,7 +106,7 @@ contract ExecutorModule {
 
         for (uint256 i = 0; i < affectedAccounts.length; i++) {
             if (affectedAccounts[i] != 0) {
-                Account.load(affectedAccounts[i]).imCheck(address(0));
+                marginRequirements[i] = Account.load(affectedAccounts[i]).imCheck(address(0));
             }
         }
     }
@@ -126,7 +127,7 @@ contract ExecutorModule {
                 requestedId := calldataload(inputs.offset)
                 accountMode := calldataload(add(inputs.offset, 0x40))
             }
-            require(affectedAccountId == requestedId, "AccountId missmatch");
+            matchAccountIds(affectedAccountId, requestedId);
             AccountModule(address(this)).createAccount(requestedId, msg.sender, accountMode);
         } else if (command == V2_CORE_DEPOSIT) {
             // equivalent: abi.decode(inputs, (uint128, address, uint256))
@@ -138,7 +139,7 @@ contract ExecutorModule {
                 collateralType := calldataload(add(inputs.offset, 0x20))
                 tokenAmount := calldataload(add(inputs.offset, 0x40))
             }
-            require(accountId == affectedAccountId, "AccountId missmatch");
+            matchAccountIds(affectedAccountId, accountId);
             CollateralModule(address(this)).deposit(accountId, collateralType, tokenAmount);
         } else if (command == V2_CORE_WITHDRAW) {
             // equivalent: abi.decode(inputs, (uint128, address, uint256))
@@ -150,7 +151,7 @@ contract ExecutorModule {
                 collateralType := calldataload(add(inputs.offset, 0x20))
                 tokenAmount := calldataload(add(inputs.offset, 0x40))
             }
-            require(accountId == affectedAccountId, "AccountId missmatch");
+            matchAccountIds(affectedAccountId, accountId);
             CollateralModule(address(this)).withdraw(accountId, collateralType, tokenAmount);
         } else if (command == V2_CORE_GRANT_PERMISSION_TO_CORE) {
             // equivalent: abi.decode(inputs, (uint128))
@@ -158,7 +159,7 @@ contract ExecutorModule {
             assembly {
                 accountId := calldataload(inputs.offset)
             }
-            require(accountId == affectedAccountId, "AccountId missmatch");
+            matchAccountIds(affectedAccountId, accountId);
             IAccountModule(address(this)).grantPermission(accountId, Account.ADMIN_PERMISSION, address(this));
         } else if (command == V2_CORE_REVOKE_PERMISSION_FROM_CORE) {
             // equivalent: abi.decode(inputs, (uint128))
@@ -166,9 +167,9 @@ contract ExecutorModule {
             assembly {
                 accountId := calldataload(inputs.offset)
             }
-            require(accountId == affectedAccountId, "AccountId missmatch");
+            matchAccountIds(affectedAccountId, accountId);
             IAccountModule(address(this)).revokePermission(accountId, Account.ADMIN_PERMISSION, address(this));
-        }else {
+        } else {
             revert InvalidCommandType(command);
         }
     }
@@ -197,6 +198,12 @@ contract ExecutorModule {
             require(commands[i].referenceIndex < 0 || commands[i].accountId == 0, "Confusing Account Id");
 
             affectedAccounts[i] = commands[i].accountId;
+        }
+    }
+
+    function matchAccountIds(uint128 affectedAccountId, uint128 decodedAccountId) internal pure {
+        if(decodedAccountId != affectedAccountId) {
+            revert AccountMismatch(affectedAccountId, decodedAccountId);
         }
     }
 }

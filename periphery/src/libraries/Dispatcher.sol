@@ -42,10 +42,9 @@ library Dispatcher {
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
                 uint256 fee,
-                Account.MarginRequirement memory mr,
                 int24 currentTick
             ) = V2DatedIRS.swap(accountId, marketId, maturityTimestamp, baseAmount, priceLimit);
-            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, mr, currentTick);
+            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, currentTick);
         } else if (command == Commands.V2_DATED_IRS_INSTRUMENT_SETTLE) {
             // equivalent: abi.decode(inputs, (uint128, uint128, uint32))
             uint128 accountId;
@@ -73,7 +72,7 @@ library Dispatcher {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, Account.MarginRequirement memory mr) = V2DatedIRS.initiateDatedMakerOrder(
+            (uint256 fee) = V2DatedIRS.initiateDatedMakerOrder(
                 accountId,
                 marketId,
                 maturityTimestamp,
@@ -81,7 +80,7 @@ library Dispatcher {
                 tickUpper,
                 liquidityDelta
             );
-            output = abi.encode(fee, mr);
+            output = abi.encode(fee);
         } else if (command == Commands.V2_CORE_CREATE_ACCOUNT) {
             // equivalent: abi.decode(inputs, (uint128, uint128, bool))
             // todo: double check the input offsets following changes to the core (IR)

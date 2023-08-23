@@ -119,7 +119,7 @@ interface IMarketManagerIRSModule is IMarketManager {
      */
     function initiateTakerOrder(TakerOrderParams memory params)
         external
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirement memory mr);
+        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee);
 
     /**
      * @notice Initiates a maker order for a given account by providing or burining liquidity in the given tick range
@@ -132,7 +132,7 @@ interface IMarketManagerIRSModule is IMarketManager {
      */
     function initiateMakerOrder(MakerOrderParams memory params)
         external
-        returns (uint256 fee, Account.MarginRequirement memory mr);
+        returns (uint256 fee);
 
     /**
      * @notice Creates or updates the configuration for the given market manager.

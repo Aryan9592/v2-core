@@ -41,7 +41,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function initiateTakerOrder(TakerOrderParams memory params)
         external
         override
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee, Account.MarginRequirement memory mr)
+        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee)
     {
         FeatureFlagSupport.ensureEnabledMarket(params.marketId);
 
@@ -81,7 +81,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
         
-        (fee, mr) = IMarketManagerModule(coreProxy).propagateTakerOrder(
+        fee = IMarketManagerModule(coreProxy).propagateTakerOrder(
             params.accountId,
             params.marketId,
             market.quoteToken,
@@ -108,7 +108,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function initiateMakerOrder(MakerOrderParams memory params)
         external
         override
-        returns (uint256 fee, Account.MarginRequirement memory mr)
+        returns (uint256 fee)
     {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -126,7 +126,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
                 params.liquidityDelta
             );
         
-        (fee, mr) = propagateMakerOrder(
+        (fee) = propagateMakerOrder(
             params.accountId,
             params.marketId,
             params.maturityTimestamp,
@@ -250,7 +250,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @notice Propagates maker order to core to check margin requirements
+     * @notice Propagates maker order to core to distribute fees
      * @param accountId Id of the account that wants to initiate a taker order
      * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
      * @param maturityTimestamp Maturity of the market's pool in which the account want to initiate a taker order
@@ -261,7 +261,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseAmount
-    ) internal returns (uint256 fee, Account.MarginRequirement memory mr) {
+    ) internal returns (uint256 fee) {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
 
         Market.Data storage market = Market.exists(marketId);
@@ -274,7 +274,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         int256 annualizedNotionalAmount = getSingleAnnualizedExposure(baseAmount, marketId, maturityTimestamp);
 
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        (fee, mr) = IMarketManagerModule(coreProxy).propagateMakerOrder(
+        (fee) = IMarketManagerModule(coreProxy).propagateMakerOrder(
             accountId,
             marketId,
             market.quoteToken,
