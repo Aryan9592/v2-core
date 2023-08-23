@@ -108,7 +108,7 @@ contract MarketManagerModule is IMarketManagerModule {
         UD60x18 protocolFee, 
         UD60x18 collateralPoolFee, 
         UD60x18 insuranceFundFee
-    ) internal returns (uint256 fee, Account.MarginRequirement memory mr) {
+    ) internal returns (uint256 fee) {
         Account.Data storage account = Account.exists(accountId);
 
         account.ensureEnabledCollateralPool();
@@ -142,7 +142,6 @@ contract MarketManagerModule is IMarketManagerModule {
 
         account.markActiveMarket(collateralType, market.id);
 
-        mr = account.imCheck(collateralType);
         fee = protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
     }
 
@@ -152,7 +151,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, Account.MarginRequirement memory mr) {
+    ) external override returns (uint256 fee) {
         FeatureFlagSupport.ensureGlobalAccess();
         Market.onlyMarketAddress(marketId, msg.sender);
 
@@ -173,7 +172,7 @@ contract MarketManagerModule is IMarketManagerModule {
         uint128 marketId,
         address collateralType,
         int256 annualizedNotional
-    ) external override returns (uint256 fee, Account.MarginRequirement memory mr) {
+    ) external override returns (uint256 fee) {
         FeatureFlagSupport.ensureGlobalAccess();
         Market.onlyMarketAddress(marketId, msg.sender);
 

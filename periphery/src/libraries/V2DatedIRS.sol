@@ -16,7 +16,6 @@ library V2DatedIRS {
             int256 executedBaseAmount,
             int256 executedQuoteAmount,
             uint256 fee,
-            Account.MarginRequirement memory mr,
             int24 currentTick
         )
     {
@@ -30,7 +29,7 @@ library V2DatedIRS {
             priceLimit: priceLimit
         }); 
     
-        (executedBaseAmount, executedQuoteAmount, fee, mr) =
+        (executedBaseAmount, executedQuoteAmount, fee) =
             IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
                 .initiateTakerOrder(params);
 
@@ -46,7 +45,7 @@ library V2DatedIRS {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        internal returns (uint256 fee, Account.MarginRequirement memory mr)
+        internal returns (uint256 fee)
      {
         AccessControl.onlyOwner(accountId);
 
@@ -59,7 +58,7 @@ library V2DatedIRS {
             liquidityDelta: liquidityDelta
         }); 
 
-        (fee, mr) = IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
+        (fee) = IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
             .initiateMakerOrder(params);
     }
 

@@ -55,8 +55,7 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
             (
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
-                uint256 fee,
-                Account.MarginRequirement memory mr
+                uint256 fee
             ) = IMarketManagerIRSModule(address(this)).initiateTakerOrder(
                 IMarketManagerIRSModule.TakerOrderParams({
                     accountId: accountId,
@@ -66,7 +65,7 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                     priceLimit: priceLimit
                 })
             );
-            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, mr);
+            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee);
         } else if (command == V2_DATED_IRS_INSTRUMENT_SETTLE) {
             // equivalent: abi.decode(inputs, (uint128, uint128, uint32))
             uint128 accountId;
@@ -95,7 +94,7 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            (uint256 fee, Account.MarginRequirement memory mr) = IMarketManagerIRSModule(address(this)).initiateMakerOrder(
+            uint256 fee = IMarketManagerIRSModule(address(this)).initiateMakerOrder(
                 IMarketManagerIRSModule.MakerOrderParams({
                     accountId: accountId,
                     marketId: marketId,
@@ -105,7 +104,7 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                     liquidityDelta: liquidityDelta
                 })
             );
-            output = abi.encode(fee, mr);
+            output = abi.encode(fee);
         } else {
             revert InvalidCommandType(command);
         }
