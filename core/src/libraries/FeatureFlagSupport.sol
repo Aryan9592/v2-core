@@ -15,6 +15,7 @@ library FeatureFlagSupport {
     bytes32 private constant _CREATE_ACCOUNT_FEATURE_FLAG = "createAccount";
     bytes32 private constant _NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG = "notifyAccountTransfer";
     bytes32 private constant _COLLATERAL_POOL_ENABLED_FEATURE_FLAG = "collateralPoolEnabled";
+    bytes32 private constant _MARKET_ENABLED_FEATURE_FLAG = "marketEnabled";
 
     function ensureGlobalAccess() internal view {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);
