@@ -10,7 +10,9 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/core/src/interfaces/external/ICommandExecutorModule.sol";
 import "@voltz-protocol/core/src/interfaces/external/IVoltzContract.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
-import "../interfaces/IMarketManagerIRSModule.sol";
+import "../libraries/actions/InitiateTakerOrder.sol";
+import "../libraries/actions/InitiateMakerOrder.sol";
+import "../libraries/actions/Settlement.sol";
 
 /**
  * @title Module for executing Dated IRS commands
@@ -19,12 +21,14 @@ import "../interfaces/IMarketManagerIRSModule.sol";
 contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
 
     error InvalidCommandType(uint256 commandType);
+    error AccountMismatch(uint128 affectedAccountId, uint128 decodedAccounntId);
 
     bytes1 internal constant COMMAND_TYPE_MASK = 0x3f;
     // Command Types. Maximum supported command at this moment is 0x3f.
     uint256 constant V2_DATED_IRS_INSTRUMENT_SWAP = 0x00;
     uint256 constant V2_DATED_IRS_INSTRUMENT_SETTLE = 0x01;
-    uint256 constant V2_VAMM_EXCHANGE_LP = 0x02;
+    uint256 constant V2_DATED_IRS_EXCHANGE_LP = 0x02;
+    uint256 constant V2_DATED_IRS_CLOSE_ACCOUNT = 0x03;
 
     /**
      * @inheritdoc ICommandExecutorModule
@@ -37,7 +41,6 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
         uint256 command = uint8(commandType & COMMAND_TYPE_MASK);
 
         if (command == V2_DATED_IRS_INSTRUMENT_SWAP) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32, int256, uint160))
             uint128 accountId;
             uint128 marketId;
             uint32 maturityTimestamp;
@@ -56,8 +59,8 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                 int256 executedBaseAmount,
                 int256 executedQuoteAmount,
                 uint256 fee
-            ) = IMarketManagerIRSModule(address(this)).initiateTakerOrder(
-                IMarketManagerIRSModule.TakerOrderParams({
+            ) = InitiateTakerOrder.initiateTakerOrder(
+                InitiateTakerOrder.TakerOrderParams({
                     accountId: accountId,
                     marketId: marketId,
                     maturityTimestamp: maturityTimestamp,
@@ -65,9 +68,9 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                     priceLimit: priceLimit
                 })
             );
+            matchAccountIds(affectedAccountId, accountId);
             output = abi.encode(executedBaseAmount, executedQuoteAmount, fee);
         } else if (command == V2_DATED_IRS_INSTRUMENT_SETTLE) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32))
             uint128 accountId;
             uint128 marketId;
             uint32 maturityTimestamp;
@@ -76,10 +79,9 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                 marketId := calldataload(add(inputs.offset, 0x20))
                 maturityTimestamp := calldataload(add(inputs.offset, 0x40))
             }
-            require(accountId == affectedAccountId, "AccountId missmatch");
-            IMarketManagerIRSModule(address(this)).settle(accountId, marketId, maturityTimestamp);
-        } else if (command == V2_VAMM_EXCHANGE_LP) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32, int24, int24, int128))
+            matchAccountIds(affectedAccountId, accountId);
+            Settlement.settle(accountId, marketId, maturityTimestamp);
+        } else if (command == V2_DATED_IRS_EXCHANGE_LP) {
             uint128 accountId;
             uint128 marketId;
             uint32 maturityTimestamp;
@@ -94,8 +96,9 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
                 tickUpper := calldataload(add(inputs.offset, 0x80))
                 liquidityDelta := calldataload(add(inputs.offset, 0xA0))
             }
-            uint256 fee = IMarketManagerIRSModule(address(this)).initiateMakerOrder(
-                IMarketManagerIRSModule.MakerOrderParams({
+            matchAccountIds(affectedAccountId, accountId);
+            uint256 fee = InitiateMakerOrder.initiateMakerOrder(
+                InitiateMakerOrder.MakerOrderParams({
                     accountId: accountId,
                     marketId: marketId,
                     maturityTimestamp: maturityTimestamp,
@@ -107,6 +110,12 @@ contract CommandExecutorModule is ICommandExecutorModule, IVoltzContract {
             output = abi.encode(fee);
         } else {
             revert InvalidCommandType(command);
+        }
+    }
+
+    function matchAccountIds(uint128 affectedAccountId, uint128 decodedAccountId) internal pure {
+        if(decodedAccountId != affectedAccountId) {
+            revert AccountMismatch(affectedAccountId, decodedAccountId);
         }
     }
 
