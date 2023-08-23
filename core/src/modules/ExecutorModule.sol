@@ -39,10 +39,30 @@ contract ExecutorModule {
     uint256 constant V2_CORE_REVOKE_PERMISSION_FROM_CORE = 0x04;
 
     struct Command {
+        /**
+         * @dev Identifies the command to be executed
+         */
         bytes1 commandType;
+        /**
+         * @dev Account that is affected by the command. Each individual command
+         * execution checks if the account is the actual affected account.
+         */
         uint128 accountId;
+        /**
+         * @dev Command inputs encoded in bytes
+         */
         bytes inputs;
+        /**
+         * @dev Address of the contract that executes the command
+         */
         address receivingContract;
+        /**
+         * @dev Reference to another command in an array using the same accountId.
+         * When negative, no reference is given, the command's account id is preserved.
+         * When positive, the command's accountId is taken from the referenced command.
+         * By using the reference, repeating the IM check can be avoided, but using it
+         * is not mandatory.
+         */
         int256 referenceIndex;
     }
 
@@ -50,13 +70,14 @@ contract ExecutorModule {
         Command[] calldata commands
     ) external returns (bytes[] memory outputs) {
 
-        uint128[] memory affectedAccounts = new uint128[](commands.length);
+        uint128[] memory affectedAccounts = verifyAccounts(commands);
 
         outputs = new bytes[](commands.length);
         for (uint256 i = 0; i < commands.length; i++) {
-            (uint128 accountId, uint128 affectedAccountId) = 
-                getAccountIdByReference(commands, i);
-            affectedAccounts[i] = affectedAccountId;
+            /// @dev if referenced, use the referenced accountId value
+            uint128 accountId = commands[i].referenceIndex >= 0 ?
+                commands[commands[i].referenceIndex.toUint()].accountId :
+                commands[i].accountId;
 
             if (commands[i].receivingContract == address(this)) {
                 executeCoreCommand(
@@ -150,24 +171,32 @@ contract ExecutorModule {
         }else {
             revert InvalidCommandType(command);
         }
-
     }
 
-    // todo: explain
-    function getAccountIdByReference(
-        Command[] calldata commands,
-        uint256 index
-    ) internal pure returns (
-        uint128 accountId,
-        uint128 newAffectedAccountId
-    ) {
-        if(commands[index].referenceIndex >= 0) {
-            // reference to another pair
-            accountId = commands[commands[index].referenceIndex.toUint()].accountId;
-        } else {
-            // new account collateral pair
-            newAffectedAccountId = commands[index].accountId;
-            accountId = commands[index].accountId;
+    /**
+     * note Checks that every command has a valid account id and creates the list of
+     * account ids to be checked for IM
+     */ 
+    function verifyAccounts(Command[] calldata commands) internal pure returns (uint128[] memory affectedAccounts) {
+        affectedAccounts = new uint128[](commands.length);
+        for (uint256 i = 0; i < commands.length; i++) {
+            // ensure account id is either mentioned or referenced
+            require(
+                commands[i].referenceIndex >= 0 || commands[i].accountId != 0,
+                "Missing Account"
+            );
+
+            // ensure account is either not referenced or the referenced one is mentioned
+            require(
+                commands[i].referenceIndex < 0
+                || commands[commands[i].referenceIndex.toUint()].accountId != 0, 
+                "Missing Referenced Account"
+            );
+
+            // ensure account id is either not referenced or zero (to avoid human error)
+            require(commands[i].referenceIndex < 0 || commands[i].accountId == 0, "Confusing Account Id");
+
+            affectedAccounts[i] = commands[i].accountId;
         }
     }
 }
