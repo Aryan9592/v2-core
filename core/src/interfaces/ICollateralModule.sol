@@ -12,51 +12,6 @@ pragma solidity >=0.8.19;
  * @notice Allows users to deposit and withdraw collateral from the protocol
  */
 interface ICollateralModule {
-    /**
-     * @notice Thrown on deposit when the collateral cap would have been exceeded
-     * @param collateralType The address of the collateral of the unsuccessful deposit
-     * @param collateralCap The cap limit of the collateral
-     * @param currentBalance Protocol's total balance in the collateral type
-     * @param tokenAmount The token amount of the unsuccessful deposit
-     */
-    error CollateralCapExceeded(
-        address collateralType,
-        uint256 collateralCap,
-        uint256 currentBalance,
-        uint256 tokenAmount
-    );
-
-    /**
-     * @notice Emitted when `tokenAmount` of collateral of type `collateralType` is deposited to account `accountId` by `sender`.
-     * @param accountId The id of the account that deposited collateral.
-     * @param collateralType The address of the collateral that was deposited.
-     * @param tokenAmount The amount of collateral that was deposited, denominated in the token's native decimal representation.
-     * @param sender The address of the account that triggered the deposit.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event Deposited(
-        uint128 indexed accountId,
-        address indexed collateralType,
-        uint256 tokenAmount,
-        address indexed sender,
-        uint256 blockTimestamp
-    );
-
-    /**
-     * @notice Emitted when `tokenAmount` of collateral of type `collateralType` is withdrawn from account `accountId` by `sender`.
-     * @param accountId The id of the account that withdrew collateral.
-     * @param collateralType The address of the collateral that was withdrawn.
-     * @param tokenAmount The amount of collateral that was withdrawn, denominated in the token's native decimal representation.
-     * @param sender The address of the account that triggered the withdrawal.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event Withdrawn(
-        uint128 indexed accountId, 
-        address indexed collateralType, 
-        uint256 tokenAmount, 
-        address indexed sender, 
-        uint256 blockTimestamp
-    );
 
     /**
      * @notice Returns the total balance pertaining to account `accountId` for `collateralType`.
@@ -80,30 +35,4 @@ interface ICollateralModule {
     function getAccountWithdrawableCollateralBalance(uint128 accountId, address collateralType)
         external
         returns (uint256 amount);
-
-    /**
-     * @notice Deposits `tokenAmount` of collateral of type `collateralType` into account `accountId`.
-     * @dev Anyone can deposit into anyone's active account without restriction.
-     * @param accountId The id of the account that is making the deposit.
-     * @param collateralType The address of the token to be deposited.
-     * @param tokenAmount The amount being deposited, denominated in the token's native decimal representation.
-     *
-     * Emits a {Deposited} event.
-     */
-    function deposit(uint128 accountId, address collateralType, uint256 tokenAmount) external;
-
-    /**
-     * @notice Withdraws `tokenAmount` of collateral of type `collateralType` from account `accountId`.
-     * @param accountId The id of the account that is making the withdrawal.
-     * @param collateralType The address of the token to be withdrawn.
-     * @param tokenAmount The amount being withdrawn, denominated in the token's native decimal representation.
-     *
-     * Requirements:
-     *
-     * - `msg.sender` must be the owner of the account
-     *
-     * Emits a {Withdrawn} event.
-     *
-     */
-    function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) external;
 }

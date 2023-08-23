@@ -34,8 +34,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
 
-    error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address collateralType, address quoteType);
-
     /**
      * @inheritdoc IAutoExchangeModule
      */
@@ -45,56 +43,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
         Account.Data storage account = Account.exists(accountId);
         return account.isEligibleForAutoExchange(quoteType);
     }
-
-    /**
-     * @inheritdoc IAutoExchangeModule
-     */
-    // todo: consider adding a price limit 
-    function triggerAutoExchange(
-        uint128 accountId,
-        uint128 liquidatorAccountId,
-        uint256 amountToAutoExchangeQuote,
-        address collateralType,
-        address quoteType
-    ) external override {
-        FeatureFlagSupport.ensureGlobalAccess();
-
-        Account.Data storage account = Account.exists(accountId);
-        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-        CollateralPool.InsuranceFundConfig memory insuranceFundConfig = 
-            Market.exists(account.firstMarketId).getCollateralPool().insuranceFundConfig;
-        Account.Data storage insuranceFundAccount = Account.exists(
-            insuranceFundConfig.accountId
-        );
-
-        bool eligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
-        if (!eligibleForAutoExchange) {
-            revert AccountNotEligibleForAutoExchange(accountId);
-        }
-
-        uint256 maxExchangeableAmountQuote = getMaxAmountToExchangeQuote(accountId, collateralType, quoteType);
-        if (amountToAutoExchangeQuote > maxExchangeableAmountQuote) {
-            revert ExceedsAutoExchangeLimit(maxExchangeableAmountQuote, collateralType, quoteType);
-        }
-
-        // get collateral amount received by the liquidator
-        uint256 amountToAutoExchangeCollateral = CollateralConfiguration.exists(collateralType).
-            getCollateralAInCollateralBWithDiscount(amountToAutoExchangeQuote, quoteType);
-
-        // transfer quote tokens from liquidator's account to liquidatable account
-        liquidatorAccount.decreaseCollateralBalance(quoteType, amountToAutoExchangeQuote);
-        // subtract insurance fund fee from quote repayment
-        uint256 insuranceFundFeeQuote = mulUDxUint(
-            insuranceFundConfig.autoExchangeFee,
-            amountToAutoExchangeQuote
-        );
-        insuranceFundAccount.increaseCollateralBalance(quoteType, insuranceFundFeeQuote);
-        account.increaseCollateralBalance(quoteType, amountToAutoExchangeQuote - insuranceFundFeeQuote);
-
-        // transfer discounted collateral tokens from liquidatable account to liquidator's account
-        account.decreaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
-        liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
-    }
     
     /**
      * @inheritdoc IAutoExchangeModule
@@ -103,34 +51,12 @@ contract AutoExchangeModule is IAutoExchangeModule {
         uint128 accountId,
         address collateralType,
         address quoteType
-    ) public view returns (uint256 maxAmountQuote) {
-        Account.Data storage account = Account.exists(accountId);
-
-        int256 quoteAccountValueInQuote = account.getAccountValueByCollateralType(quoteType);
-        if (quoteAccountValueInQuote > 0) {
-            return 0;
-        }
-
-        maxAmountQuote = mulUDxUint(
-            AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-quoteAccountValueInQuote).toUint()
+    ) external view returns (uint256 maxAmountQuote) {
+        maxAmountQuote = Liquidations.getMaxAmountToExchangeQuote(
+            accountId,
+            collateralType,
+            quoteType
         );
-
-        uint256 accountCollateralAmountInCollateral = account.getCollateralBalance(collateralType);
-
-        CollateralConfiguration.Data storage quoteConfiguration = 
-            CollateralConfiguration.exists(quoteType);
-        uint256 maxAmountQuoteInUSD = quoteConfiguration
-            .getCollateralInUSD(maxAmountQuote);
-        
-        
-        uint256 accountCollateralAmountInUSD = CollateralConfiguration.exists(collateralType)
-            .getCollateralInUSD(accountCollateralAmountInCollateral);
-
-        if (maxAmountQuoteInUSD > accountCollateralAmountInUSD) {
-            maxAmountQuote = quoteConfiguration
-                .getUSDInCollateral(accountCollateralAmountInUSD);
-        }
     }
 
 }

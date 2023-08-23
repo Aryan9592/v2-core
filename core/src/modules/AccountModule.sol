@@ -12,6 +12,7 @@ import {IAccountModule} from "../interfaces/IAccountModule.sol";
 import {Account} from "../storage/Account.sol";
 import {AccessPassConfiguration} from "../storage/AccessPassConfiguration.sol";
 import {IAccessPassNFT} from "../interfaces/external/IAccessPassNFT.sol";
+import "../libraries/actions/CreateAccount.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {AssociatedSystem} from "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
@@ -31,7 +32,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function getAccountTokenAddress() public view override returns (address) {
-        return AssociatedSystem.load(_ACCOUNT_SYSTEM).proxy;
+        return CreateAccount.getAccountTokenAddress();
     }
 
     /**
@@ -59,27 +60,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) external override {
-        /*
-            Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
-            During the alpha phase of the protocol, the create account feature will only be available to the Periphery
-            which will need to be separately set and the periphery will need to make sure accountOwner == msg.sender
-        */
-        FeatureFlagSupport.ensureGlobalAccess();
-        FeatureFlagSupport.ensureCreateAccountAccess();
-
-        address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
-
-        uint256 ownerAccessPassBalance = IAccessPassNFT(accessPassNFTAddress).balanceOf(accountOwner);
-        if (ownerAccessPassBalance == 0) {
-            revert OnlyAccessPassOwner(requestedAccountId, accountOwner);
-        }
-
-        IAccountTokenModule accountTokenModule = IAccountTokenModule(getAccountTokenAddress());
-        accountTokenModule.safeMint(accountOwner, requestedAccountId, "");
-
-        Account.create(requestedAccountId, accountOwner, accountMode);
-        
-        emit AccountCreated(requestedAccountId, accountOwner, msg.sender, block.timestamp);
+        CreateAccount.createAccount(requestedAccountId, accountOwner, accountMode);
     }
 
     /**
@@ -136,7 +117,7 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function grantPermission(uint128 accountId, bytes32 permission, address user) external override {
+    function grantPermission(uint128 accountId, bytes32 permission, address user) public override {
         FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
@@ -146,7 +127,7 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function revokePermission(uint128 accountId, bytes32 permission, address user) external override {
+    function revokePermission(uint128 accountId, bytes32 permission, address user) public override {
         FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 

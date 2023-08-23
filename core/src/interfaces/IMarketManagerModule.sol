@@ -33,15 +33,6 @@ interface IMarketManagerModule {
         uint256 blockTimestamp
     );
 
-    /**
-     * @notice Emitted when account token with id `accountId` is closed.
-     * @param accountId The id of the account.
-     * @param marketId The id of the market.
-     * @param sender The initiator of the account closure.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AccountClosed(uint128 indexed accountId, uint128 indexed marketId, address sender, uint256 blockTimestamp);
-
     /// @notice returns the id of the last created market
     function getLastCreatedMarketId() external returns (uint128);
 
@@ -61,9 +52,6 @@ interface IMarketManagerModule {
      * @return newMarketId The id with which the market will be registered in the system.
      */
     function registerMarket(address market, string memory name) external returns (uint128 newMarketId);
-
-    /// @notice attempts to close all the unfilled and filled positions of a given account in a given market (marketId)
-    function closeAccount(uint128 marketId, uint128 accountId) external;
 
     function propagateTakerOrder(
         uint128 accountId,
