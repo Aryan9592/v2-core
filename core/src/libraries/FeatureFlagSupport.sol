@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 library FeatureFlagSupport {
 
@@ -15,7 +15,6 @@ library FeatureFlagSupport {
     bytes32 private constant _CREATE_ACCOUNT_FEATURE_FLAG = "createAccount";
     bytes32 private constant _NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG = "notifyAccountTransfer";
     bytes32 private constant _COLLATERAL_POOL_ENABLED_FEATURE_FLAG = "collateralPoolEnabled";
-    bytes32 private constant _MARKET_ENABLED_FEATURE_FLAG = "marketEnabled";
 
     function ensureGlobalAccess() internal view {
         FeatureFlag.ensureAccessToFeature(_GLOBAL_FEATURE_FLAG);

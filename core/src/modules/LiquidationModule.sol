@@ -7,14 +7,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Account.sol";
-import "../storage/CollateralConfiguration.sol";
-import "@voltz-protocol/util-contracts/src/errors/ParameterError.sol";
-import "../interfaces/ILiquidationModule.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {Account} from "../storage/Account.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
+import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol
 // todo: funnel a portfion of profits from liquidations to the default fund (nedes more research) (AB)
@@ -31,7 +30,6 @@ import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelp
 contract LiquidationModule is ILiquidationModule {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
-    using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
 

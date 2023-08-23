@@ -7,13 +7,15 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IAccountTokenModule.sol";
-import "../interfaces/IAccountModule.sol";
-import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
-import "../storage/Account.sol";
-import "../storage/AccessPassConfiguration.sol";
-import "../interfaces/external/IAccessPassNFT.sol";
+import {IAccountTokenModule} from "../interfaces/IAccountTokenModule.sol";
+import {IAccountModule} from "../interfaces/IAccountModule.sol";
+import {Account} from "../storage/Account.sol";
+import {AccessPassConfiguration} from "../storage/AccessPassConfiguration.sol";
+import {IAccessPassNFT} from "../interfaces/external/IAccessPassNFT.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+
+import {AssociatedSystem} from "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 /**
  * @title Account Manager.
