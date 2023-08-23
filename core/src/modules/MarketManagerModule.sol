@@ -63,20 +63,8 @@ contract MarketManagerModule is IMarketManagerModule {
     }
 
     /**
-     * @inheritdoc IMarketManagerModule
-     */
-
-    function closeAccount(uint128 marketId, uint128 accountId) external override {
-        FeatureFlagSupport.ensureGlobalAccess();
-        Account.Data storage account = Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        account.ensureEnabledCollateralPool();
-
-        Market.exists(marketId).closeAccount(accountId);
-        emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
-    }
-
-    /**
+=======
+>>>>>>> ecfa68e (feat: core exteran function refactoring)
      * @dev Internal function to distribute trade fees according to the market fee config
      * @param payingAccountId Account id of trade initiatior
      * @param receivingAccountId Account id of fee collector
@@ -100,7 +88,7 @@ contract MarketManagerModule is IMarketManagerModule {
         receivingAccount.increaseCollateralBalance(collateralType, fee);
     }
 
-     function propagateOrder(
+    function propagateOrder(
         uint128 accountId,
         Market.Data memory market,
         address collateralType,

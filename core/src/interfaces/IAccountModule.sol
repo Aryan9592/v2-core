@@ -19,23 +19,9 @@ interface IAccountModule {
     error OnlyAccountTokenProxy(address origin);
 
     /**
-    * @notice Thrown when attempting to create account without owning an access pass
-     */
-    error OnlyAccessPassOwner(uint128 requestedAccountId, address accountOwner);
-
-    /**
      * @notice Thrown when an account attempts to renounce a permission that it didn't have.
      */
     error PermissionNotGranted(uint128 accountId, bytes32 permission, address user);
-
-    /**
-     * @notice Emitted when an account token with id `accountId` is minted to `owner`.
-     * @param accountId The id of the account.
-     * @param owner The address that owns the created account.
-     * @param trigger The address that triggered account creation.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event AccountCreated(uint128 indexed accountId, address indexed owner, address indexed trigger, uint256 blockTimestamp);
 
     /**
      * @dev Data structure for tracking each user's permissions.

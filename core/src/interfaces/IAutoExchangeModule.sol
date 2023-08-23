@@ -13,18 +13,6 @@ pragma solidity >=0.8.19;
  */
 interface IAutoExchangeModule {
 
-    /**
-     * @dev Thrown when an account is not eligible for auto-exchange
-     */
-    error AccountNotEligibleForAutoExchange(uint128 accountId);
-
-    /**
-     * @dev Thrown when attempting to auto-exchange single-token accounts which do not cross
-     * collateral margin -> not susceptible to exchange rate risk
-     */
-    error AccountIsSingleTokenNoExposureToExchangeRateRisk(uint128 accountId);
-
-
     // todo: consider returning more information (like we do with liquidations)
     /**
      * @notice Checks if a multi-token account is eligble for auto-exchange
@@ -35,11 +23,6 @@ interface IAutoExchangeModule {
     function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view returns (
         bool isEligibleForAutoExchange
     );
-
-
-    // todo: consider returning relevant information post auto-exchange
-    function triggerAutoExchange(uint128 autoExchangeAccountId, uint128 autoExchangeTriggerAccountId,
-        uint256 amountToAutoExchange, address collateralType, address quoteType) external;
 
     /** 
     * @notice Returns the maximum amount that can be exchanged, represented in quote token
