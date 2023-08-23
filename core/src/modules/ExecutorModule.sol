@@ -34,6 +34,9 @@ contract ExecutorModule {
     uint256 constant V2_CORE_CREATE_ACCOUNT = 0x00;
     uint256 constant V2_CORE_DEPOSIT = 0x01;
     uint256 constant V2_CORE_WITHDRAW = 0x02;
+    // core permission required when interacting with the market manager
+    uint256 constant V2_CORE_GRANT_PERMISSION_TO_CORE = 0x03;
+    uint256 constant V2_CORE_REVOKE_PERMISSION_FROM_CORE = 0x04;
 
     struct Command {
         bytes1 commandType;
@@ -128,7 +131,23 @@ contract ExecutorModule {
             }
             require(accountId == affectedAccountId, "AccountId missmatch");
             CollateralModule(address(this)).withdraw(accountId, collateralType, tokenAmount);
-        } else {
+        } else if (command == V2_CORE_GRANT_PERMISSION_TO_CORE) {
+            // equivalent: abi.decode(inputs, (uint128))
+            uint128 accountId;
+            assembly {
+                accountId := calldataload(inputs.offset)
+            }
+            require(accountId == affectedAccountId, "AccountId missmatch");
+            IAccountModule(address(this)).grantPermission(accountId, Account.ADMIN_PERMISSION, address(this));
+        } else if (command == V2_CORE_REVOKE_PERMISSION_FROM_CORE) {
+            // equivalent: abi.decode(inputs, (uint128))
+            uint128 accountId;
+            assembly {
+                accountId := calldataload(inputs.offset)
+            }
+            require(accountId == affectedAccountId, "AccountId missmatch");
+            IAccountModule(address(this)).revokePermission(accountId, Account.ADMIN_PERMISSION, address(this));
+        }else {
             revert InvalidCommandType(command);
         }
 
