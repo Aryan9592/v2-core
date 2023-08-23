@@ -16,7 +16,6 @@ interface ICommandExecutorModule {
     /**
      * @notice Executes a command with the given inputs
      * @param accountId Account id that is affected with this command
-     * @param collateralType Collateral type used in command. Zero address flags no collateral used.
      * @param commandType Command id that identifies the funtion to be called
      * @param inputs The inputs to execute the command with 
      *
@@ -28,7 +27,6 @@ interface ICommandExecutorModule {
      */
     function executeCommand(
         uint128 accountId,
-        address collateralType,
         bytes1 commandType,
         bytes calldata inputs
     ) external returns (bytes memory output);

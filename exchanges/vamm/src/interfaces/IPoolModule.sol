@@ -44,17 +44,16 @@ interface IPoolModule is IERC165 {
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param tickLower Lower tick of the range order
      * @param tickUpper Upper tick of the range order
-     * @param liquidityDelta Liquidity to add (positive values) or remove (negative values) witin the tick range
+     * @param liquidityDelta Liquidity to add (positive values) or remove (negative values) within the tick range
      */
-    function initiateDatedMakerOrder(
+    function executeDatedMakerOrder(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
-    )
-        external returns (uint256 fee, Account.MarginRequirement memory mr);
+    ) external returns (int256 baseAmount);
 
     /**
      * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market

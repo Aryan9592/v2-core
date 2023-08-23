@@ -15,7 +15,7 @@ interface IVoltzContract {
     /**
      * @dev Voltz specific function, returns true.
      */
-    function isVoltzContract() external view returns (bool);
+    function isVoltzContract() external pure returns (bool);
 }
 
 

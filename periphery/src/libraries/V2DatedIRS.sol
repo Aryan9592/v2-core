@@ -38,6 +38,31 @@ library V2DatedIRS {
         currentTick = IVammModule(Config.load().VOLTZ_V2_DATED_IRS_VAMM_PROXY).getVammTick(marketId, maturityTimestamp);
     }
 
+    function initiateDatedMakerOrder(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidityDelta
+    )
+        internal returns (uint256 fee, Account.MarginRequirement memory mr)
+     {
+        AccessControl.onlyOwner(accountId);
+
+        IMarketManagerIRSModule.MakerOrderParams memory params  = IMarketManagerIRSModule.MakerOrderParams({
+            accountId: accountId,
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            liquidityDelta: liquidityDelta
+        }); 
+
+        (fee, mr) = IMarketManagerIRSModule(Config.load().VOLTZ_V2_DATED_IRS_PROXY)
+            .initiateMakerOrder(params);
+    }
+
     function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) internal {
         AccessControl.onlyOwner(accountId);
     
