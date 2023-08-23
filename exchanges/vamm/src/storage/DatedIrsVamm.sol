@@ -182,6 +182,9 @@ library DatedIrsVamm {
         int24 _minTickAllowed,
         int24 _maxTickAllowed
     ) internal {
+        // todo: might be able to remove self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
+        // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
+        // does not have unwanted consequences
         if(
             _minTickAllowed < TickMath.MIN_TICK_LIMIT || _maxTickAllowed > TickMath.MAX_TICK_LIMIT ||
             self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
@@ -189,6 +192,7 @@ library DatedIrsVamm {
             revert VammCustomErrors.ExceededTickLimits(_minTickAllowed, _maxTickAllowed);
         }
 
+        // todo: can this be removed in the future for better flexibility?
         if(_minTickAllowed + _maxTickAllowed != 0) {
             revert VammCustomErrors.AsymmetricTicks(_minTickAllowed, _maxTickAllowed);
         }
@@ -1140,6 +1144,7 @@ library DatedIrsVamm {
         dynamicMaxTick = getTickFromPrice(minPrice);
     }
 
+    // todo: further review during testing
     function getCurrentTickLimits(Data storage self, UD60x18 markPrice, UD60x18 markPriceBand) internal view returns (
         TickLimits memory currentTickLimits
     ) {

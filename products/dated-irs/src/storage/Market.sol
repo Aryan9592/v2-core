@@ -75,6 +75,8 @@ library Market {
          */
         address poolAddress;
 
+        // todo: will there be a single twap value used for marking to market and for computing dynamic price bands?
+        // or shall there be multiple values?
         /**
          * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
          */
