@@ -38,168 +38,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManagerIRSModule
      */
-    function initiateTakerOrder(TakerOrderParams memory params)
-        external
-        override
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee)
-    {
-        FeatureFlagSupport.ensureEnabledMarket(params.marketId);
-
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        Market.Data storage market = Market.exists(params.marketId);
-        IPool pool = IPool(market.marketConfig.poolAddress);
-
-        // todo: check with @ab if we want it adjusted or not
-        UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
-            params.marketId, 
-            params.maturityTimestamp, 
-            params.baseAmount, 
-            market.marketConfig.twapLookbackWindow
-        );
-
-        // todo: check there is an active pool with maturityTimestamp requested
-        (executedBaseAmount, executedQuoteAmount) =
-            pool.executeDatedTakerOrder(
-                params.marketId, 
-                params.maturityTimestamp, 
-                params.baseAmount, 
-                params.priceLimit, 
-                markPrice, 
-                market.marketConfig.markPriceBand
-            );
-
-        Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
-            params.maturityTimestamp, executedBaseAmount, executedQuoteAmount
-        );
-
-        // propagate order
-        int256 annualizedNotionalAmount = getSingleAnnualizedExposure(
-            executedBaseAmount, params.marketId, params.maturityTimestamp
-        );
-        
-        fee = IMarketManagerModule(coreProxy).propagateTakerOrder(
-            params.accountId,
-            params.marketId,
-            market.quoteToken,
-            annualizedNotionalAmount
-        );
-
-        market.updateOracleStateIfNeeded();
-
-        emit TakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            market.quoteToken,
-            executedBaseAmount,
-            executedQuoteAmount,
-            annualizedNotionalAmount,
-            block.timestamp
-        );
-    }
-
-    /**
-     * @inheritdoc IMarketManagerIRSModule
-     */
-    function initiateMakerOrder(MakerOrderParams memory params)
-        external
-        override
-        returns (uint256 fee)
-    {
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        // check if market id is valid + check there is an active pool with maturityTimestamp requested
-        int256 baseAmount =
-            IPool(MarketManagerConfiguration.getPoolAddress()).executeDatedMakerOrder(
-                params.accountId,
-                params.marketId,
-                params.maturityTimestamp,
-                params.tickLower,
-                params.tickUpper,
-                params.liquidityDelta
-            );
-        
-        (fee) = propagateMakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            baseAmount
-        );
-
-        emit MakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            msg.sender,
-            params.tickLower,
-            params.tickUpper,
-            params.liquidityDelta,
-            block.timestamp
-        );
-    }
-
-    function getSingleAnnualizedExposure(
-        int256 executedBaseAmount,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (int256 annualizedNotionalAmount) {
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = executedBaseAmount;
-        annualizedNotionalAmount = baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0];
-    }
-
-    /**
-     * @inheritdoc IMarketManagerIRSModule
-     */
-    // note: return settlementCashflowInQuote?
-    function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) external override {
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
-        
-        Market.Data storage market = Market.exists(marketId);
-        market.updateRateIndexAtMaturityCache(maturityTimestamp);
-    
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
-
-        address quoteToken = market.quoteToken;
-
-        IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
-
-        emit DatedIRSPositionSettled(
-            accountId, marketId, maturityTimestamp, quoteToken, settlementCashflowInQuote, block.timestamp
-        );
-    }
-
-    /**
-     * @inheritdoc IMarketManagerIRSModule
-     */
     function name() external pure override returns (string memory) {
         return "Dated IRS Market Manager";
-    }
-
-    function baseToAnnualizedExposure(
-        int256[] memory baseAmounts,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    )
-        public
-        view
-        returns (int256[] memory exposures)
-    {
-        exposures = new int256[](baseAmounts.length);
-        exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp);
     }
 
     /**
@@ -224,11 +64,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
     
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        if (
-            !IAccountModule(coreProxy).isAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender)
-                && msg.sender != MarketManagerConfiguration.getCoreProxyAddress()
-        ) {
+        if (msg.sender != coreProxy) {
             revert NotAuthorized(msg.sender, "closeAccount");
         }
 
@@ -250,41 +86,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @notice Propagates maker order to core to distribute fees
-     * @param accountId Id of the account that wants to initiate a taker order
-     * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
-     * @param maturityTimestamp Maturity of the market's pool in which the account want to initiate a taker order
-     * @param baseAmount The base amount of the order
-    */
-    function propagateMakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 baseAmount
-    ) internal returns (uint256 fee) {
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
-
-        Market.Data storage market = Market.exists(marketId);
-        if (msg.sender != market.marketConfig.poolAddress) {
-            revert NotAuthorized(msg.sender, "propagateMakerOrder");
-        }
-
-        Portfolio.loadOrCreate(accountId, marketId).updatePosition(maturityTimestamp, 0, 0);
-
-        int256 annualizedNotionalAmount = getSingleAnnualizedExposure(baseAmount, marketId, maturityTimestamp);
-
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        (fee) = IMarketManagerModule(coreProxy).propagateMakerOrder(
-            accountId,
-            marketId,
-            market.quoteToken,
-            annualizedNotionalAmount
-        );
-
-        market.updateOracleStateIfNeeded();
-    }
-
-    /**
+=======
+>>>>>>> 25618ff (fix: refactor market manager actions)
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) external pure override(IERC165) returns (bool) {

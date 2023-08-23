@@ -1,0 +1,71 @@
+/*
+Licensed under the Voltz v2 License (the "License"); you 
+may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
+*/
+pragma solidity >=0.8.19;
+
+import "../../storage/MarketManagerConfiguration.sol";
+import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
+import "../../storage/RateOracleReader.sol";
+import "@voltz-protocol/core/src/storage/Account.sol";
+import "../../storage/Portfolio.sol";
+
+/**
+ * @title Library for settlement logic.
+ */
+library Settlement {
+    using Portfolio for Portfolio.Data;
+    using RateOracleReader for RateOracleReader.Data;
+
+    /**
+     * @notice Emitted when a position is settled.
+     * @param accountId The id of the account.
+     * @param marketId The id of the market.
+     * @param maturityTimestamp The maturity timestamp of the position.
+     * @param collateralType The address of the collateral.
+     * @param blockTimestamp The current block timestamp.
+     */
+    event DatedIRSPositionSettled(
+        uint128 indexed accountId,
+        uint128 indexed marketId,
+        uint32 indexed maturityTimestamp,
+        address collateralType,
+        int256 settlementCashflowInQuote,
+        uint256 blockTimestamp
+    );
+
+    /**
+     * @notice Returns the address that owns a given account, as recorded by the protocol.
+     * @param accountId Id of the account that wants to settle
+     * @param marketId Id of the market in which the account wants to settle (e.g. 1 for aUSDC lend)
+     * @param maturityTimestamp Maturity timestamp of the market in which the account wants to settle
+     */
+    // note: return settlementCashflowInQuote?
+    function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) internal {
+        FeatureFlagSupport.ensureEnabledMarket(marketId);
+        
+        Market.Data storage market = Market.exists(marketId);
+        market.updateRateIndexAtMaturityCache(maturityTimestamp);
+
+        RateOracleReader.load(marketId).updateRateIndexAtMaturityCache(maturityTimestamp);
+
+        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+
+        // check account access permissions
+        IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
+
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
+
+        address quoteToken = market.quoteToken;
+        
+        IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
+
+        emit DatedIRSPositionSettled(
+            accountId, marketId, maturityTimestamp, quoteToken, settlementCashflowInQuote, block.timestamp
+        );
+    }
+}
