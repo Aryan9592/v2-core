@@ -13,6 +13,7 @@ import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
