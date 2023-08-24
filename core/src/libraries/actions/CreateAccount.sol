@@ -40,8 +40,7 @@ library CreateAccount {
     function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) internal {
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
-            During the alpha phase of the protocol, the create account feature will only be available to the Periphery
-            which will need to be separately set and the periphery will need to make sure accountOwner == msg.sender
+            This feature will only be available to the Executor Module which will need to make sure accountOwner == msg.sender
         */
         FeatureFlagSupport.ensureGlobalAccess();
         FeatureFlagSupport.ensureCreateAccountAccess();

@@ -1617,7 +1617,6 @@ __metadata:
     "@semantic-release/git": ^10.0.1
     "@semantic-release/github": ^8.0.7
     "@voltz-protocol/core": "workspace:^"
-    "@voltz-protocol/periphery": "workspace:^"
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
@@ -1657,7 +1656,6 @@ __metadata:
     "@semantic-release/github": ^8.0.7
     "@voltz-protocol/core": "workspace:^"
     "@voltz-protocol/oracle-manager": "workspace:^"
-    "@voltz-protocol/periphery": "workspace:^"
     "@voltz-protocol/products-dated-irs": "workspace:^"
     "@voltz-protocol/util-contracts": "workspace:^"
     "@voltz-protocol/util-modules": "workspace:^"
@@ -1683,29 +1681,6 @@ __metadata:
     prettier: 2.8.4
     semantic-release: ^20.1.1
     solhint: 3.4.0
-  languageName: unknown
-  linkType: soft
-
-"@voltz-protocol/periphery@workspace:^, @voltz-protocol/periphery@workspace:periphery":
-  version: 0.0.0-use.local
-  resolution: "@voltz-protocol/periphery@workspace:periphery"
-  dependencies:
-    "@openzeppelin/contracts": 4.9.2
-    "@prb/math": 3.3.0
-    "@prb/test": ^0.6.0
-    "@semantic-release/git": ^10.0.1
-    "@semantic-release/github": ^8.0.7
-    "@voltz-protocol/core": "workspace:^"
-    "@voltz-protocol/oracle-manager": "workspace:^"
-    "@voltz-protocol/products-dated-irs": "workspace:^"
-    "@voltz-protocol/util-contracts": "workspace:^"
-    "@voltz-protocol/util-modules": "workspace:^"
-    "@voltz-protocol/v2-vamm": "workspace:^"
-    lcov-badge-generator: 1.0.5
-    prettier: 2.8.4
-    semantic-release: ^20.1.1
-    solhint: 3.4.0
-    solmate: 6.7.0
   languageName: unknown
   linkType: soft
 
@@ -9660,13 +9635,6 @@ __metadata:
   version: 0.0.7
   resolution: "solidity-comments-extractor@npm:0.0.7"
   checksum: a5cedf2310709969bc1783a6c336171478536f2f0ea96ad88437e0ef1e8844c0b37dd75591b0a824ec9c30640ea7e31b5f03128e871e6235bef3426617ce96c4
-  languageName: node
-  linkType: hard
-
-"solmate@npm:6.7.0":
-  version: 6.7.0
-  resolution: "solmate@npm:6.7.0"
-  checksum: f4c4ea21c74172ed1590248a05792e2362a624da3c717d87f67ed7d24cb76fc588a98eb509d6d2fe42ef7bebda87498edb8a1aeba1cd54036d13bf0e1228fbe4
   languageName: node
   linkType: hard
 

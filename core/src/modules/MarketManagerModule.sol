@@ -63,8 +63,6 @@ contract MarketManagerModule is IMarketManagerModule {
     }
 
     /**
-=======
->>>>>>> ecfa68e (feat: core exteran function refactoring)
      * @dev Internal function to distribute trade fees according to the market fee config
      * @param payingAccountId Account id of trade initiatior
      * @param receivingAccountId Account id of fee collector
