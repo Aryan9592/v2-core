@@ -8,17 +8,19 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "../../storage/MarketManagerConfiguration.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import "../../storage/RateOracleReader.sol";
-import "@voltz-protocol/core/src/storage/Account.sol";
-import "../../storage/Portfolio.sol";
+import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {Portfolio} from "../../storage/Portfolio.sol";
+import {Market} from "../../storage/Market.sol";
+import "../FeatureFlagSupport.sol";
 
 /**
  * @title Library for settlement logic.
  */
 library Settlement {
     using Portfolio for Portfolio.Data;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
 
     /**
      * @notice Emitted when a position is settled.
@@ -50,8 +52,6 @@ library Settlement {
         Market.Data storage market = Market.exists(marketId);
         market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
-        RateOracleReader.load(marketId).updateRateIndexAtMaturityCache(maturityTimestamp);
-
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
@@ -61,7 +61,7 @@ library Settlement {
         int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
 
         address quoteToken = market.quoteToken;
-        
+
         IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
 
         emit DatedIRSPositionSettled(

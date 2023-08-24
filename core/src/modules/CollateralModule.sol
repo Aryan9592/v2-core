@@ -27,13 +27,9 @@ contract CollateralModule is ICollateralModule {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
 
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
-
     /**
      * @inheritdoc ICollateralModule
      */
-=======
->>>>>>> ecfa68e (feat: core exteran function refactoring)
     function getAccountCollateralBalance(uint128 accountId, address collateralType)
         external
         view

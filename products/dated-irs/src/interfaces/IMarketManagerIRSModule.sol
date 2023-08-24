@@ -15,11 +15,6 @@ interface IMarketManagerIRSModule is IMarketManager {
     event MarketManagerConfigured(MarketManagerConfiguration.Data config, uint256 blockTimestamp);
 
     /**
-     * @notice Thrown when an attempt to access a function without authorization.
-     */
-    error NotAuthorized(address caller, bytes32 functionName);
-
-    /**
      * @notice Creates or updates the configuration for the given market manager.
      * @param config The MarketConfiguration object describing the new configuration.
      *

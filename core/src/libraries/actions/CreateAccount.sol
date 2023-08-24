@@ -21,8 +21,6 @@ import "../../interfaces/external/IAccessPassNFT.sol";
 library CreateAccount {
     using Account for Account.Data;
 
-    bytes32 private constant _GLOBAL_FEATURE_FLAG = "global";
-    bytes32 private constant _CREATE_ACCOUNT_FEATURE_FLAG = "createAccount";
     bytes32 private constant _ACCOUNT_SYSTEM = "accountNFT";
 
     /**
@@ -48,7 +46,7 @@ library CreateAccount {
         FeatureFlagSupport.ensureGlobalAccess();
         FeatureFlagSupport.ensureCreateAccountAccess();
 
-        address accessPassNFTAddress = AccessPassConfiguration.load().accessPassNFTAddress;
+        address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
 
         uint256 ownerAccessPassBalance = IAccessPassNFT(accessPassNFTAddress).balanceOf(accountOwner);
         if (ownerAccessPassBalance == 0) {

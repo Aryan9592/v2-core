@@ -36,6 +36,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     using SafeCastI256 for int256;
 
     /**
+     * @notice Thrown when an attempt to access a function without authorization.
+     */
+    error NotAuthorized(address caller, bytes32 functionName);
+
+    /**
      * @inheritdoc IMarketManagerIRSModule
      */
     function name() external pure override returns (string memory) {
@@ -86,8 +91,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-=======
->>>>>>> 25618ff (fix: refactor market manager actions)
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) external pure override(IERC165) returns (bool) {

@@ -8,20 +8,21 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "../../storage/MarketManagerConfiguration.sol";
-import "../../storage/MarketConfiguration.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
-import "../../storage/RateOracleReader.sol";
-import "../../storage/Portfolio.sol";
-import "./InitiateMakerOrder.sol";
+import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {Portfolio} from "../../storage/Portfolio.sol";
+import {InitiateMakerOrder} from "./InitiateMakerOrder.sol";
+import {Market} from "../../storage/Market.sol";
 import "../../interfaces/IPool.sol";
+import "../FeatureFlagSupport.sol";
 
 /**
  * @title Library for taker orders logic.
  */
 library InitiateTakerOrder {
     using Portfolio for Portfolio.Data;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
 
     struct TakerOrderParams {
         uint128 accountId;
@@ -101,7 +102,6 @@ library InitiateTakerOrder {
         );
 
         // propagate order
-        address quoteToken = MarketConfiguration.load(params.marketId).quoteToken;
         int256 annualizedNotionalAmount = InitiateMakerOrder.getSingleAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
