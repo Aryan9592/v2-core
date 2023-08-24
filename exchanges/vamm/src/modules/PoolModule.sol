@@ -84,10 +84,9 @@ contract PoolModule is IPoolModule {
         vamm.executeDatedMakerOrder(accountId, marketId, tickLower, tickUpper, liquidityDelta);
 
         return VAMMBase.baseAmountFromLiquidity(
-                liquidityDelta,
-                TickMath.getSqrtRatioAtTick(tickLower),
-                TickMath.getSqrtRatioAtTick(tickUpper)
-            )
+            liquidityDelta,
+            TickMath.getSqrtRatioAtTick(tickLower),
+            TickMath.getSqrtRatioAtTick(tickUpper)
         );
 
     }

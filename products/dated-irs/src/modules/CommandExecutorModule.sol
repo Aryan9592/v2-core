@@ -10,9 +10,9 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/core/src/interfaces/external/ICommandExecutorModule.sol";
 import "@voltz-protocol/core/src/interfaces/external/IVoltzContract.sol";
 import "@voltz-protocol/core/src/storage/Account.sol";
-import "../libraries/actions/InitiateTakerOrder.sol";
-import "../libraries/actions/InitiateMakerOrder.sol";
-import "../libraries/actions/Settlement.sol";
+import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
+import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
+import {Settlement} from "../libraries/actions/Settlement.sol";
 
 /**
  * @title Module for executing Dated IRS commands

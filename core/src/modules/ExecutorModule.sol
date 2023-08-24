@@ -112,7 +112,7 @@ contract ExecutorModule {
 
         for (uint256 i = 0; i < affectedAccounts.length; i++) {
             if (affectedAccounts[i] != 0) {
-                marginRequirements[i] = Account.load(affectedAccounts[i]).imCheck(address(0));
+                marginRequirements[i] = Account.exists(affectedAccounts[i]).imCheck(address(0));
             }
         }
     }

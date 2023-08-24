@@ -10,17 +10,21 @@ pragma solidity >=0.8.19;
 import "../../storage/MarketManagerConfiguration.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "../../interfaces/IPool.sol";
-import "../../storage/RateOracleReader.sol";
-import "../../storage/MarketConfiguration.sol";
 import "../../storage/Portfolio.sol";
-import "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
+import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 
 /**
  * @title Library for maker orders logic.
  */
 library InitiateMakerOrder {
     using Portfolio for Portfolio.Data;
-    using RateOracleReader for RateOracleReader.Data;
+    using Market for Market.Data;
+
+    /**
+     * @notice Thrown when an attempt to access a function without authorization.
+     */
+    error NotAuthorized(address caller, bytes32 functionName);
 
     struct MakerOrderParams {
         uint128 accountId;
@@ -72,15 +76,17 @@ library InitiateMakerOrder {
         IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
-        int256 baseAmount =
-            IPool(MarketManagerConfiguration.getPoolAddress()).executeDatedMakerOrder(
-                params.accountId,
-                params.marketId,
-                params.maturityTimestamp,
-                params.tickLower,
-                params.tickUpper,
-                params.liquidityDelta
-            );
+        Market.Data storage market = Market.exists(params.marketId);
+        IPool pool = IPool(market.marketConfig.poolAddress);
+
+        int256 baseAmount = pool.executeDatedMakerOrder(
+            params.accountId,
+            params.marketId,
+            params.maturityTimestamp,
+            params.tickLower,
+            params.tickUpper,
+            params.liquidityDelta
+        );
         
         fee = propagateMakerOrder(
             params.accountId,
@@ -120,7 +126,7 @@ library InitiateMakerOrder {
         if (msg.sender != market.marketConfig.poolAddress) {
             revert NotAuthorized(msg.sender, "propagateMakerOrder");
         }
-        
+
         Portfolio.loadOrCreate(accountId, marketId).updatePosition(maturityTimestamp, 0, 0);
 
         int256 annualizedNotionalAmount = getSingleAnnualizedExposure(baseAmount, marketId, maturityTimestamp);
