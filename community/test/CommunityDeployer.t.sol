@@ -10,7 +10,6 @@ import "@voltz-protocol/core/src/modules/AccountTokenModule.sol";
 contract MockCoreRouter is AssociatedSystemsModule, OwnerUpgradeModule {}
 contract MockAccountNftRouter is AccountTokenModule, OwnerUpgradeModule {}
 contract MockDatedIrsRouter is OwnerUpgradeModule {}
-contract MockPeripheryRouter is OwnerUpgradeModule {}
 contract MockVammRouter is OwnerUpgradeModule {}
 
 contract MockCommunityDeployer is CommunityDeployer {
@@ -21,7 +20,6 @@ contract MockCommunityDeployer is CommunityDeployer {
     uint256 _blockTimestampVotingEnd,
     CoreDeployment.Data memory _coreDeploymentConfig,
     DatedIrsDeployment.Data memory _datedIrsDeploymentConfig,
-    PeripheryDeployment.Data memory _peripheryDeploymentConfig,
     VammDeployment.Data memory _vammDeploymentConfig
   ) CommunityDeployer(
     _quorumVotes,
@@ -30,7 +28,6 @@ contract MockCommunityDeployer is CommunityDeployer {
     _blockTimestampVotingEnd,
     _coreDeploymentConfig,
     _datedIrsDeploymentConfig,
-    _peripheryDeploymentConfig,
     _vammDeploymentConfig
   ) {}
 
@@ -43,14 +40,12 @@ contract CommunityDeployerTest is Test {
   address internal coreRouter;
   address internal accountNftRouter;
   address internal datedIrsRouter;
-  address internal peripheryRouter;
   address internal vammRouter;
 
   function setUp() public {
     coreRouter = address(new MockCoreRouter());
     accountNftRouter = address(new MockAccountNftRouter());
     datedIrsRouter = address(new MockDatedIrsRouter());
-    peripheryRouter = address(new MockPeripheryRouter());
     vammRouter = address(new MockVammRouter());
   }
 
@@ -73,9 +68,6 @@ contract CommunityDeployerTest is Test {
       }),
       DatedIrsDeployment.Data({
         datedIrsRouter: datedIrsRouter
-      }),
-      PeripheryDeployment.Data({
-        peripheryRouter: peripheryRouter
       }),
       VammDeployment.Data({
         vammRouter: vammRouter
@@ -103,13 +95,6 @@ contract CommunityDeployerTest is Test {
     vm.prank(ownerAddress);
     Ownable(datedIrsProxy).acceptOwnership();
     assertEq(Ownable(datedIrsProxy).owner(), ownerAddress);
-
-    address peripheryProxy = communityDeployer.peripheryProxy();
-    assert(peripheryProxy != address(0));
-    // accept ownership
-    vm.prank(ownerAddress);
-    Ownable(peripheryProxy).acceptOwnership();
-    assertEq(Ownable(peripheryProxy).owner(), ownerAddress);
 
     address vammProxy = communityDeployer.vammProxy();
     assert(vammProxy != address(0));
