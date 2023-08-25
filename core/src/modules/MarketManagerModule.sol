@@ -95,9 +95,6 @@ contract MarketManagerModule is IMarketManagerModule {
         UD60x18 collateralPoolFee, 
         UD60x18 insuranceFundFee
     ) internal returns (uint256 fee) {
-        Account.Data storage account = Account.exists(accountId);
-
-        account.ensureEnabledCollateralPool();
 
         uint256 protocolFeeAmount = distributeFees(
             accountId, 
@@ -126,7 +123,13 @@ contract MarketManagerModule is IMarketManagerModule {
             annualizedNotional
         );
 
+        Account.Data storage account = Account.exists(accountId);
         account.markActiveMarket(collateralType, market.id);
+
+        // ensure market and account belong to the same collateral pool
+        if (account.getCollateralPool().id != collateralPool.id) {
+            revert CollateralPoolMismatch(accountId, market.id);
+        }
 
         fee = protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
     }
@@ -183,6 +186,11 @@ contract MarketManagerModule is IMarketManagerModule {
         FeatureFlagSupport.ensureGlobalAccess();
         Market.onlyMarketAddress(marketId, msg.sender);
         account.ensureEnabledCollateralPool();
+
+        // ensure market and account belong to the same collateral pool
+        if (account.getCollateralPool().id != Market.exists(marketId).getCollateralPool().id) {
+            revert CollateralPoolMismatch(accountId, marketId);
+        }
 
         if (amount > 0) {
             account.increaseCollateralBalance(collateralType, amount.toUint());

@@ -76,8 +76,6 @@ library EditCollateral {
      * Emits a {Deposited} event.
      */
     function deposit(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
-        FeatureFlagSupport.ensureGlobalAccess();
-
         // check if collateral is enabled
         CollateralConfiguration.collateralEnabled(collateralType);
 
@@ -125,15 +123,12 @@ library EditCollateral {
      *
      */
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
-        FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account =
             Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         account.ensureEnabledCollateralPool();
 
         account.decreaseCollateralBalance(collateralType, tokenAmount);
-
-        account.imCheck(collateralType);
 
         collateralType.safeTransfer(msg.sender, tokenAmount);
 

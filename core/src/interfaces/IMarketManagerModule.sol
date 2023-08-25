@@ -17,6 +17,10 @@ interface IMarketManagerModule {
      * @notice Thrown when an attempt to register a market that does not conform to the IMarketManager interface is made.
      */
     error IncorrectMarketInterface(address market);
+    /**
+     * @notice Thrown when trying to modify an account in a market that's not part of the same collateral pool.
+     */
+    error CollateralPoolMismatch(uint128 accountId, uint128 marketId);
 
     /**
      * @notice Emitted when a new market is registered in the protocol.

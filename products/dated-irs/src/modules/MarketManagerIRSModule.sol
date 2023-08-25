@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IMarketManagerIRSModule} from "../interfaces/IMarketManagerIRSModule.sol";
+import {IMarketManagerIRSModule, IMarketManager} from "../interfaces/IMarketManagerIRSModule.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
@@ -45,6 +45,13 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     function name() external pure override returns (string memory) {
         return "Dated IRS Market Manager";
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function isMarketManager() external pure override returns (bool) {
+        return true;
     }
 
     /**

@@ -12,7 +12,7 @@ pragma solidity >=0.8.19;
  * @notice Receives commands from Core and executes them using given inputs
  */
 
-interface ICommandExecutorModule {
+interface ICommandExecutionModule {
     /**
      * @notice Executes a command with the given inputs
      * @param accountId Account id that is affected with this command

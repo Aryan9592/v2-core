@@ -28,12 +28,6 @@ library CloseAccount {
 
     /// @notice attempts to close all the unfilled and filled positions of a given account in a given market (marketId)
     function closeAccount(uint128 marketId, uint128 accountId) internal {
-        FeatureFlagSupport.ensureGlobalAccess();
-
-        Account.Data storage account = Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        account.ensureEnabledCollateralPool();
-
         Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);
     }
