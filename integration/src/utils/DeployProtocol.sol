@@ -2,6 +2,7 @@ pragma solidity >=0.8.19;
 
 import {CoreRouter, CoreProxy, AccountNftRouter, AccessPassConfiguration} from "../../src/proxies/Core.sol";
 import {DatedIrsRouter, DatedIrsProxy} from "../../src/proxies/DatedIrs.sol";
+import {PeripheryRouter, PeripheryProxy} from "../../src/proxies/Periphery.sol";
 import {VammRouter, VammProxy} from "../../src/proxies/Vamm.sol";
 
 import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.sol";
@@ -13,6 +14,7 @@ import {MockAaveLendingPool} from "@voltz-protocol/products-dated-irs/test/mocks
 contract DeployProtocol {
   CoreProxy public coreProxy;
   DatedIrsProxy public datedIrsProxy;
+  PeripheryProxy public peripheryProxy;
   VammProxy public vammProxy;
 
   AaveV3RateOracle public aaveV3RateOracle;
@@ -36,6 +38,9 @@ contract DeployProtocol {
     
     DatedIrsRouter datedIrsRouter = new DatedIrsRouter();
     datedIrsProxy = new DatedIrsProxy(address(datedIrsRouter), address(this));
+
+    PeripheryRouter peripheryRouter = new PeripheryRouter();
+    peripheryProxy = new PeripheryProxy(address(peripheryRouter), address(this));
     
     VammRouter vammRouter = new VammRouter();
     vammProxy = new VammProxy(address(vammRouter), address(this));
@@ -46,6 +51,7 @@ contract DeployProtocol {
 
     coreProxy.nominateNewOwner(owner);
     datedIrsProxy.nominateNewOwner(owner);
+    peripheryProxy.nominateNewOwner(owner);
     vammProxy.nominateNewOwner(owner);
     accessPassNft.transferOwnership(owner);
   }
