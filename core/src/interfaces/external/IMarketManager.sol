@@ -20,6 +20,9 @@ interface IMarketManager is IERC165 {
     /// @notice returns a magic number proving the contract was built for the protocol
     function isMarketManager() external pure returns (bool);
 
+    /// @notice Returns the market's quote token address
+    function getMarketQuoteToken(uint128 marketId) external view returns (address);
+
     /// @notice returns account taker and maker exposures for a given account and collateral type
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
@@ -32,4 +35,55 @@ interface IMarketManager is IERC165 {
     // if there are multiple maturities in which the account has active positions, the market is expected to close
     // all of them
     function closeAccount(uint128 marketId, uint128 accountId) external;
+    
+    /**
+     * @notice Decoded inputs and execute taker order
+     * @param accountId Id of the account that wants to initiate a taker order
+     * @param marketId Id of the market in which the account wants to initiate a taker order
+     * @param inputs The extra inputs required by the taker order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function executeInitiateTakerOrderCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output, int256 annualizedNotional);
+
+    /**
+     * @notice Decoded inputs and execute maker order
+     * @param accountId Id of the account that wants to initiate a maker order
+     * @param marketId Id of the market in which the account wants to initiate a maker order
+     * @param inputs The extra inputs required by the maker order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function executeInitiateMakerOrderCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output, int256 annualizedNotional);
+
+    /**
+     * @notice Decoded inputs and completes a position
+     * @param accountId Id of the account that wants to complete a position
+     * @param marketId Id of the market in which the account wants to complete a position
+     * @param inputs The extra inputs required by the maker order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function executeCompletePositionCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output, int256 cashflowAmount);
 }

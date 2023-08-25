@@ -27,6 +27,7 @@ library CloseAccount {
     event AccountClosed(uint128 indexed accountId, uint128 indexed marketId, address sender, uint256 blockTimestamp);
 
     /// @notice attempts to close all the unfilled and filled positions of a given account in a given market (marketId)
+    // todo: reconsider implementation (after liquidation changes) & propagation to core
     function closeAccount(uint128 marketId, uint128 accountId) internal {
         Market.exists(marketId).closeAccount(accountId);
         emit AccountClosed(accountId, marketId, msg.sender, block.timestamp);

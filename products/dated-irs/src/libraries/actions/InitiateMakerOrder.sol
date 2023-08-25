@@ -68,7 +68,7 @@ library InitiateMakerOrder {
      */
     function initiateMakerOrder(MakerOrderParams memory params)
         internal
-        returns (uint256 fee)
+        returns (int256 annualizedNotionalAmount)
     {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
@@ -87,13 +87,13 @@ library InitiateMakerOrder {
             params.tickUpper,
             params.liquidityDelta
         );
-        
-        fee = propagateMakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            baseAmount
-        );
+
+        Portfolio.loadOrCreate(params.accountId, params.marketId)
+            .updatePosition(params.maturityTimestamp, 0, 0);
+        market.updateOracleStateIfNeeded();
+
+        annualizedNotionalAmount = 
+            getSingleAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
 
         emit MakerOrder(
             params.accountId,
@@ -105,41 +105,6 @@ library InitiateMakerOrder {
             params.liquidityDelta,
             block.timestamp
         );
-    }
-
-    /**
-     * @notice Propagates maker order to core to distribute fees
-     * @param accountId Id of the account that wants to initiate a taker order
-     * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
-     * @param maturityTimestamp Maturity of the market's pool in which the account want to initiate a taker order
-     * @param baseAmount The base amount of the order
-    */
-    function propagateMakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 baseAmount
-    ) internal returns (uint256 fee) {
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
-
-        Market.Data storage market = Market.exists(marketId);
-        if (msg.sender != market.marketConfig.poolAddress) {
-            revert NotAuthorized(msg.sender, "propagateMakerOrder");
-        }
-
-        Portfolio.loadOrCreate(accountId, marketId).updatePosition(maturityTimestamp, 0, 0);
-
-        int256 annualizedNotionalAmount = getSingleAnnualizedExposure(baseAmount, marketId, maturityTimestamp);
-
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        fee = IMarketManagerModule(coreProxy).propagateMakerOrder(
-            accountId,
-            marketId,
-            market.quoteToken,
-            annualizedNotionalAmount
-        );
-
-        market.updateOracleStateIfNeeded();
     }
 
     function getSingleAnnualizedExposure(

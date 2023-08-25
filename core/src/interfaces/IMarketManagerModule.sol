@@ -17,10 +17,6 @@ interface IMarketManagerModule {
      * @notice Thrown when an attempt to register a market that does not conform to the IMarketManager interface is made.
      */
     error IncorrectMarketInterface(address market);
-    /**
-     * @notice Thrown when trying to modify an account in a market that's not part of the same collateral pool.
-     */
-    error CollateralPoolMismatch(uint128 accountId, uint128 marketId);
 
     /**
      * @notice Emitted when a new market is registered in the protocol.
@@ -56,21 +52,4 @@ interface IMarketManagerModule {
      * @return newMarketId The id with which the market will be registered in the system.
      */
     function registerMarket(address market, string memory name) external returns (uint128 newMarketId);
-
-    function propagateTakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        address collateralType,
-        int256 annualizedNotional
-    ) external returns (uint256 fee);
-
-    function propagateMakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        address collateralType,
-        int256 annualizedNotional
-    ) external returns (uint256 fee);
-
-
-    function propagateCashflow(uint128 accountId, uint128 marketId, address collateralType, int256 amount) external;
 }

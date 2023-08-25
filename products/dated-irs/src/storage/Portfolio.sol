@@ -268,12 +268,7 @@ library Portfolio {
 
             UD60x18 _annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
 
-            IMarketManagerModule(MarketManagerConfiguration.getCoreProxyAddress()).propagateTakerOrder(
-                self.accountId,
-                self.marketId,
-                market.quoteToken,
-                mulUDxInt(_annualizedExposureFactor, executedBaseAmount)
-            );
+            // todo: propagation!
 
             market.updateOracleStateIfNeeded();
 
