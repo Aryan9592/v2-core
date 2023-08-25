@@ -22,7 +22,6 @@ interface ICommandExecutionModule {
      * Requirements:
      *
      * - `msg.sender` must be Core.
-     * - `accontId` must truely be the affected account
      *
      */
     function executeCommand(
