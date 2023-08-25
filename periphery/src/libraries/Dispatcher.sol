@@ -3,8 +3,6 @@ pragma solidity >=0.8.19;
 
 import "./Constants.sol";
 import "./Commands.sol";
-import "./V2DatedIRS.sol";
-import "./V2Core.sol";
 import "./Payments.sol";
 
 /**
@@ -22,100 +20,7 @@ library Dispatcher {
     function dispatch(bytes1 commandType, bytes calldata inputs) internal returns (bytes memory output) {
         uint256 command = uint8(commandType & Commands.COMMAND_TYPE_MASK);
 
-        if (command == Commands.V2_DATED_IRS_INSTRUMENT_SWAP) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32, int256, uint160))
-            uint128 accountId;
-            uint128 marketId;
-            uint32 maturityTimestamp;
-            int256 baseAmount;
-            uint160 priceLimit;
-
-            assembly {
-                accountId := calldataload(inputs.offset)
-                marketId := calldataload(add(inputs.offset, 0x20))
-                maturityTimestamp := calldataload(add(inputs.offset, 0x40))
-                baseAmount := calldataload(add(inputs.offset, 0x60))
-                priceLimit := calldataload(add(inputs.offset, 0x80))
-            }
-
-            (
-                int256 executedBaseAmount,
-                int256 executedQuoteAmount,
-                uint256 fee,
-                int24 currentTick
-            ) = V2DatedIRS.swap(accountId, marketId, maturityTimestamp, baseAmount, priceLimit);
-            output = abi.encode(executedBaseAmount, executedQuoteAmount, fee, currentTick);
-        } else if (command == Commands.V2_DATED_IRS_INSTRUMENT_SETTLE) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32))
-            uint128 accountId;
-            uint128 marketId;
-            uint32 maturityTimestamp;
-            assembly {
-                accountId := calldataload(inputs.offset)
-                marketId := calldataload(add(inputs.offset, 0x20))
-                maturityTimestamp := calldataload(add(inputs.offset, 0x40))
-            }
-            V2DatedIRS.settle(accountId, marketId, maturityTimestamp);
-        } else if (command == Commands.V2_VAMM_EXCHANGE_LP) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, uint32, int24, int24, int128))
-            uint128 accountId;
-            uint128 marketId;
-            uint32 maturityTimestamp;
-            int24 tickLower;
-            int24 tickUpper;
-            int128 liquidityDelta;
-            assembly {
-                accountId := calldataload(inputs.offset)
-                marketId := calldataload(add(inputs.offset, 0x20))
-                maturityTimestamp := calldataload(add(inputs.offset, 0x40))
-                tickLower := calldataload(add(inputs.offset, 0x60))
-                tickUpper := calldataload(add(inputs.offset, 0x80))
-                liquidityDelta := calldataload(add(inputs.offset, 0xA0))
-            }
-            (uint256 fee) = V2DatedIRS.initiateDatedMakerOrder(
-                accountId,
-                marketId,
-                maturityTimestamp,
-                tickLower,
-                tickUpper,
-                liquidityDelta
-            );
-            output = abi.encode(fee);
-        } else if (command == Commands.V2_CORE_CREATE_ACCOUNT) {
-            // equivalent: abi.decode(inputs, (uint128, uint128, bool))
-            // todo: double check the input offsets following changes to the core (IR)
-            uint128 requestedId;
-            bytes32 accountMode;
-            assembly {
-                requestedId := calldataload(inputs.offset)
-                accountMode := calldataload(add(inputs.offset, 0x40))
-            }
-
-            // todo: missing tests for this flow, no tests failed after changing the implementation (IR)
-            V2Core.createAccount(requestedId, accountMode);
-        } else if (command == Commands.V2_CORE_DEPOSIT) {
-            // equivalent: abi.decode(inputs, (uint128, address, uint256))
-            uint128 accountId;
-            address collateralType;
-            uint256 tokenAmount;
-            assembly {
-                accountId := calldataload(inputs.offset)
-                collateralType := calldataload(add(inputs.offset, 0x20))
-                tokenAmount := calldataload(add(inputs.offset, 0x40))
-            }
-            V2Core.deposit(accountId, collateralType, tokenAmount);
-        } else if (command == Commands.V2_CORE_WITHDRAW) {
-            // equivalent: abi.decode(inputs, (uint128, address, uint256))
-            uint128 accountId;
-            address collateralType;
-            uint256 tokenAmount;
-            assembly {
-                accountId := calldataload(inputs.offset)
-                collateralType := calldataload(add(inputs.offset, 0x20))
-                tokenAmount := calldataload(add(inputs.offset, 0x40))
-            }
-            V2Core.withdraw(accountId, collateralType, tokenAmount);
-        } else if (command == Commands.WRAP_ETH) {
+        if (command == Commands.WRAP_ETH) {
             // equivalent: abi.decode(inputs, (uint256))
             uint256 amountMin;
             assembly {

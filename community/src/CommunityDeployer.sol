@@ -6,6 +6,7 @@ import "./interfaces/ICommunityDeployer.sol";
 
 import "./storage/CoreDeployment.sol";
 import "./storage/DatedIrsDeployment.sol";
+import "./storage/PeripheryDeployment.sol";
 import "./storage/VammDeployment.sol";
 
 contract CommunityDeployer is ICommunityDeployer {
@@ -58,6 +59,10 @@ contract CommunityDeployer is ICommunityDeployer {
     /// followed by the queue and deployment
     address public datedIrsProxy;
 
+    /// @notice Voltz V2 Periphery Proxy to be deployed in a scenario where a successful vote is 
+    /// followed by the queue and deployment
+    address public peripheryProxy;
+
     /// @notice Voltz V2 VAMM Proxy to be deployed in a scenario where a successful vote is 
     /// followed by the queue and deployment
     address public vammProxy;
@@ -69,6 +74,7 @@ contract CommunityDeployer is ICommunityDeployer {
         uint256 _blockTimestampVotingEnd,
         CoreDeployment.Data memory _coreDeploymentConfig,
         DatedIrsDeployment.Data memory _datedIrsDeploymentConfig,
+        PeripheryDeployment.Data memory _peripheryDeploymentConfig,
         VammDeployment.Data memory _vammDeploymentConfig
     ) {
         quorumVotes = _quorumVotes;
@@ -78,6 +84,7 @@ contract CommunityDeployer is ICommunityDeployer {
 
         CoreDeployment.set(_coreDeploymentConfig);
         DatedIrsDeployment.set(_datedIrsDeploymentConfig);
+        PeripheryDeployment.set(_peripheryDeploymentConfig);
         VammDeployment.set(_vammDeploymentConfig);
     }
 
@@ -104,6 +111,7 @@ contract CommunityDeployer is ICommunityDeployer {
 
         (coreProxy, accountNftProxy) = CoreDeployment.deploy(ownerAddress);
         datedIrsProxy = DatedIrsDeployment.deploy(ownerAddress);
+        peripheryProxy = PeripheryDeployment.deploy(ownerAddress);
         vammProxy = VammDeployment.deploy(ownerAddress);
 
         isDeployed = true;
