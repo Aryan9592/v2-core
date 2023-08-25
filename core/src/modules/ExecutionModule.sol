@@ -64,10 +64,9 @@ contract ExecutionModule {
         uint128 accountId,
         Command[] calldata commands
     ) external returns (bytes[] memory outputs, Account.MarginRequirement memory marginRequirement) {
-
         outputs = new bytes[](commands.length);
+        
         for (uint256 i = 0; i < commands.length; i++) {
-
             if (commands[i].marketId == 0) {
                 executeCoreCommand(
                     accountId,
@@ -79,8 +78,6 @@ contract ExecutionModule {
                 Account.Data storage account = 
                     Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
                 account.ensureEnabledCollateralPool();
-
-                // ensure marketId & accountId are in the same collateral type
 
                 address marketManagerAddress = Market.exists(commands[i].marketId).marketManagerAddress;
                 outputs[i] = ICommandExecutionModule(marketManagerAddress)
