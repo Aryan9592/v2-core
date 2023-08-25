@@ -23,6 +23,10 @@ import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/Ownable
 import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
+import {Settlement} from "../libraries/actions/Settlement.sol";
+import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
+import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
+
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
@@ -45,6 +49,14 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     function name() external pure override returns (string memory) {
         return "Dated IRS Market Manager";
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function getMarketQuoteToken(uint128 marketId) external view override returns (address) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.quoteToken;
     }
 
     /**
@@ -102,5 +114,109 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     function supportsInterface(bytes4 interfaceId) external pure override(IERC165) returns (bool) {
         return interfaceId == type(IMarketManagerIRSModule).interfaceId || interfaceId == this.supportsInterface.selector;
+    }
+
+     /**
+     * @inheritdoc IMarketManager
+     */
+    function executeInitiateTakerOrderCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external override returns (
+        bytes memory output,
+        int256 annualizedNotional
+    ) {
+        executionPreCheck(marketId);
+        
+        uint32 maturityTimestamp;
+        int256 baseAmount;
+        uint160 priceLimit;
+
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            baseAmount := calldataload(add(inputs.offset, 0x20))
+            priceLimit := calldataload(add(inputs.offset, 0x40))
+        }
+        (
+            int256 executedBaseAmount,
+            int256 executedQuoteAmount,
+            int256 annualizedNotionalTraded
+        ) = InitiateTakerOrder.initiateTakerOrder(
+            InitiateTakerOrder.TakerOrderParams({
+                accountId: accountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: baseAmount,
+                priceLimit: priceLimit
+            })
+        );
+        output = abi.encode(executedBaseAmount, executedQuoteAmount);
+        annualizedNotional = annualizedNotionalTraded;
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function executeInitiateMakerOrderCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external override returns (
+        bytes memory output, 
+        int256 annualizedNotional
+    ) {
+        executionPreCheck(marketId);
+
+        uint32 maturityTimestamp;
+        int24 tickLower;
+        int24 tickUpper;
+        int128 liquidityDelta;
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            tickLower := calldataload(add(inputs.offset, 0x20))
+            tickUpper := calldataload(add(inputs.offset, 0x40))
+            liquidityDelta := calldataload(add(inputs.offset, 0x60))
+        }
+        annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
+            InitiateMakerOrder.MakerOrderParams({
+                accountId: accountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidityDelta
+            })
+        );
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function executeCompletePositionCommand(
+        uint128 accountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external override returns (
+        bytes memory output,
+        int256 cashflowAmount
+    ) {
+        executionPreCheck(marketId);
+
+        uint32 maturityTimestamp;
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+        }
+        cashflowAmount = Settlement.settle(accountId, marketId, maturityTimestamp);
+    }
+
+    /// @notice run before each account-changing interaction
+    function executionPreCheck(uint128 marketId) internal view {
+        // only Core can call these functions
+        if (msg.sender != MarketManagerConfiguration.getCoreProxyAddress()) {
+            revert NotAuthorized(msg.sender, "execute");
+        }
+        // ensure market is enabled
+        FeatureFlagSupport.ensureEnabledMarket(marketId);
     }
 }

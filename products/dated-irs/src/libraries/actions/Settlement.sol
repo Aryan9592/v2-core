@@ -45,10 +45,10 @@ library Settlement {
      * @param marketId Id of the market in which the account wants to settle (e.g. 1 for aUSDC lend)
      * @param maturityTimestamp Maturity timestamp of the market in which the account wants to settle
      */
-    // note: return settlementCashflowInQuote?
-    function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) internal {
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
-        
+    function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) 
+        internal 
+        returns (int256 settlementCashflowInQuote)
+    {
         Market.Data storage market = Market.exists(marketId);
         market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
@@ -58,14 +58,10 @@ library Settlement {
         IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        int256 settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
-
-        address quoteToken = market.quoteToken;
-
-        IMarketManagerModule(coreProxy).propagateCashflow(accountId, marketId, quoteToken, settlementCashflowInQuote);
+        settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
 
         emit DatedIRSPositionSettled(
-            accountId, marketId, maturityTimestamp, quoteToken, settlementCashflowInQuote, block.timestamp
+            accountId, marketId, maturityTimestamp, market.quoteToken, settlementCashflowInQuote, block.timestamp
         );
     }
 }

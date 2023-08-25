@@ -66,10 +66,12 @@ library InitiateTakerOrder {
      */
     function initiateTakerOrder(TakerOrderParams memory params)
         internal
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount, uint256 fee)
+        returns (
+            int256 executedBaseAmount,
+            int256 executedQuoteAmount,
+            int256 annualizedNotionalAmount
+        )
     {
-        FeatureFlagSupport.ensureEnabledMarket(params.marketId);
-
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         // check account access permissions
@@ -101,16 +103,8 @@ library InitiateTakerOrder {
             params.maturityTimestamp, executedBaseAmount, executedQuoteAmount
         );
 
-        // propagate order
-        int256 annualizedNotionalAmount = InitiateMakerOrder.getSingleAnnualizedExposure(
+        annualizedNotionalAmount = InitiateMakerOrder.getSingleAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
-        );
-        
-        fee = IMarketManagerModule(coreProxy).propagateTakerOrder(
-            params.accountId,
-            params.marketId,
-            market.quoteToken,
-            annualizedNotionalAmount
         );
 
         market.updateOracleStateIfNeeded();
