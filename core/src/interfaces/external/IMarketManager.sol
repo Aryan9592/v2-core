@@ -15,7 +15,10 @@ interface IMarketManager is IERC165 {
     //// VIEW FUNCTIONS ////
 
     /// @notice returns a human-readable name for a given market
-    function name() external view returns (string memory);
+    function name() external pure returns (string memory);
+
+    /// @notice returns a magic number proving the contract was built for the protocol
+    function isMarketManager() external pure returns (bool);
 
     /// @notice returns account taker and maker exposures for a given account and collateral type
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)

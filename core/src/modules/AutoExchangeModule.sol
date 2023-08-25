@@ -15,7 +15,7 @@ import {Market} from "../storage/Market.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
 import {AccountAutoExchange} from "../libraries/AccountAutoExchange.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-import {Liquidations} from "../libraries/actions/Liquidations.sol";
+import {AutoExchange} from "../libraries/actions/AutoExchange.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -53,7 +53,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
         address collateralType,
         address quoteType
     ) external view returns (uint256 maxAmountQuote) {
-        maxAmountQuote = Liquidations.getMaxAmountToExchangeQuote(
+        maxAmountQuote = AutoExchange.getMaxAmountToExchangeQuote(
             accountId,
             collateralType,
             quoteType

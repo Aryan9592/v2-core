@@ -42,7 +42,6 @@ library CreateAccount {
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             This feature will only be available to the Executor Module which will need to make sure accountOwner == msg.sender
         */
-        FeatureFlagSupport.ensureGlobalAccess();
         FeatureFlagSupport.ensureCreateAccountAccess();
 
         address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;

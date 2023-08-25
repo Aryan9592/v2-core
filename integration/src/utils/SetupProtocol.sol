@@ -341,15 +341,15 @@ contract SetupProtocol is BatchScript {
     // todo: update with executor commands (IR)
     // if (Utils.existsAccountNft(metadata.accountNftProxy, params.accountId)) {
     //   commands = abi.encodePacked(
-    //     bytes1(uint8(ExecutorModule.V2_CORE_DEPOSIT)),
-    //     bytes1(uint8(CommandExecutorModule.V2_DATED_IRS_EXCHANGE_LP))
+    //     bytes1(uint8(ExecutionModule.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(CommandExecutionModule.V2_DATED_IRS_EXCHANGE_LP))
     //   );
     //   inputs = new bytes[](3);
     // } else {
     //   commands = abi.encodePacked(
-    //     bytes1(uint8(ExecutorModule.V2_CORE_CREATE_ACCOUNT)),
-    //     bytes1(uint8(ExecutorModule.V2_CORE_DEPOSIT)),
-    //     bytes1(uint8(CommandExecutorModule.V2_DATED_IRS_EXCHANGE_LP))
+    //     bytes1(uint8(ExecutionModule.V2_CORE_CREATE_ACCOUNT)),
+    //     bytes1(uint8(ExecutionModule.V2_CORE_DEPOSIT)),
+    //     bytes1(uint8(CommandExecutionModule.V2_DATED_IRS_EXCHANGE_LP))
     //   );
 
     //   inputs = new bytes[](4);
