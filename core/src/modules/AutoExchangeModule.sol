@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
-import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {CollateralPool} from "../storage/CollateralPool.sol";
 import {Market} from "../storage/Market.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
@@ -31,7 +30,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using SafeCastI256 for int256;
     using Account for Account.Data;
     using AccountAutoExchange for Account.Data;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
 
     /**

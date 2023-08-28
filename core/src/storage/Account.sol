@@ -11,7 +11,6 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "./Account.sol";
 import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
-import {CollateralConfiguration} from "./CollateralConfiguration.sol";
 import {CollateralPool} from "./CollateralPool.sol";
 import {Market} from "./Market.sol";
 
@@ -31,7 +30,6 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 library Account {
     using Account for Account.Data;
     using Market for Market.Data;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
@@ -324,12 +322,12 @@ library Account {
         return AccountCollateral.getCollateralBalance(self, collateralType);
     }
 
-    function getWeightedCollateralBalanceInUSD(Data storage self) 
+    function getWeightedBaseCollateralBalance(Data storage self, address baseToken) 
         internal 
         view
         returns (uint256) 
     {
-        return AccountCollateral.getWeightedCollateralBalanceInUSD(self);
+        return AccountCollateral.getWeightedBaseCollateralBalance(self, baseToken);
     }
 
     function getWithdrawableCollateralBalance(Data storage self, address collateralType)

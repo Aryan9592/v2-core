@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import {AccountExposure} from "./AccountExposure.sol";
 import {Account} from "../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
-import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
+import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -103,16 +103,20 @@ library AccountAutoExchange {
         Account.Data storage self,
         address collateralType
     ) internal view returns (int256) {
-        int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
+        // todo
 
-        uint256 accountValueByCollateralTypeInUSD = CollateralConfiguration.exists(collateralType)
-            .getCollateralInUSD(
-                accountValueByCollateralType > 0 ? 
-                    accountValueByCollateralType.toUint() :
-                    (-accountValueByCollateralType).toUint()
-            );
+        return 0;
 
-        return accountValueByCollateralType > 0 ? accountValueByCollateralTypeInUSD.toInt() :
-            -accountValueByCollateralTypeInUSD.toInt();
+        // int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
+
+        // uint256 accountValueByCollateralTypeInUSD = CollateralConfiguration.exists(collateralType)
+        //     .getCollateralInUSD(
+        //         accountValueByCollateralType > 0 ? 
+        //             accountValueByCollateralType.toUint() :
+        //             (-accountValueByCollateralType).toUint()
+        //     );
+
+        // return accountValueByCollateralType > 0 ? accountValueByCollateralTypeInUSD.toInt() :
+        //     -accountValueByCollateralTypeInUSD.toInt();
     }
 }

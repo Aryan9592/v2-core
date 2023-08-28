@@ -8,12 +8,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-import "../storage/Account.sol";
-import "../storage/CollateralConfiguration.sol";
-import "../storage/CollateralPool.sol";
-import "../storage/Market.sol";
+import {Account} from "../storage/Account.sol";
+import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
+import {CollateralPool} from "../storage/CollateralPool.sol";
+import {Market} from "../storage/Market.sol";
 
 /**
  * @title Object for tracking account collaterals.
@@ -110,20 +111,31 @@ library AccountCollateral {
     /**
      * @dev Returns the total weighted collateral in USD
      */
-    function getWeightedCollateralBalanceInUSD(Account.Data storage self) 
+    function getWeightedBaseCollateralBalance(Account.Data storage self, address baseToken) 
         internal 
         view
-        returns (uint256 weightedCollateralBalanceInUSD) 
+        returns (uint256 weightedBaseCollateralBalance) 
     {
-        for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
-            address collateralType = self.activeCollaterals.valueAt(i);
+        // if the account does not belong to any collateral pool, return the collateral balance of the asset
+        if (self.firstMarketId == 0) {
+            return self.getCollateralBalance(baseToken);
+        }
 
-            // get the collateral balance of the account in this collateral type
-            uint256 collateralBalance = self.getCollateralBalance(collateralType);
+        // fetch the corresponding collateral pool
+        uint128 collateralPoolId = self.getCollateralPool().id;
 
-            // aggregate the corresponding weighted amount in USD 
-            weightedCollateralBalanceInUSD += 
-                CollateralConfiguration.exists(collateralType).getWeightedCollateralInUSD(collateralBalance);
+        // fetch all the sub-tokens of the base token and their exchange information
+        CollateralConfiguration.ExchangeInfo[] memory subs = CollateralConfiguration.getSubTokens(collateralPoolId, baseToken);
+
+        for (uint256 i = 0; i < subs.length; i++) {
+            // get collateral balance in this specific token
+            uint256 collateralBalance = self.getCollateralBalance(subs[i].token);
+
+            // convert it into base token and apply haircut
+            weightedBaseCollateralBalance += mulUDxUint(
+                subs[i].price.mul(subs[i].exchangeHaircut), 
+                collateralBalance
+            );
         }
     }
 

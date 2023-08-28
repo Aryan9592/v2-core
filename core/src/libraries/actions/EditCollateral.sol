@@ -10,8 +10,7 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 import "../../storage/Account.sol";
-import "../../storage/CollateralConfiguration.sol";
-
+import {CollateralConfiguration} from "../../storage/CollateralBubble.sol";
 
 /**
  * @title Library for depositing and withdrawing logic.
@@ -53,20 +52,6 @@ library EditCollateral {
     );
 
     /**
-     * @notice Thrown on deposit when the collateral cap would have been exceeded
-     * @param collateralType The address of the collateral of the unsuccessful deposit
-     * @param collateralCap The cap limit of the collateral
-     * @param currentBalance Protocol's total balance in the collateral type
-     * @param tokenAmount The token amount of the unsuccessful deposit
-     */
-    error CollateralCapExceeded(
-        address collateralType,
-        uint256 collateralCap,
-        uint256 currentBalance,
-        uint256 tokenAmount
-    );
-
-    /**
      * @notice Deposits `tokenAmount` of collateral of type `collateralType` into account `accountId`.
      * @dev Anyone can deposit into anyone's active account without restriction.
      * @param accountId The id of the account that is making the deposit.
@@ -76,23 +61,17 @@ library EditCollateral {
      * Emits a {Deposited} event.
      */
     function deposit(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
-        // check if collateral is enabled
-        CollateralConfiguration.collateralEnabled(collateralType);
-
         // grab the account and check its existance
         Account.Data storage account = Account.exists(accountId);
 
-        account.ensureEnabledCollateralPool();
+        // check if collateral is enabled
+        if (account.firstMarketId != 0) {
+            uint128 collateralPoolId = account.getCollateralPool().id;
+            CollateralConfiguration.collateralEnabled(collateralPoolId, collateralType);
+        }
 
         address depositFrom = msg.sender;
         address self = address(this);
-
-        // check that this deposit does not reach the cap
-        uint256 currentBalance = IERC20(collateralType).balanceOf(self);
-        uint256 collateralCap = CollateralConfiguration.exists(collateralType).config.cap;
-        if (collateralCap < currentBalance + tokenAmount) {
-            revert CollateralCapExceeded(collateralType, collateralCap, currentBalance, tokenAmount);
-        }
 
         // check allowance
         uint256 allowance = IERC20(collateralType).allowance(depositFrom, self);
@@ -123,10 +102,7 @@ library EditCollateral {
      *
      */
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
-        Account.Data storage account =
-            Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
-
-        account.ensureEnabledCollateralPool();
+        Account.Data storage account = Account.exists(accountId);
 
         account.decreaseCollateralBalance(collateralType, tokenAmount);
 

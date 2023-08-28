@@ -9,13 +9,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "./Account.sol";
+import {CollateralConfiguration} from "./CollateralBubble.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
-
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -60,6 +60,20 @@ library CollateralPool {
      * @dev Thrown when some address tries to act as the owner of the collateral pool.
      */
     error Unauthorized(address owner);
+
+    /**
+     * @notice Thrown on deposit when the collateral cap would have been exceeded
+     * @param collateralPoolId The ID of the collateral pool
+     * @param collateralType The address of the collateral of the unsuccessful deposit
+     * @param collateralCap The cap limit of the collateral
+     * @param poolBalance The exceeding balance of the collateral pool in that specific collateral
+     */
+    error CollateralCapExceeded(
+        uint128 collateralPoolId,
+        address collateralType,
+        uint256 collateralCap,
+        uint256 poolBalance
+    );
 
     /**
      * @notice Emitted when the collateral pool is created or updated
@@ -279,6 +293,12 @@ library CollateralPool {
         self.checkRoot();
 
         self.collateralBalances[collateralType] += amount;
+
+        // check that this deposit does not reach the cap
+        uint256 collateralCap = CollateralConfiguration.exists(self.id, collateralType).baseConfig.cap;
+        if (collateralCap < self.collateralBalances[collateralType]) {
+            revert CollateralCapExceeded(self.id, collateralType, collateralCap, self.collateralBalances[collateralType]);
+        }
 
         // add the collateral type to the active collaterals if missing
         if (self.collateralBalances[collateralType] > 0) {

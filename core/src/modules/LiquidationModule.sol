@@ -8,7 +8,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
-import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
@@ -23,7 +22,6 @@ import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/
  */
 
 contract LiquidationModule is ILiquidationModule {
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;

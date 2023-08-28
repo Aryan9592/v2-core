@@ -13,7 +13,7 @@ import {VammProxy} from "../proxies/Vamm.sol";
 import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.sol";
 
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
-import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
+// import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
 import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.sol";
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
@@ -225,16 +225,16 @@ contract SetupProtocol is BatchScript {
     address rateOracleAddress,
     DatedIrsMarket.MarketConfiguration memory config
   ) public {
-    configureCollateral(
-      tokenAddress,
-      CollateralConfiguration.Config({
-        depositingEnabled: true,
-        cap: cap,
-        oracleNodeId: "0x",
-        weight: UD60x18.wrap(1e18),
-        autoExchangeDiscount: UD60x18.wrap(0)
-      })
-    );
+    // configureCollateral(
+    //   tokenAddress,
+    //   CollateralConfiguration.Config({
+    //     depositingEnabled: true,
+    //     cap: cap,
+    //     oracleNodeId: "0x",
+    //     weight: UD60x18.wrap(1e18),
+    //     autoExchangeDiscount: UD60x18.wrap(0)
+    //   })
+    // );
 
     createMarket({
       marketId: marketId,
@@ -622,20 +622,20 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.coreProxy.configureCollateral(tokenAddress, config);
-    } else {
-      addToBatch(
-        address(contracts.coreProxy),
-        abi.encodeCall(
-          contracts.coreProxy.configureCollateral,
-          (tokenAddress, config)
-        )
-      );
-    }
-  }
+  // function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) public {
+  //   if (!settings.multisig) {
+  //     broadcastOrPrank();
+  //     contracts.coreProxy.configureCollateral(tokenAddress, config);
+  //   } else {
+  //     addToBatch(
+  //       address(contracts.coreProxy),
+  //       abi.encodeCall(
+  //         contracts.coreProxy.configureCollateral,
+  //         (tokenAddress, config)
+  //       )
+  //     );
+  //   }
+  // }
 
   function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) public {
     if (!settings.multisig) {

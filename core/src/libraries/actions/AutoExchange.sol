@@ -56,8 +56,9 @@ library AutoExchange {
         }
 
         // get collateral amount received by the liquidator
-        uint256 amountToAutoExchangeCollateral = CollateralConfiguration.exists(collateralType).
-            getCollateralAInCollateralBWithDiscount(amountToAutoExchangeQuote, quoteType);
+        uint128 collateralPoolId = account.getCollateralPool().id;
+        uint256 amountToAutoExchangeCollateral = CollateralConfiguration.
+            getAutoExchangeAmount(collateralPoolId, quoteType, collateralType, amountToAutoExchangeQuote);
 
         // transfer quote tokens from liquidator's account to liquidatable account
         liquidatorAccount.decreaseCollateralBalance(quoteType, amountToAutoExchangeQuote);
@@ -79,32 +80,34 @@ library AutoExchange {
         address collateralType,
         address quoteType
     ) internal view returns (uint256 maxAmountQuote) {
-        Account.Data storage account = Account.exists(accountId);
-
-        int256 quoteAccountValueInQuote = account.getAccountValueByCollateralType(quoteType);
-        if (quoteAccountValueInQuote > 0) {
-            return 0;
-        }
-
-        maxAmountQuote = mulUDxUint(
-            AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-quoteAccountValueInQuote).toUint()
-        );
-
-        uint256 accountCollateralAmountInCollateral = account.getCollateralBalance(collateralType);
-
-        CollateralConfiguration.Data storage quoteConfiguration = 
-            CollateralConfiguration.exists(quoteType);
-        uint256 maxAmountQuoteInUSD = quoteConfiguration
-            .getCollateralInUSD(maxAmountQuote);
+        // todo: revisit
+        return 0;
         
-        
-        uint256 accountCollateralAmountInUSD = CollateralConfiguration.exists(collateralType)
-            .getCollateralInUSD(accountCollateralAmountInCollateral);
+        // Account.Data storage account = Account.exists(accountId);
 
-        if (maxAmountQuoteInUSD > accountCollateralAmountInUSD) {
-            maxAmountQuote = quoteConfiguration
-                .getUSDInCollateral(accountCollateralAmountInUSD);
-        }
+        // int256 quoteAccountValueInQuote = account.getAccountValueByCollateralType(quoteType);
+        // if (quoteAccountValueInQuote > 0) {
+        //     return 0;
+        // }
+
+        // maxAmountQuote = mulUDxUint(
+        //     AutoExchangeConfiguration.load().autoExchangeRatio,
+        //     (-quoteAccountValueInQuote).toUint()
+        // );
+
+        // uint256 accountCollateralAmountInCollateral = account.getCollateralBalance(collateralType);
+
+        // CollateralConfiguration.Data storage quoteConfiguration = 
+        //     CollateralConfiguration.exists(quoteType);
+        // uint256 maxAmountQuoteInUSD = quoteConfiguration
+        //     .getCollateralInUSD(maxAmountQuote);
+        
+        // uint256 accountCollateralAmountInUSD = CollateralConfiguration.exists(collateralType)
+        //     .getCollateralInUSD(accountCollateralAmountInCollateral);
+
+        // if (maxAmountQuoteInUSD > accountCollateralAmountInUSD) {
+        //     maxAmountQuote = quoteConfiguration
+        //         .getUSDInCollateral(accountCollateralAmountInUSD);
+        // }
     }
 }
