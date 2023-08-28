@@ -86,15 +86,11 @@ contract ExecutionModule {
                     commands[i].inputs
                 );
             } else {
-                preCommandExecutionCheck(accountId, commands[i].marketId);
-
-                address marketManagerAddress = Market.exists(commands[i].marketId).marketManagerAddress;
-                outputs[i] = executeMarketManagerCommand(
+                outputs[i] = executeMarketCommand(
                     accountId,
                     commands[i].marketId,
                     commands[i].commandType,
-                    commands[i].inputs,
-                    marketManagerAddress
+                    commands[i].inputs
                 );
             }
         }
@@ -109,14 +105,6 @@ contract ExecutionModule {
             Account.Data storage account = 
                 Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
             account.ensureEnabledCollateralPool();
-        }
-    }
-
-    /// @notice checks to be ran before each command execution
-    function preCommandExecutionCheck(uint128 accountId, uint128 marketId) internal view {
-        Account.Data storage account = Account.exists(accountId);
-        if (account.getCollateralPool().id != Market.exists(marketId).getCollateralPool().id) {
-            revert CollateralPoolMismatch(accountId, marketId);
         }
     }
 
@@ -199,23 +187,28 @@ contract ExecutionModule {
     }
 
     /// @dev executes given command in the market manager associated with the market id
-    function executeMarketManagerCommand(
+    function executeMarketCommand(
         uint128 accountId,
         uint128 marketId,
         bytes1 commandType,
-        bytes calldata inputs,
-        address marketManagerAddress
+        bytes calldata inputs
     ) internal returns (bytes memory) {
-        IMarketManager marketManager = IMarketManager(marketManagerAddress);
+        Market.Data memory market = Market.exists(marketId);
+        Account.Data storage account = Account.exists(accountId);
+
+        if (account.getCollateralPool().id != market.getCollateralPool().id) {
+            revert CollateralPoolMismatch(accountId, marketId);
+        }
+
+        IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
         address collateralType = marketManager.getMarketQuoteToken(marketId);
 
-        Account.exists(accountId).markActiveMarket(collateralType, marketId);
+        account.markActiveMarket(collateralType, marketId);
 
         uint256 command = uint8(commandType & COMMAND_TYPE_MASK);
-
         if (command == V2_MARKET_MANAGER_TAKER_ORDER) {
             (bytes memory result, int256 annualizedNotional) = 
-                marketManager.executeInitiateTakerOrderCommand(accountId, marketId, inputs);
+                marketManager.executeTakerOrder(accountId, marketId, inputs);
             uint256 fee = Propagation.propagateTakerOrder(
                 accountId,
                 marketId,
@@ -225,7 +218,7 @@ contract ExecutionModule {
             return abi.encode(result, fee);
         } else if (command == V2_MARKET_MANAGER_MAKER_ORDER) {
             (bytes memory result, int256 annualizedNotional) = 
-                marketManager.executeInitiateMakerOrderCommand(accountId, marketId, inputs);
+                marketManager.executeMakerOrder(accountId, marketId, inputs);
             uint256 fee = Propagation.propagateMakerOrder(
                 accountId,
                 marketId,
@@ -235,12 +228,13 @@ contract ExecutionModule {
             return abi.encode(result, fee);
         } else if (command == V2_MARKET_MANAGER_COMPLETE_POSITION) {
             (bytes memory result, int256 cashflowAmount) = 
-                marketManager.executeCompletePositionCommand(accountId, marketId, inputs);
-            Propagation.propagateCashflow(
-                accountId,
-                collateralType, // of the market
-                cashflowAmount
-            );
+                marketManager.completeOrder(accountId, marketId, inputs);
+
+            if (cashflowAmount > 0) {
+                account.increaseCollateralBalance(collateralType, cashflowAmount.toUint());
+            } else {
+                account.decreaseCollateralBalance(collateralType, (-cashflowAmount).toUint());
+            }
             return abi.encode(result);
         } else {
             revert InvalidCommandType(command);

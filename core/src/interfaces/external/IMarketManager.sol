@@ -47,7 +47,7 @@ interface IMarketManager is IERC165 {
      * - `msg.sender` must be Core.
      *
      */
-    function executeInitiateTakerOrderCommand(
+    function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
@@ -64,7 +64,7 @@ interface IMarketManager is IERC165 {
      * - `msg.sender` must be Core.
      *
      */
-    function executeInitiateMakerOrderCommand(
+    function executeMakerOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
@@ -81,7 +81,7 @@ interface IMarketManager is IERC165 {
      * - `msg.sender` must be Core.
      *
      */
-    function executeCompletePositionCommand(
+    function completeOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs

@@ -119,7 +119,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      /**
      * @inheritdoc IMarketManager
      */
-    function executeInitiateTakerOrderCommand(
+    function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
@@ -158,7 +158,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function executeInitiateMakerOrderCommand(
+    function executeMakerOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
@@ -193,7 +193,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function executeCompletePositionCommand(
+    function completeOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs

@@ -55,20 +55,7 @@ library Propagation {
                 market.insuranceFundFeeConfig.atomicMakerFee
         );
     }
-
-    function propagateCashflow(uint128 accountId, address collateralType, int256 amount)
-        internal 
-    {
-        Account.Data storage account = Account.exists(accountId);
-
-        if (amount > 0) {
-            account.increaseCollateralBalance(collateralType, amount.toUint());
-        } else {
-            account.decreaseCollateralBalance(collateralType, (-amount).toUint());
-        }
-
-    }
-
+    
     //////////////// HELPER FUNCTIONS ////////////////
 
     /**
