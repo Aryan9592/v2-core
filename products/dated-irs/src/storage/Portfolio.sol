@@ -232,10 +232,10 @@ library Portfolio {
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-
             Position.Data storage position = self.positions[maturityTimestamp];
+            int256[] memory baseAmounts = new int256[](2);
 
-            IPool(
+            baseAmounts[0] = IPool(
                 market.marketConfig.poolAddress
             ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
@@ -254,7 +254,8 @@ library Portfolio {
                 market.marketConfig.twapLookbackWindow
             );
 
-            (int256 executedBaseAmount, int256 executedQuoteAmount) =
+            int256 executedQuoteAmount;
+            (baseAmounts[1], executedQuoteAmount) =
                 IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
                     self.marketId, 
                     maturityTimestamp, 
@@ -264,9 +265,21 @@ library Portfolio {
                     market.marketConfig.markPriceBand
                 );
 
-            position.update(executedBaseAmount, executedQuoteAmount);
+            position.update(baseAmounts[1], executedQuoteAmount);
 
-            UD60x18 annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
+            // position size check
+            ExposureHelpers.checkPositionSizeLimit(
+                self.accountId, self.marketId, maturityTimestamp
+            );
+
+            // update open interest
+            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, maturityTimestamp);
+            ExposureHelpers.checkOpenInterestLimit(
+                self.marketId,
+                maturityTimestamp,
+                (exposures[0] > 0 ? -exposures[0] : exposures[0]) + 
+                (exposures[1] > 0 ? -exposures[1] : exposures[1]) // negative
+            );
 
             // todo: propagation!
 
@@ -276,7 +289,7 @@ library Portfolio {
                 self.accountId, 
                 self.marketId, 
                 maturityTimestamp, 
-                executedBaseAmount, 
+                baseAmounts[1], 
                 executedQuoteAmount, 
                 block.timestamp
             );
