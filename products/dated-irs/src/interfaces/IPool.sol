@@ -64,7 +64,7 @@ interface IPool is IERC165 {
         uint128 accountId
     )
         external
-        returns (int256 closeUnfilledBasePool);
+        returns (int256 closedUnfilledBasePool);
 
     /**
      * @notice Get dated irs twap, adjusted for price impact and spread

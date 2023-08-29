@@ -100,7 +100,7 @@ contract PoolModule is IPoolModule {
         uint128 accountId
     )
         external override
-        returns (int256 closeUnfilledBasePool) {
+        returns (int256 closedUnfilledBasePool) {
 
         if (msg.sender != PoolConfiguration.load().productAddress) {
             revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
@@ -120,7 +120,7 @@ contract PoolModule is IPoolModule {
                 position.tickUpper,
                 -position.liquidity.toInt()
             );
-            closeUnfilledBasePool += position.liquidity.toInt();
+            closedUnfilledBasePool += position.liquidity.toInt();
         }
         
     }
