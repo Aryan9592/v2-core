@@ -58,7 +58,7 @@ contract ConfigProtocol is SetupProtocol {
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999
     });
-    registerDatedIrsProduct();
+    registerDatedIrsMarketManager();
     configureMarket({
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
       marketId: 1,

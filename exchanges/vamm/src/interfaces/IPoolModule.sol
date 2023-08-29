@@ -18,7 +18,7 @@ interface IPoolModule is IERC165 {
 
     /**
      * @notice Initiates a taker order for a given account by consuming liquidity provided by the pool
-     * @dev It also enables account closures initiated by products
+     * @dev It also enables account closures initiated by the Market Manager
      * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
      * @param maturityTimestamp Maturity timestamp of the market in which the account wants to initiate a taker order
      * @param priceLimit The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this

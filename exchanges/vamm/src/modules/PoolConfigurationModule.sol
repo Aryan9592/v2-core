@@ -17,9 +17,9 @@ contract PoolConfigurationModule is IPoolConfigurationModule {
     PoolConfiguration.load().setPauseState(paused);
   }
 
-  function setProductAddress(address productAddress) external override {
+  function setMarketManagerAddress(address marketManagerAddress) external override {
     OwnableStorage.onlyOwner();
-    PoolConfiguration.load().setProductAddress(productAddress);
+    PoolConfiguration.load().setMarketManagerAddress(marketManagerAddress);
   }
 
   function setMakerPositionsPerAccountLimit(uint256 limit) external override {

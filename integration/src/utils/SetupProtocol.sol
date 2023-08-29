@@ -78,7 +78,7 @@ contract SetupProtocol is BatchScript {
   bytes32 internal constant _GLOBAL_FEATURE_FLAG = "global";
   bytes32 internal constant _CREATE_ACCOUNT_FEATURE_FLAG = "createAccount";
   bytes32 internal constant _NOTIFY_ACCOUNT_TRANSFER_FEATURE_FLAG = "notifyAccountTransfer";
-  bytes32 internal constant _REGISTER_PRODUCT_FEATURE_FLAG = "registerProduct";
+  bytes32 internal constant _REGISTER_MARKET_MANAGER_FEATURE_FLAG = "registerMarketManager";
 
   uint16 internal constant MAX_BUFFER_GROWTH_PER_TRANSACTION = 100;
 
@@ -150,7 +150,7 @@ contract SetupProtocol is BatchScript {
     });
 
     addToFeatureFlagAllowlist({
-      feature: _REGISTER_PRODUCT_FEATURE_FLAG,
+      feature: _REGISTER_MARKET_MANAGER_FEATURE_FLAG,
       account: metadata.owner
     });
 
@@ -199,17 +199,17 @@ contract SetupProtocol is BatchScript {
   }
 
   // todo: alex return new product id to be used in ConfigProtocol.s.sol
-  function registerDatedIrsProduct() public {
-    registerProduct(address(contracts.datedIrsProxy), "Dated IRS Product");
+  function registerDatedIrsMarketManager() public {
+    registerMarketManager(address(contracts.datedIrsProxy), "Dated IRS Market Manager");
     
-    configureProduct(
+    configureMarketManager(
       MarketManagerConfiguration.Data({
         coreProxy: address(contracts.coreProxy)
       })
     );
 
-    setProductAddress({
-      productAddress: address(contracts.datedIrsProxy)
+    setMarketManagerAddress({
+      marketManagerAddress: address(contracts.datedIrsProxy)
     });
   }
 
@@ -607,16 +607,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function registerProduct(address product, string memory name) public {
+  function registerMarketManager(address marketManager, string memory name) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.registerMarket(product, name);
+      contracts.coreProxy.registerMarket(marketManager, name);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.registerMarket,
-          (product, name)
+          (marketManager, name)
         )
       );
     }
@@ -690,7 +690,7 @@ contract SetupProtocol is BatchScript {
   /////////////////             DATED IRS            /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function configureProduct(MarketManagerConfiguration.Data memory config) public {
+  function configureMarketManager(MarketManagerConfiguration.Data memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
       contracts.datedIrsProxy.configureMarketManager(config);
@@ -773,16 +773,16 @@ contract SetupProtocol is BatchScript {
   /////////////////                VAMM              /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function setProductAddress(address productAddress) public {
+  function setMarketManagerAddress(address marketManagerAddress) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.vammProxy.setProductAddress(productAddress);
+      contracts.vammProxy.setMarketManagerAddress(marketManagerAddress);
     } else {
       addToBatch(
         address(contracts.vammProxy),
         abi.encodeCall(
-          contracts.vammProxy.setProductAddress,
-          (productAddress)
+          contracts.vammProxy.setMarketManagerAddress,
+          (marketManagerAddress)
         )
       );
     }
