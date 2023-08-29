@@ -11,7 +11,7 @@ contract AccountBalanceModule is IAccountBalanceModule {
    /**
      * @inheritdoc IAccountBalanceModule
      */
-   function getAccountFilledBalances(
+    function getAccountFilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
@@ -45,4 +45,21 @@ contract AccountBalanceModule is IAccountBalanceModule {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         (unfilledBaseLong, unfilledBaseShort, unfilledQuoteLong, unfilledQuoteShort) = vamm.getAccountUnfilledBalances(accountId);
     }
+
+    /**
+     * @inheritdoc IAccountBalanceModule
+     */
+    function getAccountsBaseBalanceFromLiquidity(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    )
+        external
+        view
+        override
+        returns (uint256 baseBalance) {      
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
+        baseBalance = vamm.getAccountsBaseBalanceFromLiquidity(accountId);
+    }
+
 }

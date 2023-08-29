@@ -266,7 +266,7 @@ library Portfolio {
 
             position.update(executedBaseAmount, executedQuoteAmount);
 
-            UD60x18 _annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
+            UD60x18 annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
 
             // todo: propagation!
 

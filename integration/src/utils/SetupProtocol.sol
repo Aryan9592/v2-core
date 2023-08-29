@@ -221,11 +221,9 @@ contract SetupProtocol is BatchScript {
     UD60x18 atomicMakerFee,
     UD60x18 atomicTakerFee,
     UD60x18 riskParameter,
-    uint32 twapLookbackWindow,
-    UD60x18 markPriceBand,
     uint256 maturityIndexCachingWindowInSeconds,
     address rateOracleAddress,
-    uint256 takerPositionsPerAccountLimit
+    DatedIrsMarket.MarketConfiguration memory config
   ) public {
     configureCollateral(
       tokenAddress,
@@ -247,9 +245,12 @@ contract SetupProtocol is BatchScript {
       marketId: marketId,
       marketConfig: DatedIrsMarket.MarketConfiguration({
         poolAddress: address(contracts.vammProxy),
-        twapLookbackWindow: twapLookbackWindow,
-        markPriceBand: markPriceBand,
-        takerPositionsPerAccountLimit: takerPositionsPerAccountLimit
+        twapLookbackWindow: config.twapLookbackWindow,
+        markPriceBand: config.markPriceBand,
+        takerPositionsPerAccountLimit: config.takerPositionsPerAccountLimit,
+        positionSizeLowerLimit: config.positionSizeLowerLimit,
+        positionSizeUpperLimit: config.positionSizeUpperLimit,
+        openInterestUpperLimit: config.openInterestUpperLimit
       })
     });
 
