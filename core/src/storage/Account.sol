@@ -342,12 +342,12 @@ library Account {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
 
-    function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
+    function getRequirementsByCollateralType(Account.Data storage self, address collateralType)
         internal
         view
-        returns (MarginRequirement memory mr)
+        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
     {
-        return AccountExposure.getMarginRequirementsAndHighestUnrealizedLoss(self, collateralType);
+        return AccountExposure.getRequirementsByCollateralType(self, collateralType);
     }
 
     /**
@@ -359,11 +359,11 @@ library Account {
         view 
         returns (MarginRequirement memory mr)
     {
-        mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
         
-        if (!mr.isIMSatisfied) {
-            revert AccountBelowIM(self.id, collateralType, mr);
-        }
+        // if (!mr.isIMSatisfied) {
+        //     revert AccountBelowIM(self.id, collateralType, mr);
+        // }
     }
 
 

@@ -35,8 +35,8 @@ contract LiquidationModule is ILiquidationModule {
         override 
         returns (Account.MarginRequirement memory mr) 
     {
-        Account.Data storage account = Account.exists(accountId);
-        mr = account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // Account.Data storage account = Account.exists(accountId);
+        // mr = account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
     }
 
 }

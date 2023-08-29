@@ -87,16 +87,18 @@ library AccountAutoExchange {
         Account.Data storage self,
         address collateralType
     ) internal view returns (int256 accountValue) {
-        (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
-            AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
+        // (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
+        //     AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
 
-        UD60x18 imMultiplier = self.getCollateralPool().riskConfig.imMultiplier;
-        uint256 initialMarginRequirement = 
-            AccountExposure.computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+        // UD60x18 imMultiplier = self.getCollateralPool().riskConfig.imMultiplier;
+        // uint256 initialMarginRequirement = 
+        //     AccountExposure.computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
 
-        accountValue = self.getCollateralBalance(collateralType).toInt() - 
-            highestUnrealizedLoss.toInt() - 
-            initialMarginRequirement.toInt();
+        // accountValue = self.getCollateralBalance(collateralType).toInt() - 
+        //     highestUnrealizedLoss.toInt() - 
+        //     initialMarginRequirement.toInt();
+
+        return 0;
     }
 
     function getAccountValueByCollateralTypeInUSD(

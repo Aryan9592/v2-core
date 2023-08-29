@@ -68,55 +68,55 @@ library Liquidation {
         internal
         returns (uint256 liquidatorRewardAmount)
     {
-        Account.Data storage account = Account.exists(liquidatedAccountId);
+        // Account.Data storage account = Account.exists(liquidatedAccountId);
 
-        if (account.accountMode == Account.MULTI_TOKEN_MODE) {
-            revert AccountIsMultiToken(liquidatedAccountId);
-        }
+        // if (account.accountMode == Account.MULTI_TOKEN_MODE) {
+        //     revert AccountIsMultiToken(liquidatedAccountId);
+        // }
 
-        Account.MarginRequirement memory mrPreClose = 
-            account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // Account.MarginRequirement memory mrPreClose = 
+        //     account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
-        if (mrPreClose.isLMSatisfied) {
-            revert AccountNotLiquidatable(liquidatedAccountId);
-        }
+        // if (mrPreClose.isLMSatisfied) {
+        //     revert AccountNotLiquidatable(liquidatedAccountId);
+        // }
 
-        account.closeAccount(collateralType);
+        // account.closeAccount(collateralType);
 
-        Account.MarginRequirement memory mrPostClose = 
-            account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // Account.MarginRequirement memory mrPostClose = 
+        //     account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
-        uint256 coverPreClose = mrPreClose.initialMarginRequirement + mrPreClose.highestUnrealizedLoss;
-        uint256 coverPostClose = mrPostClose.initialMarginRequirement + mrPostClose.highestUnrealizedLoss;
+        // uint256 coverPreClose = mrPreClose.initialMarginRequirement + mrPreClose.highestUnrealizedLoss;
+        // uint256 coverPostClose = mrPostClose.initialMarginRequirement + mrPostClose.highestUnrealizedLoss;
 
-        if (coverPostClose >= coverPreClose) {
-            revert AccountExposureNotReduced(
-                liquidatedAccountId,
-                mrPreClose,
-                mrPostClose
-            );
-        }
+        // if (coverPostClose >= coverPreClose) {
+        //     revert AccountExposureNotReduced(
+        //         liquidatedAccountId,
+        //         mrPreClose,
+        //         mrPostClose
+        //     );
+        // }
 
-        liquidatorRewardAmount = extractLiquidatorReward(
-            liquidatedAccountId,
-            collateralType,
-            coverPreClose,
-            coverPostClose
-        );
+        // liquidatorRewardAmount = extractLiquidatorReward(
+        //     liquidatedAccountId,
+        //     collateralType,
+        //     coverPreClose,
+        //     coverPostClose
+        // );
 
-        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-        liquidatorAccount.increaseCollateralBalance(collateralType, liquidatorRewardAmount);
+        // Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+        // liquidatorAccount.increaseCollateralBalance(collateralType, liquidatorRewardAmount);
 
-        emit Liquidation(
-            liquidatedAccountId,
-            collateralType,
-            msg.sender,
-            liquidatorAccountId,
-            liquidatorRewardAmount,
-            mrPreClose,
-            mrPostClose,
-            block.timestamp
-        );
+        // emit Liquidation(
+        //     liquidatedAccountId,
+        //     collateralType,
+        //     msg.sender,
+        //     liquidatorAccountId,
+        //     liquidatorRewardAmount,
+        //     mrPreClose,
+        //     mrPostClose,
+        //     block.timestamp
+        // );
     }
 
     function extractLiquidatorReward(

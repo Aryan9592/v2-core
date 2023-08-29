@@ -147,17 +147,19 @@ library AccountCollateral {
         view
         returns (uint256 withdrawableCollateralBalance)
     {
-        // get im and lm requirements and highest unrealized pnl in collateral
-        Account.MarginRequirement memory mr = 
-            self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // // get im and lm requirements and highest unrealized pnl in collateral
+        // Account.MarginRequirement memory mr = 
+        //     self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
 
-        // get the account collateral balance
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
+        // // get the account collateral balance
+        // uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
-        // get minimum between account collateral balance and available collateral
-        withdrawableCollateralBalance = 
-            (collateralBalance >= mr.availableCollateralBalance) 
-                ? mr.availableCollateralBalance
-                : collateralBalance;
+        // // get minimum between account collateral balance and available collateral
+        // withdrawableCollateralBalance = 
+        //     (collateralBalance >= mr.availableCollateralBalance) 
+        //         ? mr.availableCollateralBalance
+        //         : collateralBalance;
+
+        return 0;
     }
 }

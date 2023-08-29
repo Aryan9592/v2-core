@@ -7,6 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { Account } from  "./Account.sol";
 import { OracleManager } from  "./OracleManager.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
@@ -14,14 +15,16 @@ import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutpu
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { SafeCastI256, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 library CollateralConfiguration {
+    using Account for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
+    using SafeCastU256 for uint256;
 
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
