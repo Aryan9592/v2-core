@@ -41,4 +41,21 @@ interface IAccountBalanceModule {
         uint256 unfilledQuoteLong,
         uint256 unfilledQuoteShort
       );
+
+
+   /**
+    * @notice Returns the base amount minted by an account.
+    * @param marketId Id of the market to look at 
+    * @param maturityTimestamp Timestamp at which a given market matures
+    * @param accountId Id of the `Account` to look at
+    * @return baseBalance Base amount minted by the account
+  */
+   function getAccountsBaseBalanceFromLiquidity(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    )
+      external
+      view
+      returns (uint256 baseBalance);
 }

@@ -11,6 +11,7 @@ import "../../storage/MarketManagerConfiguration.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "../../interfaces/IPool.sol";
 import "../../storage/Portfolio.sol";
+import "../ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
 import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 
@@ -94,6 +95,18 @@ library InitiateMakerOrder {
 
         annualizedNotionalAmount = 
             getSingleAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
+        
+        ExposureHelpers.checkPositionSizeLimit(
+            params.accountId,
+            params.marketId,
+            params.maturityTimestamp
+        );
+
+        ExposureHelpers.checkOpenInterestLimit(
+            params.marketId,
+            params.maturityTimestamp,
+            annualizedNotionalAmount // inherits the sign of liquidity delta
+        );
 
         emit MakerOrder(
             params.accountId,

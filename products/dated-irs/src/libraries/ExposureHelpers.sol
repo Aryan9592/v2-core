@@ -13,9 +13,9 @@ import {IPool} from "../interfaces/IPool.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt, divIntUDx, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
@@ -24,7 +24,11 @@ import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
  */
 library ExposureHelpers {
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using Market for Market.Data;
+
+    error PositionExceedsSizeLimit(uint256 positionSizeLimit, uint256 positionSize);
+    error OpenInterestLimitExceeded(uint256 limit, uint256 openInterest);
 
     struct PoolExposureState {
         uint128 marketId;
@@ -152,5 +156,67 @@ library ExposureHelpers {
             ),
             unrealizedLoss: unrealizedLossUpper
         });
+    }
+
+    function checkPositionSizeLimit(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view {
+        Market.Data storage market = Market.exists(marketId);
+        IPool pool = IPool(market.marketConfig.poolAddress);
+
+        // maker balance
+        uint256 baseBalanceFromLiquidity = 
+            pool.getAccountsBaseBalanceFromLiquidity(marketId, maturityTimestamp, accountId);
+        int256[] memory baseAmounts = new int256[](1);
+        baseAmounts[0] = baseBalanceFromLiquidity.toInt();
+        uint256 positionSize = baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0].toUint();
+
+        // taker balance
+        int256 baseBalanceTraded = Portfolio.exists(accountId, marketId)
+            .positions[maturityTimestamp]
+            .baseBalance;
+        baseAmounts[0] = baseBalanceTraded < 0 ? -baseBalanceTraded : baseBalanceTraded;
+        positionSize += baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0].toUint();
+
+        uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
+        if (positionSize > upperLimit) {
+            revert PositionExceedsSizeLimit(upperLimit, positionSize);
+        }
+        uint256 lowerLimit = market.marketConfig.positionSizeLowerLimit;
+        if (positionSize < lowerLimit) {
+            revert PositionExceedsSizeLimit(lowerLimit, positionSize);
+        }
+    }
+
+    function checkOpenInterestLimit(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 annualizedNotionalDelta
+    ) internal {
+        Market.Data storage market = Market.exists(marketId);
+
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+
+        // update the notional tracker
+        int256 notionalDelta = divIntUDx(annualizedNotionalDelta, timeDeltaAnnualized);
+        if (notionalDelta > 0) {
+            market.notionalTracker[maturityTimestamp] += notionalDelta.toUint();
+        } else {
+            market.notionalTracker[maturityTimestamp] -= (-notionalDelta).toUint();
+        }
+        
+
+        // check upper limit of open interest
+        if (annualizedNotionalDelta > 0) {
+            uint256 totalNotional = market.notionalTracker[maturityTimestamp];
+            uint256 currentOpenInterest = mulUDxUint(timeDeltaAnnualized, totalNotional);
+
+            uint256 upperLimit = market.marketConfig.openInterestUpperLimit;
+            if (currentOpenInterest > upperLimit) {
+                revert OpenInterestLimitExceeded(upperLimit, currentOpenInterest);
+            }
+        }
     }
 }

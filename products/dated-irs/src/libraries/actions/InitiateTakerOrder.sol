@@ -16,6 +16,7 @@ import {InitiateMakerOrder} from "./InitiateMakerOrder.sol";
 import {Market} from "../../storage/Market.sol";
 import "../../interfaces/IPool.sol";
 import "../FeatureFlagSupport.sol";
+import "../ExposureHelpers.sol";
 
 /**
  * @title Library for taker orders logic.
@@ -99,12 +100,37 @@ library InitiateTakerOrder {
                 market.marketConfig.markPriceBand
             );
 
-        Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
+        Portfolio.Data storage portfolio = Portfolio.loadOrCreate(params.accountId, params.marketId);
+        portfolio.updatePosition(
             params.maturityTimestamp, executedBaseAmount, executedQuoteAmount
         );
 
         annualizedNotionalAmount = InitiateMakerOrder.getSingleAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
+        );
+
+        ExposureHelpers.checkPositionSizeLimit(
+            params.accountId,
+            params.marketId,
+            params.maturityTimestamp
+        );
+
+        /// @dev if base balance and executed base have the same sign
+        /// it means the exposure grew and the delta should be positive.
+        /// otherwise, the exposure was reduced and the delta is negative.
+        int256 annualizedNotionalDelta = annualizedNotionalAmount > 0 ? 
+            -annualizedNotionalAmount : annualizedNotionalAmount;
+        if (
+            Portfolio.exists(params.accountId, params.marketId)
+            .positions[params.maturityTimestamp]
+            .baseBalance * executedBaseAmount > 0
+        ) {
+            annualizedNotionalDelta = -annualizedNotionalDelta;
+        }
+        ExposureHelpers.checkOpenInterestLimit(
+            params.marketId,
+            params.maturityTimestamp,
+            annualizedNotionalDelta 
         );
 
         market.updateOracleStateIfNeeded();

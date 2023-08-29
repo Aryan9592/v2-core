@@ -91,6 +91,18 @@ library Market {
          * @dev Maximum number of positions of an account in this market
          */
         uint256 takerPositionsPerAccountLimit;
+        /**
+         * @dev Maximum size allowed of an account's position
+         */
+        uint256 positionSizeUpperLimit;
+        /**
+         * @dev Minimum size allowed of an account's position
+         */
+        uint256 positionSizeLowerLimit;
+        /**
+         * @dev Maximum amount of open interest allowed in this market
+         */
+        uint256 openInterestUpperLimit;
     }
 
     struct RateOracleConfiguration {
@@ -130,7 +142,11 @@ library Market {
         /**
          * Cache with maturity index values.
          */
-        mapping(uint256 maturityTimestamp => UD60x18 rateIndex) rateIndexAtMaturity;
+        mapping(uint32 maturityTimestamp => UD60x18 rateIndex) rateIndexAtMaturity;
+        /**
+         * Cache with maturity index values.
+         */
+        mapping(uint32 maturityTimestamp => uint256 notional) notionalTracker;
     }
 
     /**

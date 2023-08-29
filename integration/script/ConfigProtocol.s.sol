@@ -67,11 +67,17 @@ contract ConfigProtocol is SetupProtocol {
       atomicMakerFee: ud60x18(1e16),
       atomicTakerFee: ud60x18(5e16),
       riskParameter: ud60x18(1e18),
-      twapLookbackWindow: 120,
-      markPriceBand: ud60x18(0.005e18),
       maturityIndexCachingWindowInSeconds: 3600,
       rateOracleAddress: address(contracts.aaveV3RateOracle),
-      takerPositionsPerAccountLimit: 1
+      config: DatedIrsMarket.MarketConfiguration({
+        poolAddress: address(0), // regardless the value, vammProxy will be considered
+        twapLookbackWindow: 120,
+        markPriceBand: ud60x18(0.005e18),
+        takerPositionsPerAccountLimit: 1,
+        positionSizeLowerLimit: 1e6,
+        positionSizeUpperLimit: 1e6 * 1e6,
+        openInterestUpperLimit: 1e6 * 1e9
+      })
     });
     uint32[] memory times = new uint32[](2);
     times[0] = uint32(block.timestamp - 86400);
