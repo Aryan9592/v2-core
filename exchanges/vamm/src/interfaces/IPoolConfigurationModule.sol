@@ -9,9 +9,9 @@ interface IPoolConfigurationModule {
   /// @param paused True if the desire is to pause the vamm, and false inversely
   function setPauseState(bool paused) external;
 
-  /// @notice Setting the product (instrument) address
-  /// @param productAddress Address of the product proxy
-  function setProductAddress(address productAddress) external;
+  /// @notice Setting the Market Manager (instrument) address
+  /// @param marketManagerAddress Address of the MarketManager proxy
+  function setMarketManagerAddress(address marketManagerAddress) external;
 
   /// @notice Setting limit of maker positions per account
   /// @param limit Maximum number of maker positions an acccount can have

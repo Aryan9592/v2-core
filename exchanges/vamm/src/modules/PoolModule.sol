@@ -35,7 +35,7 @@ contract PoolModule is IPoolModule {
         external override
         returns (int256 executedBaseAmount, int256 executedQuoteAmount) {
         
-        if (msg.sender != PoolConfiguration.load().productAddress) {
+        if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
         }
         PoolConfiguration.whenNotPaused();
@@ -73,7 +73,7 @@ contract PoolModule is IPoolModule {
     )
         external override returns (int256 baseAmount)
     {
-        if (msg.sender != PoolConfiguration.load().productAddress) {
+        if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "executeDatedMakerOrder");
         }
 
@@ -102,7 +102,7 @@ contract PoolModule is IPoolModule {
         external override
         returns (int256 closedUnfilledBasePool) {
 
-        if (msg.sender != PoolConfiguration.load().productAddress) {
+        if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
         }
         PoolConfiguration.whenNotPaused();

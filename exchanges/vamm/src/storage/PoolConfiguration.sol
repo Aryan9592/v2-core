@@ -10,7 +10,7 @@ library PoolConfiguration {
 
     struct Data {
         bool paused;
-        address productAddress;
+        address marketManagerAddress;
         uint256 makerPositionsPerAccountLimit;
     }
 
@@ -26,8 +26,8 @@ library PoolConfiguration {
         emit PauseState(state, block.timestamp);
     }
 
-    function setProductAddress(Data storage self, address _productAddress) internal {
-        self.productAddress = _productAddress;
+    function setMarketManagerAddress(Data storage self, address _marketManagerAddress) internal {
+        self.marketManagerAddress = _marketManagerAddress;
     }
 
     function setMakerPositionsPerAccountLimit(Data storage self, uint256 limit) internal {
@@ -39,7 +39,7 @@ library PoolConfiguration {
     }
 
     function getRateOracle(uint128 marketId) internal view returns (IRateOracle) {
-        address rateOracleAddress = IRateOracleModule(load().productAddress)
+        address rateOracleAddress = IRateOracleModule(load().marketManagerAddress)
             .getRateOracleConfiguration(marketId).oracleAddress;
         return IRateOracle(rateOracleAddress);
     }
