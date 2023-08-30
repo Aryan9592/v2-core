@@ -83,7 +83,6 @@ library AccountAutoExchange {
         return false;
     }
 
-    // todo: include realized PnL and replace unrealized loss with unrealized PnL
     function getAccountValueByCollateralType(
         Account.Data storage self,
         address collateralType

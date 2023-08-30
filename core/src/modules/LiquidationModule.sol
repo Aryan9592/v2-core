@@ -15,12 +15,7 @@ import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-// todo: consider introducing explicit reetrancy guards across the protocol
-// todo: funnel a portfion of profits from liquidations to the default fund (nedes more research) (AB)
-// todo: consider also performing auto-exchange in the event where a multi-token account is liquidatable (AB)
-// todo: incorporate multi-token account liquidation flow, for that to work, we'll need to support (AB)
-// position transferring liquidations where the incentive of the liquidator is not in terms of a given collateral token
-// but rather represented as a discount on the liquidated position's price based on the twap
+// todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
 /**
  * @title Module for liquidated accounts

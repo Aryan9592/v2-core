@@ -21,7 +21,6 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UNIT } from "@prb/math/UD60x18.sol";
 
-// todo: consider forcing auto-exchange at settlement for maturity-based markets (AB)
 /**
  * @title Module for auto-exchange, i.e. liquidations of collaterals to address exchange rate risk
  * @dev See IAutoExchangeModule

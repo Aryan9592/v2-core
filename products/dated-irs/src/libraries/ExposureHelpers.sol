@@ -13,7 +13,7 @@ import {IPool} from "../interfaces/IPool.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
-import { mulUDxInt, divIntUDx, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt, divIntUD, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -200,7 +200,7 @@ library ExposureHelpers {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
 
         // update the notional tracker
-        int256 notionalDelta = divIntUDx(annualizedNotionalDelta, timeDeltaAnnualized);
+        int256 notionalDelta = divIntUD(annualizedNotionalDelta, timeDeltaAnnualized);
         if (notionalDelta > 0) {
             market.notionalTracker[maturityTimestamp] += notionalDelta.toUint();
         } else {

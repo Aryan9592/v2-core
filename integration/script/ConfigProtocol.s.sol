@@ -70,7 +70,7 @@ contract ConfigProtocol is SetupProtocol {
       maturityIndexCachingWindowInSeconds: 3600,
       rateOracleAddress: address(contracts.aaveV3RateOracle),
       config: DatedIrsMarket.MarketConfiguration({
-        poolAddress: address(0), // regardless the value, vammProxy will be considered
+        poolAddress: address(contracts.vammProxy), 
         twapLookbackWindow: 120,
         markPriceBand: ud60x18(0.005e18),
         takerPositionsPerAccountLimit: 1,
