@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import { OracleManager } from  "./OracleManager.sol";
+import { TokenTypeSupport } from "../libraries/TokenTypeSupport.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
@@ -69,6 +70,11 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
+
+        /**
+         * @dev Token type.
+         */
+        bytes32 tokenType;
     }
 
     struct CachedConfiguration {
@@ -203,6 +209,22 @@ library CollateralConfiguration {
         if (!load(collateralPoolId, token).baseConfig.depositingEnabled) {
             revert CollateralDepositDisabled(collateralPoolId, token);
         }
+    }
+
+    function convertToAssets(Data storage self, uint256 shares) internal view returns(uint256) {
+        return TokenTypeSupport.convertToAssets(
+            self.cachedConfig.tokenAddress, 
+            self.baseConfig.tokenType, 
+            shares
+        );
+    }
+
+    function convertToShares(Data storage self, uint256 assets) internal view returns(uint256) {
+        return TokenTypeSupport.convertToShares(
+            self.cachedConfig.tokenAddress, 
+            self.baseConfig.tokenType, 
+            assets
+        );
     }
 
     function getHeight(uint128 collateralPoolId, address token) private view returns(uint256 height) {

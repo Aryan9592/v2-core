@@ -7,10 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Account} from "../storage/Account.sol";
-import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
-import {CollateralPool} from "../storage/CollateralPool.sol";
-import {Market} from "../storage/Market.sol";
+import {Account} from "../../storage/Account.sol";
+import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
+import {CollateralPool} from "../../storage/CollateralPool.sol";
+import {Market} from "../../storage/Market.sol";
 
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";

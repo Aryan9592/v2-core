@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "../storage/Account.sol";
+import "../../storage/Account.sol";
 
 /**
  * @title Object for tracking account margin requirements.

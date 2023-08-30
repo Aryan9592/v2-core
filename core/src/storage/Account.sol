@@ -12,14 +12,15 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Account} from "./Account.sol";
 import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
 import {CollateralPool} from "./CollateralPool.sol";
+import {CollateralConfiguration} from "./CollateralConfiguration.sol";
 import {Market} from "./Market.sol";
 
-import {AccountActiveMarket} from "../libraries/AccountActiveMarket.sol";
-import {AccountAutoExchange} from "../libraries/AccountAutoExchange.sol";
-import {AccountCollateral} from "../libraries/AccountCollateral.sol";
-import {AccountExposure} from "../libraries/AccountExposure.sol";
-import {AccountMode} from "../libraries/AccountMode.sol";
-import {AccountRBAC} from "../libraries/AccountRBAC.sol";
+import {AccountActiveMarket} from "../libraries/account/AccountActiveMarket.sol";
+import {AccountAutoExchange} from "../libraries/account/AccountAutoExchange.sol";
+import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
+import {AccountExposure} from "../libraries/account/AccountExposure.sol";
+import {AccountMode} from "../libraries/account/AccountMode.sol";
+import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -130,7 +131,7 @@ library Account {
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => uint256) collateralBalances;
+        mapping(address => uint256) collateralShares;
 
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
@@ -301,14 +302,17 @@ library Account {
     }
 
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        if (self.id == 0) {
-            revert AccountNotFound(self.id);
-        }
-        AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
+        uint128 collateralPoolId = self.getCollateralPool().id;
+        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
+
+        AccountCollateral.increaseCollateralBalance(self, collateral, amount);
     }
 
     function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        AccountCollateral.decreaseCollateralBalance(self, collateralType, amount);
+        uint128 collateralPoolId = self.getCollateralPool().id;
+        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
+
+        AccountCollateral.decreaseCollateralBalance(self, collateral, amount);
     }
 
     function getCollateralBalance(Data storage self, address collateralType)
@@ -316,7 +320,10 @@ library Account {
         view
         returns (uint256)
     {
-        return AccountCollateral.getCollateralBalance(self, collateralType);
+        uint128 collateralPoolId = self.getCollateralPool().id;
+        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
+
+        return AccountCollateral.getCollateralBalance(self, collateral);
     }
 
     function getWithdrawableCollateralBalance(Data storage self, address collateralType)
