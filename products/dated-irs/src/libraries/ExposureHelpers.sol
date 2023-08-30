@@ -16,6 +16,7 @@ import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 import { mulUDxInt, divIntUD, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
@@ -26,6 +27,7 @@ library ExposureHelpers {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using Market for Market.Data;
+    using Portfolio for Portfolio.Data;
 
     error PositionExceedsSizeLimit(uint256 positionSizeLimit, uint256 positionSize);
     error OpenInterestLimitExceeded(uint256 limit, uint256 openInterest);
@@ -166,19 +168,14 @@ library ExposureHelpers {
         Market.Data storage market = Market.exists(marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
-        // maker balance
-        uint256 baseBalanceFromLiquidity = 
-            pool.getAccountsBaseBalanceFromLiquidity(marketId, maturityTimestamp, accountId);
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = baseBalanceFromLiquidity.toInt();
-        uint256 positionSize = baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0].toUint();
-
-        // taker balance
-        int256 baseBalanceTraded = Portfolio.exists(accountId, marketId)
-            .positions[maturityTimestamp]
-            .baseBalance;
-        baseAmounts[0] = baseBalanceTraded < 0 ? -baseBalanceTraded : baseBalanceTraded;
-        positionSize += baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0].toUint();
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+        Account.MakerMarketExposure memory exposure = 
+            portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
+        uint256 positionSize = SignedMath.abs(
+            exposure.lower.annualizedNotional > exposure.upper.annualizedNotional ?
+                exposure.lower.annualizedNotional :
+                exposure.upper.annualizedNotional
+        );
 
         uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
         if (positionSize > upperLimit) {

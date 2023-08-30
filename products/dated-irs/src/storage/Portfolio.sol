@@ -195,6 +195,24 @@ library Portfolio {
         );
     }
 
+    function getAccountExposuresPerMaturity(
+        Data storage self,
+        address poolAddress,
+        uint32 maturityTimestamp
+    ) internal view returns (Account.MakerMarketExposure memory exposure) {
+        ExposureHelpers.PoolExposureState memory poolState = self.getPoolExposureState(
+            maturityTimestamp,
+            poolAddress
+        );
+
+        // unfilled exposures => consider maker lower
+        exposure.lower = 
+            ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
+
+        exposure.upper = 
+            ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
+    }
+
     function getAccountTakerAndMakerExposures(
         Data storage self
     )
@@ -207,17 +225,10 @@ library Portfolio {
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
-            ExposureHelpers.PoolExposureState memory poolState = self.getPoolExposureState(
-                self.activeMaturities.valueAt(i).to32(),
-                poolAddress
+            exposures[i - 1] = self.getAccountExposuresPerMaturity(
+                poolAddress,
+                self.activeMaturities.valueAt(i).to32()
             );
-
-            // unfilled exposures => consider maker lower
-            exposures[i - 1].lower = 
-                ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
-    
-            exposures[i - 1].upper = 
-                ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
         }
 
         return exposures;
