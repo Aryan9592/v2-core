@@ -13,7 +13,6 @@ import {VammProxy} from "../proxies/Vamm.sol";
 import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.sol";
 
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
-// import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
 import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.sol";
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
@@ -622,20 +621,7 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  // function configureCollateral(address tokenAddress, CollateralConfiguration.Config memory config) public {
-  //   if (!settings.multisig) {
-  //     broadcastOrPrank();
-  //     contracts.coreProxy.configureCollateral(tokenAddress, config);
-  //   } else {
-  //     addToBatch(
-  //       address(contracts.coreProxy),
-  //       abi.encodeCall(
-  //         contracts.coreProxy.configureCollateral,
-  //         (tokenAddress, config)
-  //       )
-  //     );
-  //   }
-  // }
+  // todo: add collateral configuration support
 
   function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) public {
     if (!settings.multisig) {
