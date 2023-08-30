@@ -33,7 +33,7 @@ function divUintUDx(uint256 a, UD60x18 b) pure returns (uint256) {
 /// @param a denotes the signed number whose precision
 /// determines the precision of the result
 /// @param b denotes the unsigned wad number
-function divIntUDx(int256 a, UD60x18 b) pure returns (int256) {
+function divIntUD(int256 a, UD60x18 b) pure returns (int256) {
     return SD59x18.unwrap(divSD59x18(SD59x18.wrap(a), intoSD59x18(b)));
 }
 

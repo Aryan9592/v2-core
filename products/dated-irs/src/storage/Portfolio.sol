@@ -246,7 +246,6 @@ library Portfolio {
 
             int256 unwindBase = -(position.baseBalance + filledBasePool);
 
-            // todo: check with @ab if we want it adjusted or not
             UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
                 self.marketId, 
                 maturityTimestamp, 

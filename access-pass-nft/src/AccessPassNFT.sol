@@ -7,8 +7,6 @@ import "oz/utils/cryptography/MerkleProof.sol";
 import "oz/utils/Counters.sol";
 import "oz/access/Ownable.sol";
 
-// todo: rename variables post refactor
-
 contract AccessPassNFT is Ownable, ERC721URIStorage {
 
     mapping(bytes32 => string) public whitelistedMerkleRootToURI;

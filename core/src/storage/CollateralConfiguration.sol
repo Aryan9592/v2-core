@@ -14,7 +14,7 @@ import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { mulUDxUint, mulUDxInt, divUintUDx, divIntUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUDx, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 import "./OracleManager.sol";

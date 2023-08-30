@@ -182,7 +182,7 @@ library DatedIrsVamm {
         int24 _minTickAllowed,
         int24 _maxTickAllowed
     ) internal {
-        // todo: might be able to remove self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
+        // todo: during testing -> might be able to remove self.vars.tick < _minTickAllowed || self.vars.tick > _maxTickAllowed
         // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
         // does not have unwanted consequences
         if(
@@ -441,7 +441,7 @@ library DatedIrsVamm {
                 _quoteTokenGrowthInsideX128,
                 _baseTokenGrowthInsideX128,
                 _quoteTokenDelta,
-                _baseTokenDelta // todo: why were these "- 1" in v1?
+                _baseTokenDelta
             );
         } else {
             if (isMintBurn) {

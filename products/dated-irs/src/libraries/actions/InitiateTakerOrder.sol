@@ -81,7 +81,6 @@ library InitiateTakerOrder {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
-        // todo: check with @ab if we want it adjusted or not
         UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
             params.marketId, 
             params.maturityTimestamp, 

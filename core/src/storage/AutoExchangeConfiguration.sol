@@ -31,7 +31,6 @@ library AutoExchangeConfiguration {
          */
         uint256 totalAutoExchangeThresholdInUSD;
 
-        // todo: need to dig deeper into this edge case
         /**
          * @dev Auto-exchange can also occur when the absolute value of the sum of all negative balances for an account
          * in USD terms is negativeCollateralBalancesMultiplier (e.g. 0.5) times larger than the total collateral
