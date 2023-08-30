@@ -12,7 +12,6 @@ import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.so
 import {CollateralPool} from "../storage/CollateralPool.sol";
 import {Market} from "../storage/Market.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
-import {AccountAutoExchange} from "../libraries/AccountAutoExchange.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import {AutoExchange} from "../libraries/actions/AutoExchange.sol";
 
@@ -29,7 +28,6 @@ contract AutoExchangeModule is IAutoExchangeModule {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using Account for Account.Data;
-    using AccountAutoExchange for Account.Data;
     using Market for Market.Data;
 
     /**
@@ -38,8 +36,7 @@ contract AutoExchangeModule is IAutoExchangeModule {
     function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view override returns (
         bool
     ) {
-        Account.Data storage account = Account.exists(accountId);
-        return account.isEligibleForAutoExchange(quoteType);
+        return Account.exists(accountId).isEligibleForAutoExchange(quoteType);
     }
     
     /**
@@ -47,14 +44,12 @@ contract AutoExchangeModule is IAutoExchangeModule {
      */
     function getMaxAmountToExchangeQuote(
         uint128 accountId,
-        address collateralType,
-        address quoteType
-    ) external view returns (uint256 maxAmountQuote) {
-        maxAmountQuote = AutoExchange.getMaxAmountToExchangeQuote(
-            accountId,
-            collateralType,
-            quoteType
+        address coveringToken,
+        address autoexchangedToken
+    ) external view returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ ) {
+        return Account.exists(accountId).getMaxAmountToExchangeQuote(
+            coveringToken,
+            autoexchangedToken
         );
     }
-
 }

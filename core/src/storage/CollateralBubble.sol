@@ -337,17 +337,17 @@ library CollateralConfiguration {
         return info;
     }
 
-    function getAutoExchangeAmount(uint128 collateralPoolId, address tokenA, address tokenB, uint256 amount) 
+    function getAutoExchangeDiscount(uint128 collateralPoolId, address tokenA, address tokenB) 
         internal
         view 
-        returns(uint256 autoExchangeAmount) 
+        returns(UD60x18 /* autoexchangeDiscount */) 
     {
         address baseToken = getCommonToken(collateralPoolId, tokenA, tokenB);
 
         ExchangeInfo memory exchangeInfoA = getExchangeInfo(collateralPoolId, tokenA, baseToken);
         ExchangeInfo memory exchangeInfoB = getExchangeInfo(collateralPoolId, tokenB, baseToken);
 
-        return mulUDxUint(exchangeInfoA.autoExchangeDiscount.mul(exchangeInfoB.autoExchangeDiscount), amount);
+        return exchangeInfoA.autoExchangeDiscount.mul(exchangeInfoB.autoExchangeDiscount);
     }
 
     /**

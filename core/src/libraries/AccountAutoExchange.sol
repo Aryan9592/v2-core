@@ -11,9 +11,10 @@ import {AccountExposure} from "./AccountExposure.sol";
 import {Account} from "../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
 import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
+import {CollateralPool} from "../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUDx, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
@@ -29,42 +30,53 @@ library AccountAutoExchange {
 
     function isEligibleForAutoExchange(
         Account.Data storage self,
-        address quoteType
+        address collateralType
     ) internal view returns (bool) {
+        AutoExchangeConfiguration.Data memory autoExchangeConfig = AutoExchangeConfiguration.load();
 
-        if(self.accountMode == Account.SINGLE_TOKEN_MODE) {
-            return false;
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        uint128 collateralPoolId = collateralPool.id;
+        UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
+
+        // Single auto-exchange threshold check
+        {
+            (int256 accountValueOfCollateral, ) = 
+                self.getRequirementDeltasByCollateralType(collateralType, imMultiplier);
+
+            if (accountValueOfCollateral > 0) {
+                return false;
+            }
+
+            CollateralConfiguration.ExchangeInfo memory exchange = 
+                    CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0));
+
+            int256 accountValueOfCollateralInUSD = 
+                mulUDxInt(exchange.price.mul(exchange.exchangeHaircut), accountValueOfCollateral);
+
+            if ((-accountValueOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
+                return true;
+            }
         }
 
-        int256 accountValueBySettlementType = self.getAccountValueByCollateralType(quoteType);
+        // Get total account value in USD
+        (int256 totalAccountValueInUSD, ) = self.getRequirementDeltasByBubble(address(0));
 
-        if (accountValueBySettlementType > 0) {
-            return false;
-        }
+        // Get total negative account value in USD
+        uint256 sumOfNegativeAccountValuesInUSD = 0;
+        address[] memory quoteTokens = self.activeQuoteTokens.values();
 
-        AutoExchangeConfiguration.Data memory autoExchangeConfig = 
-            AutoExchangeConfiguration.load();
+        for (uint256 i = 0; i < quoteTokens.length; i++) {
+            address quoteToken = quoteTokens[i];
 
-        if ((-accountValueBySettlementType).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
-            return true;
-        }
+            (int256 totalAccountValueOfQuoteToken, ) = 
+                self.getRequirementDeltasByCollateralType(quoteTokens[i], imMultiplier);
+            
+            if (totalAccountValueOfQuoteToken < 0) {
+                CollateralConfiguration.ExchangeInfo memory exchange = 
+                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, address(0));
 
-        uint256 sumOfNegativeAccountValuesInUSD;
-        int256 totalAccountValueInUSD;
-        for (uint256 i = 1; i <= self.activeQuoteTokens.length(); i++) {
-            address collateralType = self.activeQuoteTokens.valueAt(i);
-            int256 accountValueByCollateralTypeInUSD = self.getAccountValueByCollateralTypeInUSD(collateralType);
-            sumOfNegativeAccountValuesInUSD += accountValueByCollateralTypeInUSD < 0 ?
-                (-accountValueByCollateralTypeInUSD).toUint() : 0;
-            totalAccountValueInUSD += accountValueByCollateralTypeInUSD;
-        }
-        // note: activeQuoteTokens does not include collateral tokens 
-        // that are not collaterals of active markets. These also count towards totalAccountValueInUSD
-        for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
-            address collateralType = self.activeCollaterals.valueAt(i);
-            if (!self.activeQuoteTokens.contains(collateralType)) {
-                int256 accountValueByCollateralTypeInUSD = self.getAccountValueByCollateralTypeInUSD(collateralType);
-                totalAccountValueInUSD += accountValueByCollateralTypeInUSD;
+                sumOfNegativeAccountValuesInUSD += 
+                    mulUDxUint(exchange.price.mul(exchange.exchangeHaircut), (-totalAccountValueOfQuoteToken).toUint());
             }
         }
         
@@ -72,7 +84,10 @@ library AccountAutoExchange {
             return true;
         }
 
-        // todo: this will fail if totalAccountValueInUSDis negative. decide on action.
+        if (totalAccountValueInUSD < 0) {
+            // todo: decide on what to do when the account is liquidatable
+        }
+
         if (
             sumOfNegativeAccountValuesInUSD > 
             mulUDxUint(autoExchangeConfig.negativeCollateralBalancesMultiplier, totalAccountValueInUSD.toUint())
@@ -83,42 +98,46 @@ library AccountAutoExchange {
         return false;
     }
 
-    function getAccountValueByCollateralType(
+    function getMaxAmountToExchangeQuote(
         Account.Data storage self,
-        address collateralType
-    ) internal view returns (int256 accountValue) {
-        // (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = 
-        //     AccountExposure.getRequirementsAndHighestUnrealizedLossByCollateralType(self, collateralType);
+        address coveringToken,
+        address autoexchangedToken
+    ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ ) {
 
-        // UD60x18 imMultiplier = self.getCollateralPool().riskConfig.imMultiplier;
-        // uint256 initialMarginRequirement = 
-        //     AccountExposure.computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        uint128 collateralPoolId = collateralPool.id;
+        UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
 
-        // accountValue = self.getCollateralBalance(collateralType).toInt() - 
-        //     highestUnrealizedLoss.toInt() - 
-        //     initialMarginRequirement.toInt();
+        (int256 accountValue, ) = 
+            self.getRequirementDeltasByCollateralType(autoexchangedToken, imMultiplier);
 
-        return 0;
-    }
+        if (accountValue > 0) {
+            return (0, 0);
+        }
 
-    function getAccountValueByCollateralTypeInUSD(
-        Account.Data storage self,
-        address collateralType
-    ) internal view returns (int256) {
-        // todo
+        uint256 amountToAutoExchange = mulUDxUint(
+            AutoExchangeConfiguration.load().autoExchangeRatio,
+            (-accountValue).toUint()
+        );
 
-        return 0;
+        // todo: do we consider that we can use the entire collateral balance of covering token?
+        uint256 coveringTokenAmount = self.getCollateralBalance(coveringToken);
 
-        // int256 accountValueByCollateralType = self.getAccountValueByCollateralType(collateralType);
+        UD60x18 autoexchangeDiscount = 
+            CollateralConfiguration.getAutoExchangeDiscount(collateralPoolId, coveringToken, autoexchangedToken);
+        
+        UD60x18 price = 
+            CollateralConfiguration.getCollateralPriceInToken(collateralPoolId, coveringToken, autoexchangedToken);
 
-        // uint256 accountValueByCollateralTypeInUSD = CollateralConfiguration.exists(collateralType)
-        //     .getCollateralInUSD(
-        //         accountValueByCollateralType > 0 ? 
-        //             accountValueByCollateralType.toUint() :
-        //             (-accountValueByCollateralType).toUint()
-        //     );
-
-        // return accountValueByCollateralType > 0 ? accountValueByCollateralTypeInUSD.toInt() :
-        //     -accountValueByCollateralTypeInUSD.toInt();
+        uint256 availableToAutoExchange = 
+            mulUDxUint(price.mul(autoexchangeDiscount), coveringTokenAmount);
+        
+        if (availableToAutoExchange <= amountToAutoExchange) {
+            return (coveringTokenAmount, availableToAutoExchange);
+        }
+        else {
+            uint256 correspondingTokenCoveringAmount = divUintUDx(coveringTokenAmount, price.mul(autoexchangeDiscount));
+            return (correspondingTokenCoveringAmount, amountToAutoExchange);
+        }
     }
 }

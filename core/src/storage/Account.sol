@@ -15,6 +15,7 @@ import {CollateralPool} from "./CollateralPool.sol";
 import {Market} from "./Market.sol";
 
 import {AccountActiveMarket} from "../libraries/AccountActiveMarket.sol";
+import {AccountAutoExchange} from "../libraries/AccountAutoExchange.sol";
 import {AccountCollateral} from "../libraries/AccountCollateral.sol";
 import {AccountExposure} from "../libraries/AccountExposure.sol";
 import {AccountMode} from "../libraries/AccountMode.sol";
@@ -22,7 +23,7 @@ import {AccountRBAC} from "../libraries/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -322,14 +323,6 @@ library Account {
         return AccountCollateral.getCollateralBalance(self, collateralType);
     }
 
-    function getWeightedBaseCollateralBalance(Data storage self, address baseToken) 
-        internal 
-        view
-        returns (uint256) 
-    {
-        return AccountCollateral.getWeightedBaseCollateralBalance(self, baseToken);
-    }
-
     function getWithdrawableCollateralBalance(Data storage self, address collateralType)
         internal
         view
@@ -342,12 +335,20 @@ library Account {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
 
-    function getRequirementsByCollateralType(Account.Data storage self, address collateralType)
+    function getRequirementDeltasByBubble(Account.Data storage self, address collateralType)
         internal
         view
-        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+        returns (int256 initialDelta, int256 liquidationDelta)
     {
-        return AccountExposure.getRequirementsByCollateralType(self, collateralType);
+        return AccountExposure.getRequirementDeltasByBubble(self, collateralType);
+    }
+
+    function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+        internal
+        view
+        returns (int256 initialDelta, int256 liquidationDelta)
+    {
+        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier);
     }
 
     /**
@@ -369,6 +370,29 @@ library Account {
 
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
+    }
+
+    function isEligibleForAutoExchange(
+        Account.Data storage self,
+        address collateralType
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
+    }
+
+    function getMaxAmountToExchangeQuote(
+        Account.Data storage self,
+        address coveringToken,
+        address autoexchangedToken
+    )
+        internal
+        view
+        returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ )
+    {
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoexchangedToken);
     }
 
     /**

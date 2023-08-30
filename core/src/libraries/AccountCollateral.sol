@@ -7,24 +7,20 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {mulUDxUint} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import {Account} from "../storage/Account.sol";
-import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
 import {CollateralPool} from "../storage/CollateralPool.sol";
-import {Market} from "../storage/Market.sol";
 
 /**
  * @title Object for tracking account collaterals.
  */
 library AccountCollateral {
     using Account for Account.Data;
-    using Market for Market.Data;
     using CollateralPool for CollateralPool.Data;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
 
     /**
@@ -109,57 +105,27 @@ library AccountCollateral {
     }
 
     /**
-     * @dev Returns the total weighted collateral in USD
-     */
-    function getWeightedBaseCollateralBalance(Account.Data storage self, address baseToken) 
-        internal 
-        view
-        returns (uint256 weightedBaseCollateralBalance) 
-    {
-        // if the account does not belong to any collateral pool, return the collateral balance of the asset
-        if (self.firstMarketId == 0) {
-            return self.getCollateralBalance(baseToken);
-        }
-
-        // fetch the corresponding collateral pool
-        uint128 collateralPoolId = self.getCollateralPool().id;
-
-        // fetch all the sub-tokens of the base token and their exchange information
-        CollateralConfiguration.ExchangeInfo[] memory subs = CollateralConfiguration.getSubTokens(collateralPoolId, baseToken);
-
-        for (uint256 i = 0; i < subs.length; i++) {
-            // get collateral balance in this specific token
-            uint256 collateralBalance = self.getCollateralBalance(subs[i].token);
-
-            // convert it into base token and apply haircut
-            weightedBaseCollateralBalance += mulUDxUint(
-                subs[i].price.mul(subs[i].exchangeHaircut), 
-                collateralBalance
-            );
-        }
-    }
-
-    /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
     function getWithdrawableCollateralBalance(Account.Data storage self, address collateralType)
         internal
         view
-        returns (uint256 withdrawableCollateralBalance)
+        returns (uint256 /* withdrawableCollateralBalance */)
     {
-        // // get im and lm requirements and highest unrealized pnl in collateral
-        // Account.MarginRequirement memory mr = 
-        //     self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        // get account value in the given collateral
+        (int256 accountValueInCollateral, )  = 
+            self.getRequirementDeltasByBubble(collateralType);
 
-        // // get the account collateral balance
-        // uint256 collateralBalance = self.getCollateralBalance(collateralType);
+        if (accountValueInCollateral <= 0) {
+            return 0;
+        }
 
-        // // get minimum between account collateral balance and available collateral
-        // withdrawableCollateralBalance = 
-        //     (collateralBalance >= mr.availableCollateralBalance) 
-        //         ? mr.availableCollateralBalance
-        //         : collateralBalance;
+        // get the account collateral balance
+        uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
-        return 0;
+        // get minimum between account collateral balance and available collateral
+        return (collateralBalance <= accountValueInCollateral.toUint()) 
+            ? collateralBalance
+            : accountValueInCollateral.toUint();
     }
 }

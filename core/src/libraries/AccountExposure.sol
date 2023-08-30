@@ -14,7 +14,7 @@ import {Market} from "../storage/Market.sol";
 
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {mulUDxUint, mulUDxInt, UD60x18, divIntUDx} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking account margin requirements.
@@ -29,34 +29,56 @@ library AccountExposure {
 
     error UnsupportedAccountExposure(bytes32 accountMode);
 
-    function getRequirementDeltas(Account.Data storage account, address baseToken) 
+    function getRequirementDeltasByBubble(Account.Data storage account, address baseToken) 
         internal 
-        returns (int256, int256) 
+        view
+        returns (int256 /* initialDelta */, int256 /* liquidationDelta */) 
     {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
 
         if (account.accountMode == Account.SINGLE_TOKEN_MODE) {
-            return _requirementDeltas(account, collateralPoolId, baseToken, imMultiplier); 
+            return computeRequirementDeltasByBubble(account, collateralPoolId, baseToken, imMultiplier); 
         }
 
         if (account.accountMode == Account.MULTI_TOKEN_MODE) {
-            return _requirementDeltas(account, collateralPoolId, address(0), imMultiplier); 
-        } 
+            (int256 initialDeltaInUSD, int256 liquidationDeltaInUSD) = 
+                computeRequirementDeltasByBubble(account, collateralPoolId, address(0), imMultiplier); 
+
+            if (baseToken == address(0)) {
+                return (initialDeltaInUSD, liquidationDeltaInUSD);
+            }
+
+            CollateralConfiguration.ExchangeInfo memory exchange = 
+                CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
+                
+            int256 initialDelta = divIntUDx(initialDeltaInUSD, exchange.price.mul(exchange.exchangeHaircut));
+            int256 liquidationDelta = divIntUDx(liquidationDeltaInUSD, exchange.price.mul(exchange.exchangeHaircut));
+            
+            return (initialDelta, liquidationDelta);
+        }
 
         revert UnsupportedAccountExposure(account.accountMode);
     }
 
-    function _requirementDeltas(Account.Data storage account, uint128 collateralPoolId, address baseToken, UD60x18 imMultiplier) 
+    function computeRequirementDeltasByBubble(
+        Account.Data storage account, 
+        uint128 collateralPoolId, 
+        address baseToken, 
+        UD60x18 imMultiplier
+    ) 
         private 
+        view
         returns(int256 initialDelta, int256 liquidationDelta) 
     {
+        (initialDelta, liquidationDelta) = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier);
+
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, baseToken).childTokens.values();
 
         for (uint256 i = 0; i < tokens.length; i++) {
             (int256 subInitialDelta, int256 subLiquidationDelta) = 
-                _requirementDeltas(account, collateralPoolId, tokens[i], imMultiplier);
+                computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier);
 
             UD60x18 price = CollateralConfiguration.getCollateralPriceInToken(collateralPoolId, tokens[i], baseToken);
             UD60x18 haircut = CollateralConfiguration.exists(collateralPoolId, tokens[i]).parentConfig.exchangeHaircut;
@@ -76,44 +98,37 @@ library AccountExposure {
             }
         }
 
-        // fetch the collateral balance and add it to the deltas
-        uint256 collateralBalance = account.getCollateralBalance(baseToken);
-    
-        initialDelta += collateralBalance.toInt();
-        liquidationDelta += collateralBalance.toInt();
-
-        // fetch the margin requirements and subtract them from deltas
-        (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss) = account.getRequirementsByCollateralType(baseToken);
-        uint256 initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
-
-        initialDelta -= (initialMarginRequirement + highestUnrealizedLoss).toInt();
-        liquidationDelta -= (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
+        return (initialDelta, liquidationDelta);
     }
 
     /**
-     * @dev Returns the initial (im) and liquidataion (lm) margin requirements of the account and highest unrealized loss
-     * for a given collateral type along with the flags for im satisfied or lm satisfied
+     * @dev Returns the initial (im) and liquidataion (lm) margin requirement deltas
      * @dev The amounts are in collateral type. 
      */
-    function getRequirementsByCollateralType(
+    function getRequirementDeltasByCollateralType(
         Account.Data storage self, 
-        address collateralType
+        address collateralType,
+        UD60x18 imMultiplier
     )
         internal
         view
-        returns (uint256 liquidationMarginRequirement, uint256 highestUnrealizedLoss)
+        returns (int256 initialDelta, int256 liquidationDelta)
     {
+        uint256 liquidationMarginRequirement = 0;
+        uint256 highestUnrealizedLoss = 0;
+
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
         for (uint256 i = 0; i < markets.length; i++) {
             uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
 
             // Get the risk parameter of the market
-            UD60x18 riskParameter = getRiskParameter(marketId);
+            UD60x18 riskParameter = market.riskConfig.riskParameter;
 
             // Get taker and maker exposure to the market
             Account.MakerMarketExposure[] memory makerExposures = 
-                Market.exists(marketId).getAccountTakerAndMakerExposures(self.id);
+                market.getAccountTakerAndMakerExposures(self.id);
 
             // Aggregate LMR and unrealized loss for all exposures
             for (uint256 j = 0; j < makerExposures.length; j++) {
@@ -144,17 +159,23 @@ library AccountExposure {
                }
             }
         }
-    }
 
-    function getRiskParameter(uint128 marketId) internal view returns (UD60x18 riskParameter) {
-        return Market.exists(marketId).riskConfig.riskParameter;
+        // Get the initial margin requirement
+        uint256 initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+
+        // Get the collateral balance of the account in this specific collateral
+        uint256 collateralBalance = self.getCollateralBalance(collateralType);
+
+        // Compute and return the initial and liquidation deltas
+        initialDelta = collateralBalance.toInt() - (initialMarginRequirement + highestUnrealizedLoss).toInt();
+        liquidationDelta = collateralBalance.toInt() - (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
     }
 
     /**
      * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter
      */
     function computeLiquidationMarginRequirement(int256 annualizedNotional, UD60x18 riskParameter)
-    internal
+    private
     pure
     returns (uint256 liquidationMarginRequirement)
     {
@@ -167,14 +188,18 @@ library AccountExposure {
      * @dev Returns the initial margin requirement given the liquidation margin requirement and the im multiplier
      */
     function computeInitialMarginRequirement(uint256 liquidationMarginRequirement, UD60x18 imMultiplier)
-    internal
+    private
     pure
     returns (uint256 initialMarginRequirement)
     {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
     }
 
-    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) internal pure returns (bool) {
+    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
+    private 
+    pure 
+    returns (bool) 
+    {
         if (
             a.annualizedNotional == b.annualizedNotional && 
             a.unrealizedLoss == b.unrealizedLoss
