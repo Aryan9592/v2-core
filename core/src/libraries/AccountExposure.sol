@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
-import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {CollateralPool} from "../storage/CollateralPool.sol";
 import {Market} from "../storage/Market.sol";
 
@@ -32,7 +32,7 @@ library AccountExposure {
     function getRequirementDeltasByBubble(Account.Data storage account, address baseToken) 
         internal 
         view
-        returns (int256 /* initialDelta */, int256 /* liquidationDelta */) 
+        returns (Account.MarginRequirementDeltas memory deltas) 
     {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
@@ -43,20 +43,27 @@ library AccountExposure {
         }
 
         if (account.accountMode == Account.MULTI_TOKEN_MODE) {
-            (int256 initialDeltaInUSD, int256 liquidationDeltaInUSD) = 
+            Account.MarginRequirementDeltas memory deltasInUSD = 
                 computeRequirementDeltasByBubble(account, collateralPoolId, address(0), imMultiplier); 
 
             if (baseToken == address(0)) {
-                return (initialDeltaInUSD, liquidationDeltaInUSD);
+                return deltasInUSD;
             }
 
-            CollateralConfiguration.ExchangeInfo memory exchange = 
-                CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
-                
-            int256 initialDelta = divIntUDx(initialDeltaInUSD, exchange.price.mul(exchange.exchangeHaircut));
-            int256 liquidationDelta = divIntUDx(liquidationDeltaInUSD, exchange.price.mul(exchange.exchangeHaircut));
+            UD60x18 exchangeHaircut = 
+                CollateralConfiguration.getExchangeHaircut(collateralPoolId, baseToken, address(0));
+        
+            UD60x18 price = 
+                CollateralConfiguration.getCollateralPrice(collateralPoolId, baseToken, address(0));
             
-            return (initialDelta, liquidationDelta);
+            int256 initialDelta = divIntUDx(deltasInUSD.initialDelta, price.mul(exchangeHaircut));
+            int256 liquidationDelta = divIntUDx(deltasInUSD.liquidationDelta, price.mul(exchangeHaircut));
+            
+            return Account.MarginRequirementDeltas({
+                initialDelta: initialDelta,
+                liquidationDelta: liquidationDelta,
+                collateralType: baseToken
+            });
         }
 
         revert UnsupportedAccountExposure(account.accountMode);
@@ -70,35 +77,33 @@ library AccountExposure {
     ) 
         private 
         view
-        returns(int256 initialDelta, int256 liquidationDelta) 
+        returns(Account.MarginRequirementDeltas memory deltas) 
     {
-        (initialDelta, liquidationDelta) = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier);
+        deltas = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier);
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, baseToken).childTokens.values();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            (int256 subInitialDelta, int256 subLiquidationDelta) = 
+            Account.MarginRequirementDeltas memory subs = 
                 computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier);
 
-            UD60x18 price = CollateralConfiguration.getCollateralPriceInToken(collateralPoolId, tokens[i], baseToken);
+            UD60x18 price = CollateralConfiguration.getCollateralPrice(collateralPoolId, tokens[i], baseToken);
             UD60x18 haircut = CollateralConfiguration.exists(collateralPoolId, tokens[i]).parentConfig.exchangeHaircut;
 
-            if (subInitialDelta <= 0) {
-                initialDelta += mulUDxInt(price, subInitialDelta);
+            if (subs.initialDelta <= 0) {
+                deltas.initialDelta += mulUDxInt(price, subs.initialDelta);
             }
             else {
-                initialDelta += mulUDxInt(price.mul(haircut), subInitialDelta);
+                deltas.initialDelta += mulUDxInt(price.mul(haircut), subs.initialDelta);
             }
 
-            if (subLiquidationDelta <= 0) {
-                liquidationDelta += mulUDxInt(price, subLiquidationDelta);
+            if (subs.liquidationDelta <= 0) {
+                deltas.liquidationDelta += mulUDxInt(price, subs.liquidationDelta);
             }
             else {
-                liquidationDelta += mulUDxInt(price.mul(haircut), subLiquidationDelta);
+                deltas.liquidationDelta += mulUDxInt(price.mul(haircut), subs.liquidationDelta);
             }
         }
-
-        return (initialDelta, liquidationDelta);
     }
 
     /**
@@ -112,7 +117,7 @@ library AccountExposure {
     )
         internal
         view
-        returns (int256 initialDelta, int256 liquidationDelta)
+        returns (Account.MarginRequirementDeltas memory)
     {
         uint256 liquidationMarginRequirement = 0;
         uint256 highestUnrealizedLoss = 0;
@@ -167,8 +172,14 @@ library AccountExposure {
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
         // Compute and return the initial and liquidation deltas
-        initialDelta = collateralBalance.toInt() - (initialMarginRequirement + highestUnrealizedLoss).toInt();
-        liquidationDelta = collateralBalance.toInt() - (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
+        int256 initialDelta = collateralBalance.toInt() - (initialMarginRequirement + highestUnrealizedLoss).toInt();
+        int256 liquidationDelta = collateralBalance.toInt() - (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
+
+        return Account.MarginRequirementDeltas({
+            initialDelta: initialDelta,
+            liquidationDelta: liquidationDelta,
+            collateralType: collateralType
+        });
     }
 
     /**

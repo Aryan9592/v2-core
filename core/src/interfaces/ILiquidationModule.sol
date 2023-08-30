@@ -18,10 +18,10 @@ interface ILiquidationModule {
      * @notice Get the im and lm requirements and highest unrealized loss along with the flags for im or lm satisfied 
      * @param accountId The id of the account that is being checked
      * @param collateralType The collateral type of the account that is being checked
-     * @return mr Margin requirement and highest unrealized loss information
+     * @return Margin requirement information
      */
-    function getMarginRequirementsAndHighestUnrealizedLoss(uint128 accountId, address collateralType) 
+    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
         external 
         view 
-        returns (Account.MarginRequirement memory mr);
+        returns (Account.MarginRequirementDeltas memory);
 }

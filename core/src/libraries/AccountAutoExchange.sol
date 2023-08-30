@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import {AccountExposure} from "./AccountExposure.sol";
 import {Account} from "../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
-import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {CollateralPool} from "../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -40,18 +40,18 @@ library AccountAutoExchange {
 
         // Single auto-exchange threshold check
         {
-            (int256 accountValueOfCollateral, ) = 
+            Account.MarginRequirementDeltas memory deltas =
                 self.getRequirementDeltasByCollateralType(collateralType, imMultiplier);
 
-            if (accountValueOfCollateral > 0) {
+            if (deltas.initialDelta > 0) {
                 return false;
             }
 
-            CollateralConfiguration.ExchangeInfo memory exchange = 
-                    CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0));
+            UD60x18 price = 
+                CollateralConfiguration.getCollateralPrice(collateralPoolId, collateralType, address(0));
 
             int256 accountValueOfCollateralInUSD = 
-                mulUDxInt(exchange.price.mul(exchange.exchangeHaircut), accountValueOfCollateral);
+                mulUDxInt(price, deltas.initialDelta);
 
             if ((-accountValueOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
                 return true;
@@ -59,7 +59,11 @@ library AccountAutoExchange {
         }
 
         // Get total account value in USD
-        (int256 totalAccountValueInUSD, ) = self.getRequirementDeltasByBubble(address(0));
+        int256 totalAccountValueInUSD = 0;
+        {
+            Account.MarginRequirementDeltas memory deltas = self.getRequirementDeltasByBubble(address(0));
+            totalAccountValueInUSD = deltas.initialDelta;
+        }
 
         // Get total negative account value in USD
         uint256 sumOfNegativeAccountValuesInUSD = 0;
@@ -68,15 +72,15 @@ library AccountAutoExchange {
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
 
-            (int256 totalAccountValueOfQuoteToken, ) = 
-                self.getRequirementDeltasByCollateralType(quoteTokens[i], imMultiplier);
+            Account.MarginRequirementDeltas memory deltas = 
+                self.getRequirementDeltasByCollateralType(quoteToken, imMultiplier);
             
-            if (totalAccountValueOfQuoteToken < 0) {
-                CollateralConfiguration.ExchangeInfo memory exchange = 
-                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, address(0));
+            if (deltas.initialDelta < 0) {
+                UD60x18 price = 
+                    CollateralConfiguration.getCollateralPrice(collateralPoolId, quoteToken, address(0));
 
                 sumOfNegativeAccountValuesInUSD += 
-                    mulUDxUint(exchange.price.mul(exchange.exchangeHaircut), (-totalAccountValueOfQuoteToken).toUint());
+                    mulUDxUint(price, (-deltas.initialDelta).toUint());
             }
         }
         
@@ -101,42 +105,42 @@ library AccountAutoExchange {
     function getMaxAmountToExchangeQuote(
         Account.Data storage self,
         address coveringToken,
-        address autoexchangedToken
-    ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ ) {
+        address autoExchangedToken
+    ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
 
-        (int256 accountValue, ) = 
-            self.getRequirementDeltasByCollateralType(autoexchangedToken, imMultiplier);
+        Account.MarginRequirementDeltas memory deltas = 
+            self.getRequirementDeltasByCollateralType(autoExchangedToken, imMultiplier);
 
-        if (accountValue > 0) {
+        if (deltas.initialDelta > 0) {
             return (0, 0);
         }
 
         uint256 amountToAutoExchange = mulUDxUint(
             AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-accountValue).toUint()
+            (-deltas.initialDelta).toUint()
         );
 
         // todo: do we consider that we can use the entire collateral balance of covering token?
         uint256 coveringTokenAmount = self.getCollateralBalance(coveringToken);
 
-        UD60x18 autoexchangeDiscount = 
-            CollateralConfiguration.getAutoExchangeDiscount(collateralPoolId, coveringToken, autoexchangedToken);
+        UD60x18 autoExchangeDiscount = 
+            CollateralConfiguration.getAutoExchangeDiscount(collateralPoolId, coveringToken, autoExchangedToken);
         
         UD60x18 price = 
-            CollateralConfiguration.getCollateralPriceInToken(collateralPoolId, coveringToken, autoexchangedToken);
+            CollateralConfiguration.getCollateralPrice(collateralPoolId, coveringToken, autoExchangedToken);
 
         uint256 availableToAutoExchange = 
-            mulUDxUint(price.mul(autoexchangeDiscount), coveringTokenAmount);
+            mulUDxUint(price.mul(autoExchangeDiscount), coveringTokenAmount);
         
         if (availableToAutoExchange <= amountToAutoExchange) {
             return (coveringTokenAmount, availableToAutoExchange);
         }
         else {
-            uint256 correspondingTokenCoveringAmount = divUintUDx(coveringTokenAmount, price.mul(autoexchangeDiscount));
+            uint256 correspondingTokenCoveringAmount = divUintUDx(coveringTokenAmount, price.mul(autoExchangeDiscount));
             return (correspondingTokenCoveringAmount, amountToAutoExchange);
         }
     }

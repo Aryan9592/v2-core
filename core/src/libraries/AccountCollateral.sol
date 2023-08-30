@@ -113,10 +113,10 @@ library AccountCollateral {
         returns (uint256 /* withdrawableCollateralBalance */)
     {
         // get account value in the given collateral
-        (int256 accountValueInCollateral, )  = 
+        Account.MarginRequirementDeltas memory deltas  = 
             self.getRequirementDeltasByBubble(collateralType);
 
-        if (accountValueInCollateral <= 0) {
+        if (deltas.initialDelta <= 0) {
             return 0;
         }
 
@@ -124,8 +124,8 @@ library AccountCollateral {
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
         // get minimum between account collateral balance and available collateral
-        return (collateralBalance <= accountValueInCollateral.toUint()) 
+        return (collateralBalance <= deltas.initialDelta.toUint()) 
             ? collateralBalance
-            : accountValueInCollateral.toUint();
+            : deltas.initialDelta.toUint();
     }
 }

@@ -45,11 +45,11 @@ contract AutoExchangeModule is IAutoExchangeModule {
     function getMaxAmountToExchangeQuote(
         uint128 accountId,
         address coveringToken,
-        address autoexchangedToken
-    ) external view returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ ) {
+        address autoExchangedToken
+    ) external view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
         return Account.exists(accountId).getMaxAmountToExchangeQuote(
             coveringToken,
-            autoexchangedToken
+            autoExchangedToken
         );
     }
 }

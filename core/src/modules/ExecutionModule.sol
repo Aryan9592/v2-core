@@ -74,7 +74,7 @@ contract ExecutionModule {
     function operate(
         uint128 accountId,
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs, Account.MarginRequirement memory marginRequirement) {
+    ) external returns (bytes[] memory outputs, Account.MarginRequirementDeltas memory marginRequirement) {
         preOperateCheck(accountId);
 
         outputs = new bytes[](commands.length);

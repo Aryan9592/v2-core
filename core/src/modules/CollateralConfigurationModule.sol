@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import {ICollateralConfigurationModule} from "../interfaces/ICollateralConfigurationModule.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {CollateralConfiguration} from "../storage/CollateralBubble.sol";
+import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**

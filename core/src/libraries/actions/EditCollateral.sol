@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 import "../../storage/Account.sol";
-import {CollateralConfiguration} from "../../storage/CollateralBubble.sol";
+import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 
 /**
  * @title Library for depositing and withdrawing logic.

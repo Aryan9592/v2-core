@@ -26,6 +26,9 @@ library CollateralConfiguration {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
 
+    bytes32 constant private AUTO_EXCHANGE_DISCOUNT_OP = "AUTO_EXCHANGE_DISCOUNT_OP";
+    bytes32 constant private EXCHANGE_HAIRCUT_OP = "EXCHANGE_HAIRCUT_OP";
+
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
      * @param baseConfig The base configuration with the newly configured details.
@@ -51,7 +54,7 @@ library CollateralConfiguration {
      * @param token The address of the collateral type that needs to be exchanged.
      * @param baseToken The base token of the exchange.
      */
-    error CannotExchangeTokens(uint128 collateralPoolId, address token, address baseToken);
+    error UnlinkedTokens(uint128 collateralPoolId, address token, address baseToken);
 
     /**
      * @dev Thrown when collateral is not configured
@@ -129,15 +132,6 @@ library CollateralConfiguration {
         ParentConfiguration parentConfig;
     }
 
-    struct ExchangeInfo {
-        address token;
-        address baseToken;
-
-        UD60x18 price;
-        UD60x18 exchangeHaircut;
-        UD60x18 autoExchangeDiscount;
-    }
-
     /**
      * @dev Loads the Configuration object for the given collateral type in the given collateral pool.
      * @param collateralPoolId The collateral pool id.
@@ -204,6 +198,17 @@ library CollateralConfiguration {
         emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
     }
 
+    /**
+     * @dev Shows if a given collateral type is enabled for deposits and delegation.
+     * @param collateralPoolId The id of the collateral pool being queried.
+     * @param token The address of the collateral being queried.
+     */
+    function collateralEnabled(uint128 collateralPoolId, address token) internal view {
+        if (!exists(collateralPoolId, token).baseConfig.depositingEnabled) {
+            revert CollateralDepositDisabled(collateralPoolId, token);
+        }
+    }
+
     function getRootPath(uint128 collateralPoolId, address token) private view returns(address[] memory) {
         uint256 size = 0;
     
@@ -253,119 +258,65 @@ library CollateralConfiguration {
         return pathA[pathA.length + 1 - commonPoints];
     }
 
-    function getExchangeInfo(uint128 collateralPoolId, address token, address baseToken) 
-        internal
+    function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor, bytes32 kind) 
+        private
         view 
-        returns (ExchangeInfo memory exchangeInfo) 
+        returns (UD60x18 exchange) 
     {
-        exchangeInfo.token = token;
-        exchangeInfo.baseToken = baseToken;
-
-        exchangeInfo.price = UNIT;
-        exchangeInfo.exchangeHaircut = UNIT;
-        exchangeInfo.autoExchangeDiscount = UNIT;
+        address current = node;
+        exchange = UNIT;
     
         while (true) {
-            Data storage current = exists(collateralPoolId, token);
-
-            if (!current.parentConfig.hasParent) {
-                revert CannotExchangeTokens(collateralPoolId, token, baseToken);
-            }
-
-            address parentToken = current.parentConfig.tokenAddress;
-
-            if (parentToken == baseToken) {
+            if (current == ancestor) {
                 break;
             }
 
-            UD60x18 pairPrice = getCollateralPriceInToken(collateralPoolId, token, parentToken);
+            Data storage currentConfig = exists(collateralPoolId, current);
 
-            exchangeInfo.price = exchangeInfo.price.mul(pairPrice);
-            exchangeInfo.exchangeHaircut = exchangeInfo.exchangeHaircut.mul(current.parentConfig.exchangeHaircut);
-            exchangeInfo.autoExchangeDiscount = exchangeInfo.autoExchangeDiscount.mul(current.parentConfig.autoExchangeDiscount);
-
-            token = parentToken;
-        }        
-    }
-
-    function getSubTokens(uint128 collateralPoolId, address baseToken)
-        internal 
-        view
-        returns (ExchangeInfo[] memory) 
-    {
-        uint256 it = 1;
-        address[] memory tokens = exists(collateralPoolId, baseToken).childTokens.values();
-        ExchangeInfo[][] memory sub = new ExchangeInfo[][](tokens.length);
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            sub[i] = getSubTokens(collateralPoolId, tokens[i]);
-            it += sub.length;
-        }
-
-        ExchangeInfo[] memory info = new ExchangeInfo[](it);
-
-        info[0] = ExchangeInfo({
-            token: baseToken,
-            baseToken: baseToken,
-
-            price: UNIT,
-            exchangeHaircut: UNIT,
-            autoExchangeDiscount: UNIT
-        });
-
-        it = 1;
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            Data storage token = exists(collateralPoolId, tokens[i]);
-
-            UD60x18 pairPrice = getCollateralPriceInToken(collateralPoolId, token.cachedConfig.tokenAddress, baseToken);
-
-            for (uint256 j = 0; j < sub[i].length; j++) {
-                info[it] = ExchangeInfo({
-                    token: sub[i][j].token,
-                    baseToken: baseToken,
-
-                    price: sub[i][j].price.mul(pairPrice),
-                    exchangeHaircut: sub[i][j].exchangeHaircut.mul(token.parentConfig.exchangeHaircut),
-                    autoExchangeDiscount: sub[i][j].autoExchangeDiscount.mul(token.parentConfig.autoExchangeDiscount)
-                });
-
-                it += 1;
+            if (!currentConfig.parentConfig.hasParent) {
+                revert UnlinkedTokens(collateralPoolId, node, ancestor);
             }
-        }
 
-        return info;
+            if (kind == EXCHANGE_HAIRCUT_OP) {
+                exchange = exchange.mul(currentConfig.parentConfig.exchangeHaircut);
+            }
+            else if (kind == AUTO_EXCHANGE_DISCOUNT_OP) {
+                exchange = exchange.mul(currentConfig.parentConfig.autoExchangeDiscount);
+            }
+            else {
+                revert("a");
+            }
+
+            current = currentConfig.parentConfig.tokenAddress;
+        }        
     }
 
     function getAutoExchangeDiscount(uint128 collateralPoolId, address tokenA, address tokenB) 
         internal
         view 
-        returns(UD60x18 /* autoexchangeDiscount */) 
+        returns(UD60x18 /* autoExchangeDiscount */) 
     {
         address baseToken = getCommonToken(collateralPoolId, tokenA, tokenB);
 
-        ExchangeInfo memory exchangeInfoA = getExchangeInfo(collateralPoolId, tokenA, baseToken);
-        ExchangeInfo memory exchangeInfoB = getExchangeInfo(collateralPoolId, tokenB, baseToken);
+        UD60x18 exchangeA = computeExchangeUpwards(collateralPoolId, tokenA, baseToken, AUTO_EXCHANGE_DISCOUNT_OP);
+        UD60x18 exchangeB = computeExchangeUpwards(collateralPoolId, tokenB, baseToken, AUTO_EXCHANGE_DISCOUNT_OP);
 
-        return exchangeInfoA.autoExchangeDiscount.mul(exchangeInfoB.autoExchangeDiscount);
+        return exchangeA.mul(exchangeB);
     }
 
-    /**
-     * @dev Shows if a given collateral type is enabled for deposits and delegation.
-     * @param collateralPoolId The id of the collateral pool being queried.
-     * @param token The address of the collateral being queried.
-     */
-    function collateralEnabled(uint128 collateralPoolId, address token) internal view {
-        if (!exists(collateralPoolId, token).baseConfig.depositingEnabled) {
-            revert CollateralDepositDisabled(collateralPoolId, token);
-        }
+    function getExchangeHaircut(uint128 collateralPoolId, address token, address baseToken) 
+        internal
+        view 
+        returns(UD60x18 /* exchangeHaircut */) 
+    {
+        return computeExchangeUpwards(collateralPoolId, token, baseToken, EXCHANGE_HAIRCUT_OP);
     }
 
     /**
      * @dev Returns the price of one collateral `token` in USD.
      * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralPriceInUSD(uint128 collateralPoolId, address token) internal view returns (UD60x18) {
+    function getCollateralPriceInUSD(uint128 collateralPoolId, address token) private view returns (UD60x18) {
         if (token == address(0)) {
             return UNIT;
         }
@@ -382,7 +333,7 @@ library CollateralConfiguration {
      * @dev Returns the price of one collateral `tokenA` in other collateral `tokenB`.
      * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralPriceInToken(uint128 collateralPoolId, address tokenA, address tokenB) internal view returns (UD60x18) {
+    function getCollateralPrice(uint128 collateralPoolId, address tokenA, address tokenB) internal view returns (UD60x18) {
         UD60x18 priceA = getCollateralPriceInUSD(collateralPoolId, tokenA);
         UD60x18 priceB = getCollateralPriceInUSD(collateralPoolId, tokenB);
 

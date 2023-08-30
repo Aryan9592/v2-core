@@ -29,14 +29,13 @@ contract LiquidationModule is ILiquidationModule {
     /**
      * @inheritdoc ILiquidationModule
      */
-    function getMarginRequirementsAndHighestUnrealizedLoss(uint128 accountId, address collateralType) 
+    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
         external 
         view 
         override 
-        returns (Account.MarginRequirement memory mr) 
+        returns (Account.MarginRequirementDeltas memory) 
     {
-        // Account.Data storage account = Account.exists(accountId);
-        // mr = account.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        return Account.exists(accountId).getRequirementDeltasByBubble(collateralType);
     }
 
 }

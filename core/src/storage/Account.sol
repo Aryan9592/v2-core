@@ -64,7 +64,7 @@ library Account {
      * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, address collateralType, MarginRequirement marginRequirements);
+    error AccountBelowIM(uint128 accountId, MarginRequirementDeltas marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -74,13 +74,9 @@ library Account {
     /**
      * @dev Structure for tracking margin requirement information.
      */
-    struct MarginRequirement {
-        bool isIMSatisfied;
-        bool isLMSatisfied;
-        uint256 initialMarginRequirement;
-        uint256 liquidationMarginRequirement;
-        uint256 highestUnrealizedLoss;
-        uint256 availableCollateralBalance;
+    struct MarginRequirementDeltas {
+        int256 initialDelta;
+        int256 liquidationDelta;
         address collateralType;
     }
 
@@ -338,7 +334,7 @@ library Account {
     function getRequirementDeltasByBubble(Account.Data storage self, address collateralType)
         internal
         view
-        returns (int256 initialDelta, int256 liquidationDelta)
+        returns (Account.MarginRequirementDeltas memory)
     {
         return AccountExposure.getRequirementDeltasByBubble(self, collateralType);
     }
@@ -346,7 +342,7 @@ library Account {
     function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
         internal
         view
-        returns (int256 initialDelta, int256 liquidationDelta)
+        returns (Account.MarginRequirementDeltas memory)
     {
         return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier);
     }
@@ -358,13 +354,13 @@ library Account {
     function imCheck(Data storage self, address collateralType) 
         internal 
         view 
-        returns (MarginRequirement memory mr)
+        returns (Account.MarginRequirementDeltas memory mr)
     {
-        // mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        mr = self.getRequirementDeltasByBubble(collateralType);
         
-        // if (!mr.isIMSatisfied) {
-        //     revert AccountBelowIM(self.id, collateralType, mr);
-        // }
+        if (mr.initialDelta < 0) {
+            revert AccountBelowIM(self.id, mr);
+        }
     }
 
 
@@ -386,13 +382,13 @@ library Account {
     function getMaxAmountToExchangeQuote(
         Account.Data storage self,
         address coveringToken,
-        address autoexchangedToken
+        address autoExchangedToken
     )
         internal
         view
-        returns (uint256 /* coveringAmount */, uint256 /* autoexchangedAmount */ )
+        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
     {
-        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoexchangedToken);
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     }
 
     /**
