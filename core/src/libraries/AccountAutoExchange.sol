@@ -14,7 +14,8 @@ import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {CollateralPool} from "../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import { mulUDxUint, mulUDxInt, divUintUDx, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
@@ -127,8 +128,8 @@ library AccountAutoExchange {
         // todo: do we consider that we can use the entire collateral balance of covering token?
         uint256 coveringTokenAmount = self.getCollateralBalance(coveringToken);
 
-        UD60x18 autoExchangeDiscount = 
-            CollateralConfiguration.getAutoExchangeDiscount(collateralPoolId, coveringToken, autoExchangedToken);
+        // todo: replace auto-exchange discount with the liquidation logic
+        UD60x18 autoExchangeDiscount = UNIT;
         
         UD60x18 price = 
             CollateralConfiguration.getCollateralPrice(collateralPoolId, coveringToken, autoExchangedToken);
