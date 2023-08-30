@@ -726,21 +726,6 @@ library DatedIrsVamm {
         return (state.quoteTokenDeltaCumulative, state.baseTokenDeltaCumulative);
     }
 
-    function getAccountsBaseBalanceFromLiquidity(Data storage self, uint128 accountId) 
-        internal view returns (uint256 baseBalance) 
-    {
-        uint128[] memory positionIds = self.vars.positionsInAccount[accountId];
-        for(uint256 i = 0; i < positionIds.length; i++) {
-            LPPosition.Data memory position = LPPosition.exists(positionIds[i]);
-            uint128 liquidity = position.liquidity;
-            uint160 sqrtRatioLowerX96 = TickMath.getSqrtRatioAtTick(position.tickLower);
-            uint160 sqrtRatioUpperX96 = TickMath.getSqrtRatioAtTick(position.tickUpper);
-
-            baseBalance += 
-                 VAMMBase.baseAmountFromLiquidity(liquidity.toInt(), sqrtRatioLowerX96, sqrtRatioUpperX96).toUint();
-        }
-    }
-
     /// @notice For a given LP account, how much liquidity is available to trade in each direction.
     /// @param accountId The LP account. All positions within the account will be considered.
     /// @return unfilledBaseLong The base tokens available for a trader to take 

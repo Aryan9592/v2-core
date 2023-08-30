@@ -84,20 +84,4 @@ interface IPool is IERC165 {
         external
         view
         returns (UD60x18 datedIRSTwap);
-    
-    /**
-    * @notice Returns the base amount minted by an account.
-    * @param marketId Id of the market to look at 
-    * @param maturityTimestamp Timestamp at which a given market matures
-    * @param accountId Id of the `Account` to look at
-    * @return baseBalance Base amount minted by the account
-    */
-    function getAccountsBaseBalanceFromLiquidity(
-            uint128 marketId,
-            uint32 maturityTimestamp,
-            uint128 accountId
-        )
-        external
-        view
-        returns (uint256 baseBalance);
 }
