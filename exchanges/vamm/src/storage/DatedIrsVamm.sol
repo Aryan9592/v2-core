@@ -5,7 +5,7 @@ import "./LPPosition.sol";
 import "./Oracle.sol";
 import {PoolConfiguration} from "./PoolConfiguration.sol";
 
-import "../libraries/vamm-utils/VammBase.sol";
+import "../libraries/vamm-utils/VammHelpers.sol";
 import "../libraries/vamm-utils/VammTicks.sol";
 import "../libraries/vamm-utils/SwapMath.sol";
 import "../libraries/vamm-utils/VammConfiguration.sol";
@@ -26,7 +26,7 @@ library DatedIrsVamm {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SafeCastU128 for uint128;
-    using VammBase for bool;
+    using VammHelpers for bool;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
     using Oracle for Oracle.Observation[65535];
@@ -154,7 +154,7 @@ library DatedIrsVamm {
 
         _updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
 
-        emit VammBase.LiquidityChange(
+        emit VammHelpers.LiquidityChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,
@@ -311,7 +311,7 @@ library DatedIrsVamm {
 
         uint128 liquidityStart = self.vars.liquidity;
 
-        VammBase.SwapState memory state = VammBase.SwapState({
+        VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
@@ -328,7 +328,7 @@ library DatedIrsVamm {
             state.amountSpecifiedRemaining != 0 &&
             state.sqrtPriceX96 != params.sqrtPriceLimitX96
         ) {
-            VammBase.StepComputations memory step;
+            VammHelpers.StepComputations memory step;
 
             ///// GET NEXT TICK /////
 
@@ -392,7 +392,7 @@ library DatedIrsVamm {
             ///// UPDATE TRACKERS /////
             state.amountSpecifiedRemaining -= step.baseTokenDelta;
             if (state.liquidity > 0) {
-                step.quoteTokenDelta = VammBase.calculateQuoteTokenDelta(
+                step.quoteTokenDelta = VammHelpers.calculateQuoteTokenDelta(
                     step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
                     FixedAndVariableMath.accrualFact(swapFixedValues.secondsTillMaturity),
@@ -403,7 +403,7 @@ library DatedIrsVamm {
                 (
                     state.trackerQuoteTokenGrowthGlobalX128,
                     state.trackerBaseTokenGrowthGlobalX128
-                ) = VammBase.calculateGlobalTrackerValues(
+                ) = VammHelpers.calculateGlobalTrackerValues(
                     state,
                     step.quoteTokenDelta,
                     step.baseTokenDelta
@@ -465,14 +465,14 @@ library DatedIrsVamm {
         self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
         self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
 
-        emit VammBase.VAMMPriceChange(
+        emit VammHelpers.VAMMPriceChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
-        emit VammBase.Swap(
+        emit VammHelpers.Swap(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,
@@ -622,7 +622,7 @@ library DatedIrsVamm {
         internal view
         returns (uint256, uint256) {
         
-        uint256 unfilledBaseTokensLeft = baseBetweenTicks(
+        uint256 unfilledBaseTokensLeft = VammHelpers.baseBetweenTicks(
             leftLowerTick,
             leftUpperTick,
             liquidityPerTick
@@ -633,13 +633,13 @@ library DatedIrsVamm {
         }
 
         // unfilledBaseTokensLeft is negative
-        int256 unbalancedQuoteTokensLeft = unbalancedQuoteBetweenTicks(
+        int256 unbalancedQuoteTokensLeft = VammHelpers.unbalancedQuoteBetweenTicks(
             leftLowerTick,
             leftUpperTick,
             -(unfilledBaseTokensLeft).toInt()
         );
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
-        uint256 unfilledQuoteTokensLeft = VammBase.calculateQuoteTokenDelta(
+        uint256 unfilledQuoteTokensLeft = VammHelpers.calculateQuoteTokenDelta(
             unbalancedQuoteTokensLeft,
             -(unfilledBaseTokensLeft).toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
@@ -660,7 +660,7 @@ library DatedIrsVamm {
         internal view
         returns (uint256, uint256){
         
-        uint256 unfilledBaseTokensRight = baseBetweenTicks(
+        uint256 unfilledBaseTokensRight = VammHelpers.baseBetweenTicks(
             rightLowerTick,
             rightUpperTick,
             liquidityPerTick
@@ -671,14 +671,14 @@ library DatedIrsVamm {
         }
 
         // unbalancedQuoteTokensRight is positive
-        int256 unbalancedQuoteTokensRight = unbalancedQuoteBetweenTicks(
+        int256 unbalancedQuoteTokensRight = VammHelpers.unbalancedQuoteBetweenTicks(
             rightLowerTick,
             rightUpperTick,
             unfilledBaseTokensRight.toInt()
         );
 
         // unfilledQuoteTokensRight is negative
-        uint256 unfilledQuoteTokensRight = (-VammBase.calculateQuoteTokenDelta(
+        uint256 unfilledQuoteTokensRight = (-VammHelpers.calculateQuoteTokenDelta(
             unbalancedQuoteTokensRight,
             unfilledBaseTokensRight.toInt(),
             FixedAndVariableMath.accrualFact(secondsTillMaturity),
@@ -808,33 +808,5 @@ library DatedIrsVamm {
         if (flippedUpper) {
             self.vars._tickBitmap.flipTick(tickUpper, self.immutableConfig._tickSpacing);
         }
-    }
-
-    /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
-    /// The answer must be a valid `int256`. Reverts on overflow.
-    function baseBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
-        int128 _liquidityPerTick
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
-
-        return VammBase.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function unbalancedQuoteBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
-        int256 baseAmount
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
-
-        return VammBase.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
 }

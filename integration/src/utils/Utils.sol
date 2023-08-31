@@ -4,7 +4,7 @@ import {IERC721} from "@voltz-protocol/util-contracts/src/interfaces/IERC721.sol
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {FullMath} from "@voltz-protocol/v2-vamm/src/libraries/math/FullMath.sol";
-import {VammBase} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammBase.sol";
+import {VammHelpers} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammHelpers.sol";
 
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -67,7 +67,7 @@ library Utils {
     if (sqrtRatioAX96 > sqrtRatioBX96)
         (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
     uint256 absLiquidity = FullMath
-            .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), VammBase.Q96, sqrtRatioBX96 - sqrtRatioAX96);
+            .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), VammHelpers.Q96, sqrtRatioBX96 - sqrtRatioAX96);
 
     return baseAmount > 0 ? absLiquidity.toInt().to128() : -(absLiquidity.toInt().to128());
   } 

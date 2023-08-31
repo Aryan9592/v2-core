@@ -93,7 +93,7 @@ contract PoolModule is IPoolModule {
 
         vamm.executeDatedMakerOrder(accountId, marketId, tickLower, tickUpper, liquidityDelta);
 
-        return VammBase.baseAmountFromLiquidity(
+        return VammHelpers.baseAmountFromLiquidity(
             liquidityDelta,
             TickMath.getSqrtRatioAtTick(tickLower),
             TickMath.getSqrtRatioAtTick(tickUpper)

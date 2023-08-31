@@ -22,20 +22,13 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
-library VammBase {
+library VammHelpers {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
 
-    SD59x18 constant PRICE_EXPONENT_BASE = SD59x18.wrap(10001e14); // 1.0001
-    UD60x18 constant PRICE_EXPONENT_BASE_MINUS_ONE = UD60x18.wrap(1e14); // 0.0001
     uint256 internal constant Q96 = 2**96;
-
-    struct TickData {
-        mapping(int24 => Tick.Info) _ticks;
-        mapping(int16 => uint256) _tickBitmap;
-    }
 
     // ==================== EVENTS ======================
     /// @dev emitted after a successful swap transaction
@@ -165,7 +158,7 @@ library VammBase {
     }
 
     function calculateGlobalTrackerValues(
-        VammBase.SwapState memory state,
+        VammHelpers.SwapState memory state,
         int256 balancedQuoteTokenDelta,
         int256 baseTokenDelta
     ) 
@@ -183,6 +176,34 @@ library VammBase {
         stateBaseTokenGrowthGlobalX128 = 
             state.trackerBaseTokenGrowthGlobalX128 + 
                 FullMath.mulDivSigned(baseTokenDelta, FixedPoint128.Q128, state.liquidity);
+    }
+
+    /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
+    /// The answer must be a valid `int256`. Reverts on overflow.
+    function baseBetweenTicks(
+        int24 _tickLower,
+        int24 _tickUpper,
+        int128 _liquidityPerTick
+    ) internal pure returns(int256) {
+        // get sqrt ratios
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+
+        return VammHelpers.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
+    }
+
+    function unbalancedQuoteBetweenTicks(
+        int24 _tickLower,
+        int24 _tickUpper,
+        int256 baseAmount
+    ) internal pure returns(int256) {
+        // get sqrt ratios
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+
+        return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
     
 }
