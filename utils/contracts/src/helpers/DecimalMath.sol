@@ -24,6 +24,8 @@ import "./SafeCast.sol";
 library DecimalMath {
     using SafeCastU256 for uint256;
 
+    uint8 public constant WAD_DECIMALS = 18;
+
     /**
      * @dev Scales up a value.
      *
@@ -58,5 +60,33 @@ library DecimalMath {
      */
     function downscale(int x, uint factor) internal pure returns (int) {
         return x / (10 ** factor).toInt();
+    }
+
+    function changeDecimals(uint256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns (uint256) {
+        if (fromDecimals < toDecimals) {
+            return upscale(a, toDecimals - fromDecimals);
+        }
+
+        if (fromDecimals > toDecimals) {
+            // todo: think of precision loss (e.g. revert, emit event or do nothing)
+
+            return downscale(a, fromDecimals - toDecimals);
+        }
+
+        return a;
+    }
+
+    function changeDecimals(int256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns (int256) {
+        if (fromDecimals < toDecimals) {
+            return upscale(a, toDecimals - fromDecimals);
+        }
+
+        if (fromDecimals > toDecimals) {
+            // todo: think of precision loss (e.g. revert, emit event or do nothing)
+
+            return downscale(a, fromDecimals - toDecimals);
+        }
+
+        return a;
     }
 }

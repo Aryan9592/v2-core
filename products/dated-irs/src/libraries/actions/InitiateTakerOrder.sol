@@ -81,10 +81,15 @@ library InitiateTakerOrder {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
+        int256 orderSizeWad = DecimalMath.changeDecimals(
+            params.baseAmount,
+            IERC20(market.quoteToken).decimals(),
+            DecimalMath.WAD_DECIMALS
+        );
         UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
             params.marketId, 
             params.maturityTimestamp, 
-            params.baseAmount, 
+            orderSizeWad, 
             market.marketConfig.twapLookbackWindow
         );
 

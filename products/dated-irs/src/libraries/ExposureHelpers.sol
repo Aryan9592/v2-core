@@ -17,6 +17,8 @@ import { mulUDxInt, divIntUD, mulUDxUint } from "@voltz-protocol/util-contracts/
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
@@ -78,11 +80,16 @@ library ExposureHelpers {
 
         Market.Data storage market = Market.exists(marketId);
         UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
-    
+
+        int256 orderSizeWad = DecimalMath.changeDecimals(
+            -baseAmount, 
+            IERC20(market.quoteToken).decimals(),
+            DecimalMath.WAD_DECIMALS
+        );
         UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(
             marketId, 
             maturityTimestamp, 
-            -baseAmount, 
+            orderSizeWad, 
             market.marketConfig.twapLookbackWindow
         );
 

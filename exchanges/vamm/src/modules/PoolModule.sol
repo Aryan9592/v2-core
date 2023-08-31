@@ -180,17 +180,17 @@ contract PoolModule is IPoolModule {
     /**
      * @inheritdoc IPool
      */
-    function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSize, uint32 lookbackWindow) 
+    function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSizeWad, uint32 lookbackWindow) 
         external view override returns (UD60x18 datedIRSTwap) 
     {   
-        bool nonZeroOrderSize = orderSize != 0;
-        return getDatedIRSTwap(marketId, maturityTimestamp, orderSize, lookbackWindow, nonZeroOrderSize, nonZeroOrderSize);
+        bool nonZeroOrderSize = orderSizeWad != 0;
+        return getDatedIRSTwap(marketId, maturityTimestamp, orderSizeWad, lookbackWindow, nonZeroOrderSize, nonZeroOrderSize);
     }
 
     function getDatedIRSTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 orderSize,
+        int256 orderSizeWad,
         uint32 lookbackWindow,
         bool adjustForPriceImpact,
         bool adjustForSpread
@@ -198,6 +198,6 @@ contract PoolModule is IPoolModule {
         public view override returns (UD60x18 datedIRSTwap) 
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = vamm.twap(lookbackWindow, orderSize, adjustForPriceImpact, adjustForSpread);
+        datedIRSTwap = vamm.twap(lookbackWindow, orderSizeWad, adjustForPriceImpact, adjustForSpread);
     }
 }
