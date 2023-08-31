@@ -66,6 +66,8 @@ library Twap {
                 revert VammCustomErrors.TwapNotAdjustable();
             }
             
+            // note: the beta value is 1/2. if the value is set to something else and the 
+            // `pow` function must be used, the order size must be limited to 192 bits
             priceImpactAsFraction = self.mutableConfig.priceImpactPhi.mul(
                 sqrt(wrap((orderSizeWad > 0 ? orderSizeWad : -orderSizeWad).toUint()))
             );
