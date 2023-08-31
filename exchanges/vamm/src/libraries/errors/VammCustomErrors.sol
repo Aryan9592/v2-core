@@ -3,21 +3,6 @@
 pragma solidity >=0.8.13;
 
 interface VammCustomErrors {
-   
-   /**
-    * @dev Thrown when a zero address was passed as a function parameter (0x0000000000000000000000000000000000000000).
-    */ 
-   error ZeroAddress();
-
-   /**
-    * @dev Thrown when a change is expected but none is detected.
-    */ 
-   error NoChange();
-
-   /**
-    * @dev The operation is not authorized by the executing adddress
-    */ 
-   error Unauthorized(address unauthorizedAddr);
 
    /**
     * @dev Only one VAMM can exist for any given {market, maturity}
@@ -65,7 +50,7 @@ interface VammCustomErrors {
    /**
      * @dev Thrown when a specified vamm is not found.
      */
-    error IRSVammNotFound(uint128 vammId);
+    error IRSVammNotFound(uint256 vammId);
 
     /**
      * @dev Thrown when Twap order size is 0 and it tries to adjust for spread or price impact

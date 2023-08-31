@@ -1,7 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../libraries/vamm-utils/VAMMBase.sol";
+import "../libraries/vamm-utils/VammBase.sol";
+import "../libraries/math/FullMath.sol";
+import "../libraries/math/FixedPoint128.sol";
+import "../libraries/math/LiquidityMath.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**

@@ -4,7 +4,7 @@ pragma solidity >=0.8.13;
 
 import "../ticks/Tick.sol";
 import "../ticks/TickBitmap.sol";
-import "./VammConfiguration.sol";
+import {VammConfiguration} from "./VammConfiguration.sol";
 
 
 import "../math/FullMath.sol";
@@ -13,7 +13,7 @@ import "../math/FixedPoint128.sol";
 
 import "../time/Time.sol";
 
-import { UD60x18, unwrap, convert as convert_ud, ZERO } from "@prb/math/UD60x18.sol";
+import { UD60x18, unwrap, convert as convert_ud, ZERO, UNIT } from "@prb/math/UD60x18.sol";
 import { SD59x18, convert as convert_sd } from "@prb/math/SD59x18.sol";
 
 import { ud60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -22,13 +22,12 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
-library VAMMBase {
+library VammBase {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
 
-    UD60x18 constant ONE = UD60x18.wrap(1e18);
     SD59x18 constant PRICE_EXPONENT_BASE = SD59x18.wrap(10001e14); // 1.0001
     UD60x18 constant PRICE_EXPONENT_BASE_MINUS_ONE = UD60x18.wrap(1e14); // 0.0001
     uint256 internal constant Q96 = 2**96;
@@ -161,12 +160,12 @@ library VAMMBase {
         balancedQuoteTokenDelta = SD59x18.wrap(
             -baseTokenDelta
         ).mul(currentOracleValue.intoSD59x18()).mul(
-            ONE.add(averagePriceWithSpread.mul(yearsUntilMaturity)).intoSD59x18()
+            UNIT.add(averagePriceWithSpread.mul(yearsUntilMaturity)).intoSD59x18()
         ).unwrap();
     }
 
     function calculateGlobalTrackerValues(
-        VAMMBase.SwapState memory state,
+        VammBase.SwapState memory state,
         int256 balancedQuoteTokenDelta,
         int256 baseTokenDelta
     ) 
@@ -184,28 +183,6 @@ library VAMMBase {
         stateBaseTokenGrowthGlobalX128 = 
             state.trackerBaseTokenGrowthGlobalX128 + 
                 FullMath.mulDivSigned(baseTokenDelta, FixedPoint128.Q128, state.liquidity);
-    }
-
-    /// @dev Modifier that ensures new LP positions cannot be minted after one day before the maturity of the vamm
-    /// @dev also ensures new swaps cannot be conducted after one day before maturity of the vamm
-    function checkCurrentTimestampMaturityTimestampDelta(uint32 maturityTimestamp) internal view {
-        if (Time.isCloseToMaturityOrBeyondMaturity(maturityTimestamp)) {
-            revert("closeToOrBeyondMaturity");
-        }
-    }
-
-    function getSqrtRatioTargetX96(int256 amountSpecified, uint160 sqrtPriceNextX96, uint160 sqrtPriceLimitX96) 
-        internal pure returns (uint160 sqrtRatioTargetX96) {
-        // FT
-        sqrtRatioTargetX96 = sqrtPriceNextX96 > sqrtPriceLimitX96
-                ? sqrtPriceLimitX96
-                : sqrtPriceNextX96;
-        // VT 
-        if(!(amountSpecified > 0)) {
-            sqrtRatioTargetX96 = sqrtPriceNextX96 < sqrtPriceLimitX96
-                ? sqrtPriceLimitX96
-                : sqrtPriceNextX96;
-        }
     }
     
 }

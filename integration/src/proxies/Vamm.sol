@@ -2,15 +2,13 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/proxy/UUPSProxyWithOwner.sol";
 
-import "@voltz-protocol/v2-vamm/src/modules/AccountBalanceModule.sol";
 import { FeatureFlagModule as FeatureFlagModuleVamm } from "@voltz-protocol/v2-vamm/src/modules/FeatureFlagModule.sol";
 import "@voltz-protocol/v2-vamm/src/modules/OwnerUpgradeModule.sol";
 import {PoolConfigurationModule} from "@voltz-protocol/v2-vamm/src/modules/PoolConfigurationModule.sol";
-import "@voltz-protocol/v2-vamm/src/modules/PoolModule.sol";
-import "@voltz-protocol/v2-vamm/src/modules/VammModule.sol";
+import {PoolModule} from "@voltz-protocol/v2-vamm/src/modules/PoolModule.sol";
+import {VammModule} from "@voltz-protocol/v2-vamm/src/modules/VammModule.sol";
 
 contract VammRouter is
-  AccountBalanceModule,
   FeatureFlagModuleVamm,
   OwnerUpgradeModule,
   PoolConfigurationModule,
