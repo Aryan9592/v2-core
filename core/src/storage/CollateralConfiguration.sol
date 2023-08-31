@@ -14,7 +14,7 @@ import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { mulUDxUint, mulUDxInt, divUintUDx, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 import "./OracleManager.sol";
@@ -191,7 +191,7 @@ library CollateralConfiguration {
     ) internal view returns (uint256) {
         uint8 decimals = self.cachedConfig.tokenDecimals;
 
-        uint256 collateralAmountWad = changeDecimals(collateralAmount, decimals, 18);
+        uint256 collateralAmountWad = DecimalMath.changeDecimals(collateralAmount, decimals, DecimalMath.WAD_DECIMALS);
         return mulUDxUint(self.getCollateralPriceInUSD(), collateralAmountWad);
     }
 
@@ -220,8 +220,8 @@ library CollateralConfiguration {
     ) internal view returns (uint256) {
         uint8 decimals = self.cachedConfig.tokenDecimals;
 
-        uint256 collateralAmountWad = divUintUDx(usdAmount, self.getCollateralPriceInUSD());
-        return changeDecimals(collateralAmountWad, 18, decimals);
+        uint256 collateralAmountWad = divUintUD(usdAmount, self.getCollateralPriceInUSD());
+        return DecimalMath.changeDecimals(collateralAmountWad, DecimalMath.WAD_DECIMALS, decimals);
     }
 
     /**
@@ -234,23 +234,8 @@ library CollateralConfiguration {
         Data storage self,
         uint256 weightedUsdAmount
     ) internal view returns (uint256) {
-        return divUintUDx(self.getUSDInCollateral(weightedUsdAmount), self.config.weight);
+        return divUintUD(self.getUSDInCollateral(weightedUsdAmount), self.config.weight);
     }
-
-    function changeDecimals(uint256 a, uint8 fromDecimals, uint8 toDecimals) internal pure returns(uint256) {
-        if (fromDecimals < toDecimals) {
-            return DecimalMath.upscale(a, toDecimals - fromDecimals);
-        }
-
-        if (fromDecimals > toDecimals) {
-            // todo: think of precision loss (e.g. revert, emit event or do nothing)
-
-            return DecimalMath.downscale(a, fromDecimals - toDecimals);
-        }
-
-        return a;
-    }
-
 
     /**
      * @dev Returns the amount of colletaral A in collateral B.
@@ -270,7 +255,7 @@ library CollateralConfiguration {
         uint256 amountCollateralB = collateralB.getUSDInCollateral(amountUSD);
 
         // apply discount
-        discountedAmountCollateralB = divUintUDx(
+        discountedAmountCollateralB = divUintUD(
             amountCollateralB, 
             UNIT.sub(collateralB.config.autoExchangeDiscount)
         );

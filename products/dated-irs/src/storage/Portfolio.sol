@@ -20,6 +20,8 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -260,7 +262,11 @@ library Portfolio {
             UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
                 self.marketId, 
                 maturityTimestamp, 
-                unwindBase, 
+                DecimalMath.changeDecimals(
+                    unwindBase,
+                    IERC20(market.quoteToken).decimals(),
+                    DecimalMath.WAD_DECIMALS
+                ), 
                 market.marketConfig.twapLookbackWindow
             );
 

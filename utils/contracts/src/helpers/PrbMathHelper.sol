@@ -23,7 +23,7 @@ function mulUDxUint(UD60x18 a, uint256 b) pure returns (uint256) {
 /// @param a denotes the unsigned number whose precision
 /// determines the precision of the result
 /// @param b denotes the unsigned wad number
-function divUintUDx(uint256 a, UD60x18 b) pure returns (uint256) {
+function divUintUD(uint256 a, UD60x18 b) pure returns (uint256) {
     return UD60x18.unwrap(divUD60x18(UD60x18.wrap(a), b));
 }
 
