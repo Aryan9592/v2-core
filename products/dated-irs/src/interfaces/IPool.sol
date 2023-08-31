@@ -112,8 +112,10 @@ interface IPool is IERC165 {
      * @param marketId Id of the market for which we want to retrieve the dated irs twap
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param lookbackWindow Number of seconds in the past from which to calculate the time-weighted means
-     * @param orderSizeWad The order size to use when adjusting the price for price impact or spread. Must not be zero if either of the
-     * Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`. Must have WAD precision.
+     * @param orderSizeWad The order size to use when adjusting the price for price impact or spread.
+     * Must not be zero if either of the boolean params is true because it used to indicate the direction 
+     * of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` 
+     * overflows when cast to a `U60x18`. Must have 18 decimals precision.
      * @return datedIRSTwap Geometric Time Weighted Average Fixed Rate
      */
     function getAdjustedDatedIRSTwap(
