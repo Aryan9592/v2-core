@@ -3,6 +3,8 @@ pragma solidity >=0.8.13;
 
 import "../interfaces/IVammModule.sol";
 import "../storage/DatedIrsVamm.sol";
+import "../libraries/vamm-utils/Twap.sol";
+import "../libraries/vamm-utils/VammConfiguration.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 /**
@@ -11,6 +13,8 @@ import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
  */
 contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
+    using Twap for DatedIrsVamm.Data;
+    using VammConfiguration for DatedIrsVamm.Data;
 
     /**
      * @inheritdoc IVammModule
@@ -24,7 +28,7 @@ contract VammModule is IVammModule {
         VammConfiguration.Mutable calldata _mutableConfig
     ) external override {
         OwnableStorage.onlyOwner();
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.create(
+        DatedIrsVamm.Data storage vamm = VammConfiguration.create(
             _marketId,
             _sqrtPriceX96,
             times,
@@ -62,34 +66,6 @@ contract VammModule is IVammModule {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(_marketId, _maturityTimestamp);
         vamm.increaseObservationCardinalityNext(_observationCardinalityNext);
     }
-
-    /**
-     * @inheritdoc IVammModule
-     */
-    function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSize, uint32 lookbackWindow) 
-        external view override returns (UD60x18 datedIRSTwap) 
-    {   
-        bool nonZeroOrderSize = orderSize != 0;
-        return getDatedIRSTwap(marketId, maturityTimestamp, orderSize, lookbackWindow, nonZeroOrderSize, nonZeroOrderSize);
-    }
-
-    /**
-     * @inheritdoc IVammModule
-     */
-    function getDatedIRSTwap(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 orderSize,
-        uint32 lookbackWindow,
-        bool adjustForPriceImpact,
-        bool adjustForSpread
-    ) 
-        public view override returns (UD60x18 datedIRSTwap) 
-    {
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = vamm.twap(lookbackWindow, orderSize, adjustForPriceImpact, adjustForSpread);
-    }
-
 
     ////////// GETTERS //////////
 

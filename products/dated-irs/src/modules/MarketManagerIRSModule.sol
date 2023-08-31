@@ -45,7 +45,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     error NotAuthorized(address caller, bytes32 functionName);
 
     /**
-     * @inheritdoc IMarketManagerIRSModule
+     * @inheritdoc IMarketManager
      */
     function name() external pure override returns (string memory) {
         return "Dated IRS Market Manager";
@@ -67,7 +67,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManagerIRSModule
+     * @inheritdoc IMarketManager
      */
     function getAccountTakerAndMakerExposures(
         uint128 accountId,
@@ -82,7 +82,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManagerIRSModule
+     * @inheritdoc IMarketManager
      */
     function closeAccount(uint128 accountId, uint128 marketId) external override {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
@@ -95,18 +95,14 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         Portfolio.exists(accountId, marketId).closeAccount();
     }
 
+    /**
+     * @inheritdoc IMarketManagerIRSModule
+     */
     function configureMarketManager(MarketManagerConfiguration.Data memory config) external {
         OwnableStorage.onlyOwner();
 
         MarketManagerConfiguration.set(config);
         emit MarketManagerConfigured(config, block.timestamp);
-    }
-
-    /**
-     * @inheritdoc IMarketManagerIRSModule
-     */
-    function getCoreProxyAddress() external view returns (address) {
-        return MarketManagerConfiguration.getCoreProxyAddress();
     }
 
     /**

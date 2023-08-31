@@ -35,4 +35,12 @@ library Time {
             block.timestamp + SECONDS_IN_A_DAY >=
             maturityTimestamp;
     }
+
+    /// @dev Modifier that ensures new LP positions cannot be minted after one day before the maturity of the vamm
+    /// @dev also ensures new swaps cannot be conducted after one day before maturity of the vamm
+    function checkCurrentTimestampMaturityTimestampDelta(uint32 maturityTimestamp) internal view {
+        if (isCloseToMaturityOrBeyondMaturity(maturityTimestamp)) {
+            revert("closeToOrBeyondMaturity");
+        }
+    }
 }
