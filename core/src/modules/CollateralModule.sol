@@ -9,10 +9,8 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
 import {ICollateralModule} from "../interfaces/ICollateralModule.sol";
-import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {ERC20Helper} from "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 
 /**

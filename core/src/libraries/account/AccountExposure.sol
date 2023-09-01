@@ -81,25 +81,25 @@ library AccountExposure {
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, baseToken).childTokens.values();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            Account.MarginRequirementDeltas memory subs = 
+            Account.MarginRequirementDeltas memory subMR = 
                 computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier);
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
             UD60x18 haircut = collateral.parentConfig.exchangeHaircut;
 
-            if (subs.initialDelta <= 0) {
-                deltas.initialDelta += mulUDxInt(price, subs.initialDelta);
+            if (subMR.initialDelta <= 0) {
+                deltas.initialDelta += mulUDxInt(price, subMR.initialDelta);
             }
             else {
-                deltas.initialDelta += mulUDxInt(price.mul(haircut), subs.initialDelta);
+                deltas.initialDelta += mulUDxInt(price.mul(haircut), subMR.initialDelta);
             }
 
-            if (subs.liquidationDelta <= 0) {
-                deltas.liquidationDelta += mulUDxInt(price, subs.liquidationDelta);
+            if (subMR.liquidationDelta <= 0) {
+                deltas.liquidationDelta += mulUDxInt(price, subMR.liquidationDelta);
             }
             else {
-                deltas.liquidationDelta += mulUDxInt(price.mul(haircut), subs.liquidationDelta);
+                deltas.liquidationDelta += mulUDxInt(price.mul(haircut), subMR.liquidationDelta);
             }
         }
     }

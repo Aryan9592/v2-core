@@ -11,7 +11,6 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
-import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {Market} from "../../storage/Market.sol";
 
 /**

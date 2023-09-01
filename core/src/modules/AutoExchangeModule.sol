@@ -8,16 +8,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
-import {AutoExchangeConfiguration} from "../storage/AutoExchangeConfiguration.sol";
-import {CollateralPool} from "../storage/CollateralPool.sol";
-import {Market} from "../storage/Market.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-import {AutoExchange} from "../libraries/actions/AutoExchange.sol";
 
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UNIT } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Module for auto-exchange, i.e. liquidations of collaterals to address exchange rate risk
@@ -25,11 +18,7 @@ import { UNIT } from "@prb/math/UD60x18.sol";
  */
 
 contract AutoExchangeModule is IAutoExchangeModule {
-    using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
     using Account for Account.Data;
-    using Market for Market.Data;
-
     /**
      * @inheritdoc IAutoExchangeModule
      */

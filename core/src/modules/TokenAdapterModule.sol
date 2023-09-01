@@ -13,6 +13,7 @@ import {IAToken} from "../interfaces/external/IAToken.sol";
 
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import {mulDiv} from "@prb/math/UD60x18.sol";
 
 contract TokenAdapterModule is ITokenAdapterModule {
     mapping (address => bytes32) internal _tokenTypes;
@@ -25,6 +26,11 @@ contract TokenAdapterModule is ITokenAdapterModule {
 
     function registerToken(address token, bytes32 tokenType) external {
         OwnableStorage.onlyOwner();
+
+        if (!(tokenType == STANDARD || tokenType == AAVE || tokenType == LIDO)) {
+            revert UnknwonTokenType(token, tokenType);
+        }
+        
         _tokenTypes[token] = tokenType;
     }
 
@@ -59,7 +65,7 @@ contract TokenAdapterModule is ITokenAdapterModule {
 
         uint256 totalShares = _totalShares(token, tokenType);
 
-        return assets * totalShares / totalSupply; 
+        return mulDiv(assets, totalShares, totalSupply); 
     } 
 
     function convertToAssets(address token, uint256 shares) external view returns (uint256) {
@@ -77,6 +83,6 @@ contract TokenAdapterModule is ITokenAdapterModule {
 
         uint256 totalSupply = IERC20(token).totalSupply();
 
-        return shares * totalSupply / totalShares; 
+        return mulDiv(shares, totalSupply, totalShares); 
     }
 }

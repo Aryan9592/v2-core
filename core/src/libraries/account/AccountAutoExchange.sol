@@ -7,7 +7,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {AccountExposure} from "./AccountExposure.sol";
 import {Account} from "../../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../../storage/AutoExchangeConfiguration.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";

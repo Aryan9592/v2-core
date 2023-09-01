@@ -8,8 +8,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import { OracleManager } from  "./OracleManager.sol";
-import { TokenAdapter } from  "./TokenAdapter.sol";
-import { ITokenAdapterModule } from "../interfaces/ITokenAdapterModule.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
@@ -164,14 +162,14 @@ library CollateralConfiguration {
     function setBaseConfig(uint128 collateralPoolId, address tokenAddress, Configuration memory config) internal {
         Data storage storedConfig = load(collateralPoolId, tokenAddress);
 
-        storedConfig.baseConfig.depositingEnabled = config.depositingEnabled;
-        storedConfig.baseConfig.cap = config.cap;
-
-        storedConfig.cachedConfig.collateralPoolId = collateralPoolId;
-        storedConfig.cachedConfig.tokenAddress = tokenAddress;
-        uint8 tokenDecimals = IERC20(tokenAddress).decimals();
-        storedConfig.cachedConfig.tokenDecimals = tokenDecimals;
-        storedConfig.cachedConfig.set = true;
+        storedConfig.baseConfig = config;
+        
+        storedConfig.cachedConfig = CachedConfiguration({
+            collateralPoolId: collateralPoolId,
+            tokenAddress: tokenAddress,
+            tokenDecimals: IERC20(tokenAddress).decimals(),
+            set: true
+        });
 
         emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
     }
@@ -188,6 +186,7 @@ library CollateralConfiguration {
             load(collateralPoolId, parentToken).childTokens.remove(tokenAddress);
         } 
 
+        // todo: add propgramatic check against new parent being the token itself or any of its children
         storedConfig.parentConfig = config;
 
         if (storedConfig.parentConfig.hasParent) {

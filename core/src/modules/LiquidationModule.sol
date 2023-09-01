@@ -9,10 +9,7 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
-import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -23,8 +20,6 @@ import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/
 
 contract LiquidationModule is ILiquidationModule {
     using Account for Account.Data;
-    using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
 
     /**
      * @inheritdoc ILiquidationModule

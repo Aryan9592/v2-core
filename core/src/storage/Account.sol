@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "./Account.sol";
-import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
 import {CollateralPool} from "./CollateralPool.sol";
 import {Market} from "./Market.sol";
 
@@ -22,8 +21,8 @@ import {AccountMode} from "../libraries/account/AccountMode.sol";
 import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -33,7 +32,6 @@ library Account {
     using Market for Market.Data;
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 

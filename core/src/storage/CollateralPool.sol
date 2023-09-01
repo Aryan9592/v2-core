@@ -298,7 +298,7 @@ library CollateralPool {
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
         // Check the cap
-        if (collateralBalance < collateralCap) {
+        if (collateralBalance > collateralCap) {
             revert CollateralCapExceeded(self.id, collateralType, collateralCap, collateralBalance);
         }
     }

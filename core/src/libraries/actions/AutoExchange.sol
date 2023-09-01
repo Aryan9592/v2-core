@@ -12,7 +12,7 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {Market} from "../../storage/Market.sol";
 
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
