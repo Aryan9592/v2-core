@@ -57,9 +57,7 @@ library AccountActiveMarket {
 
             for (uint256 i = 0; i < activeCollaterals.length; i++) {
                 address activeCollateral = activeCollaterals[i];
-
-                CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPool.id, activeCollateral);
-                collateralPool.increaseCollateralShares(collateral, self.collateralShares[activeCollateral]);
+                collateralPool.increaseCollateralShares(activeCollateral, self.collateralShares[activeCollateral]);
             }
         }
         else {

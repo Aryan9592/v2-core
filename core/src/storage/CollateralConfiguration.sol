@@ -8,7 +8,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import { OracleManager } from  "./OracleManager.sol";
-import { TokenTypeSupport } from "../libraries/TokenTypeSupport.sol";
+import { TokenAdapter } from  "./TokenAdapter.sol";
+import { ITokenAdapterModule } from "../interfaces/ITokenAdapterModule.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
 import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
@@ -70,11 +71,6 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
-
-        /**
-         * @dev Token type.
-         */
-        bytes32 tokenType;
     }
 
     struct CachedConfiguration {
@@ -211,18 +207,16 @@ library CollateralConfiguration {
         }
     }
 
-    function convertToAssets(Data storage self, uint256 shares) internal view returns(uint256) {
-        return TokenTypeSupport.convertToAssets(
+    function convertToAssets(Data storage self, uint256 shares) private view returns(uint256) {
+        return ITokenAdapterModule(TokenAdapter.exists().tokenAdapterAddress).convertToAssets(
             self.cachedConfig.tokenAddress, 
-            self.baseConfig.tokenType, 
             shares
         );
     }
 
-    function convertToShares(Data storage self, uint256 assets) internal view returns(uint256) {
-        return TokenTypeSupport.convertToShares(
+    function convertToShares(Data storage self, uint256 assets) private view returns(uint256) {
+        return ITokenAdapterModule(TokenAdapter.exists().tokenAdapterAddress).convertToShares(
             self.cachedConfig.tokenAddress, 
-            self.baseConfig.tokenType, 
             assets
         );
     }

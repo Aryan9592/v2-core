@@ -12,7 +12,6 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Account} from "./Account.sol";
 import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
 import {CollateralPool} from "./CollateralPool.sol";
-import {CollateralConfiguration} from "./CollateralConfiguration.sol";
 import {Market} from "./Market.sol";
 
 import {AccountActiveMarket} from "../libraries/account/AccountActiveMarket.sol";
@@ -302,17 +301,11 @@ library Account {
     }
 
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        uint128 collateralPoolId = self.getCollateralPool().id;
-        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
-
-        AccountCollateral.increaseCollateralBalance(self, collateral, amount);
+        AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
     }
 
     function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        uint128 collateralPoolId = self.getCollateralPool().id;
-        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
-
-        AccountCollateral.decreaseCollateralBalance(self, collateral, amount);
+        AccountCollateral.decreaseCollateralBalance(self, collateralType, amount);
     }
 
     function getCollateralBalance(Data storage self, address collateralType)
@@ -320,10 +313,7 @@ library Account {
         view
         returns (uint256)
     {
-        uint128 collateralPoolId = self.getCollateralPool().id;
-        CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, collateralType);
-
-        return AccountCollateral.getCollateralBalance(self, collateral);
+        return AccountCollateral.getCollateralBalance(self, collateralType);
     }
 
     function getWithdrawableCollateralBalance(Data storage self, address collateralType)

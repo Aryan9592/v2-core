@@ -12,14 +12,14 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
-import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
+import {TokenAdapter} from  "../../storage/TokenAdapter.sol";
+import {ITokenAdapterModule} from "../../interfaces/ITokenAdapterModule.sol";
 
 /**
  * @title Object for tracking account collaterals.
  */
 library AccountCollateral {
     using Account for Account.Data;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
@@ -46,28 +46,26 @@ library AccountCollateral {
 
     function increaseCollateralShares(
         Account.Data storage self, 
-        CollateralConfiguration.Data storage collateral, 
+        address collateralType, 
         uint256 shares
     ) private {
-        address collateralAddress = collateral.cachedConfig.tokenAddress;
-
         // increase collateral balance
-        self.collateralShares[collateralAddress] += shares;
+        self.collateralShares[collateralType] += shares;
 
         // add the collateral type to the active collaterals if missing
-        if (self.collateralShares[collateralAddress] > 0) {
-            if (!self.activeCollaterals.contains(collateralAddress)) {
-                self.activeCollaterals.add(collateralAddress);
+        if (self.collateralShares[collateralType] > 0) {
+            if (!self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.add(collateralType);
             }
         }
 
         // update the corresponding collateral pool balance if exists
         if (self.firstMarketId != 0) {
-            self.getCollateralPool().increaseCollateralShares(collateral, shares);
+            self.getCollateralPool().increaseCollateralShares(collateralType, shares);
         }
 
         // emit event
-        emit AccountCollateralUpdated(self.id, collateralAddress, shares.toInt(), block.timestamp);
+        emit AccountCollateralUpdated(self.id, collateralType, shares.toInt(), block.timestamp);
     }
 
     /**
@@ -75,44 +73,46 @@ library AccountCollateral {
      */
     function increaseCollateralBalance(
         Account.Data storage self, 
-        CollateralConfiguration.Data storage collateral, 
+        address collateralType, 
         uint256 assets
     ) internal {
         // Convert assets to shares
-        uint256 shares = collateral.convertToShares(assets);
+        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
+        uint256 shares = ITokenAdapterModule(tokenAdapter).convertToShares(
+            collateralType, 
+            assets
+        );
 
-        increaseCollateralShares(self, collateral, shares);
+        increaseCollateralShares(self, collateralType, shares);
     }
 
     function decreaseCollateralShares(
         Account.Data storage self, 
-        CollateralConfiguration.Data storage collateral,
+        address collateralType,
         uint256 shares
     ) private {
-        address collateralAddress = collateral.cachedConfig.tokenAddress;
-
         // check collateral balance and revert if not sufficient
-        if (self.collateralShares[collateralAddress] < shares) {
-            revert InsufficientCollateral(self.id, collateralAddress, shares);
+        if (self.collateralShares[collateralType] < shares) {
+            revert InsufficientCollateral(self.id, collateralType, shares);
         }
 
         // decrease collateral balance
-        self.collateralShares[collateralAddress] -= shares;
+        self.collateralShares[collateralType] -= shares;
 
         // remove the collateral type from the active collaterals if balance goes to zero
-        if (self.collateralShares[collateralAddress] == 0) {
-            if (self.activeCollaterals.contains(collateralAddress)) {
-                self.activeCollaterals.remove(collateralAddress);
+        if (self.collateralShares[collateralType] == 0) {
+            if (self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.remove(collateralType);
             }
         }
 
         // update the corresponding collateral pool balance
         if (self.firstMarketId != 0) {
-            self.getCollateralPool().decreaseCollateralShares(collateral, shares);
+            self.getCollateralPool().decreaseCollateralShares(collateralType, shares);
         }
 
         // emit event
-        emit AccountCollateralUpdated(self.id, collateralAddress, -shares.toInt(), block.timestamp);
+        emit AccountCollateralUpdated(self.id, collateralType, -shares.toInt(), block.timestamp);
     }
 
     /**
@@ -120,14 +120,18 @@ library AccountCollateral {
      */
     function decreaseCollateralBalance(
         Account.Data storage self, 
-        CollateralConfiguration.Data storage collateral,
+        address collateralType,
         uint256 assets
     ) internal {
         // Convert assets to shares
-        uint256 shares = collateral.convertToShares(assets);
+        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
+        uint256 shares = ITokenAdapterModule(tokenAdapter).convertToShares(
+            collateralType, 
+            assets
+        );
 
         // Decrease the account shares balance
-        decreaseCollateralShares(self, collateral, shares);
+        decreaseCollateralShares(self, collateralType, shares);
     }
 
     /**
@@ -135,14 +139,16 @@ library AccountCollateral {
      */
     function getCollateralBalance(
         Account.Data storage self,
-        CollateralConfiguration.Data storage collateral
+        address collateralType
     )
         internal
         view
         returns (uint256)
     {
-        return collateral.convertToAssets(
-            self.collateralShares[collateral.cachedConfig.tokenAddress]
+        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
+        return ITokenAdapterModule(tokenAdapter).convertToAssets(
+            collateralType, 
+            self.collateralShares[collateralType]
         );
     }
 

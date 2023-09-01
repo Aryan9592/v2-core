@@ -7,22 +7,32 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {ITokenAdapterModule} from "../interfaces/ITokenAdapterModule.sol";
 import {IStEth} from "../interfaces/external/IStEth.sol";
 import {IAToken} from "../interfaces/external/IAToken.sol";
 
-import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-/**
- * @title Library for handling standard and yield-bearing token types
- */
-library TokenTypeSupport {
+contract TokenAdapterModule is ITokenAdapterModule {
+    mapping (address => bytes32) internal _tokenTypes;
+
     bytes32 constant public STANDARD = "STANDARD";
     bytes32 constant public AAVE = "AAVE"; 
     bytes32 constant public LIDO = "LIDO";
 
     error UnknwonTokenType(address token, bytes32 tokenType);
 
-    function getTotalShares(address token, bytes32 tokenType) private view returns(uint256) {
+    function registerToken(address token, bytes32 tokenType) external {
+        OwnableStorage.onlyOwner();
+        _tokenTypes[token] = tokenType;
+    }
+
+    function getTokenType(address token) external view returns(bytes32) {
+        return _tokenTypes[token];
+    }
+
+    function _totalShares(address token, bytes32 tokenType) private view returns(uint256) {
         if (tokenType == AAVE) {
             return IAToken(token).scaledTotalSupply();
         }
@@ -34,8 +44,9 @@ library TokenTypeSupport {
         revert UnknwonTokenType(token, tokenType);
     }
 
-    function convertToShares(address token, bytes32 tokenType, uint256 assets) internal view returns (uint256) {
-
+    function convertToShares(address token,  uint256 assets) external view returns (uint256) {
+        bytes32 tokenType = _tokenTypes[token];
+        
         if (tokenType == STANDARD) {
             return assets;
         }
@@ -46,18 +57,19 @@ library TokenTypeSupport {
             return assets;
         }
 
-        uint256 totalShares = getTotalShares(token, tokenType);
+        uint256 totalShares = _totalShares(token, tokenType);
 
         return assets * totalShares / totalSupply; 
     } 
 
-    function convertToAssets(address token, bytes32 tokenType, uint256 shares) internal view returns (uint256) {
-
+    function convertToAssets(address token, uint256 shares) external view returns (uint256) {
+        bytes32 tokenType = _tokenTypes[token];
+        
         if (tokenType == STANDARD) {
             return shares;
         }
 
-        uint256 totalShares = getTotalShares(token, tokenType);
+        uint256 totalShares = _totalShares(token, tokenType);
 
         if (totalShares == 0) {
             return shares;
@@ -66,5 +78,5 @@ library TokenTypeSupport {
         uint256 totalSupply = IERC20(token).totalSupply();
 
         return shares * totalSupply / totalShares; 
-    } 
+    }
 }
