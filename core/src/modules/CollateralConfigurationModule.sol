@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import {ICollateralConfigurationModule} from "../interfaces/ICollateralConfigurationModule.sol";
 
 /**
- * @title Module for configuring collaterals per collatera pool.
+ * @title Module for configuring collaterals per collateral pool.
  * @dev See ICollateralConfigurationModule.
  */
 contract CollateralConfigurationModule is ICollateralConfigurationModule {

@@ -24,9 +24,6 @@ library CollateralConfiguration {
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
 
-    bytes32 constant private PRICE_OP = "PRICE_OP";
-    bytes32 constant private EXCHANGE_HAIRCUT_OP = "EXCHANGE_HAIRCUT_OP";
-
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
      * @param baseConfig The base configuration with the newly configured details.
@@ -129,6 +126,11 @@ library CollateralConfiguration {
         ParentConfiguration parentConfig;
     }
 
+    struct ExchangeInfo {
+        UD60x18 price;
+        UD60x18 haircut;
+    }
+
     /**
      * @dev Loads the Configuration object for the given collateral type in the given collateral pool.
      * @param collateralPoolId The collateral pool id.
@@ -207,20 +209,6 @@ library CollateralConfiguration {
         }
     }
 
-    function convertToAssets(Data storage self, uint256 shares) private view returns(uint256) {
-        return ITokenAdapterModule(TokenAdapter.exists().tokenAdapterAddress).convertToAssets(
-            self.cachedConfig.tokenAddress, 
-            shares
-        );
-    }
-
-    function convertToShares(Data storage self, uint256 assets) private view returns(uint256) {
-        return ITokenAdapterModule(TokenAdapter.exists().tokenAdapterAddress).convertToShares(
-            self.cachedConfig.tokenAddress, 
-            assets
-        );
-    }
-
     function getHeight(uint128 collateralPoolId, address token) private view returns(uint256 height) {
         address current = token;
         height = 0;
@@ -270,13 +258,14 @@ library CollateralConfiguration {
         revert UnlinkedTokens(collateralPoolId, tokenA, tokenB);
     }
 
-    function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor, bytes32 kind) 
+    function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor) 
         private
         view 
-        returns (UD60x18 exchange) 
+        returns (ExchangeInfo memory exchange) 
     {
         address current = node;
-        exchange = UNIT;
+        exchange.price = UNIT;
+        exchange.haircut = UNIT;
     
         while (true) {
             if (current == ancestor) {
@@ -289,28 +278,14 @@ library CollateralConfiguration {
                 revert UnlinkedTokens(collateralPoolId, node, ancestor);
             }
 
-            if (kind == EXCHANGE_HAIRCUT_OP) {
-                exchange = exchange.mul(currentConfig.parentConfig.exchangeHaircut);
-            }
-
-            if (kind == PRICE_OP) {
-                UD60x18 price = getParentPrice(currentConfig);
-                exchange = exchange.mul(price);
-            }
+            exchange.haircut = exchange.haircut.mul(currentConfig.parentConfig.exchangeHaircut);
+            exchange.price = exchange.price.mul(getParentPrice(currentConfig));
 
             current = currentConfig.parentConfig.tokenAddress;
         }        
     }
-
-    function getExchangeHaircut(uint128 collateralPoolId, address token, address baseToken) 
-        internal
-        view 
-        returns(UD60x18 /* exchangeHaircut */) 
-    {
-        return computeExchangeUpwards(collateralPoolId, token, baseToken, EXCHANGE_HAIRCUT_OP);
-    }
-
-    function getParentPrice(Data storage config) private view returns (UD60x18) {
+    
+    function getParentPrice(Data storage config) internal view returns (UD60x18) {
         OracleManager.Data memory oracleManager = OracleManager.exists();
     
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
@@ -324,12 +299,15 @@ library CollateralConfiguration {
      * @dev Returns the price of one collateral `tokenA` in other collateral `tokenB`.
      * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralPrice(uint128 collateralPoolId, address tokenA, address tokenB) internal view returns (UD60x18) {
+    function getExchangeInfo(uint128 collateralPoolId, address tokenA, address tokenB) internal view returns (ExchangeInfo memory) {
         address commonToken = getCommonToken(collateralPoolId, tokenA, tokenB);
 
-        UD60x18 priceA = computeExchangeUpwards(collateralPoolId, tokenA, commonToken, PRICE_OP);
-        UD60x18 priceB = computeExchangeUpwards(collateralPoolId, tokenB, commonToken, PRICE_OP);
+        ExchangeInfo memory exchangeA = computeExchangeUpwards(collateralPoolId, tokenA, commonToken);
+        ExchangeInfo memory exchangeB = computeExchangeUpwards(collateralPoolId, tokenB, commonToken);
 
-        return priceA.div(priceB);
+        return ExchangeInfo({
+            price: exchangeA.price.div(exchangeB.price),
+            haircut: exchangeA.haircut.mul(exchangeB.haircut)
+        });
     }
 }

@@ -50,14 +50,11 @@ library AccountExposure {
                 return deltasInUSD;
             }
 
-            UD60x18 exchangeHaircut = 
-                CollateralConfiguration.getExchangeHaircut(collateralPoolId, baseToken, address(0));
+            CollateralConfiguration.ExchangeInfo memory exchange = 
+                CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
         
-            UD60x18 price = 
-                CollateralConfiguration.getCollateralPrice(collateralPoolId, baseToken, address(0));
-            
-            int256 initialDelta = divIntUD(deltasInUSD.initialDelta, price.mul(exchangeHaircut));
-            int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, price.mul(exchangeHaircut));
+            int256 initialDelta = divIntUD(deltasInUSD.initialDelta, exchange.price.mul(exchange.haircut));
+            int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, exchange.price.mul(exchange.haircut));
             
             return Account.MarginRequirementDeltas({
                 initialDelta: initialDelta,
@@ -87,8 +84,9 @@ library AccountExposure {
             Account.MarginRequirementDeltas memory subs = 
                 computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier);
 
-            UD60x18 price = CollateralConfiguration.getCollateralPrice(collateralPoolId, tokens[i], baseToken);
-            UD60x18 haircut = CollateralConfiguration.exists(collateralPoolId, tokens[i]).parentConfig.exchangeHaircut;
+            CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
+            UD60x18 price = collateral.getParentPrice();
+            UD60x18 haircut = collateral.parentConfig.exchangeHaircut;
 
             if (subs.initialDelta <= 0) {
                 deltas.initialDelta += mulUDxInt(price, subs.initialDelta);

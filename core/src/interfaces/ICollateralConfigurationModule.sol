@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 /**
- * @title Module for configuring collaterals per collatera pool.
+ * @title Module for configuring collaterals per collateral pool.
  * @notice Allows the owner to configure collaterals per collateral pool.
  */
 interface ICollateralConfigurationModule {

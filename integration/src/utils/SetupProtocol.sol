@@ -224,16 +224,7 @@ contract SetupProtocol is BatchScript {
     address rateOracleAddress,
     DatedIrsMarket.MarketConfiguration memory config
   ) public {
-    // configureCollateral(
-    //   tokenAddress,
-    //   CollateralConfiguration.Config({
-    //     depositingEnabled: true,
-    //     cap: cap,
-    //     oracleNodeId: "0x",
-    //     weight: UD60x18.wrap(1e18),
-    //     autoExchangeDiscount: UD60x18.wrap(0)
-    //   })
-    // );
+    // todo: configure collaterals
 
     createMarket({
       marketId: marketId,

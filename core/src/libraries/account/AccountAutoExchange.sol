@@ -49,7 +49,7 @@ library AccountAutoExchange {
             }
 
             UD60x18 price = 
-                CollateralConfiguration.getCollateralPrice(collateralPoolId, collateralType, address(0));
+                CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0)).price;
 
             int256 accountValueOfCollateralInUSD = 
                 mulUDxInt(price, deltas.initialDelta);
@@ -78,7 +78,7 @@ library AccountAutoExchange {
             
             if (deltas.initialDelta < 0) {
                 UD60x18 price = 
-                    CollateralConfiguration.getCollateralPrice(collateralPoolId, quoteToken, address(0));
+                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, address(0)).price;
 
                 sumOfNegativeAccountValuesInUSD += 
                     mulUDxUint(price, (-deltas.initialDelta).toUint());
@@ -132,7 +132,7 @@ library AccountAutoExchange {
         UD60x18 autoExchangeDiscount = UNIT;
         
         UD60x18 price = 
-            CollateralConfiguration.getCollateralPrice(collateralPoolId, coveringToken, autoExchangedToken);
+            CollateralConfiguration.getExchangeInfo(collateralPoolId, coveringToken, autoExchangedToken).price;
 
         uint256 availableToAutoExchange = 
             mulUDxUint(price.mul(autoExchangeDiscount), coveringTokenAmount);
