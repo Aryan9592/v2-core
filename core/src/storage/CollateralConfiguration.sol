@@ -212,7 +212,7 @@ library CollateralConfiguration {
      * @dev Returns the amount of USD in collateral.
      * @param self The CollateralConfiguration object.
      * @param usdAmount The amount of USD.
-     * @return The corresponding amount of the collateral with 18 decimals of precision.
+     * @return The corresponding amount of the collateral with the collateral type's decimals of precision.
      */
     function getUSDInCollateral(
         Data storage self,

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 interface IPoolModule is IPool {
     /**
