@@ -14,7 +14,7 @@ import {Market} from "../../storage/Market.sol";
 
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {mulUDxUint, mulUDxInt, UD60x18, divIntUDx} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {mulUDxUint, mulUDxInt, UD60x18, divIntUD} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking account margin requirements.
@@ -56,8 +56,8 @@ library AccountExposure {
             UD60x18 price = 
                 CollateralConfiguration.getCollateralPrice(collateralPoolId, baseToken, address(0));
             
-            int256 initialDelta = divIntUDx(deltasInUSD.initialDelta, price.mul(exchangeHaircut));
-            int256 liquidationDelta = divIntUDx(deltasInUSD.liquidationDelta, price.mul(exchangeHaircut));
+            int256 initialDelta = divIntUD(deltasInUSD.initialDelta, price.mul(exchangeHaircut));
+            int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, price.mul(exchangeHaircut));
             
             return Account.MarginRequirementDeltas({
                 initialDelta: initialDelta,
