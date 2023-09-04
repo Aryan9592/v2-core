@@ -56,6 +56,29 @@ library CollateralConfiguration {
      */
     error CollateralNotConfigured(uint128 collateralPoolId, address collateralType);
 
+    struct WithdrawLimitsConfig {
+        /**
+         * @dev Time window in seconds in which the withdraw limit is applied
+         */
+        uint32 withdrawalWindowSize;
+
+        /**
+         * @dev Percentage of tvl that is allowed to be withdrawn in one time window
+         */
+        UD60x18 withdrawalTvlPercentageLimit;
+    }
+
+    struct WithdrawLimitsTrackers {
+        /**
+         * @dev Total value in the collateral pool
+         */
+        uint256 tvl;
+        /**
+         * @dev Total value of withdrawals in the current window
+         */
+        uint256 windowWithdrawals;
+    }
+
     struct Configuration {
         /**
          * @dev Allows the owner to control deposits and delegation of collateral types.
@@ -89,6 +112,15 @@ library CollateralConfiguration {
          * @notice If the address is ZERO_ADDRESS, it represents USD.
          */
         uint8 tokenDecimals;
+
+        /**
+         * @dev Withdraw limit configuration
+         */
+        WithdrawLimitsConfig withdrawLimitsConfig;
+        /**
+         * @dev Withdraw limit trackers
+         */
+        WithdrawLimitsTrackers withdrawLimitsTrackers;
     }
 
     struct ParentConfiguration {
