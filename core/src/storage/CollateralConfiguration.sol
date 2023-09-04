@@ -111,10 +111,6 @@ library CollateralConfiguration {
          * @dev Withdraw limit configuration
          */
         WithdrawLimitsConfig withdrawLimits;
-        /**
-         * @dev Total value of withdrawals in the current window
-         */
-        uint256 windowWithdrawals;
     }
 
     struct ParentConfiguration {
@@ -148,6 +144,11 @@ library CollateralConfiguration {
         CachedConfiguration cachedConfig;
 
         ParentConfiguration parentConfig;
+
+        /**
+         * @dev Total value of withdrawals in the current window
+         */
+        uint256 windowWithdrawals;
     }
 
     struct ExchangeInfo {
@@ -342,7 +343,7 @@ library CollateralConfiguration {
     function checkCollateralWithdrawLimits(Data storage self, uint256 amount, bool isNewWindow) internal {
         address token = self.cachedConfig.tokenAddress;
 
-        uint256 windowWithdrawalsCopy = self.config.windowWithdrawals;
+        uint256 windowWithdrawalsCopy = self.windowWithdrawals;
 
         if (isNewWindow) {
             windowWithdrawalsCopy = amount;
@@ -359,6 +360,6 @@ library CollateralConfiguration {
             revert CollateralTypeWithdrawLimitReached(token);
         }
 
-        self.config.windowWithdrawals = windowWithdrawalsCopy; 
+        self.windowWithdrawals = windowWithdrawalsCopy; 
     }
 }

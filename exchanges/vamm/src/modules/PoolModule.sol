@@ -8,6 +8,7 @@ import "../storage/DatedIrsVamm.sol";
 import "../interfaces/IPoolModule.sol";
 import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
 
+import {IMarketManagerIRSModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketManagerIRSModule.sol";
 import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
