@@ -56,6 +56,11 @@ library CollateralConfiguration {
      */
     error CollateralNotConfigured(uint128 collateralPoolId, address collateralType);
 
+    /**
+     * @dev Thrown when the withdraw limit was reached for a collateral type.
+     */
+    error CollateralTypeWithdrawLimitReached(address collateralType);
+
     struct WithdrawLimitsConfig {
         /**
          * @dev Time window in seconds in which the withdraw limit is applied
@@ -66,17 +71,6 @@ library CollateralConfiguration {
          * @dev Percentage of tvl that is allowed to be withdrawn in one time window
          */
         UD60x18 withdrawalTvlPercentageLimit;
-    }
-
-    struct WithdrawLimitsTrackers {
-        /**
-         * @dev Total value in the collateral pool
-         */
-        uint256 tvl;
-        /**
-         * @dev Total value of withdrawals in the current window
-         */
-        uint256 windowWithdrawals;
     }
 
     struct Configuration {
@@ -116,11 +110,11 @@ library CollateralConfiguration {
         /**
          * @dev Withdraw limit configuration
          */
-        WithdrawLimitsConfig withdrawLimitsConfig;
+        WithdrawLimitsConfig withdrawLimits;
         /**
-         * @dev Withdraw limit trackers
+         * @dev Total value of withdrawals in the current window
          */
-        WithdrawLimitsTrackers withdrawLimitsTrackers;
+        uint256 windowWithdrawals;
     }
 
     struct ParentConfiguration {
@@ -340,5 +334,31 @@ library CollateralConfiguration {
             price: exchangeA.price.div(exchangeB.price),
             haircut: exchangeA.haircut.mul(exchangeB.haircut)
         });
+    }
+
+    /**
+     * @dev Updates the withdraw limit trackers and checks if limit was reached
+     */
+    function checkCollateralWithdrawLimits(Data storage self, uint256 amount, bool isNewWindow) internal {
+        address token = self.cachedConfig.tokenAddress;
+
+        uint256 windowWithdrawalsCopy = self.config.windowWithdrawals;
+
+        if (isNewWindow) {
+            windowWithdrawalsCopy = amount;
+        } else {
+            windowWithdrawalsCopy += amount;
+        }
+
+        // check withdraw limits against tvl
+        uint256 tvl = IERC20(token).balanceOf(address(this));
+        if ( 
+            windowWithdrawalsCopy > 
+            mulUDxUint(self.config.withdrawLimits.withdrawalTvlPercentageLimit, tvl)
+        ) {
+            revert CollateralTypeWithdrawLimitReached(token);
+        }
+
+        self.config.windowWithdrawals = windowWithdrawalsCopy; 
     }
 }

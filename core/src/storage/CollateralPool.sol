@@ -20,6 +20,8 @@ import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
+import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 /**
  * @title Object for tracking aggregate collateral pool balances
  */
@@ -28,6 +30,7 @@ library CollateralPool {
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
+    using CollateralConfiguration for CollateralConfiguration.Data;
 
     /**
      * @dev Thrown when a collateral pool cannot be found
@@ -143,13 +146,13 @@ library CollateralPool {
 
     struct WithdrawLimitsTrackers {
         /**
-         * @dev Total value in the collateral pool
-         */
-        uint256 tvl;
-        /**
          * @dev Total value of withdrawals in the current window
          */
         uint256 windowWithdrawals;
+        /**
+         * @dev Window index, i.e. how many windows have passed since Jan 1st, 1970 at midnight UTC
+         */
+        uint32 windowNumber;
     }
 
     struct Data {
@@ -395,6 +398,8 @@ library CollateralPool {
             revert InsufficientCollateralInCollateralPool(shares);
         }
 
+        self.checkWithdrawLimits(shares, collateralType);
+
         self.collateralShares[collateralType] -= shares;
 
         // remove the collateral type from the active collaterals if balance goes to zero
@@ -493,5 +498,35 @@ library CollateralPool {
         if (msg.sender != self.owner) {
             revert Unauthorized(msg.sender);
         }
+    }
+
+    /**
+     * @dev Updates the withdraw limit trackers and checks if limit was reached
+     */
+    function checkWithdrawLimits(Data storage self, uint256 amount, address collateralType) internal {
+        // reset tracker if window has expired
+        uint32 currentWindowNumber = 
+            uint32(block.timestamp) / self.withdrawLimitsConfig[collateralType].withdrawalWindowSize;
+
+        uint256 windowWithdrawalsCopy = self.withdrawLimitsTrackers[collateralType].windowWithdrawals;
+
+        bool isNewWindow = currentWindowNumber > self.withdrawLimitsTrackers[collateralType].windowNumber;
+        if (isNewWindow) {
+            self.withdrawLimitsTrackers[collateralType].windowNumber = currentWindowNumber;
+            windowWithdrawalsCopy = 0;
+        }
+
+        // check withdraw limits against tvl
+        windowWithdrawalsCopy += amount;
+        if ( 
+            windowWithdrawalsCopy > mulUDxUint(
+                self.withdrawLimitsConfig[collateralType].withdrawalTvlPercentageLimit,
+                self.collateralBalances[collateralType]
+            )
+        ) {
+            revert CollateralPoolWithdrawLimitReached(self.id, collateralType);
+        }
+
+        CollateralConfiguration.exists(collateralType).checkCollateralWithdrawLimits(amount, isNewWindow);
     }
 }
