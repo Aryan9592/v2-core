@@ -17,6 +17,7 @@ import {mulDiv} from "@prb/math/UD60x18.sol";
 
 contract TokenAdapterModule is ITokenAdapterModule {
     mapping (address => bytes32) internal _tokenTypes;
+    address[] internal _tokens;
 
     bytes32 constant public STANDARD = "STANDARD";
     bytes32 constant public AAVE = "AAVE"; 
@@ -31,11 +32,16 @@ contract TokenAdapterModule is ITokenAdapterModule {
             revert UnknwonTokenType(token, tokenType);
         }
         
+        _tokens.push(token);
         _tokenTypes[token] = tokenType;
     }
 
     function getTokenType(address token) external view returns(bytes32) {
         return _tokenTypes[token];
+    }
+
+    function getTokens() external view returns(address[] memory) {
+        return _tokens;
     }
 
     function _totalShares(address token, bytes32 tokenType) private view returns(uint256) {
