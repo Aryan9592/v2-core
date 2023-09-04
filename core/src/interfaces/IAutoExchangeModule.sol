@@ -25,16 +25,16 @@ interface IAutoExchangeModule {
     );
 
     /** 
-    * @notice Returns the maximum amount that can be exchanged, represented in quote token
-    * @dev maxAmountQuote = min(
-        abs(min(0, collateralBalanceInQuote + rPnLInQuote + uPnLInQuote)) * autoExchangeRatio,
-        collateralBalanceInCollateralTokenRepresentedInQuote 
-        )
+     * @notice Returns the maximum amount that can be exchanged, represented in quote token
+     * @param accountId The id of the account
+     * @param coveringToken The collateral that is supposed to be used for covering the insufficient collateral
+     * @param autoExchangedToken The insufficient collateral that will be auto-exchanged
+     * @return coveringAmount The amount of `coveringToken` used to cover the insufficient collateral
+     * @return autoExchangedAmount The maximum amount of `autoExchangedToken` equivalent to `coveringAmount`
     */
     function getMaxAmountToExchangeQuote(
         uint128 accountId,
-        address collateralType,
-        address quoteType
-    ) external returns (uint256 maxAmountQuote);
-
+        address coveringToken,
+        address autoExchangedToken
+    ) external view returns (uint256 coveringAmount, uint256 autoExchangedAmount);
 }

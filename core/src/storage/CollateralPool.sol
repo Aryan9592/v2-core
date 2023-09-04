@@ -9,13 +9,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "./Account.sol";
+import {CollateralConfiguration} from "./CollateralConfiguration.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+
+import {TokenAdapter} from  "./TokenAdapter.sol";
+import {ITokenAdapterModule} from "../interfaces/ITokenAdapterModule.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
-
 
 /**
  * @title Object for tracking aggregate collateral pool balances
@@ -60,6 +63,20 @@ library CollateralPool {
      * @dev Thrown when some address tries to act as the owner of the collateral pool.
      */
     error Unauthorized(address owner);
+
+    /**
+     * @notice Thrown on deposit when the collateral cap would have been exceeded
+     * @param collateralPoolId The ID of the collateral pool
+     * @param collateralType The address of the collateral of the unsuccessful deposit
+     * @param collateralCap The cap limit of the collateral
+     * @param poolBalance The exceeding balance of the collateral pool in that specific collateral
+     */
+    error CollateralCapExceeded(
+        uint128 collateralPoolId,
+        address collateralType,
+        uint256 collateralCap,
+        uint256 poolBalance
+    );
 
     /**
      * @notice Emitted when the collateral pool is created or updated
@@ -116,7 +133,7 @@ library CollateralPool {
         /**
          * @dev Address set of collaterals alongside net balances that are held by the collateral pool
          */
-        mapping(address => uint256) collateralBalances;
+        mapping(address => uint256) collateralShares;
         /**
          * @dev Addresses of all collateral types in which the collateral pool has a non-zero balance
          */
@@ -213,10 +230,11 @@ library CollateralPool {
         parent.checkRoot();
         child.checkRoot();
 
-        for (uint256 i = 1; i <= child.activeCollaterals.length(); i++) {
-            address activeCollateral = child.activeCollaterals.valueAt(i);
+        address[] memory activeCollaterals = child.activeCollaterals.values();
 
-            parent.increaseCollateralBalance(activeCollateral, child.collateralBalances[activeCollateral]);
+        for (uint256 i = 0; i < activeCollaterals.length; i++) {
+            address activeCollateral = activeCollaterals[i];
+            increaseCollateralShares(parent, activeCollateral, child.collateralShares[activeCollateral]);
         }
 
         child.rootId = parent.id;
@@ -231,8 +249,12 @@ library CollateralPool {
         );
     }
 
+    function isRoot(Data storage self) internal view returns(bool) {
+        return self.id == self.rootId;
+    }
+
     function checkRoot(Data storage self) internal view {
-        if (self.id != self.rootId) {
+        if (!self.isRoot()) {
             revert InactiveCollateralPool(self.id);
         }
     }
@@ -260,56 +282,89 @@ library CollateralPool {
         }
     }
 
-    /**
-    * @dev Given a collateral type, returns information about the collateral balance of the collateral pool
-     */
-    function getCollateralBalance(Data storage self, address collateralType)
-    internal
-    view
-    returns (uint256)
+    function checkCap(Data storage self, address collateralType)
+        private 
+        view 
     {
-        self.checkRoot();
-        return self.collateralBalances[collateralType];
+        // Check that this deposit does not reach the cap
+        uint256 collateralCap = CollateralConfiguration.exists(self.id, collateralType).baseConfig.cap;
+
+        // If the cap is maximum, bypass this check to avoid fetching the collateral balance
+        if (collateralCap == type(uint256).max) {
+            return;
+        }
+
+        // Fetch the collateral balance
+        uint256 collateralBalance = self.getCollateralBalance(collateralType);
+
+        // Check the cap
+        if (collateralBalance > collateralCap) {
+            revert CollateralCapExceeded(self.id, collateralType, collateralCap, collateralBalance);
+        }
     }
 
     /**
-     * @dev Increments the collateral pool balance for a given collateral type
+     * @dev Given a collateral type, returns information about the collateral balance of the collateral pool
      */
-    function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        self.checkRoot();
+    function getCollateralBalance(
+        Data storage self,
+        address collateralType
+    ) 
+        internal
+        view
+        returns(uint256) 
+    {
+        if (!self.isRoot()) {
+            return 0;
+        }
 
-        self.collateralBalances[collateralType] += amount;
+        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
+        return ITokenAdapterModule(tokenAdapter).convertToAssets(
+            collateralType, 
+            self.collateralShares[collateralType]
+        );
+    }
 
-        // add the collateral type to the active collaterals if missing
-        if (self.collateralBalances[collateralType] > 0) {
+    function increaseCollateralShares(
+        Data storage self,
+        address collateralType, 
+        uint256 shares
+    ) internal {
+        // Increase the collateral shares
+        self.collateralShares[collateralType] += shares;
+
+        // Add the collateral type to the active collaterals if missing
+        if (self.collateralShares[collateralType] > 0) {
             if (!self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.add(collateralType);
             }
         }
 
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, amount.toInt(), block.timestamp);
+        // Check that this deposit does not reach the cap
+        checkCap(self, collateralType);
+
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, shares.toInt(), block.timestamp);
     }
 
-    /**
-     * @dev Decrements the collateral pool balance for a given collateral type
-     */
-    function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        self.checkRoot();
-
-        if (self.collateralBalances[collateralType] < amount) {
-            revert InsufficientCollateralInCollateralPool(amount);
+    function decreaseCollateralShares(
+        Data storage self, 
+        address collateralType, 
+        uint256 shares
+    ) internal {
+        if (self.collateralShares[collateralType] < shares) {
+            revert InsufficientCollateralInCollateralPool(shares);
         }
 
-        self.collateralBalances[collateralType] -= amount;
+        self.collateralShares[collateralType] -= shares;
 
         // remove the collateral type from the active collaterals if balance goes to zero
-        if (self.collateralBalances[collateralType] == 0) {
+        if (self.collateralShares[collateralType] == 0) {
             if (self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.remove(collateralType);
             }
         }
 
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, -amount.toInt(), block.timestamp);
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, -shares.toInt(), block.timestamp);
     }
 
     /**

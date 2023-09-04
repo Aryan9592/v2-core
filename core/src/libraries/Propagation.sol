@@ -7,7 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Account.sol";
+import {Account} from "../storage/Account.sol";
+import {CollateralPool} from "../storage/CollateralPool.sol";
+import {Market} from "../storage/Market.sol";
+
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -27,6 +30,7 @@ library Propagation {
         int256 annualizedNotional
     ) internal returns (uint256 fee) {
         Market.Data memory market = Market.exists(marketId);
+
         return propagateOrder(
                 accountId,
                 market,
@@ -45,6 +49,7 @@ library Propagation {
         int256 annualizedNotional
     ) internal returns (uint256 fee) {
         Market.Data memory market = Market.exists(marketId);
+
         return propagateOrder(
                 accountId,
                 market,
@@ -56,8 +61,6 @@ library Propagation {
         );
     }
     
-    //////////////// HELPER FUNCTIONS ////////////////
-
     /**
      * @dev Internal function to distribute trade fees according to the market fee config
      * @param payingAccountId Account id of trade initiatior
@@ -72,7 +75,7 @@ library Propagation {
         UD60x18 atomicFee,
         address collateralType,
         int256 annualizedNotional
-    ) internal returns (uint256 fee) {
+    ) private returns (uint256 fee) {
         fee = mulUDxUint(atomicFee, SignedMath.abs(annualizedNotional));
 
         Account.Data storage payingAccount = Account.exists(payingAccountId);
@@ -90,7 +93,9 @@ library Propagation {
         UD60x18 protocolFee, 
         UD60x18 collateralPoolFee, 
         UD60x18 insuranceFundFee
-    ) internal returns (uint256 fee) {
+    ) private returns (uint256 /* fee */) {
+        CollateralPool.Data storage collateralPool = 
+            market.getCollateralPool();
 
         uint256 protocolFeeAmount = distributeFees(
             accountId, 
@@ -99,9 +104,6 @@ library Propagation {
             collateralType, 
             annualizedNotional
         );
-
-        CollateralPool.Data storage collateralPool = 
-            market.getCollateralPool();
 
         uint256 collateralPoolFeeAmount = distributeFees(
             accountId, 
@@ -119,6 +121,6 @@ library Propagation {
             annualizedNotional
         );
 
-        fee = protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
+        return protocolFeeAmount + collateralPoolFeeAmount + insuranceFundFeeAmount;
     }
 }

@@ -7,8 +7,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../storage/Account.sol";
-import "./CollateralModule.sol";
 import "./AccountModule.sol";
 import "../interfaces/external/IMarketManager.sol";
 import "../libraries/actions/EditCollateral.sol";
@@ -16,10 +14,6 @@ import "../libraries/actions/Liquidation.sol";
 import "../libraries/actions/CloseAccount.sol";
 import "../libraries/actions/AutoExchange.sol";
 import "../libraries/Propagation.sol";
-
-import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Executor Module
@@ -74,7 +68,7 @@ contract ExecutionModule {
     function operate(
         uint128 accountId,
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs, Account.MarginRequirement memory marginRequirement) {
+    ) external returns (bytes[] memory outputs, Account.MarginRequirementDeltas memory marginRequirement) {
         preOperateCheck(accountId);
 
         outputs = new bytes[](commands.length);

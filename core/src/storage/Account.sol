@@ -10,20 +10,19 @@ pragma solidity >=0.8.19;
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "./Account.sol";
-import {AutoExchangeConfiguration} from "./AutoExchangeConfiguration.sol";
-import {CollateralConfiguration} from "./CollateralConfiguration.sol";
 import {CollateralPool} from "./CollateralPool.sol";
 import {Market} from "./Market.sol";
 
-import {AccountActiveMarket} from "../libraries/AccountActiveMarket.sol";
-import {AccountCollateral} from "../libraries/AccountCollateral.sol";
-import {AccountExposure} from "../libraries/AccountExposure.sol";
-import {AccountMode} from "../libraries/AccountMode.sol";
-import {AccountRBAC} from "../libraries/AccountRBAC.sol";
+import {AccountActiveMarket} from "../libraries/account/AccountActiveMarket.sol";
+import {AccountAutoExchange} from "../libraries/account/AccountAutoExchange.sol";
+import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
+import {AccountExposure} from "../libraries/account/AccountExposure.sol";
+import {AccountMode} from "../libraries/account/AccountMode.sol";
+import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -31,10 +30,8 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 library Account {
     using Account for Account.Data;
     using Market for Market.Data;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
-    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
@@ -65,7 +62,7 @@ library Account {
      * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, address collateralType, MarginRequirement marginRequirements);
+    error AccountBelowIM(uint128 accountId, MarginRequirementDeltas marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -75,13 +72,9 @@ library Account {
     /**
      * @dev Structure for tracking margin requirement information.
      */
-    struct MarginRequirement {
-        bool isIMSatisfied;
-        bool isLMSatisfied;
-        uint256 initialMarginRequirement;
-        uint256 liquidationMarginRequirement;
-        uint256 highestUnrealizedLoss;
-        uint256 availableCollateralBalance;
+    struct MarginRequirementDeltas {
+        int256 initialDelta;
+        int256 liquidationDelta;
         address collateralType;
     }
 
@@ -135,7 +128,7 @@ library Account {
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => uint256) collateralBalances;
+        mapping(address => uint256) collateralShares;
 
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
@@ -306,9 +299,6 @@ library Account {
     }
 
     function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        if (self.id == 0) {
-            revert AccountNotFound(self.id);
-        }
         AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
     }
 
@@ -324,14 +314,6 @@ library Account {
         return AccountCollateral.getCollateralBalance(self, collateralType);
     }
 
-    function getWeightedCollateralBalanceInUSD(Data storage self) 
-        internal 
-        view
-        returns (uint256) 
-    {
-        return AccountCollateral.getWeightedCollateralBalanceInUSD(self);
-    }
-
     function getWithdrawableCollateralBalance(Data storage self, address collateralType)
         internal
         view
@@ -344,12 +326,20 @@ library Account {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
 
-    function getMarginRequirementsAndHighestUnrealizedLoss(Account.Data storage self, address collateralType)
+    function getRequirementDeltasByBubble(Account.Data storage self, address collateralType)
         internal
         view
-        returns (MarginRequirement memory mr)
+        returns (Account.MarginRequirementDeltas memory)
     {
-        return AccountExposure.getMarginRequirementsAndHighestUnrealizedLoss(self, collateralType);
+        return AccountExposure.getRequirementDeltasByBubble(self, collateralType);
+    }
+
+    function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+        internal
+        view
+        returns (Account.MarginRequirementDeltas memory)
+    {
+        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier);
     }
 
     /**
@@ -359,18 +349,41 @@ library Account {
     function imCheck(Data storage self, address collateralType) 
         internal 
         view 
-        returns (MarginRequirement memory mr)
+        returns (Account.MarginRequirementDeltas memory mr)
     {
-        mr = self.getMarginRequirementsAndHighestUnrealizedLoss(collateralType);
+        mr = self.getRequirementDeltasByBubble(collateralType);
         
-        if (!mr.isIMSatisfied) {
-            revert AccountBelowIM(self.id, collateralType, mr);
+        if (mr.initialDelta < 0) {
+            revert AccountBelowIM(self.id, mr);
         }
     }
 
 
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
+    }
+
+    function isEligibleForAutoExchange(
+        Account.Data storage self,
+        address collateralType
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
+    }
+
+    function getMaxAmountToExchangeQuote(
+        Account.Data storage self,
+        address coveringToken,
+        address autoExchangedToken
+    )
+        internal
+        view
+        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
+    {
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     }
 
     /**

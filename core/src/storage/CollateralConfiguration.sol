@@ -7,50 +7,56 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
-import "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
-import "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
-import "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { OracleManager } from  "./OracleManager.sol";
 
-import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
+import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
-import "./OracleManager.sol";
-
-/**
- * @title Tracks protocol-wide settings for each collateral type, as well as helper functions for it, such as retrieving its current
- * price from the oracle manager -> relevant for multi-collateral.
- */
 library CollateralConfiguration {
+    using CollateralConfiguration for CollateralConfiguration.Data;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
-    using CollateralConfiguration for CollateralConfiguration.Data;
-
-    bytes32 private constant _SLOT_AVAILABLE_COLLATERALS =
-        keccak256(abi.encode("xyz.voltz.CollateralConfiguration_availableCollaterals"));
 
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
-     * @param config The object with the newly configured details.
+     * @param baseConfig The base configuration with the newly configured details.
+     * @param parentConfig The parent configuration with the newly configured details.
      * @param blockTimestamp The current block timestamp.
      */
-    event CollateralConfigurationUpdated(Data config, uint256 blockTimestamp);
+    event CollateralConfigurationUpdated(
+        Configuration baseConfig, 
+        ParentConfiguration parentConfig, 
+        uint256 blockTimestamp
+    );
 
     /**
      * @dev Thrown when deposits are disabled for the given collateral type.
+     * @param collateralPoolId The id of the collateral pool.
      * @param collateralType The address of the collateral type for which depositing was disabled.
      */
-    error CollateralDepositDisabled(address collateralType);
+    error CollateralDepositDisabled(uint128 collateralPoolId, address collateralType);
+
+    /**
+     * @dev Thrown when one collateral is attempted to be exchanged in a collateral that does not belong to its base tokens.
+     * @param collateralPoolId The id of the collateral pool.
+     * @param token The address of the collateral type that needs to be exchanged.
+     * @param baseToken The base token of the exchange.
+     */
+    error UnlinkedTokens(uint128 collateralPoolId, address token, address baseToken);
 
     /**
      * @dev Thrown when collateral is not configured
+     * @param collateralPoolId The id of the collateral pool.
      * @param collateralType The address of the collateral type.
      */
-    error CollateralNotConfigured(address collateralType);
+    error CollateralNotConfigured(uint128 collateralPoolId, address collateralType);
 
-    struct Config {
+    struct Configuration {
         /**
          * @dev Allows the owner to control deposits and delegation of collateral types.
          */
@@ -60,47 +66,77 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
-
-        /**
-         * @dev The oracle manager node id which reports the current price for this collateral type.
-         */
-        bytes32 oracleNodeId;
-
-        /**
-         * @dev Collateral haircut factor (in wad) used in margin requirement calculations when determining the collateral value
-         */
-        UD60x18 weight;
-
-        /**
-         * @dev Percentage of tokens to award when the collateral asset is liquidated as part of the auto-exchange mechanic
-         */
-        UD60x18 autoExchangeDiscount;
     }
 
-    struct CachedConfig {
+    struct CachedConfiguration {
         /**
-         * @dev The token address for this collateral type.
+         * @dev Flag that shows if the configuration is set or not.
+         */
+        bool set;
+
+        /**
+         * @dev The collateral pool ID of this collateral configuration.
+         */
+        uint128 collateralPoolId;
+
+        /**
+         * @dev The token address for this collateral configuration.
          */
         address tokenAddress;
 
         /**
          * @dev The token decimals for this collateral type.
+         * @notice If the address is ZERO_ADDRESS, it represents USD.
          */
         uint8 tokenDecimals;
     }
 
+    struct ParentConfiguration {
+        /**
+         * @dev Flag that shows whether the collateral has parent or not.
+         */
+        bool hasParent;
+
+        /**
+         * @dev Token address of the collateral.
+         * @notice If the address is ZERO_ADDRESS, it represents USD.
+         */
+        address tokenAddress;
+
+        /**
+         * @dev Collateral haircut factor (in wad) used in margin requirement calculations 
+         * when determining the collateral value wrt the parent token.
+         */
+        UD60x18 exchangeHaircut;
+
+        /**
+         * @dev The oracle manager node id which reports the current price of this collateral in its parent colalteral.
+         */
+        bytes32 oracleNodeId;
+    }
+
     struct Data {
-        Config config;
-        CachedConfig cachedConfig;
+        SetUtil.AddressSet childTokens;
+
+        Configuration baseConfig;
+        CachedConfiguration cachedConfig;
+
+        ParentConfiguration parentConfig;
+    }
+
+    struct ExchangeInfo {
+        UD60x18 price;
+        UD60x18 haircut;
     }
 
     /**
-     * @dev Loads the CollateralConfiguration object for the given collateral type.
+     * @dev Loads the Configuration object for the given collateral type in the given collateral pool.
+     * @param collateralPoolId The collateral pool id.
      * @param token The address of the collateral type.
-     * @return collateralConfiguration The CollateralConfiguration object.
+     * @return collateralConfiguration The Configuration object.
      */
-    function load(address token) private pure returns (Data storage collateralConfiguration) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.CollateralConfiguration", token));
+    function load(uint128 collateralPoolId, address token) private pure returns (Data storage collateralConfiguration) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.Configuration", collateralPoolId, token));
         assembly {
             collateralConfiguration.slot := s
         }
@@ -108,156 +144,169 @@ library CollateralConfiguration {
 
     /**
      * @dev Returns the collateral configuration
+     * @param collateralPoolId The collateral pool id.
      * @param token The address of the collateral type
      */
-    function exists(address token) internal view returns (Data storage collateralConfiguration) {
-        collateralConfiguration = load(token);
+    function exists(uint128 collateralPoolId, address token) internal view returns (Data storage collateralConfiguration) {
+        collateralConfiguration = load(collateralPoolId, token);
 
-        if (collateralConfiguration.cachedConfig.tokenAddress == address(0)) {
-            revert CollateralNotConfigured(token);
-        }
-    }
-
-    /**
-     * @dev Loads all available collateral types configured in the protocol
-     * @return availableCollaterals An array of addresses, one for each collateral type supported by the protocol
-     */
-    function loadAvailableCollaterals() internal pure returns (SetUtil.AddressSet storage availableCollaterals) {
-        bytes32 s = _SLOT_AVAILABLE_COLLATERALS;
-        assembly {
-            availableCollaterals.slot := s
+        if (!collateralConfiguration.cachedConfig.set) {
+            revert CollateralNotConfigured(collateralPoolId, token);
         }
     }
 
     /**
      * @dev Configures a collateral type.
-     * @param config The CollateralConfiguration object with all the settings for the collateral type being configured.
+     * @param config The Configuration object with all the settings for the collateral type being configured.
      */
-    function set(address tokenAddress, Config memory config) internal {
-        SetUtil.AddressSet storage collateralTypes = loadAvailableCollaterals();
+    function setBaseConfig(uint128 collateralPoolId, address tokenAddress, Configuration memory config) internal {
+        Data storage storedConfig = load(collateralPoolId, tokenAddress);
 
-        if (!collateralTypes.contains(tokenAddress)) {
-            collateralTypes.add(tokenAddress);
-        }
+        storedConfig.baseConfig = config;
+        
+        storedConfig.cachedConfig = CachedConfiguration({
+            collateralPoolId: collateralPoolId,
+            tokenAddress: tokenAddress,
+            tokenDecimals: IERC20(tokenAddress).decimals(),
+            set: true
+        });
 
-        Data storage storedConfig = load(tokenAddress);
+        emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
+    }
 
-        storedConfig.config.depositingEnabled = config.depositingEnabled;
-        storedConfig.config.cap = config.cap;
-        storedConfig.config.oracleNodeId = config.oracleNodeId;
-        storedConfig.config.weight = config.weight;
-        storedConfig.config.autoExchangeDiscount = config.autoExchangeDiscount;
+    /**
+     * @dev Configures a collateral type.
+     * @param config The Configuration object with all the settings for the collateral type being configured.
+     */
+    function setParentConfig(uint128 collateralPoolId, address tokenAddress, ParentConfiguration memory config) internal {
+        Data storage storedConfig = exists(collateralPoolId, tokenAddress);
 
-        storedConfig.cachedConfig.tokenAddress = tokenAddress;
-        uint8 tokenDecimals = IERC20(tokenAddress).decimals();
-        storedConfig.cachedConfig.tokenDecimals = tokenDecimals;
+        if (storedConfig.parentConfig.hasParent) {
+            address parentToken = storedConfig.parentConfig.tokenAddress;
+            load(collateralPoolId, parentToken).childTokens.remove(tokenAddress);
+        } 
 
-        emit CollateralConfigurationUpdated(storedConfig, block.timestamp);
+        // todo: add propgramatic check against new parent being the token itself or any of its children
+        storedConfig.parentConfig = config;
+
+        if (storedConfig.parentConfig.hasParent) {
+            address parentToken = storedConfig.parentConfig.tokenAddress;
+            load(collateralPoolId, parentToken).childTokens.add(tokenAddress);
+        } 
+
+        emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
     }
 
     /**
      * @dev Shows if a given collateral type is enabled for deposits and delegation.
+     * @param collateralPoolId The id of the collateral pool being queried.
      * @param token The address of the collateral being queried.
      */
-    function collateralEnabled(address token) internal view {
-        if (!exists(token).config.depositingEnabled) {
-            revert CollateralDepositDisabled(token);
+    function collateralEnabled(uint128 collateralPoolId, address token) internal view {
+        if (!load(collateralPoolId, token).baseConfig.depositingEnabled) {
+            revert CollateralDepositDisabled(collateralPoolId, token);
         }
     }
 
-    /**
-     * @dev Returns the price of this collateral configuration object.
-     * @param self The CollateralConfiguration object.
-     * @return The price of the collateral with 18 decimals of precision.
-     */
-    function getCollateralPriceInUSD(Data storage self) internal view returns (UD60x18) {
+    function getHeight(uint128 collateralPoolId, address token) private view returns(uint256 height) {
+        address current = token;
+        height = 0;
+
+        while (true) {
+            Data storage currentConfig = load(collateralPoolId, current);
+
+            if (!currentConfig.parentConfig.hasParent) {
+                break;
+            }
+
+            height += 1;
+            current = currentConfig.parentConfig.tokenAddress;
+        }
+
+        return height;
+    }
+
+    function getCommonToken(uint128 collateralPoolId, address tokenA, address tokenB) 
+        private 
+        view 
+        returns (address) 
+    {
+        uint256 heightA = getHeight(collateralPoolId, tokenA);
+        uint256 heightB = getHeight(collateralPoolId, tokenB);
+
+        while (true) {
+            if (tokenA == tokenB) {
+                return tokenA;
+            }
+
+            if (heightA == 0 && heightB == 0) {
+                break;
+            }
+
+            if (heightA >= heightB) {
+                tokenA = load(collateralPoolId, tokenA).parentConfig.tokenAddress;
+                heightA -= 1;
+            }
+
+            if (heightA < heightB) {
+                tokenB = load(collateralPoolId, tokenB).parentConfig.tokenAddress;
+                heightB -= 1;
+            }
+        }
+
+        revert UnlinkedTokens(collateralPoolId, tokenA, tokenB);
+    }
+
+    function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor) 
+        private
+        view 
+        returns (ExchangeInfo memory exchange) 
+    {
+        address current = node;
+        exchange.price = UNIT;
+        exchange.haircut = UNIT;
+    
+        while (true) {
+            if (current == ancestor) {
+                break;
+            }
+
+            Data storage currentConfig = load(collateralPoolId, current);
+
+            if (!currentConfig.parentConfig.hasParent) {
+                revert UnlinkedTokens(collateralPoolId, node, ancestor);
+            }
+
+            exchange.haircut = exchange.haircut.mul(currentConfig.parentConfig.exchangeHaircut);
+            exchange.price = exchange.price.mul(getParentPrice(currentConfig));
+
+            current = currentConfig.parentConfig.tokenAddress;
+        }        
+    }
+    
+    function getParentPrice(Data storage config) internal view returns (UD60x18) {
         OracleManager.Data memory oracleManager = OracleManager.exists();
+    
         NodeOutput.Data memory node = INodeModule(oracleManager.oracleManagerAddress).process(
-            self.config.oracleNodeId
+            config.parentConfig.oracleNodeId
         );
 
         return UD60x18.wrap(node.price.toUint());
     }
 
     /**
-     * @dev Returns the amount of colletaral in USD.
-     * @param self The CollateralConfiguration object.
-     * @param collateralAmount The amount of collateral.
-     * @return The corresponding USD amount of the collateral with 18 decimals of precision.
+     * @dev Returns the price of one collateral `tokenA` in other collateral `tokenB`.
+     * @return The price of the collateral with 18 decimals of precision.
      */
-    function getCollateralInUSD(
-        Data storage self,
-        uint256 collateralAmount
-    ) internal view returns (uint256) {
-        uint8 decimals = self.cachedConfig.tokenDecimals;
+    function getExchangeInfo(uint128 collateralPoolId, address tokenA, address tokenB) internal view returns (ExchangeInfo memory) {
+        address commonToken = getCommonToken(collateralPoolId, tokenA, tokenB);
 
-        uint256 collateralAmountWad = DecimalMath.changeDecimals(collateralAmount, decimals, DecimalMath.WAD_DECIMALS);
-        return mulUDxUint(self.getCollateralPriceInUSD(), collateralAmountWad);
-    }
+        ExchangeInfo memory exchangeA = computeExchangeUpwards(collateralPoolId, tokenA, commonToken);
+        ExchangeInfo memory exchangeB = computeExchangeUpwards(collateralPoolId, tokenB, commonToken);
 
-    /**
-     * @dev Returns the weighted amount of colletaral in USD.
-     * @param self The CollateralConfiguration object.
-     * @param collateralAmount The amount of collateral.
-     * @return The corresponding weighted USD amount of the collateral with 18 decimals of precision.
-     */
-    function getWeightedCollateralInUSD(
-        Data storage self,
-        uint256 collateralAmount
-    ) internal view returns (uint256) {
-        return mulUDxUint(self.config.weight, self.getCollateralInUSD(collateralAmount));
-    }
-
-    /**
-     * @dev Returns the amount of USD in collateral.
-     * @param self The CollateralConfiguration object.
-     * @param usdAmount The amount of USD.
-     * @return The corresponding amount of the collateral with the collateral type's decimals of precision.
-     */
-    function getUSDInCollateral(
-        Data storage self,
-        uint256 usdAmount
-    ) internal view returns (uint256) {
-        uint8 decimals = self.cachedConfig.tokenDecimals;
-
-        uint256 collateralAmountWad = divUintUD(usdAmount, self.getCollateralPriceInUSD());
-        return DecimalMath.changeDecimals(collateralAmountWad, DecimalMath.WAD_DECIMALS, decimals);
-    }
-
-    /**
-     * @dev Returns the weighted amount of USD in collateral.
-     * @param self The CollateralConfiguration object.
-     * @param weightedUsdAmount The amount of USD.
-     * @return The corresponding amount of the collateral with 18 decimals of precision.
-     */
-    function getWeightedUSDInCollateral(
-        Data storage self,
-        uint256 weightedUsdAmount
-    ) internal view returns (uint256) {
-        return divUintUD(self.getUSDInCollateral(weightedUsdAmount), self.config.weight);
-    }
-
-    /**
-     * @dev Returns the amount of colletaral A in collateral B.
-     * @param collateralB The CollateralConfiguration object of collateral B.
-     * @param amountCollateralA The amount of collateral A.
-     * @param collateralA The address of collateral A.
-     * @return discountedAmountCollateralB The corresponding collateral B amount of 
-     * the collateral A.
-     */
-    function getCollateralAInCollateralBWithDiscount(
-        Data storage collateralB,
-        uint256 amountCollateralA,
-        address collateralA
-    ) internal view returns (uint256 discountedAmountCollateralB) {
-        uint256 amountUSD = exists(collateralA)
-            .getCollateralInUSD(amountCollateralA);
-        uint256 amountCollateralB = collateralB.getUSDInCollateral(amountUSD);
-
-        // apply discount
-        discountedAmountCollateralB = divUintUD(
-            amountCollateralB, 
-            UNIT.sub(collateralB.config.autoExchangeDiscount)
-        );
+        return ExchangeInfo({
+            price: exchangeA.price.div(exchangeB.price),
+            haircut: exchangeA.haircut.mul(exchangeB.haircut)
+        });
     }
 }

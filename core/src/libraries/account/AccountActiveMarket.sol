@@ -7,11 +7,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import "../storage/Account.sol";
-import "../storage/CollateralPool.sol";
-import "../storage/Market.sol";
+import {Account} from "../../storage/Account.sol";
+import {CollateralPool} from "../../storage/CollateralPool.sol";
+import {Market} from "../../storage/Market.sol";
 
 /**
  * @title Object for tracking account active markets.
@@ -52,9 +52,11 @@ library AccountActiveMarket {
 
             // account is linked the first time to some collateral pool - update the collateral pool balances
             CollateralPool.Data storage collateralPool = Market.exists(marketId).getCollateralPool();
-            for (uint256 i = 1; i <= self.activeCollaterals.length(); i++) {
-                address activeCollateral = self.activeCollaterals.valueAt(i);
-                collateralPool.increaseCollateralBalance(activeCollateral, self.collateralBalances[activeCollateral]);
+            address[] memory activeCollaterals = self.activeCollaterals.values();
+
+            for (uint256 i = 0; i < activeCollaterals.length; i++) {
+                address activeCollateral = activeCollaterals[i];
+                collateralPool.increaseCollateralShares(activeCollateral, self.collateralShares[activeCollateral]);
             }
         }
         else {

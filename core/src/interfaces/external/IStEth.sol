@@ -7,10 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-/**
- * @title Module for configuring collaterals per collateral pool.
- * @notice Allows the owner to configure collaterals per collateral pool.
- */
-interface ICollateralConfigurationModule {
-    // todo: add interface to collateral configuration storage
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+
+/// @title Interface of stEth
+interface IStEth is IERC20 {
+    function getTotalShares() external view returns (uint256);
 }

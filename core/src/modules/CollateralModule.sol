@@ -8,12 +8,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
-import {CollateralConfiguration} from "../storage/CollateralConfiguration.sol";
 import {ICollateralModule} from "../interfaces/ICollateralModule.sol";
-import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {ERC20Helper} from "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 
 /**
@@ -22,7 +19,6 @@ import {ERC20Helper} from "@voltz-protocol/util-contracts/src/token/ERC20Helper.
  */
 contract CollateralModule is ICollateralModule {
     using ERC20Helper for address;
-    using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
