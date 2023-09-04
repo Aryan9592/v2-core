@@ -4,6 +4,7 @@ pragma solidity >=0.8.13;
 import "../ticks/Tick.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { VammCustomErrors } from "../../libraries/errors/VammCustomErrors.sol";
 
 import "../../storage/Oracle.sol";
 import "../../storage/DatedIrsVamm.sol";

@@ -12,6 +12,8 @@ interface ITokenAdapterModule {
 
     function getTokenType(address token) external view returns(bytes32);
 
+    function getTokens() external view returns(address[] memory);
+
     function convertToShares(address token, uint256 assets) external view returns (uint256);
 
     function convertToAssets(address token, uint256 shares) external view returns (uint256);
