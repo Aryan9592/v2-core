@@ -13,7 +13,7 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import { mulUDxUint, mulUDxInt, divUintUDx } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -140,7 +140,7 @@ library AccountAutoExchange {
             return (coveringTokenAmount, availableToAutoExchange);
         }
         else {
-            uint256 correspondingTokenCoveringAmount = divUintUDx(coveringTokenAmount, price.mul(autoExchangeDiscount));
+            uint256 correspondingTokenCoveringAmount = divUintUD(coveringTokenAmount, price.mul(autoExchangeDiscount));
             return (correspondingTokenCoveringAmount, amountToAutoExchange);
         }
     }
