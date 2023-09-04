@@ -89,6 +89,15 @@ library CollateralPool {
         uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
+
+    /**
+     * @notice Emitted when the withdraw limits for a collateral token are created or updated
+     */
+    event CollateralPoolWhitdrawLimitsUpdated(
+        address collateralType,
+        WithdrawLimitsConfig withdrawLimitsConfig,
+        uint256 blockTimestamp
+    );
     
     /**
      * @notice Emitted when the collateral pool balance of some particular collateral type is updated.
@@ -118,6 +127,29 @@ library CollateralPool {
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
         UD60x18 autoExchangeFee;
+    }
+
+    struct WithdrawLimitsConfig {
+        /**
+         * @dev Time window in seconds in which the withdraw limit is applied
+         */
+        uint32 withdrawalWindowSize;
+
+        /**
+         * @dev Percentage of tvl that is allowed to be withdrawn in one time window
+         */
+        UD60x18 withdrawalTvlPercentageLimit;
+    }
+
+    struct WithdrawLimitsTrackers {
+        /**
+         * @dev Total value in the collateral pool
+         */
+        uint256 tvl;
+        /**
+         * @dev Total value of withdrawals in the current window
+         */
+        uint256 windowWithdrawals;
     }
 
     struct Data {
@@ -158,6 +190,14 @@ library CollateralPool {
          * @dev Account id for the collector of protocol fees
          */
         uint128 feeCollectorAccountId;
+        /**
+         * @dev Mapping from collateral type to withdraw limit configuration
+         */
+        mapping(address => WithdrawLimitsConfig) withdrawLimitsConfig;
+        /**
+         * @dev Mapping from collateral type to withdraw limit trackers
+         */
+        mapping(address => WithdrawLimitsTrackers) withdrawLimitsTrackers;
     }
 
     /**
@@ -406,6 +446,27 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.feeCollectorAccountId,
+            block.timestamp
+        );
+    }
+
+    /**
+     * @dev Set the collateral pool's withdraw limits on the given token
+     * @param config The WithdrawLimitsConfig object with the account id and fee config
+     * @param collateralType The address of the collateral type for which the config is applied
+     */
+    function setWhitdrawLimitsConfig(Data storage self, WithdrawLimitsConfig memory config, address collateralType)
+     internal {
+        self.checkRoot();
+
+        // ensure the given collateral type exists
+        CollateralConfiguration.exists(collateralType);
+
+        self.withdrawLimitsConfig[collateralType] = config;
+
+        emit CollateralPoolWhitdrawLimitsUpdated(
+            collateralType,
+            config,
             block.timestamp
         );
     }
