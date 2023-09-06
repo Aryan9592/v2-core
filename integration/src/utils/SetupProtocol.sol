@@ -21,6 +21,7 @@ import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/ora
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 import {Market as DatedIrsMarket} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
+import {PoolConfiguration} from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
 import {Config} from "@voltz-protocol/periphery/src/storage/Config.sol";
@@ -198,7 +199,7 @@ contract SetupProtocol is BatchScript {
   }
 
   // todo: alex return new product id to be used in ConfigProtocol.s.sol
-  function registerDatedIrsMarketManager() public {
+  function registerDatedIrsMarketManager(uint256 makerPositionsPerAccountLimit) public {
     registerMarketManager(address(contracts.datedIrsProxy), "Dated IRS Market Manager");
     
     configureMarketManager(
@@ -207,9 +208,10 @@ contract SetupProtocol is BatchScript {
       })
     );
 
-    setMarketManagerAddress({
-      marketManagerAddress: address(contracts.datedIrsProxy)
-    });
+    setPoolConfiguration(PoolConfiguration.Data({
+      marketManagerAddress: address(contracts.datedIrsProxy),
+      makerPositionsPerAccountLimit: makerPositionsPerAccountLimit
+    }));
   }
 
   function configureMarket(
@@ -283,7 +285,6 @@ contract SetupProtocol is BatchScript {
     VammConfiguration.Mutable memory mutableConfig,
     int24 initTick,
     uint16 observationCardinalityNext,
-    uint256 makerPositionsPerAccountLimit,
     uint32[] memory times,
     int24[] memory observedTicks
   ) public {
@@ -315,8 +316,6 @@ contract SetupProtocol is BatchScript {
 
       currentObservationCardinalityNext = nextObservationCardinalityNext;
     }
-
-    setMakerPositionsPerAccountLimit(makerPositionsPerAccountLimit);
   }
 
   struct MintOrBurnParams {
@@ -750,16 +749,16 @@ contract SetupProtocol is BatchScript {
   /////////////////                VAMM              /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function setMarketManagerAddress(address marketManagerAddress) public {
+  function setPoolConfiguration(PoolConfiguration.Data memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.vammProxy.setMarketManagerAddress(marketManagerAddress);
+      contracts.vammProxy.setPoolConfiguration(config);
     } else {
       addToBatch(
         address(contracts.vammProxy),
         abi.encodeCall(
-          contracts.vammProxy.setMarketManagerAddress,
-          (marketManagerAddress)
+          contracts.vammProxy.setPoolConfiguration,
+          (config)
         )
       );
     }
@@ -806,23 +805,6 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function setPoolPauseState(
-    bool paused
-  ) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.vammProxy.setPauseState(paused);
-    } else {
-      addToBatch(
-        address(contracts.vammProxy),
-        abi.encodeCall(
-          contracts.vammProxy.setPauseState,
-          (paused)
-        )
-      );
-    }
-  }
-
   function setVammFeatureFlagAllowOne(bytes32 feature, address account) public {
     if (!settings.multisig) {
       broadcastOrPrank();
@@ -856,21 +838,6 @@ contract SetupProtocol is BatchScript {
         abi.encodeCall(
           contracts.vammProxy.increaseObservationCardinalityNext,
           (marketId, maturityTimestamp, observationCardinalityNext)
-        )
-      );
-    }
-  }
-
-  function setMakerPositionsPerAccountLimit(uint256 makerPositionsPerAccountLimit) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.vammProxy.setMakerPositionsPerAccountLimit(makerPositionsPerAccountLimit);
-    } else {
-      addToBatch(
-        address(contracts.vammProxy),
-        abi.encodeCall(
-          contracts.vammProxy.setMakerPositionsPerAccountLimit,
-          (makerPositionsPerAccountLimit)
         )
       );
     }

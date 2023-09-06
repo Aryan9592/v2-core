@@ -58,7 +58,7 @@ contract ConfigProtocol is SetupProtocol {
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999
     });
-    registerDatedIrsMarketManager();
+    registerDatedIrsMarketManager(1);
     configureMarket({
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
       marketId: 1,
@@ -101,7 +101,6 @@ contract ConfigProtocol is SetupProtocol {
       }),
       initTick: -13860, // price = 4%
       observationCardinalityNext: 16,
-      makerPositionsPerAccountLimit: 1,
       times: times,
       observedTicks: observedTicks
     });
