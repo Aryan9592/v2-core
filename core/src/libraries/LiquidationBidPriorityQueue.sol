@@ -6,6 +6,7 @@ You may obtain a copy of the License at
 https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
+import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 
 /**
@@ -15,9 +16,10 @@ pragma solidity >=0.8.19;
 library LiquidationBidPriorityQueue {
 
     struct LiquidationBid {
-        uint128 marketId;
         uint128 liquidatorAccountId;
-        bytes inputs;
+        UD60x18 liquidatorRewardParameter;
+        uint128[] marketIds;
+        bytes[] inputs;
     }
 
     struct Heap {
