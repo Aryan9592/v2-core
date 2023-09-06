@@ -53,6 +53,7 @@ contract ExecutionModule {
     uint256 constant V2_MARKET_MANAGER_MAKER_ORDER = 0x09;
     // todo: shouldn't be 0x0A?
     uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0xA0;
+    uint256 constant V2_MATCHED_ORDER = 0xA0;
 
     struct Command {
         /**
@@ -207,6 +208,42 @@ contract ExecutionModule {
             account.updateNetCollateralDeposits(collateralType, cashflowAmount);
 
             return abi.encode(result);
+        } else if (command == V2_MATCHED_ORDER) {
+            uint128 counterPartyAccountId;
+            bytes[] memory inputs;
+            assembly {
+                counterPartyAccountId := calldataload(inputs.offset)
+                inputs := calldataload(add(inputs.offset, 0x20))
+            }
+
+            // verify counterparty account & access
+            Account.exists(counterPartyAccountId);
+            Account.Data storage counterPartyAccount = 
+                Account.loadAccountAndValidatePermission(counterPartyAccountId, Account.ADMIN_PERMISSION, msg.sender);
+            counterPartyAccount.ensureEnabledCollateralPool();
+            
+            // execute orders
+            (bytes memory result1, int256 annualizedNotional1) = 
+                marketManager.executeTakerOrder(accountId, marketId, inputs1);
+
+            (bytes memory result2, int256 annualizedNotional2) = 
+                    marketManager.executeTakerOrder(counterPartyAccountId, marketId, inputs2);
+            
+
+            // charge fees
+            uint256 fee1 = Propagation.propagateTakerOrder(
+                accountId,
+                marketId,
+                collateralType, 
+                annualizedNotional1
+            );
+            uint256 fee2 = Propagation.propagateMakerOrder(
+                counterPartyAccountId,
+                marketId,
+                collateralType,
+                annualizedNotional2
+            );
+            return abi.encode(result1, result2, fee1, fee2);
         } else {
             revert InvalidCommandType(command);
         }
