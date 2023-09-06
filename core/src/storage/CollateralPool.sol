@@ -92,15 +92,6 @@ library CollateralPool {
         uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
-
-    /**
-     * @notice Emitted when the withdraw limits for a collateral token are created or updated
-     */
-    event CollateralPoolWhitdrawLimitsUpdated(
-        address collateralType,
-        WithdrawLimitsConfig withdrawLimitsConfig,
-        uint256 blockTimestamp
-    );
     
     /**
      * @notice Emitted when the collateral pool balance of some particular collateral type is updated.
@@ -130,29 +121,6 @@ library CollateralPool {
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
         UD60x18 autoExchangeFee;
-    }
-
-    struct WithdrawLimitsConfig {
-        /**
-         * @dev Time window in seconds in which the withdraw limit is applied
-         */
-        uint32 withdrawalWindowSize;
-
-        /**
-         * @dev Percentage of tvl that is allowed to be withdrawn in one time window
-         */
-        UD60x18 withdrawalTvlPercentageLimit;
-    }
-
-    struct WithdrawLimitsTrackers {
-        /**
-         * @dev Total value of withdrawals in the current window
-         */
-        uint256 windowWithdrawals;
-        /**
-         * @dev Window index, i.e. how many windows have passed since Jan 1st, 1970 at midnight UTC
-         */
-        uint32 windowNumber;
     }
 
     struct Data {
@@ -193,14 +161,6 @@ library CollateralPool {
          * @dev Account id for the collector of protocol fees
          */
         uint128 feeCollectorAccountId;
-        /**
-         * @dev Mapping from collateral type to withdraw limit configuration
-         */
-        mapping(address => WithdrawLimitsConfig) withdrawLimitsConfig;
-        /**
-         * @dev Mapping from collateral type to withdraw limit trackers
-         */
-        mapping(address => WithdrawLimitsTrackers) withdrawLimitsTrackers;
     }
 
     /**
@@ -398,7 +358,8 @@ library CollateralPool {
             revert InsufficientCollateralInCollateralPool(shares);
         }
 
-        self.checkWithdrawLimits(shares, collateralType);
+        // check withdraw limits
+        CollateralConfiguration.exists(self.id, collateralType).checkWithdrawLimits(shares);
 
         self.collateralShares[collateralType] -= shares;
 
@@ -455,27 +416,6 @@ library CollateralPool {
         );
     }
 
-    /**
-     * @dev Set the collateral pool's withdraw limits on the given token
-     * @param config The WithdrawLimitsConfig object with the account id and fee config
-     * @param collateralType The address of the collateral type for which the config is applied
-     */
-    function setWhitdrawLimitsConfig(Data storage self, WithdrawLimitsConfig memory config, address collateralType)
-     internal {
-        self.checkRoot();
-
-        // ensure the given collateral type exists
-        CollateralConfiguration.exists(collateralType);
-
-        self.withdrawLimitsConfig[collateralType] = config;
-
-        emit CollateralPoolWhitdrawLimitsUpdated(
-            collateralType,
-            config,
-            block.timestamp
-        );
-    }
-
     function setFeeCollectorAccountId(Data storage self, uint128 accountId) internal {
         self.checkRoot();
 
@@ -498,35 +438,5 @@ library CollateralPool {
         if (msg.sender != self.owner) {
             revert Unauthorized(msg.sender);
         }
-    }
-
-    /**
-     * @dev Updates the withdraw limit trackers and checks if limit was reached
-     */
-    function checkWithdrawLimits(Data storage self, uint256 amount, address collateralType) internal {
-        // reset tracker if window has expired
-        uint32 currentWindowNumber = 
-            uint32(block.timestamp) / self.withdrawLimitsConfig[collateralType].withdrawalWindowSize;
-
-        uint256 windowWithdrawalsCopy = self.withdrawLimitsTrackers[collateralType].windowWithdrawals;
-
-        bool isNewWindow = currentWindowNumber > self.withdrawLimitsTrackers[collateralType].windowNumber;
-        if (isNewWindow) {
-            self.withdrawLimitsTrackers[collateralType].windowNumber = currentWindowNumber;
-            windowWithdrawalsCopy = 0;
-        }
-
-        // check withdraw limits against tvl
-        windowWithdrawalsCopy += amount;
-        if ( 
-            windowWithdrawalsCopy > mulUDxUint(
-                self.withdrawLimitsConfig[collateralType].withdrawalTvlPercentageLimit,
-                self.collateralBalances[collateralType]
-            )
-        ) {
-            revert CollateralPoolWithdrawLimitReached(self.id, collateralType);
-        }
-
-        CollateralConfiguration.exists(collateralType).checkCollateralWithdrawLimits(amount, isNewWindow);
     }
 }

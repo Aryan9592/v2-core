@@ -10,17 +10,24 @@ pragma solidity >=0.8.19;
 import { OracleManager } from  "./OracleManager.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
+import {TokenAdapter} from  "./TokenAdapter.sol";
+import {CollateralPool} from  "./CollateralPool.sol";
+import {GlobalCollateralConfiguration} from  "./GlobalCollateralConfiguration.sol";
+import {ITokenAdapterModule} from "../interfaces/ITokenAdapterModule.sol";
 import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 library CollateralConfiguration {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
+    using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
 
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
@@ -59,7 +66,7 @@ library CollateralConfiguration {
     /**
      * @dev Thrown when the withdraw limit was reached for a collateral type.
      */
-    error CollateralTypeWithdrawLimitReached(address collateralType);
+    error CollateralTypeWithdrawLimitReached(address collateralType, uint32 windowStartTimestamp);
 
     struct WithdrawLimitsConfig {
         /**
@@ -83,6 +90,11 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
+
+        /**
+         * @dev Withdraw limit configuration
+         */
+        WithdrawLimitsConfig withdrawLimits;
     }
 
     struct CachedConfiguration {
@@ -108,9 +120,13 @@ library CollateralConfiguration {
         uint8 tokenDecimals;
 
         /**
-         * @dev Withdraw limit configuration
+         * @dev Total value of withdrawals in the current window
          */
-        WithdrawLimitsConfig withdrawLimits;
+        uint256 windowWithdrawals;
+        /**
+         * @dev Unix timestamp of the latest cached withdraw period start
+         */
+        uint32 windowStartTimestamp;
     }
 
     struct ParentConfiguration {
@@ -144,11 +160,6 @@ library CollateralConfiguration {
         CachedConfiguration cachedConfig;
 
         ParentConfiguration parentConfig;
-
-        /**
-         * @dev Total value of withdrawals in the current window
-         */
-        uint256 windowWithdrawals;
     }
 
     struct ExchangeInfo {
@@ -195,7 +206,9 @@ library CollateralConfiguration {
             collateralPoolId: collateralPoolId,
             tokenAddress: tokenAddress,
             tokenDecimals: IERC20(tokenAddress).decimals(),
-            set: true
+            set: true,
+            windowWithdrawals: 0,
+            windowStartTimestamp: 0
         });
 
         emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
@@ -340,26 +353,41 @@ library CollateralConfiguration {
     /**
      * @dev Updates the withdraw limit trackers and checks if limit was reached
      */
-    function checkCollateralWithdrawLimits(Data storage self, uint256 amount, bool isNewWindow) internal {
+    function checkWithdrawLimits(Data storage self, uint256 shares) internal {
         address token = self.cachedConfig.tokenAddress;
+        uint256 windowWithdrawals = self.cachedConfig.windowWithdrawals;
+        ITokenAdapterModule tokenAdapter = ITokenAdapterModule(TokenAdapter.exists().tokenAdapterAddress);
 
-        uint256 windowWithdrawalsCopy = self.windowWithdrawals;
-
+        bool isNewWindow = Time.blockTimestampTruncated() > 
+            self.cachedConfig.windowStartTimestamp + self.baseConfig.withdrawLimits.withdrawalWindowSize;
         if (isNewWindow) {
-            windowWithdrawalsCopy = amount;
+            self.cachedConfig.windowStartTimestamp = Time.blockTimestampTruncated();
+            windowWithdrawals = 0;
+        }
+
+        uint256 amount = tokenAdapter.convertToAssets(token, shares);
+        if (isNewWindow) {
+            windowWithdrawals = amount;
         } else {
-            windowWithdrawalsCopy += amount;
+            windowWithdrawals += amount;
         }
 
         // check withdraw limits against tvl
-        uint256 tvl = IERC20(token).balanceOf(address(this));
+        uint256 tvl = tokenAdapter.convertToAssets(
+            token,
+            CollateralPool.exists(self.cachedConfig.collateralPoolId).collateralShares[token]
+        );
         if ( 
-            windowWithdrawalsCopy > 
-            mulUDxUint(self.config.withdrawLimits.withdrawalTvlPercentageLimit, tvl)
+            windowWithdrawals > 
+            mulUDxUint(self.baseConfig.withdrawLimits.withdrawalTvlPercentageLimit, tvl)
         ) {
-            revert CollateralTypeWithdrawLimitReached(token);
+            revert CollateralTypeWithdrawLimitReached(token, self.cachedConfig.windowStartTimestamp);
         }
 
-        self.windowWithdrawals = windowWithdrawalsCopy; 
+        self.cachedConfig.windowWithdrawals = windowWithdrawals; 
+
+        if (GlobalCollateralConfiguration.doesExists(token)) {
+            GlobalCollateralConfiguration.exists(token).checkWithdrawLimits(shares, isNewWindow);
+        }
     }
 }
