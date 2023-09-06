@@ -19,9 +19,11 @@ import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
 import {AccountExposure} from "../libraries/account/AccountExposure.sol";
 import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
@@ -135,6 +137,25 @@ library Account {
         SetUtil.AddressSet permissionAddresses;
     }
 
+    struct LiquidationBidPriorityQueues {
+
+        /**
+         * @dev Id of the latest queue
+         */
+        uint256 latestQueueId;
+
+        /**
+         * @dev Block timestamp at which the latest queue stops being live
+         */
+        uint256 latestQueueEndTimestamp;
+
+        /**
+         * @dev Map of liquidation bid priority queues associated with the account
+         */
+        mapping(uint256 => LiquidationBidPriorityQueue.Heap) priorityQueues;
+
+    }
+
     struct Data {
         /**
          * @dev Numeric identifier for the account. Must be unique.
@@ -171,7 +192,10 @@ library Account {
          * @dev First market id that this account is active on
          */
         uint128 firstMarketId;
-
+        /**
+         * @dev Liquidation Bid Priority Queues associated with the account alongside latest timestamp & id
+         */
+        LiquidationBidPriorityQueues liquidationBidPriorityQueues;
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
         // synthetix/contracts/storage/Account.sol#L58

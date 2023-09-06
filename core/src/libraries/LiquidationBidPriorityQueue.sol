@@ -12,7 +12,7 @@ pragma solidity >=0.8.19;
  * @title Library for priority queue of liquidation bids
  */
 // reference: https://github.com/MihanixA/SummingPriorityQueue/blob/master/contracts/SummingPriorityQueue.sol
-library PriorityBidQueue {
+library LiquidationBidPriorityQueue {
 
     struct LiquidationBid {
         uint128 marketId;
@@ -81,7 +81,7 @@ library PriorityBidQueue {
         self.liquidationBidsMap[rank] = liquidationBid;
     }
 
-    // todo: consider removing this function
+    // todo: consider removing this function (feels redundunt)
     function drain(Heap storage self, uint256 rankThreshold) internal {
         while (self.ranks.length > 1 && top(self) < rankThreshold) {
             dequeue(self);
