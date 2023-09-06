@@ -23,6 +23,7 @@ import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQu
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import "../interfaces/external/IMarketManager.sol";
 
 
 /**
@@ -63,6 +64,11 @@ library Account {
      * @dev Thrown when an account cannot be found.
      */
     error AccountNotFound(uint128 accountId);
+
+    /**
+     * @dev Thrown when attempting to execute a bid in an expired liquidation bid priority queue
+     */
+    error LiquidationBidPriorityQueueExpired(uint256 queueId, uint256 queueEndTimestamp);
 
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
@@ -427,11 +433,15 @@ library Account {
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
+        // todo: check if the MMR condition is breached while the LM condition is still not breached
+        // todo: submission of pre & post bid execution hooks
+
         if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
-            block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+            block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp
+        ) {
             // this is the first liquidation bid ever to be submitted against this account id
             // or the latest queue has expired, so we need to push the bid into a new queue
-        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+            CollateralPool.Data storage collateralPool = self.getCollateralPool();
             uint256 liquidationBidPriorityQueueDurationInSeconds = collateralPool.riskConfig
             .liquidationBidPriorityQueueDurationInSeconds;
             self.liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp + liquidationBidPriorityQueueDurationInSeconds;
@@ -442,6 +452,66 @@ library Account {
             liquidationBidRank,
             liquidationBid
         );
+
+    }
+
+    function executeTopRankedLiquidationBid(
+        Account.Data storage self
+    ) internal {
+
+        // todo: consider wrapping market executions in the market execution module (incl. things like marking active
+        // markets)
+        // todo: check if liquidated and liquidator accounts exist
+        // todo: make sure this can only be executed if lm is breached but dutchM is not (needs more thinking)
+        // todo: add logic for liquidator rewards & allocation towards backstop lps and the insurance fund
+        // todo: make sure the liquidator reward is applied before the im check
+        // todo: make sure pre and post execution hooks are executed around this function
+        // todo: fee collection flow for transfers from liquidations (do we want to collect fees in this case?)
+
+        if (block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+            // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
+            revert LiquidationBidPriorityQueueExpired(
+                self.liquidationBidPriorityQueues.latestQueueId,
+                self.liquidationBidPriorityQueues.latestQueueEndTimestamp
+            );
+        }
+
+        // extract top ranked order (don't dequeue it yet)
+
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = self.liquidationBidPriorityQueues
+        .priorityQueues[
+            self.liquidationBidPriorityQueues.latestQueueId
+        ].topBid();
+
+        // execute orders within the liquidation bid
+
+        for (uint256 i = 0; i < topRankedLiquidationBid.marketIds.length; i++) {
+            uint128 marketId = topRankedLiquidationBid.marketIds[i];
+            Market.Data memory market = Market.exists(marketId);
+            IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
+            marketManager.executeLiquidationOrder(self.id, topRankedLiquidationBid.liquidatorAccountId,  marketId,
+                topRankedLiquidationBid.inputs[i]);
+        }
+
+        // check if the liquidator satisfies the IM requirement
+
+        bool isBelowIM = Account.exists(topRankedLiquidationBid.liquidatorAccountId)
+            .getMarginInfoByBubble(address(0)).initialDelta < 0;
+
+        if (isBelowIM) {
+            // todo: similar logic to the above except we're reversing here
+            for (uint256 i = 0; i < topRankedLiquidationBid.marketIds.length; i++) {
+                uint128 marketId = topRankedLiquidationBid.marketIds[i];
+                Market.Data memory market = Market.exists(marketId);
+                IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
+                marketManager.reverseLiquidationOrder(self.id, topRankedLiquidationBid.liquidatorAccountId,  marketId,
+                    topRankedLiquidationBid.inputs[i]);
+            }
+        }
+
+        self.liquidationBidPriorityQueues.priorityQueues[
+            self.liquidationBidPriorityQueues.latestQueueId
+        ].dequeue();
 
     }
 

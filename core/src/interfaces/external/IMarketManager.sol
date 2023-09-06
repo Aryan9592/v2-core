@@ -71,6 +71,44 @@ interface IMarketManager is IERC165 {
     ) external returns (bytes memory output, int256 annualizedNotional);
 
     /**
+     * @notice Decoded inputs and execute liquidation order
+     * @param liquidatedAccountId Id of the account that is getting liquidated
+     * @param liquidatorAccountId Id of the account that performs the liquidation
+     * @param marketId Id of the market in which the liquidation is taking place
+     * @param inputs The extra inputs required by the liquidation order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function executeLiquidationOrder(
+        uint128 liquidatedAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output);
+
+    /**
+    * @notice Decoded inputs and reverse liquidation order
+     * @param liquidatedAccountId Id of the account that is getting liquidation reversed
+     * @param liquidatorAccountId Id of the account that performs the liquidation reversal
+     * @param marketId Id of the market in which the liquidation is taking place
+     * @param inputs The extra inputs required by the liquidation reversal order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function reverseLiquidationOrder(
+        uint128 liquidatedAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output);
+
+    /**
      * @notice Decoded inputs and completes a position
      * @param accountId Id of the account that wants to complete a position
      * @param marketId Id of the market in which the account wants to complete a position
