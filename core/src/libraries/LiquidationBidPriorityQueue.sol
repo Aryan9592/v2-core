@@ -36,6 +36,9 @@ library LiquidationBidPriorityQueue {
         return self.ranks[1];
     }
 
+    function topBid(Heap storage self) internal view notEmpty(self) returns(LiquidationBid memory) {
+        return self.liquidationBidsMap[top(self)];
+    }
 
     function dequeue(Heap storage self) internal notEmpty(self) {
         require(self.ranks.length > 1);
