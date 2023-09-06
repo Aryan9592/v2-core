@@ -105,7 +105,12 @@ library CollateralPool {
          * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward
          * amount
          */
-        UD60x18 liquidatorRewardParameter;
+        UD60x18 liquidatorRewardParameter; // todo: get rid of this
+
+        /**
+         * @dev Liquidation Bid Priority Queue Duration In Seconds
+         */
+        uint256 liquidationBidPriorityQueueDurationInSeconds;
     }
 
     struct InsuranceFundConfig {
@@ -376,6 +381,7 @@ library CollateralPool {
 
         self.riskConfig.imMultiplier = config.imMultiplier;
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
+        self.riskConfig.liquidationBidPriorityQueueDurationInSeconds = config.liquidationBidPriorityQueueDurationInSeconds;
 
         emit CollateralPoolUpdated(
             self.id, 

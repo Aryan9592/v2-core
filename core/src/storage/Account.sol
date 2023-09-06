@@ -36,6 +36,7 @@ library Account {
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
+    using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
 
     /**
      * @dev All account permissions used by the system
@@ -412,16 +413,30 @@ library Account {
         return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     }
 
-    /**
-     * @dev Closes all account filled (i.e. attempts to fully unwind) and unfilled orders in all the markets in which the account
-     * is active
-     */
-    function closeAccount(Data storage self, address collateralType) internal {
-        SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
-            
-        for (uint256 i = 1; i <= markets.length(); i++) {
-            uint128 marketId = markets.valueAt(i).to128();
-            Market.exists(marketId).closeAccount(self.id);
+    // todo: consider moving this logic to a separate library similar to account exposures, etc (CR)?
+    function submitLiquidationBid(
+        Account.Data storage self,
+        uint256 liquidationBidRank,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) internal {
+
+        if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
+            block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+            // this is the first liquidation bid ever to be submitted against this account id
+            // or the latest queue has expired, so we need to push the bid into a new queue
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+            uint256 liquidationBidPriorityQueueDurationInSeconds = collateralPool.riskConfig
+            .liquidationBidPriorityQueueDurationInSeconds;
+            self.liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp + liquidationBidPriorityQueueDurationInSeconds;
+            self.liquidationBidPriorityQueues.latestQueueId += 1;
         }
+
+        self.liquidationBidPriorityQueues.priorityQueues[self.liquidationBidPriorityQueues.latestQueueId].enqueue(
+            liquidationBidRank,
+            liquidationBid
+        );
+
     }
+
+
 }
