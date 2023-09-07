@@ -354,25 +354,26 @@ library Portfolio {
 
         UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
 
-        self.deactivateMarketMaturity(maturityTimestamp);
+        (int256 filledBase, int256 filledQuote) = 
+            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
 
-        IPool pool = IPool(poolAddress);
-
-        (int256 filledBase, int256 filledQuote) = pool.getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+        (int256 marketBase, int256 marketQuote) = (position.baseBalance, position.quoteBalance);
 
         settlementCashflow =
-            mulUDxInt(liquidityIndexMaturity, position.baseBalance + filledBase) + position.quoteBalance + filledQuote;
+            mulUDxInt(liquidityIndexMaturity, marketBase + filledBase) + marketQuote + filledQuote;
+
+        position.update(-marketBase, -marketQuote);
+    
+        self.deactivateMarketMaturity(maturityTimestamp);
 
         emit PositionUpdated(
             self.accountId, 
             marketId, 
             maturityTimestamp, 
-            -position.baseBalance, 
-            -position.quoteBalance, 
+            -marketBase, 
+            -marketQuote, 
             block.timestamp
         );
-
-        position.update(-position.baseBalance, -position.quoteBalance);
     }
 
     /**
@@ -380,7 +381,7 @@ library Portfolio {
      * note this can also be called by the pool when a position is intitalised
      */
     function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
-        // check if market/maturity exist
+        // check if market/maturity exists
         Market.Data storage market = Market.exists(self.marketId);
 
         address collateralType = market.quoteToken;
@@ -389,22 +390,25 @@ library Portfolio {
             revert UnknownMarket(self.marketId);
         }
 
-        if (!self.activeMaturities.contains(maturityTimestamp)) {
-            if (
-                self.activeMaturities.length() >= 
-                market.marketConfig.takerPositionsPerAccountLimit
-            ) {
-                revert TooManyTakerPositions(self.accountId, self.marketId);
-            }
-
-            self.activeMaturities.add(maturityTimestamp);
-            emit MarketMaturityActivated(
-                self.accountId,
-                self.marketId,
-                maturityTimestamp,
-                block.timestamp
-            );
+        if (self.activeMaturities.contains(maturityTimestamp)) {
+            return;
         }
+        
+        if (
+            self.activeMaturities.length() >= 
+            market.marketConfig.takerPositionsPerAccountLimit
+        ) {
+            revert TooManyTakerPositions(self.accountId, self.marketId);
+        }
+
+        self.activeMaturities.add(maturityTimestamp);
+        
+        emit MarketMaturityActivated(
+            self.accountId,
+            self.marketId,
+            maturityTimestamp,
+            block.timestamp
+        );
     }
 
     /**
@@ -412,14 +416,17 @@ library Portfolio {
      * note this can also be called by the pool when a position is settled
      */
     function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
-        if (self.activeMaturities.contains(maturityTimestamp)) {
-            self.activeMaturities.remove(maturityTimestamp);
-            emit MarketMaturityDeactivated(
-                self.accountId,
-                self.marketId,
-                maturityTimestamp,
-                block.timestamp
-            );
+        if (!self.activeMaturities.contains(maturityTimestamp)) {
+            return;
         }
+
+        self.activeMaturities.remove(maturityTimestamp);
+        
+        emit MarketMaturityDeactivated(
+            self.accountId,
+            self.marketId,
+            maturityTimestamp,
+            block.timestamp
+        );
     }
 }

@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import {IPool} from "../interfaces/IPool.sol";
+import {IRateOracle} from "../interfaces/IRateOracle.sol";
 import {MarketRateOracle} from "../libraries/MarketRateOracle.sol"; 
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
@@ -204,7 +205,7 @@ library Market {
     }
 
     function setRateOracleConfiguration(Data storage self, RateOracleConfiguration memory rateOracleConfig) internal {
-        if (!MarketRateOracle.validateOracleInterface(rateOracleConfig.oracleAddress)) {
+        if (!IERC165(rateOracleConfig.oracleAddress).supportsInterface(type(IRateOracle).interfaceId)) {
             revert InvalidVariableOracleAddress(rateOracleConfig.oracleAddress);
         }
 
