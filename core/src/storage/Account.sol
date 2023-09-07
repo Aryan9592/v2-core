@@ -535,7 +535,6 @@ library Account {
         Account.Data storage self
     ) internal {
 
-        // todo: check if liquidated and liquidator accounts exist
         // todo: make sure this can only be executed if lm is breached but dutchM is not (needs more thinking)
         // todo: add logic for liquidator rewards & allocation towards backstop lps and the insurance fund
         // todo: make sure the liquidator reward is applied before the im check
@@ -573,7 +572,7 @@ library Account {
             .getMarginInfoByBubble(address(0)).initialDelta < 0;
 
         if (isBelowIM) {
-            // todo: similar logic to the above except we're reversing here
+            // similar logic to the above except we're reversing here
             for (uint256 i = 0; i < topRankedLiquidationBid.marketIds.length; i++) {
                 uint128 marketId = topRankedLiquidationBid.marketIds[i];
                 Market.Data memory market = Market.exists(marketId);
