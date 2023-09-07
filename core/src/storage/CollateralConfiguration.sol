@@ -286,6 +286,24 @@ library CollateralConfiguration {
         revert UnlinkedTokens(collateralPoolId, tokenA, tokenB);
     }
 
+    function getQuoteToken(uint128 collateralPoolId, address token) internal view returns (address) {
+        address prev = token;
+        address current = token;
+
+        while (true) {
+            Data storage currentConfig = load(collateralPoolId, current);
+
+            if (!currentConfig.parentConfig.hasParent) {
+                break;
+            }
+
+            prev = current;
+            current = currentConfig.parentConfig.tokenAddress;
+        }
+
+        return prev;
+    }
+
     function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor) 
         private
         view 

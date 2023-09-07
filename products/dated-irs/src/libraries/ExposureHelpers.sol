@@ -142,7 +142,11 @@ library ExposureHelpers {
                 poolState.annualizedExposureFactor, 
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
             ),
-            unrealizedLoss: unrealizedLossLower
+            pnlComponents: Account.PnLComponents({
+                accruedCashflows: 0,     // todo: during tokenization implementation
+                lockedPnL: 0,            // todo: during tokenization implementation
+                unrealizedPnL: -unrealizedLossLower.toInt()
+            })
         });
     }
 
@@ -163,7 +167,11 @@ library ExposureHelpers {
                 poolState.annualizedExposureFactor,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
             ),
-            unrealizedLoss: unrealizedLossUpper
+            pnlComponents: Account.PnLComponents({
+                accruedCashflows: 0,     // todo: during tokenization implementation
+                lockedPnL: 0,            // todo: during tokenization implementation
+                unrealizedPnL: -unrealizedLossUpper.toInt()
+            })
         });
     }
 

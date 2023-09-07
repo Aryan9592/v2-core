@@ -62,29 +62,70 @@ library Account {
      * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
-    error AccountBelowIM(uint128 accountId, MarginRequirementDeltas marginRequirements);
+    error AccountBelowIM(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when an account cannot be found.
      */
     error AccountNotFound(uint128 accountId);
 
+    struct PnLComponents {
+        /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
+        /// result of having a positions open in a derivative instrument, as determined 
+        /// by the derivative’s contractual obligations at certain timestamps.
+        /// @dev e.g., perpetual futures require the interchange of a funding rate a regular intervals, 
+        /// which would be reported as accrued cashflows; interest rate swaps also determine the 
+        /// interchange of net accrued interest amounts, which are also accrued cashflows.
+        int256 accruedCashflows;
+        /// @notice Locked PnL are the component of PnL locked by unwinding exposure tokens. An 
+        /// exception to this is when transactions in that exposure token are not in the 
+        ////settlement token, but rather in a different token which would need to be burned 
+        /// to result in a balance in the settlement token.
+        /// @dev e.g., in the Voltz Protocol’s Interest rate swaps, exposure tokens are termed 
+        /// variable tokens, and the Protocol’s vAMM always interchanges these variable tokens 
+        /// against forward looking, fixed interest tokens as a way of pricing. Converting the 
+        /// PnL locked by unwinding a variable token balance into the settlement token would require 
+        /// burning the resulting fixed token balance.
+        int256 lockedPnL;
+        /// @notice Unrealized PnL is the valued accumulated in an open position when that position 
+        /// is priced at market values (’mark to market’). As opposed to the previous components of PnL, 
+        /// this component changes with time, as market prices change. Strictly speaking, then, unrealized PnL 
+        /// is actually a function of time: unrealizedPnL(t).
+        int256 unrealizedPnL;
+    }
+
+    struct Balances {
+        /// These are all amounts that are available to contribute to cover margin requirements. 
+        int256 marginBalance;
+        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement 
+        /// token and not as value of an instrument which settles in that token
+        int256 realBalance;
+    }
+
     /**
      * @dev Structure for tracking margin requirement information.
      */
     struct MarginRequirementDeltas {
+        /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
+        /// Difference between margin balance and liquidation margin requirement
         int256 liquidationDelta;
+    }
+
+    struct MarginInfo {
         address collateralType;
+        int256 netDeposits;
+        Balances balances;
+        MarginRequirementDeltas mrDeltas;
     }
 
     /**
      * @dev Structure for tracking one-side market exposure.
      */
     struct MarketExposure {
+        /// @notice Annualized notional of the exposure
         int256 annualizedNotional;
-        // note, in context of dated irs with the current accounting logic it also includes accruedInterest
-        uint256 unrealizedLoss;
+        PnLComponents pnlComponents;
     }
 
     /**
@@ -128,7 +169,7 @@ library Account {
         /**
          * @dev Address set of collaterals that are being used in the protocols by this account.
          */
-        mapping(address => uint256) collateralShares;
+        mapping(address => int256) collateralShares;
 
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance
@@ -298,48 +339,44 @@ library Account {
         }
     }
 
-    function increaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        AccountCollateral.increaseCollateralBalance(self, collateralType, amount);
+    function updateNetCollateralDeposits(Data storage self, address collateralType, int256 amount) internal {
+        AccountCollateral.updateNetCollateralDeposits(self, collateralType, amount);
     }
 
-    function decreaseCollateralBalance(Data storage self, address collateralType, uint256 amount) internal {
-        AccountCollateral.decreaseCollateralBalance(self, collateralType, amount);
+    function getAccountNetCollateralDeposits(Data storage self, address collateralType)
+        internal
+        view
+        returns (int256)
+    {
+        return AccountCollateral.getAccountNetCollateralDeposits(self, collateralType);
     }
 
-    function getCollateralBalance(Data storage self, address collateralType)
+    function getAccountWithdrawableCollateralBalance(Data storage self, address collateralType)
         internal
         view
         returns (uint256)
     {
-        return AccountCollateral.getCollateralBalance(self, collateralType);
-    }
-
-    function getWithdrawableCollateralBalance(Data storage self, address collateralType)
-        internal
-        view
-        returns (uint256)
-    {
-        return AccountCollateral.getWithdrawableCollateralBalance(self, collateralType);
+        return AccountCollateral.getAccountWithdrawableCollateralBalance(self, collateralType);
     }
 
     function markActiveMarket(Data storage self, address collateralType, uint128 marketId) internal {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
 
-    function getRequirementDeltasByBubble(Account.Data storage self, address collateralType)
+    function getMarginInfoByBubble(Account.Data storage self, address collateralType)
         internal
         view
-        returns (Account.MarginRequirementDeltas memory)
+        returns (Account.MarginInfo memory)
     {
-        return AccountExposure.getRequirementDeltasByBubble(self, collateralType);
+        return AccountExposure.getMarginInfoByBubble(self, collateralType);
     }
 
-    function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+    function getMarginInfoByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
         internal
         view
-        returns (Account.MarginRequirementDeltas memory)
+        returns (Account.MarginInfo memory)
     {
-        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier);
+        return AccountExposure.getMarginInfoByCollateralType(self, collateralType, imMultiplier);
     }
 
     /**
@@ -349,12 +386,12 @@ library Account {
     function imCheck(Data storage self, address collateralType) 
         internal 
         view 
-        returns (Account.MarginRequirementDeltas memory mr)
+        returns (Account.MarginInfo memory marginInfo)
     {
-        mr = self.getRequirementDeltasByBubble(collateralType);
+        marginInfo = self.getMarginInfoByBubble(collateralType);
         
-        if (mr.initialDelta < 0) {
-            revert AccountBelowIM(self.id, mr);
+        if (marginInfo.mrDeltas.initialDelta < 0) {
+            revert AccountBelowIM(self.id, marginInfo);
         }
     }
 
@@ -363,28 +400,30 @@ library Account {
         AccountMode.changeAccountMode(self, newAccountMode);
     }
 
-    function isEligibleForAutoExchange(
-        Account.Data storage self,
-        address collateralType
-    )
-        internal
-        view
-        returns (bool)
-    {
-        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
-    }
+    // todo: during liquidations implementation
+    // function isEligibleForAutoExchange(
+    //     Account.Data storage self,
+    //     address collateralType
+    // )
+    //     internal
+    //     view
+    //     returns (bool)
+    // {
+    //     return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
+    // }
 
-    function getMaxAmountToExchangeQuote(
-        Account.Data storage self,
-        address coveringToken,
-        address autoExchangedToken
-    )
-        internal
-        view
-        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
-    {
-        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
-    }
+    // todo: during liquidations implementation
+    // function getMaxAmountToExchangeQuote(
+    //     Account.Data storage self,
+    //     address coveringToken,
+    //     address autoExchangedToken
+    // )
+    //     internal
+    //     view
+    //     returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
+    // {
+    //     return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
+    // }
 
     /**
      * @dev Closes all account filled (i.e. attempts to fully unwind) and unfilled orders in all the markets in which the account

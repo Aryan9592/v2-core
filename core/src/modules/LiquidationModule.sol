@@ -24,13 +24,13 @@ contract LiquidationModule is ILiquidationModule {
     /**
      * @inheritdoc ILiquidationModule
      */
-    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
         external 
         view 
         override 
-        returns (Account.MarginRequirementDeltas memory) 
+        returns (Account.MarginInfo memory) 
     {
-        return Account.exists(accountId).getRequirementDeltasByBubble(collateralType);
+        return Account.exists(accountId).getMarginInfoByBubble(collateralType);
     }
 
 }

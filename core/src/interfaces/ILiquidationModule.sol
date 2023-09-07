@@ -20,8 +20,8 @@ interface ILiquidationModule {
      * @param collateralType The collateral type of the account that is being checked
      * @return Margin requirement information
      */
-    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
         external 
         view 
-        returns (Account.MarginRequirementDeltas memory);
+        returns (Account.MarginInfo memory);
 }

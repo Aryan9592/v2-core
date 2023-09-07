@@ -14,22 +14,22 @@ pragma solidity >=0.8.19;
 interface ICollateralModule {
 
     /**
-     * @notice Returns the total balance pertaining to account `accountId` for `collateralType`.
+     * @notice Returns the net deposits pertaining to account `accountId` for `collateralType`.
      * @param accountId The id of the account whose collateral is being queried.
      * @param collateralType The address of the collateral type whose amount is being queried.
-     * @return collateralBalance The total collateral deposited in the account, denominated in
+     * @return netDeposits The net deposits in the account, denominated in
      * the token's native decimal representation.
      */
-    function getAccountCollateralBalance(uint128 accountId, address collateralType)
+    function getAccountNetCollateralDeposits(uint128 accountId, address collateralType)
         external
         view
-        returns (uint256 collateralBalance);
+        returns (int256 netDeposits);
 
     /**
-     * @notice Returns the amount of collateral of type `collateralType` deposited with account `accountId` that can be withdrawn
+     * @notice Returns the amount of collateral of type `collateralType` that can be withdrawn from the account
      * @param accountId The id of the account whose collateral is being queried.
      * @param collateralType The address of the collateral type whose amount is being queried.
-     * @return amount The amount of collateral that is available for withdrawal (difference between balance and IM), denominated
+     * @return amount The amount of collateral that is available for withdrawal, denominated
      * in the token's native decimal representation.
      */
     function getAccountWithdrawableCollateralBalance(uint128 accountId, address collateralType)

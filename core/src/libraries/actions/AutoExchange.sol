@@ -12,7 +12,7 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {Market} from "../../storage/Market.sol";
 
-import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
@@ -22,7 +22,7 @@ library AutoExchange {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Account for Account.Data;
     using Market for Market.Data;
-    using SafeCastI256 for int256;
+    using SafeCastU256 for uint256;
 
     error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address collateralType, address quoteType);
     /**
@@ -32,47 +32,48 @@ library AutoExchange {
 
 
     // todo: consider adding a price limit 
-    function triggerAutoExchange(
-        uint128 accountId,
-        uint128 liquidatorAccountId,
-        uint256 amountToAutoExchangeQuote,
-        address collateralType,
-        address quoteType
-    ) internal {
+    // todo: during liquidations implementation
+    // function triggerAutoExchange(
+    //     uint128 accountId,
+    //     uint128 liquidatorAccountId,
+    //     uint256 amountToAutoExchangeQuote,
+    //     address collateralType,
+    //     address quoteType
+    // ) internal {
 
-        Account.Data storage account = Account.exists(accountId);
+    //     Account.Data storage account = Account.exists(accountId);
 
-        bool eligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
-        if (!eligibleForAutoExchange) {
-            revert AccountNotEligibleForAutoExchange(accountId);
-        }
+    //     bool eligibleForAutoExchange = account.isEligibleForAutoExchange(quoteType);
+    //     if (!eligibleForAutoExchange) {
+    //         revert AccountNotEligibleForAutoExchange(accountId);
+    //     }
 
-        (uint256 amountToAutoExchangeCollateral, uint256 maxExchangeableAmountQuote) = 
-            account.getMaxAmountToExchangeQuote(collateralType, quoteType);
+    //     (uint256 amountToAutoExchangeCollateral, uint256 maxExchangeableAmountQuote) = 
+    //         account.getMaxAmountToExchangeQuote(collateralType, quoteType);
 
-        if (amountToAutoExchangeQuote > maxExchangeableAmountQuote) {
-            revert ExceedsAutoExchangeLimit(maxExchangeableAmountQuote, collateralType, quoteType);
-        }
+    //     if (amountToAutoExchangeQuote > maxExchangeableAmountQuote) {
+    //         revert ExceedsAutoExchangeLimit(maxExchangeableAmountQuote, collateralType, quoteType);
+    //     }
 
-        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-        CollateralPool.InsuranceFundConfig memory insuranceFundConfig = 
-            Market.exists(account.firstMarketId).getCollateralPool().insuranceFundConfig;
-        Account.Data storage insuranceFundAccount = Account.exists(
-            insuranceFundConfig.accountId
-        );
+    //     Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+    //     CollateralPool.InsuranceFundConfig memory insuranceFundConfig = 
+    //         Market.exists(account.firstMarketId).getCollateralPool().insuranceFundConfig;
+    //     Account.Data storage insuranceFundAccount = Account.exists(
+    //         insuranceFundConfig.accountId
+    //     );
 
-        // transfer quote tokens from liquidator's account to liquidatable account
-        liquidatorAccount.decreaseCollateralBalance(quoteType, amountToAutoExchangeQuote);
-        // subtract insurance fund fee from quote repayment
-        uint256 insuranceFundFeeQuote = mulUDxUint(
-            insuranceFundConfig.autoExchangeFee,
-            amountToAutoExchangeQuote
-        );
-        insuranceFundAccount.increaseCollateralBalance(quoteType, insuranceFundFeeQuote);
-        account.increaseCollateralBalance(quoteType, amountToAutoExchangeQuote - insuranceFundFeeQuote);
+    //     // transfer quote tokens from liquidator's account to liquidatable account
+    //     liquidatorAccount.updateCollateralBalance(quoteType, -amountToAutoExchangeQuote.toInt());
+    //     // subtract insurance fund fee from quote repayment
+    //     uint256 insuranceFundFeeQuote = mulUDxUint(
+    //         insuranceFundConfig.autoExchangeFee,
+    //         amountToAutoExchangeQuote
+    //     );
+    //     insuranceFundAccount.updateCollateralBalance(quoteType, insuranceFundFeeQuote.toInt());
+    //     account.updateCollateralBalance(quoteType, (amountToAutoExchangeQuote - insuranceFundFeeQuote).toInt());
 
-        // transfer discounted collateral tokens from liquidatable account to liquidator's account
-        account.decreaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
-        liquidatorAccount.increaseCollateralBalance(collateralType, amountToAutoExchangeCollateral);
-    }
+    //     // transfer discounted collateral tokens from liquidatable account to liquidator's account
+    //     account.updateCollateralBalance(collateralType, -amountToAutoExchangeCollateral.toInt());
+    //     liquidatorAccount.updateCollateralBalance(collateralType, amountToAutoExchangeCollateral.toInt());
+    // }
 }
