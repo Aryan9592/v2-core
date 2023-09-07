@@ -138,7 +138,5 @@ library SwapMath {
             /// @dev if !exact in => fixedTaker => has no effect on notional since notional = amountIn
             amountOut = amountRemainingAbsolute;
         }
-
-        // uint256 notionalWad = PRBMathUD60x18.fromUint(notional);
     }
 }

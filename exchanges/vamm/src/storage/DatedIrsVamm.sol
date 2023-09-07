@@ -89,10 +89,7 @@ library DatedIrsVamm {
      */
     function loadByMaturityAndMarket(uint128 marketId, uint32 maturityTimestamp) internal view returns (Data storage irsVamm) {
         uint256 id = uint256(keccak256(abi.encodePacked(marketId, maturityTimestamp)));
-        irsVamm = load(id);
-        if (irsVamm.immutableConfig.maturityTimestamp == 0) {
-            revert VammCustomErrors.MarketAndMaturityCombinaitonNotSupported(marketId, maturityTimestamp);
-        }
+        irsVamm = exists(id);
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
@@ -177,7 +174,8 @@ library DatedIrsVamm {
     /// @dev 4. additionally, we need to update the last growth inside variables in the Position.Info struct 
     ///     so that we take a note that we've accounted for the changes up until this point
     /// @dev if _liquidity of the position supplied to this function is zero, 
-    ///     then we need to check if isMintBurn is set to true (if it is set to true) then we know this function was called post a mint/burn event,
+    ///     then we need to check if isMintBurn is set to true (if it is set to true) 
+    ///     then we know this function was called post a mint/burn event,
     /// @dev meaning we still need to correctly update the last fixed, variable and fee growth variables in the Position.Info struct
     function updatePositionTokenBalances(
         Data storage self,
