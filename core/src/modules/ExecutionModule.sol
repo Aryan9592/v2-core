@@ -55,9 +55,8 @@ contract ExecutionModule {
     // marker manager commands
     uint256 constant V2_MARKET_MANAGER_TAKER_ORDER = 0x08;
     uint256 constant V2_MARKET_MANAGER_MAKER_ORDER = 0x09;
-    // todo: shouldn't be 0x0A?
-    uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0xA0;
-    uint256 constant V2_MATCHED_ORDER = 0xA0;
+    uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0x0a;
+    uint256 constant V2_MATCHED_ORDER = 0x0b;
 
     struct Command {
         /**
