@@ -111,6 +111,16 @@ library CollateralPool {
          * @dev Liquidation Bid Priority Queue Duration In Seconds
          */
         uint256 liquidationBidPriorityQueueDurationInSeconds;
+
+        /**
+         * @dev Maximum number of orders that a liquidation bid can contain
+         */
+        uint256 maxNumberOfOrdersInLiquidationBid;
+
+        /**
+         * @dev Maximum number of liquidations bids that can be submitted to a single liquidation bid priority queue
+         */
+        uint256 maxNumberOfBidsInLiquidationBidPriorityQueue;
     }
 
     struct InsuranceFundConfig {
@@ -382,6 +392,8 @@ library CollateralPool {
         self.riskConfig.imMultiplier = config.imMultiplier;
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
         self.riskConfig.liquidationBidPriorityQueueDurationInSeconds = config.liquidationBidPriorityQueueDurationInSeconds;
+        self.riskConfig.maxNumberOfOrdersInLiquidationBid = config.maxNumberOfOrdersInLiquidationBid;
+        self.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue = config.maxNumberOfBidsInLiquidationBidPriorityQueue;
 
         emit CollateralPoolUpdated(
             self.id, 
