@@ -18,9 +18,7 @@ interface IRateOracle is IERC165 {
     /// @notice Thrown when oracle has no state and earliestStateUpdate() or 
     /// updateState() are called
     error NoState();
-    /// @notice Thrown when updateState() is called before earliest timestamp
-    /// at which the state can be (re-)updated.
-    error StateUpdateTooEarly();
+    
     /// @notice Returns true if the rate oracle holds state; returns false otherwise.
     function hasState() external view returns (bool);
     /// @notice Returns the earliest timestamp at which the state can be (re-)updated. 

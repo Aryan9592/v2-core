@@ -7,16 +7,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../storage/MarketManagerConfiguration.sol";
+import {MarketManagerConfiguration} from "../../storage/MarketManagerConfiguration.sol";
 import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {InitiateMakerOrder} from "./InitiateMakerOrder.sol";
 import {Market} from "../../storage/Market.sol";
-import "../../interfaces/IPool.sol";
-import "../FeatureFlagSupport.sol";
-import "../ExposureHelpers.sol";
+import {IPool} from "../../interfaces/IPool.sol";
+import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
+import {ExposureHelpers} from "../ExposureHelpers.sol";
 
 /**
  * @title Library for taker orders logic.
