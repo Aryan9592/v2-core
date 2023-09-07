@@ -22,11 +22,10 @@ library MatchedOrders {
         IMarketManager marketManager,
         bytes calldata inputs
     ) internal returns (
-        bytes memory result,
+        bytes memory matchResult,
         uint128 counterPartyAccountId,
         uint256 initialCounterPartyMarketExposure
     ) {
-
         bytes[] memory orderInputs;
         assembly {
             counterPartyAccountId := calldataload(inputs.offset)
@@ -41,12 +40,12 @@ library MatchedOrders {
         // execute orders
         initialCounterPartyMarketExposure = counterPartyAccount.getTotalAbsoluteMarketExposure(marketId);
 
-        (bytes memory result1,) = 
+        (bytes memory result,) = 
             marketManager.executeTakerOrder(accountId, marketId, orderInputs[0]);
 
-        (bytes memory result2,) = 
+        (bytes memory counterPartyResult,) = 
                 marketManager.executeTakerOrder(counterPartyAccountId, marketId, orderInputs[1]);
 
-        result = abi.encode(result1, result2);
+        matchResult = abi.encode(result, counterPartyResult);
     }
 }
