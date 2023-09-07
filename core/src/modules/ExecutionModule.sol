@@ -141,25 +141,12 @@ contract ExecutionModule {
                 collateralType := calldataload(add(inputs.offset, 0x40))
                 quoteType := calldataload(add(inputs.offset, 0x60))
             }
-            // todo: during liquidations implementation
-            // AutoExchange.triggerAutoExchange(
-            //     accountId,
-            //     liquidatorAccountId,
-            //     amountToAutoExchangeQuote,
-            //     collateralType,
-            //     quoteType
-            // );
-        } else if (command == V2_CORE_LIQUIDATE) {
-            uint128 liquidatorAccountId;
-            address collateralType;
-            assembly {
-                liquidatorAccountId := calldataload(inputs.offset)
-                collateralType := calldataload(add(inputs.offset, 0x20))
-            }
-            Liquidation.liquidate(
+            AutoExchange.triggerAutoExchange(
                 accountId,
                 liquidatorAccountId,
-                collateralType
+                amountToAutoExchangeQuote,
+                collateralType,
+                quoteType
             );
         } else if (command == V2_CORE_CLOSE_ACCOUNT) {
             uint128 marketId;

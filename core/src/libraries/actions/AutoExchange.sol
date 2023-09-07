@@ -12,4 +12,13 @@ pragma solidity >=0.8.19;
  */
 library AutoExchange {
     // todo: implement during liquidations
+    function triggerAutoExchange(
+        uint128 accountId,
+        uint128 liquidatorAccountId,
+        uint256 amountToAutoExchangeQuote,
+        address collateralType,
+        address quoteType
+    ) internal {
+        // todo
+    }
 }

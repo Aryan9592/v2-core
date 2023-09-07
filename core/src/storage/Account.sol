@@ -426,15 +426,31 @@ library Account {
     //     return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     // }
 
+    function validateLiquidationBid(
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) internal {
+        // todo: bid validation logic, consider moving to a separate library
+    }
+
+    // todo: consider moving to a separate library
+    function computeLiquidationBidRank(
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) internal returns (uint256) {
+        // todo: implement rank calculation
+        return 0;
+    }
+
     // todo: consider moving this logic to a separate library similar to account exposures, etc (CR)?
     function submitLiquidationBid(
         Account.Data storage self,
-        uint256 liquidationBidRank,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
-        // todo: check if the MMR condition is breached while the LM condition is still not breached
         // todo: submission of pre & post bid execution hooks
+
+        // todo: check if the MMR condition is breached while the LM condition is still not breached
+        validateLiquidationBid(liquidationBid);
+        uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
 
         if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
             block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp
