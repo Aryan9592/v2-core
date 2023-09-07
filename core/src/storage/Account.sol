@@ -85,6 +85,11 @@ library Account {
      */
     error LiquidationBidOrdersOverflow(uint256 ordersLength, uint256 maxOrders);
 
+    /**
+      * @dev Thrown when attempting the liquidation bidder belongs to a different collateral pool from the liquidatee
+    */
+    error LiquidatorAndLiquidateeBelongToDifferentCollateralPools(uint128 liquidatorId);
+
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
         /// result of having a positions open in a derivative instrument, as determined 
@@ -447,10 +452,6 @@ library Account {
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
-        // todo: liquidator and liquidatee should belong to the same collateral pool
-        // todo: all markets should belong to the same collateral pool
-        // todo: all markets should have the same quote asset
-
         // collateral pool of the liquidated account
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -459,6 +460,19 @@ library Account {
             Account.ADMIN_PERMISSION,
             msg.sender
         );
+
+        // liquidator and liquidatee should belong to the same collateral pool
+        // note, it's fine for the liquidator to not belong to any collateral pool
+
+        if (liquidatorAccount.firstMarketId != 0) {
+            CollateralPool.Data storage liquidatorCollateralPool = liquidatorAccount.getCollateralPool();
+            if (liquidatorCollateralPool.id != collateralPool.id) {
+                revert LiquidatorAndLiquidateeBelongToDifferentCollateralPools(
+                    liquidatorCollateralPool.id,
+                    collateralPool.id
+                );
+            }
+        }
 
         uint256 marketIdsLength = liquidationBid.marketIds.length;
         uint256 inputsLength = liquidationBid.inputs.length;
@@ -471,6 +485,9 @@ library Account {
             revert LiquidationBidOrdersOverflow(marketIdsLength,
                 collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid);
         }
+
+        // todo: all markets should belong to the collateral pool of the account and same collateral bubble
+        // in theory this should be flagged during rank calculation?
 
     }
 
