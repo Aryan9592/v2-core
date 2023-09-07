@@ -9,25 +9,23 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-//mport {TokenAdapter} from  "./TokenAdapter.sol";
-//import {CollateralPool} from  "./CollateralPool.sol";
-//import {GlobalCollateralConfiguration} from  "./GlobalCollateralConfiguration.sol";
-import {ITokenAdapterModule} from "../interfaces/ITokenAdapterModule.sol";
+import { ITokenAdapter } from "../interfaces/ITokenAdapter.sol";
+
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 /**
  * @title Object for tracking aggregate collateral pool balances
  */
 library GlobalCollateralConfiguration {
+    using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
 
     /**
-     * @notice Emitted when the withdraw limits for a collateral token are created or updated
+     * @notice Emitted when the withdraw limits for a collateral are created or updated
      */
     event GlobalCollateralConfigurationUpdated(
-        address collateralType,
-        WithdrawLimitsConfig withdrawLimitsConfig,
-        address trustedTokenAdapterAddress,
+        Data config,
         uint256 blockTimestamp
     );
 
@@ -47,16 +45,16 @@ library GlobalCollateralConfiguration {
     error GlobalCollateralNotFound(address collateralType);
 
     /**
-     * @dev Thrown when collateral type was already created
-     */
-    error GlobalCollateralAlreadyExists(address collateralType);
-
-    /**
      * @dev Thrown when the given token adapter address does not support the right interface
      */
-    error IncorrectTokenAdapter(address trustedTokenAdapterAddress);
+    error IncorrectTokenAdapter(address tokenAdapterAddress);
 
-    struct WithdrawLimitsConfig {
+    struct Configuration {
+        /**
+         * @dev Converts assets:shares and shares:assets for the given collateral.
+         */
+        address tokenAdapter;
+
         /**
          * @dev Time window in seconds in which the withdraw limit is applied
          */
@@ -68,107 +66,72 @@ library GlobalCollateralConfiguration {
         UD60x18 withdrawalTvlPercentageLimit;
     }
 
-    struct WithdrawLimitsTrackers {
+    struct CachedConfiguration {
+        /**
+         * @dev The token address for this collateral configuration.
+         */
+        address tokenAddress;
+
+        /**
+         * @dev The token decimals for this collateral type.
+         * @notice If the address is ZERO_ADDRESS, it represents USD.
+         */
+        uint8 tokenDecimals;
+
         /**
          * @dev Total value of withdrawals in the current window
          */
         uint256 windowWithdrawals;
-         /**
-         * @dev Protocol wide shares in collateral type
+    
+        /**
+         * @dev Unix timestamp of the latest cached withdraw period start
          */
-        uint32 sharesTvl;
+        uint32 windowStartTimestamp;
     }
 
     struct Data {
-        address collateralType;
-        /**
-         * @dev Mapping from collateral type to withdraw limit configuration
-         */
-        WithdrawLimitsConfig withdrawLimitsConfig;
-        /**
-         * @dev Mapping from collateral type to withdraw limit trackers
-         */
-        WithdrawLimitsTrackers withdrawLimitsTrackers;
-        /**
-         * @dev Trusted token adapter for this collateral type
-         */
-        address trustedTokenAdapterAddress;
+        Configuration config;
 
+        CachedConfiguration cachedConfig;
     }
 
     /**
-     * @dev Creates an collateral pool for the given id
+     * @dev Set configuration for one given collateral
      */
-    function create(
-        address collateralType,
-        WithdrawLimitsConfig memory withdrawLimitsConfig, 
-        address trustedTokenAdapterAddress
-    ) internal returns(Data storage globalCollateral) {
-        if (collateralType == address(0)) {
+    function set(
+        address tokenAddress,
+        Configuration memory config
+    ) internal returns(Data storage storedConfig) {
+        if (tokenAddress == address(0)) {
             revert GlobalCollateralCannotBeZero();
         }
 
-        globalCollateral = load(collateralType);
-        
-        if (globalCollateral.collateralType != address(0)) {
-            revert GlobalCollateralAlreadyExists(collateralType);
-        }
-
-        globalCollateral.collateralType = collateralType;
-        globalCollateral.trustedTokenAdapterAddress = trustedTokenAdapterAddress;
-        globalCollateral.withdrawLimitsConfig = withdrawLimitsConfig;
-
-        emit GlobalCollateralConfigurationUpdated(
-            globalCollateral.collateralType,
-            globalCollateral.withdrawLimitsConfig,
-            globalCollateral.trustedTokenAdapterAddress,
-            block.timestamp
-        );
-    }
-
-    /**
-     * @dev Configures a collateral type.
-     * @param config The Configuration object with all the settings for the collateral type being configured.
-     */
-    function setConfig(
-        address collateralType,
-        WithdrawLimitsConfig memory config,
-        address trustedTokenAdapterAddress
-    ) internal {
-        Data storage storedConfig = load(collateralType);
-
-        // todo: check new window size & limit & trusted 
-        storedConfig.withdrawLimitsConfig = config;
+        storedConfig = load(tokenAddress);
 
         if (
-            !IERC165(trustedTokenAdapterAddress)
-            .supportsInterface(type(ITokenAdapterModule).interfaceId)
+            !IERC165(config.tokenAdapter)
+            .supportsInterface(type(ITokenAdapter).interfaceId)
         ) {
-            revert IncorrectTokenAdapter(trustedTokenAdapterAddress);
+            revert IncorrectTokenAdapter(config.tokenAdapter);
         }
-        storedConfig.trustedTokenAdapterAddress = trustedTokenAdapterAddress;
 
+        storedConfig.config = config;
+        storedConfig.cachedConfig = CachedConfiguration({
+            tokenAddress: tokenAddress,
+            tokenDecimals: IERC20(tokenAddress).decimals(),
+            windowWithdrawals: 0,
+            windowStartTimestamp: 0
+        });
 
-        emit GlobalCollateralConfigurationUpdated(
-            storedConfig.collateralType,
-            storedConfig.withdrawLimitsConfig,
-            storedConfig.trustedTokenAdapterAddress,
-            block.timestamp
-        );
+        emit GlobalCollateralConfigurationUpdated(storedConfig, block.timestamp);
     }
 
     function exists(address collateralType) internal view returns (Data storage globalCollateral) {
         globalCollateral = load(collateralType);
     
-        if (globalCollateral.collateralType == address(0)) {
+        if (globalCollateral.cachedConfig.tokenAddress == address(0)) {
             revert GlobalCollateralNotFound(collateralType);
         }
-    }
-
-    function doesExists(address collateralType) internal pure returns (bool) {
-        Data memory globalCollateral = load(collateralType);
-    
-        return globalCollateral.collateralType != address(0);
     }
 
     /**
@@ -181,31 +144,41 @@ library GlobalCollateralConfiguration {
         }
     }
 
+    function convertToShares(Data storage self, uint256 assets) internal view returns (uint256) {
+        return ITokenAdapter(self.config.tokenAdapter).convertToShares(assets);
+    }
+
+    function convertToAssets(Data storage self, uint256 shares) internal view returns (uint256) {
+        return ITokenAdapter(self.config.tokenAdapter).convertToAssets(shares);
+    }
+
     /**
      * @dev Updates the withdraw limit trackers and checks if limit was reached
      */
-    function checkWithdrawLimits(Data storage self, uint256 shares, bool isNewWindow) internal {
-        uint256 windowWithdrawals = self.withdrawLimitsTrackers.windowWithdrawals;
-        address collateralType = self.collateralType;
+    function checkWithdrawLimits(Data storage self, uint256 assets) internal {
+        address tokenAddress = self.cachedConfig.tokenAddress;
+        uint32 timestamp = Time.blockTimestampTruncated();
+    
+        bool isNewWindow = timestamp > 
+            self.cachedConfig.windowStartTimestamp + self.config.withdrawalWindowSize;
 
         // reset tracker if window has expired
         if (isNewWindow) {
-            windowWithdrawals = 0;
+            self.cachedConfig.windowStartTimestamp = timestamp;
+            self.cachedConfig.windowWithdrawals = 0;
         }
 
         // track window withdrawals
-        ITokenAdapterModule tokenAdapter = ITokenAdapterModule(self.trustedTokenAdapterAddress);
-        windowWithdrawals += tokenAdapter.convertToAssets(collateralType, shares);
+        self.cachedConfig.windowWithdrawals += assets;
 
         // check withdraw limits against tvl
-        uint256 tvl = IERC20(collateralType).balanceOf(address(this));
-        if ( 
-            windowWithdrawals > 
-            mulUDxUint(self.withdrawLimitsConfig.withdrawalTvlPercentageLimit, tvl)
-        ) {
-            revert GlobalWithdrawLimitReached(collateralType);
-        }
+        uint256 tvl = IERC20(tokenAddress).balanceOf(address(this));
 
-        self.withdrawLimitsTrackers.windowWithdrawals = windowWithdrawals;
+        if ( 
+            self.cachedConfig.windowWithdrawals > 
+            mulUDxUint(self.config.withdrawalTvlPercentageLimit, tvl)
+        ) {
+            revert GlobalWithdrawLimitReached(tokenAddress);
+        }
     }
 }
