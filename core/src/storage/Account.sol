@@ -443,12 +443,16 @@ library Account {
 
     // todo: consider moving to a separate library
     function validateLiquidationBid(
+        Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
         // todo: liquidator and liquidatee should belong to the same collateral pool
         // todo: all markets should belong to the same collateral pool
         // todo: all markets should have the same quote asset
+
+        // collateral pool of the liquidated account
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
         Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
             liquidationBid.liquidatorAccountId,
@@ -461,6 +465,11 @@ library Account {
 
         if (marketIdsLength != inputsLength) {
             revert LiquidationBidMarketIdsAndInputsLengthMismatch(marketIdsLength, inputsLength);
+        }
+
+        if (marketIdsLength > collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid) {
+            revert LiquidationBidOrdersOverflow(marketIdsLength,
+                collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid);
         }
 
     }
@@ -483,7 +492,7 @@ library Account {
         // todo: check if the MMR condition is breached while the LM condition is still not breached
         // todo: make sure max length of a queue is not breached -> make it configurable in risk params
 
-        validateLiquidationBid(liquidationBid);
+        self.validateLiquidationBid(liquidationBid);
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
 
         if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
