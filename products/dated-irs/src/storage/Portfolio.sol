@@ -171,7 +171,7 @@ library Portfolio {
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
+    ) private view returns (ExposureHelpers.PoolExposureState memory poolState) {
         poolState.marketId = self.marketId;
         poolState.maturityTimestamp = maturityTimestamp;
 
@@ -202,7 +202,8 @@ library Portfolio {
         address poolAddress,
         uint32 maturityTimestamp
     ) internal view returns (Account.MakerMarketExposure memory exposure) {
-        ExposureHelpers.PoolExposureState memory poolState = self.getPoolExposureState(
+        ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
+            self,
             maturityTimestamp,
             poolAddress
         );
@@ -327,7 +328,7 @@ library Portfolio {
 
         // register active market
         if (position.baseBalance == 0 && position.quoteBalance == 0) {
-            self.activateMarketMaturity(maturityTimestamp);
+            activateMarketMaturity(self, maturityTimestamp);
         }
 
         position.update(baseDelta, quoteDelta);
@@ -364,7 +365,7 @@ library Portfolio {
 
         position.update(-marketBase, -marketQuote);
     
-        self.deactivateMarketMaturity(maturityTimestamp);
+        deactivateMarketMaturity(self, maturityTimestamp);
 
         emit PositionUpdated(
             self.accountId, 
@@ -380,7 +381,7 @@ library Portfolio {
      * @dev set market and maturity as active
      * note this can also be called by the pool when a position is intitalised
      */
-    function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
+    function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
         // check if market/maturity exists
         Market.Data storage market = Market.exists(self.marketId);
 
@@ -415,7 +416,7 @@ library Portfolio {
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
         if (!self.activeMaturities.contains(maturityTimestamp)) {
             return;
         }
