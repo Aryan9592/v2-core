@@ -10,7 +10,6 @@ import "../../storage/Oracle.sol";
 import "../../storage/DatedIrsVamm.sol";
 import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-import {VammCustomErrors} from "../errors/VammCustomErrors.sol";
 
 /**
  * @title Tracks configurations for dated irs markets
