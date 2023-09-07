@@ -12,6 +12,7 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {Market} from "../../storage/Market.sol";
 
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -283,5 +284,17 @@ library AccountExposure {
         }
 
         return false;
+    }
+
+    function getTotalAbsoluteMarketExposure(Account.Data storage self, uint128 marketId) internal view returns (uint256 totalMarketExposure) {
+        Market.Data storage market = Market.exists(marketId);
+        Account.MakerMarketExposure[] memory makerExposures = 
+            market.getAccountTakerAndMakerExposures(self.id);
+
+        // Aggregate LMR and unrealized loss for all exposures
+        for (uint256 i = 0; i < makerExposures.length; i++) {
+            totalMarketExposure += SignedMath.abs(makerExposures[i].lower.annualizedNotional);
+            totalMarketExposure += SignedMath.abs(makerExposures[i].upper.annualizedNotional);
+        }
     }
 }
