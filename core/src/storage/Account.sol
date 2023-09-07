@@ -70,6 +70,21 @@ library Account {
      */
     error LiquidationBidPriorityQueueExpired(uint256 queueId, uint256 queueEndTimestamp);
 
+    /**
+      * @dev Thrown when attempting to submit into a queue that is full
+     */
+    error LiquidationBidPriorityQueueOverflow(uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
+
+    /**
+      * @dev Thrown when attempting to submit a liquidation bid where number of markets and bytes inputs don't match
+     */
+    error LiquidationBidMarketIdsAndInputsLengthMismatch(uint256 marketIdsLength, uint256 inputsLength);
+
+    /**
+      * @dev Thrown when attempting to submit a liquidation bid where the number of orders exceeds the maximum allowed
+     */
+    error LiquidationBidOrdersOverflow(uint256 ordersLength, uint256 maxOrders);
+
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
         /// result of having a positions open in a derivative instrument, as determined 
@@ -426,10 +441,23 @@ library Account {
     //     return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     // }
 
+    // todo: consider moving to a separate library
     function validateLiquidationBid(
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
-        // todo: bid validation logic, consider moving to a separate library
+        Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
+            liquidationBid.liquidatorAccountId,
+            Account.ADMIN_PERMISSION,
+            msg.sender
+        );
+
+        uint256 marketIdsLength = liquidationBid.marketIds.length;
+        uint256 inputsLength = liquidationBid.inputs.length;
+
+        if (marketIdsLength != inputsLength) {
+            revert LiquidationBidMarketIdsAndInputsLengthMismatch(marketIdsLength, inputsLength);
+        }
+
     }
 
     // todo: consider moving to a separate library
@@ -447,8 +475,9 @@ library Account {
     ) internal {
 
         // todo: submission of pre & post bid execution hooks
-
         // todo: check if the MMR condition is breached while the LM condition is still not breached
+        // todo: make sure max length of a queue is not breached -> make it configurable in risk params
+
         validateLiquidationBid(liquidationBid);
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
 
@@ -475,8 +504,6 @@ library Account {
         Account.Data storage self
     ) internal {
 
-        // todo: consider wrapping market executions in the market execution module (incl. things like marking active
-        // markets)
         // todo: check if liquidated and liquidator accounts exist
         // todo: make sure this can only be executed if lm is breached but dutchM is not (needs more thinking)
         // todo: add logic for liquidator rewards & allocation towards backstop lps and the insurance fund
