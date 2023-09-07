@@ -445,6 +445,11 @@ library Account {
     function validateLiquidationBid(
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
+
+        // todo: liquidator and liquidatee should belong to the same collateral pool
+        // todo: all markets should belong to the same collateral pool
+        // todo: all markets should have the same quote asset
+
         Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
             liquidationBid.liquidatorAccountId,
             Account.ADMIN_PERMISSION,
@@ -558,5 +563,10 @@ library Account {
 
     }
 
+    function closeAllUnfilledOrders(
+        Account.Data storage self
+    ) internal {
+        // todo: implement
+    }
 
 }
