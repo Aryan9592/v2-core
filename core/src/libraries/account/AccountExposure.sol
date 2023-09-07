@@ -62,14 +62,14 @@ library AccountExposure {
 
         return Account.MarginInfo({
             collateralType: token,
-            netDeposits: getExchangedQuantity(marginInfo.netDeposits, true, exchange.price, exchange.haircut),
+            netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.haircut),
             balances: Account.Balances({
-                marginBalance: getExchangedQuantity(marginInfo.balances.marginBalance, true, exchange.price, exchange.haircut),
-                realBalance: getExchangedQuantity(marginInfo.balances.realBalance, true, exchange.price, exchange.haircut)
+                marginBalance: getExchangedQuantity(marginInfo.balances.marginBalance, exchange.price, exchange.haircut),
+                realBalance: getExchangedQuantity(marginInfo.balances.realBalance, exchange.price, exchange.haircut)
             }),
             mrDeltas: Account.MarginRequirementDeltas({
-                initialDelta: getExchangedQuantity(marginInfo.mrDeltas.initialDelta, true, exchange.price, exchange.haircut),
-                liquidationDelta: getExchangedQuantity(marginInfo.mrDeltas.liquidationDelta, true, exchange.price, exchange.haircut)
+                initialDelta: getExchangedQuantity(marginInfo.mrDeltas.initialDelta, exchange.price, exchange.haircut),
+                liquidationDelta: getExchangedQuantity(marginInfo.mrDeltas.liquidationDelta, exchange.price, exchange.haircut)
             })
         });
     }
@@ -102,18 +102,18 @@ library AccountExposure {
                 balances: Account.Balances({
                     marginBalance: 
                         marginInfo.balances.marginBalance + 
-                        getExchangedQuantity(subMarginInfo.balances.marginBalance, true, price, haircut),
+                        getExchangedQuantity(subMarginInfo.balances.marginBalance, price, haircut),
                     realBalance: 
                         marginInfo.balances.realBalance + 
-                        getExchangedQuantity(subMarginInfo.balances.realBalance, true, price, haircut)
+                        getExchangedQuantity(subMarginInfo.balances.realBalance, price, haircut)
                 }),
                 mrDeltas: Account.MarginRequirementDeltas({
                     initialDelta: 
                         marginInfo.mrDeltas.initialDelta + 
-                        getExchangedQuantity(subMarginInfo.mrDeltas.initialDelta, true, price, haircut),
+                        getExchangedQuantity(subMarginInfo.mrDeltas.initialDelta, price, haircut),
                     liquidationDelta: 
                         marginInfo.mrDeltas.liquidationDelta + 
-                        getExchangedQuantity(subMarginInfo.mrDeltas.liquidationDelta, true, price, haircut)
+                        getExchangedQuantity(subMarginInfo.mrDeltas.liquidationDelta, price, haircut)
                 })
             });
         }
@@ -200,15 +200,11 @@ library AccountExposure {
         });
     }
 
-    /**
-     * @param isPositiveQuantity True if quantity is positive with respect to the margin requirement 
-        calculation, false otherwise.
-     */
-    function getExchangedQuantity(int256 quantity, bool isPositiveQuantity, UD60x18 price, UD60x18 haircut) 
+    function getExchangedQuantity(int256 quantity, UD60x18 price, UD60x18 haircut) 
     private 
     pure 
     returns (int256) {
-        int256 sign = (isPositiveQuantity) ? getSign(quantity) : getSign(-quantity);
+        int256 sign = getSign(quantity);
         UD60x18 haircutPrice = price.mul((sign > 0) ? UNIT.sub(haircut) : UNIT.add(haircut));
         return mulUDxInt(haircutPrice, quantity);
     }
