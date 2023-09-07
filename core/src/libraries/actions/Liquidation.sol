@@ -31,6 +31,14 @@ library Liquidation {
 
     }
 
+    function executeTopRankedLiquidationBid(
+        uint128 liquidatedAccountId
+    ) internal {
+        // grab the liquidated account and check its existance
+        Account.Data storage account = Account.exists(liquidatedAccountId);
+
+        account.executeTopRankedLiquidationBid();
+    }
 
 
 
