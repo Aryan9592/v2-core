@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
-import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 
 /**
@@ -25,7 +24,8 @@ contract AutoExchangeModule is IAutoExchangeModule {
     function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view override returns (
         bool
     ) {
-        return Account.exists(accountId).isEligibleForAutoExchange(quoteType);
+        // todo: during liquidations implementation
+        // return Account.exists(accountId).isEligibleForAutoExchange(quoteType);
     }
     
     /**
@@ -36,9 +36,10 @@ contract AutoExchangeModule is IAutoExchangeModule {
         address coveringToken,
         address autoExchangedToken
     ) external view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
-        return Account.exists(accountId).getMaxAmountToExchangeQuote(
-            coveringToken,
-            autoExchangedToken
-        );
+        // todo: during liquidations implementation
+        // return Account.exists(accountId).getMaxAmountToExchangeQuote(
+        //     coveringToken,
+        //     autoExchangedToken
+        // );
     }
 }

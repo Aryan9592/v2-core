@@ -13,13 +13,14 @@ import {Market} from "../storage/Market.sol";
 
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
-import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Library for propagation logic
  */
 library Propagation {
     using Account for Account.Data;
+    using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using Market for Market.Data;
 
@@ -79,10 +80,10 @@ library Propagation {
         fee = mulUDxUint(atomicFee, SignedMath.abs(annualizedNotional));
 
         Account.Data storage payingAccount = Account.exists(payingAccountId);
-        payingAccount.decreaseCollateralBalance(collateralType, fee);
+        payingAccount.updateNetCollateralDeposits(collateralType, -fee.toInt());
 
         Account.Data storage receivingAccount = Account.exists(receivingAccountId);
-        receivingAccount.increaseCollateralBalance(collateralType, fee);
+        receivingAccount.updateNetCollateralDeposits(collateralType, fee.toInt());
     }
 
     function propagateOrder(

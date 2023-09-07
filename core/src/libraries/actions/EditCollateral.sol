@@ -11,12 +11,15 @@ import "@voltz-protocol/util-contracts/src/token/ERC20Helper.sol";
 import "../../storage/Account.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
 /**
  * @title Library for depositing and withdrawing logic.
  */
 library EditCollateral {
     using Account for Account.Data;
     using ERC20Helper for address;
+    using SafeCastU256 for uint256;
 
     /**
      * @notice Emitted when `tokenAmount` of collateral of type `collateralType` is deposited to account `accountId` by `sender`.
@@ -82,7 +85,7 @@ library EditCollateral {
         collateralType.safeTransferFrom(depositFrom, self, tokenAmount);
 
         // update account collateral balance if necessary 
-        account.increaseCollateralBalance(collateralType, tokenAmount);
+        account.updateNetCollateralDeposits(collateralType, tokenAmount.toInt());
 
         emit Deposited(accountId, collateralType, tokenAmount, msg.sender, block.timestamp);
     }
@@ -103,7 +106,7 @@ library EditCollateral {
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
         Account.Data storage account = Account.exists(accountId);
 
-        account.decreaseCollateralBalance(collateralType, tokenAmount);
+        account.updateNetCollateralDeposits(collateralType, -tokenAmount.toInt());
 
         collateralType.safeTransfer(msg.sender, tokenAmount);
 

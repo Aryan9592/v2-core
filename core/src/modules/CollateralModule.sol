@@ -26,13 +26,13 @@ contract CollateralModule is ICollateralModule {
     /**
      * @inheritdoc ICollateralModule
      */
-    function getAccountCollateralBalance(uint128 accountId, address collateralType)
+    function getAccountNetCollateralDeposits(uint128 accountId, address collateralType)
         external
         view
         override
-        returns (uint256 collateralBalance)
+        returns (int256 netDeposits)
     {
-        return Account.exists(accountId).getCollateralBalance(collateralType);
+        return Account.exists(accountId).getAccountNetCollateralDeposits(collateralType);
     }
 
     /**
@@ -44,6 +44,6 @@ contract CollateralModule is ICollateralModule {
         view
         returns (uint256 collateralBalanceAvailable)
     {
-        return Account.exists(accountId).getWithdrawableCollateralBalance(collateralType);
+        return Account.exists(accountId).getAccountWithdrawableCollateralBalance(collateralType);
     }
 }

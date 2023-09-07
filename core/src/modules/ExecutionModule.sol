@@ -70,7 +70,7 @@ contract ExecutionModule {
     function operate(
         uint128 accountId,
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs, Account.MarginRequirementDeltas memory marginRequirement) {
+    ) external returns (bytes[] memory outputs, Account.MarginInfo memory marginInfo) {
         preOperateCheck(accountId);
 
         outputs = new bytes[](commands.length);
@@ -91,7 +91,8 @@ contract ExecutionModule {
             }
         }
 
-        marginRequirement = Account.exists(accountId).imCheck(address(0));
+        // @0xZenus what happens if account is in single mode?
+        marginInfo = Account.exists(accountId).imCheck(address(0));
     }
 
     /// @notice checks to be ran before starting the batch execution
@@ -145,13 +146,14 @@ contract ExecutionModule {
                 collateralType := calldataload(add(inputs.offset, 0x40))
                 quoteType := calldataload(add(inputs.offset, 0x60))
             }
-            AutoExchange.triggerAutoExchange(
-                accountId,
-                liquidatorAccountId,
-                amountToAutoExchangeQuote,
-                collateralType,
-                quoteType
-            );
+            // todo: during liquidations implementation
+            // AutoExchange.triggerAutoExchange(
+            //     accountId,
+            //     liquidatorAccountId,
+            //     amountToAutoExchangeQuote,
+            //     collateralType,
+            //     quoteType
+            // );
         } else if (command == V2_CORE_LIQUIDATE) {
             uint128 liquidatorAccountId;
             address collateralType;
@@ -223,14 +225,13 @@ contract ExecutionModule {
             );
             return abi.encode(result, fee);
         } else if (command == V2_MARKET_MANAGER_COMPLETE_POSITION) {
+            /// todo: remove during tokenization logic
+            
             (bytes memory result, int256 cashflowAmount) = 
                 marketManager.completeOrder(accountId, marketId, inputs);
 
-            if (cashflowAmount > 0) {
-                account.increaseCollateralBalance(collateralType, cashflowAmount.toUint());
-            } else {
-                account.decreaseCollateralBalance(collateralType, (-cashflowAmount).toUint());
-            }
+            account.updateNetCollateralDeposits(collateralType, cashflowAmount);
+
             return abi.encode(result);
         } else {
             revert InvalidCommandType(command);

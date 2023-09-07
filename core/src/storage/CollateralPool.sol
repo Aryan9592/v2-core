@@ -14,7 +14,7 @@ import {GlobalCollateralConfiguration} from "./GlobalCollateralConfiguration.sol
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
-import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
@@ -25,6 +25,7 @@ library CollateralPool {
     using CollateralPool for CollateralPool.Data;
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
@@ -234,7 +235,7 @@ library CollateralPool {
 
         for (uint256 i = 0; i < activeCollaterals.length; i++) {
             address activeCollateral = activeCollaterals[i];
-            increaseCollateralShares(parent, activeCollateral, child.collateralShares[activeCollateral]);
+            updateCollateralShares(parent, activeCollateral, child.collateralShares[activeCollateral].toInt());
         }
 
         child.rootId = parent.id;
@@ -322,49 +323,38 @@ library CollateralPool {
         return globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
-    function increaseCollateralShares(
+    function updateCollateralShares(
         Data storage self,
         address collateralType, 
-        uint256 shares
+        int256 sharesDelta
     ) internal {
-        // Increase the collateral shares
-        self.collateralShares[collateralType] += shares;
-
-        // Add the collateral type to the active collaterals if missing
+        // check withdraw limits
+        if (sharesDelta < 0) {
+            CollateralConfiguration.exists(self.id, collateralType).checkWithdrawLimits((-sharesDelta).toUint());
+        }
+        
+        // Update the collateral shares
+        if (sharesDelta > 0) {
+            self.collateralShares[collateralType] += sharesDelta.toUint();
+        } else {
+            self.collateralShares[collateralType] -= (-sharesDelta).toUint();
+        }
+         
+        // Update the active collaterals list
         if (self.collateralShares[collateralType] > 0) {
             if (!self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.add(collateralType);
+            }
+        } else {
+            if (self.activeCollaterals.contains(collateralType)) {
+                self.activeCollaterals.remove(collateralType);
             }
         }
 
         // Check that this deposit does not reach the cap
         checkCap(self, collateralType);
 
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, shares.toInt(), block.timestamp);
-    }
-
-    function decreaseCollateralShares(
-        Data storage self, 
-        address collateralType, 
-        uint256 shares
-    ) internal {
-        if (self.collateralShares[collateralType] < shares) {
-            revert InsufficientCollateralInCollateralPool(shares);
-        }
-
-        // check withdraw limits
-        CollateralConfiguration.exists(self.id, collateralType).checkWithdrawLimits(shares);
-
-        self.collateralShares[collateralType] -= shares;
-
-        // remove the collateral type from the active collaterals if balance goes to zero
-        if (self.collateralShares[collateralType] == 0) {
-            if (self.activeCollaterals.contains(collateralType)) {
-                self.activeCollaterals.remove(collateralType);
-            }
-        }
-
-        emit CollateralPoolBalanceUpdated(self.id, collateralType, -shares.toInt(), block.timestamp);
+        emit CollateralPoolBalanceUpdated(self.id, collateralType, sharesDelta, block.timestamp);
     }
 
     /**
