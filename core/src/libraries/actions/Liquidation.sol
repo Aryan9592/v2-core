@@ -7,20 +7,31 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import "../../storage/Account.sol";
+import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
+
 /**
  * @title Library for executing liquidation logic.
  */
 library Liquidation {
-    /**
-     * @notice Liquidates a single-token account
-     * @param liquidatedAccountId The id of the account that is being liquidated
-     * @param liquidatorAccountId Account id that will receive the rewards from the liquidation.
-     * @return liquidatorRewardAmount Liquidator reward amount in terms of the account's settlement token
-     */
-    function liquidate(uint128 liquidatedAccountId, uint128 liquidatorAccountId, address collateralType)
-        internal
-        returns (uint256 liquidatorRewardAmount)
-    {
-        // todo: introduce liquidation logic
+
+    using Account for Account.Data;
+
+    // todo: add events
+
+    function submitLiquidationBid(
+        uint128 liquidatedAccountId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) internal {
+
+        // grab the liquidated account and check its existance
+        Account.Data storage account = Account.exists(liquidatedAccountId);
+
+        account.submitLiquidationBid(liquidationBid);
+
     }
+
+
+
+
 }

@@ -150,18 +150,6 @@ contract ExecutionModule {
                 collateralType,
                 quoteType
             );
-        } else if (command == V2_CORE_LIQUIDATE) {
-            uint128 liquidatorAccountId;
-            address collateralType;
-            assembly {
-                liquidatorAccountId := calldataload(inputs.offset)
-                collateralType := calldataload(add(inputs.offset, 0x20))
-            }
-            Liquidation.liquidate(
-                accountId,
-                liquidatorAccountId,
-                collateralType
-            );
         } else if (command == V2_CORE_CLOSE_ACCOUNT) {
             uint128 marketId;
             assembly {
