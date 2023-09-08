@@ -19,7 +19,6 @@ import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.
  */
 contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
-    using Twap for DatedIrsVamm.Data;
     using VammConfiguration for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
     using SafeCastU256 for uint256;
@@ -71,7 +70,7 @@ contract VammModule is IVammModule {
     external override
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        vamm.increaseObservationCardinalityNext(observationCardinalityNext);
+        Twap.increaseObservationCardinalityNext(vamm, observationCardinalityNext);
     }
 
     ////////// GETTERS //////////

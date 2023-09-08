@@ -5,9 +5,9 @@ pragma solidity >=0.8.13;
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 import { LPPosition } from "../../storage/LPPosition.sol";
-import { FixedAndVariableMath } from "../../libraries/math/FixedAndVariableMath.sol";
-import { VammHelpers } from "../../libraries/vamm-utils/VammHelpers.sol";
-import { VammTicks } from "../../libraries/vamm-utils/VammTicks.sol";
+import { FixedAndVariableMath } from "../math/FixedAndVariableMath.sol";
+import { VammHelpers } from "./VammHelpers.sol";
+import { VammTicks } from "./VammTicks.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 

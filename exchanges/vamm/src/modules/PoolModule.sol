@@ -18,7 +18,6 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using VammTicks for DatedIrsVamm.Data;
-    using Twap for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
     using SafeCastU128 for uint128;
     using SafeCastU256 for uint256;
@@ -134,7 +133,6 @@ contract PoolModule is IPoolModule {
             );
             closedUnfilledBasePool += position.liquidity.toInt();
         }
-        
     }
 
     /**
@@ -203,6 +201,6 @@ contract PoolModule is IPoolModule {
         public view override returns (UD60x18 datedIRSTwap) 
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = vamm.twap(lookbackWindow, orderSizeWad, adjustForPriceImpact, adjustForSpread);
+        datedIRSTwap = Twap.twap(vamm, lookbackWindow, orderSizeWad, adjustForPriceImpact, adjustForSpread);
     }
 }

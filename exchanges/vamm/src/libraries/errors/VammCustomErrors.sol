@@ -30,12 +30,7 @@ interface VammCustomErrors {
    /**
     * @dev Error which ensures the VAMM is unlocked
     */ 
-   error CanOnlyTradeIfUnlocked();
-
-   /**
-    * @dev Error which ensures the VAMM is unlocked
-    */ 
-   error CanOnlyUnlockIfLocked();
+   error Lock(bool locked);
 
    /**
     * @dev Error which ensures the VAMM maturity is in the future
