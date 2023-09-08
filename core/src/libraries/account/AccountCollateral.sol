@@ -12,8 +12,7 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
-import {TokenAdapter} from  "../../storage/TokenAdapter.sol";
-import {ITokenAdapterModule} from "../../interfaces/ITokenAdapterModule.sol";
+import {GlobalCollateralConfiguration} from  "../../storage/GlobalCollateralConfiguration.sol";
 
 /**
  * @title Object for tracking account collaterals.
@@ -21,6 +20,7 @@ import {ITokenAdapterModule} from "../../interfaces/ITokenAdapterModule.sol";
 library AccountCollateral {
     using Account for Account.Data;
     using CollateralPool for CollateralPool.Data;
+    using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
@@ -77,11 +77,8 @@ library AccountCollateral {
         uint256 assets
     ) internal {
         // Convert assets to shares
-        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
-        uint256 shares = ITokenAdapterModule(tokenAdapter).convertToShares(
-            collateralType, 
-            assets
-        );
+        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
+        uint256 shares = globalConfig.convertToShares(assets);
 
         increaseCollateralShares(self, collateralType, shares);
     }
@@ -124,11 +121,8 @@ library AccountCollateral {
         uint256 assets
     ) internal {
         // Convert assets to shares
-        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
-        uint256 shares = ITokenAdapterModule(tokenAdapter).convertToShares(
-            collateralType, 
-            assets
-        );
+        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
+        uint256 shares = globalConfig.convertToShares(assets);
 
         // Decrease the account shares balance
         decreaseCollateralShares(self, collateralType, shares);
@@ -145,11 +139,8 @@ library AccountCollateral {
         view
         returns (uint256)
     {
-        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
-        return ITokenAdapterModule(tokenAdapter).convertToAssets(
-            collateralType, 
-            self.collateralShares[collateralType]
-        );
+        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
+        globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
     /**
