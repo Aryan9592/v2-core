@@ -2,26 +2,23 @@
 
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
-import "../ticks/TickBitmap.sol";
+import {Tick} from "../ticks/Tick.sol";
+import {TickMath} from "../ticks/TickMath.sol";
+import {TickBitmap} from "../ticks/TickBitmap.sol";
 import {VammConfiguration} from "./VammConfiguration.sol";
 
 
-import "../math/FullMath.sol";
-import "../math/FixedPoint96.sol";
-import "../math/FixedPoint128.sol";
+import {FullMath} from "../math/FullMath.sol";
+import {FixedPoint96} from "../math/FixedPoint96.sol";
+import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import "../time/Time.sol";
+import {Time} from "../time/Time.sol";
 
-import { UD60x18, unwrap, convert as convert_ud, ZERO, UNIT } from "@prb/math/UD60x18.sol";
-import { SD59x18, convert as convert_sd } from "@prb/math/SD59x18.sol";
+import { UD60x18, unwrap, ZERO, UNIT } from "@prb/math/UD60x18.sol";
+import { SD59x18, convert } from "@prb/math/SD59x18.sol";
 
-import { ud60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
-/// @title Tick
-/// @notice Contains functions for managing tick processes and relevant calculations
 library VammHelpers {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
@@ -142,7 +139,7 @@ library VammHelpers {
         UD60x18 averagePrice = SD59x18.wrap(
             unbalancedQuoteTokenDelta
         ).div(SD59x18.wrap(baseTokenDelta)).div(
-            convert_sd(-100)
+            convert(-100)
         ).intoUD60x18();
 
         UD60x18 averagePriceWithSpread = averagePrice.add(spread);
