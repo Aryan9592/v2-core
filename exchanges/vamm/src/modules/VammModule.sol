@@ -8,7 +8,10 @@ import {Oracle} from "../storage/Oracle.sol";
 import {Tick} from "../libraries/ticks/Tick.sol";
 import {Twap} from "../libraries/vamm-utils/Twap.sol";
 import {VammConfiguration} from "../libraries/vamm-utils/VammConfiguration.sol";
+
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Module for configuring a market
@@ -18,6 +21,8 @@ contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Twap for DatedIrsVamm.Data;
     using VammConfiguration for DatedIrsVamm.Data;
+    using SetUtil for SetUtil.UintSet;
+    using SafeCastU256 for uint256;
 
     /**
      * @inheritdoc IVammModule
@@ -118,10 +123,17 @@ contract VammModule is IVammModule {
     }
 
     function getVammPositionsInAccount(uint128 _marketId, uint32 _maturityTimestamp, uint128 accountId)
-        external view override returns (uint128[] memory) {
+        external view override returns (uint128[] memory positionIds) {
 
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(_marketId, _maturityTimestamp);
-        return vamm.vars.positionsInAccount[accountId];
+        uint256[] memory positions = vamm.vars.accountPositions[accountId].values();
+
+        positionIds = new uint128[](positions.length);
+        for (uint256 i = 0; i < positions.length; i++) {
+            positionIds[i] = positions[i].to128();
+        }
+
+        return positionIds;
     }
 
     function getVammPosition(uint128 positionId)

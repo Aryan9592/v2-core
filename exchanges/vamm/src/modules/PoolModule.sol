@@ -13,12 +13,18 @@ import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 import "oz/utils/math/SignedMath.sol";
 
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
+
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using SafeCastU128 for uint128;
     using VammTicks for DatedIrsVamm.Data;
     using Twap for DatedIrsVamm.Data;
+    using SetUtil for SetUtil.UintSet;
+    using SafeCastU256 for uint256;
 
     /**
      * @notice Thrown when an attempt to access a function without authorization.
@@ -118,10 +124,10 @@ contract PoolModule is IPoolModule {
 
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
 
-        uint128[] memory positions = vamm.vars.positionsInAccount[accountId];
+        uint256[] memory positions = vamm.vars.accountPositions[accountId].values();
 
         for (uint256 i = 0; i < positions.length; i++) {
-            LPPosition.Data memory position = LPPosition.exists(positions[i]);
+            LPPosition.Data memory position = LPPosition.exists(positions[i].to128());
             vamm.executeDatedMakerOrder(
                 accountId, 
                 marketId,
@@ -162,14 +168,17 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (
-            uint256 unfilledBaseLong,
-            uint256 unfilledBaseShort,
-            uint256 unfilledQuoteLong,
-            uint256 unfilledQuoteShort
-        ) {      
+        returns (uint256, uint256, uint256, uint256) 
+    {      
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        (unfilledBaseLong, unfilledBaseShort, unfilledQuoteLong, unfilledQuoteShort) = vamm.getAccountUnfilledBalances(accountId);
+        DatedIrsVamm.UnfilledBalances memory unfilled = vamm.getAccountUnfilledBalances(accountId);
+
+        return (
+            unfilled.baseLong,
+            unfilled.baseShort,
+            unfilled.quoteLong,
+            unfilled.quoteShort
+        );
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {

@@ -14,8 +14,10 @@ library Oracle {
     struct Observation {
         // the block timestamp of the observation
         uint32 blockTimestamp;
+
         // the tick accumulator, i.e. tick * time elapsed since the pool was first initialized
         int56 tickCumulative;
+        
         // whether or not the observation is initialized
         bool initialized;
     }
@@ -33,6 +35,7 @@ library Oracle {
         int24 tick
     ) private pure returns (Observation memory) {
         uint32 delta = blockTimestamp - last.blockTimestamp;
+
         return
             Observation({
                 blockTimestamp: blockTimestamp,
@@ -266,7 +269,7 @@ library Oracle {
         int24 tick,
         uint16 index,
         uint16 cardinality
-    ) internal view returns (int56 tickCumulative) {
+    ) private view returns (int56 tickCumulative) {
         if (secondsAgo == 0) {
             Observation memory last = self[index];
             if (last.blockTimestamp != time) last = transform(last, time, tick);

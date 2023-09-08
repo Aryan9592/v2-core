@@ -1,22 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "./LPPosition.sol";
-import "./Oracle.sol";
-import {PoolConfiguration} from "./PoolConfiguration.sol";
+import { LPPosition } from "./LPPosition.sol";
+import { Oracle } from "./Oracle.sol";
+import { PoolConfiguration } from "./PoolConfiguration.sol";
 
-import "../libraries/vamm-utils/VammHelpers.sol";
-import "../libraries/vamm-utils/VammTicks.sol";
-import "../libraries/vamm-utils/SwapMath.sol";
-import "../libraries/vamm-utils/VammConfiguration.sol";
-import "../libraries/ticks/TickBitmap.sol";
-import "../libraries/time/Time.sol";
-import "../libraries/math/FixedAndVariableMath.sol";
-import "../libraries/errors/VammCustomErrors.sol";
+import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
+import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
+import { SwapMath } from "../libraries/vamm-utils/SwapMath.sol";
+import { VammConfiguration } from "../libraries/vamm-utils/VammConfiguration.sol";
+import { TickBitmap } from "../libraries/ticks/TickBitmap.sol";
+import { Tick } from "../libraries/ticks/Tick.sol";
+import { TickMath } from "../libraries/ticks/TickMath.sol";
+import { LiquidityMath } from "../libraries/math/LiquidityMath.sol";
+import { Time } from "../libraries/time/Time.sol";
+import { FixedAndVariableMath } from "../libraries/math/FixedAndVariableMath.sol";
+import { VammCustomErrors } from "../libraries/errors/VammCustomErrors.sol";
 
-import { UD60x18, convert, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
-import {SafeCastU256, SafeCastI256, SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -26,13 +30,13 @@ library DatedIrsVamm {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SafeCastU128 for uint128;
-    using VammHelpers for bool;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
     using Oracle for Oracle.Observation[65535];
     using LPPosition for LPPosition.Data;
     using DatedIrsVamm for Data;
     using VammTicks for Data;
+    using SetUtil for SetUtil.UintSet;
 
     /// @dev Internal, frequently-updated state of the VAMM, which is compressed into one storage slot.
     struct Data {
@@ -126,21 +130,27 @@ library DatedIrsVamm {
     { 
         uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
         Time.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
-        
-        (LPPosition.Data storage position, bool newlyCreated) = 
-            LPPosition.ensurePositionOpened(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
-        if (newlyCreated) {
-            uint256 positionsPerAccountLimit = PoolConfiguration.load().makerPositionsPerAccountLimit;
-            if (self.vars.positionsInAccount[accountId].length >= positionsPerAccountLimit) {
-                revert VammCustomErrors.TooManyLpPositions(accountId);
+
+        LPPosition.Data storage position = 
+            LPPosition.loadOrCreate(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
+
+        // Track position and check account positions limit
+        {
+            uint256 positionsLimit = PoolConfiguration.load().makerPositionsPerAccountLimit;
+            SetUtil.UintSet storage accountPositions = self.vars.accountPositions[accountId];
+
+            if (!accountPositions.contains(position.id)) {
+                accountPositions.add(position.id);
+
+                if (accountPositions.length() > positionsLimit) {
+                    revert VammCustomErrors.TooManyLpPositions(accountId);
+                }
             }
-            self.vars.positionsInAccount[accountId].push(
-                LPPosition.getPositionId(accountId, marketId, maturityTimestamp, tickLower, tickUpper)
-            );
         }
 
         // this also checks if the position has enough liquidity to burn
-        self.updatePositionTokenBalances( 
+        updatePositionTokenBalances( 
+            self,
             position,
             tickLower,
             tickUpper,
@@ -149,7 +159,7 @@ library DatedIrsVamm {
 
         position.updateLiquidity(liquidityDelta);
 
-        _updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
+        updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
 
         emit VammHelpers.LiquidityChange(
             self.immutableConfig.marketId,
@@ -183,7 +193,7 @@ library DatedIrsVamm {
         int24 tickLower,
         int24 tickUpper,
         bool isMintBurn
-    ) internal {
+    ) private {
         if (position.liquidity > 0) {
             (
                 int256 _quoteTokenGrowthInsideX128,
@@ -217,15 +227,14 @@ library DatedIrsVamm {
         }
     }
 
-    /// @dev Private but labelled internal for testability. Consumers of the library should use `executeDatedMakerOrder()`.
     /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`) 
     ///     `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
-    function _updateLiquidity(
+    function updateLiquidity(
         Data storage self,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
-    ) internal
+    ) private
       lock(self)
     {
         Time.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
@@ -338,7 +347,7 @@ library DatedIrsVamm {
             ///     the nextInitializedTick should be less than or equal to the current tick
             /// add a test for the statement that checks for the above two conditions
             (step.tickNext, step.initialized) = self.vars._tickBitmap
-                .nextInitializedTickWithinOneWord(state.tick, self.immutableConfig._tickSpacing, !(params.amountSpecified > 0));
+                .nextInitializedTickWithinOneWord(state.tick, self.immutableConfig.tickSpacing, !(params.amountSpecified > 0));
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             if (params.amountSpecified > 0 && step.tickNext > swapFixedValues.tickLimits.maxTick) {
@@ -484,68 +493,115 @@ library DatedIrsVamm {
         return (state.quoteTokenDeltaCumulative, state.baseTokenDeltaCumulative);
     }
 
+    struct UnfilledBalances {
+        uint256 baseLong;
+        uint256 baseShort;
+        uint256 quoteLong;
+        uint256 quoteShort;
+    }
+
     /// @notice For a given LP account, how much liquidity is available to trade in each direction.
     /// @param accountId The LP account. All positions within the account will be considered.
-    /// @return unfilledBaseLong The base tokens available for a trader to take 
-    ///     a long position against this LP (which will then become a short position for the LP) 
-    /// @return unfilledBaseShort The base tokens available for a trader to take 
-    ///      a short position against this LP (which will then become a long position for the LP) 
+    /// @return unfilled The unfilled base and quote balances
     function getAccountUnfilledBalances(
         Data storage self,
         uint128 accountId
     )
         internal
         view
-        returns (
-            uint256 unfilledBaseLong,
-            uint256 unfilledBaseShort,
-            uint256 unfilledQuoteLong,
-            uint256 unfilledQuoteShort
-        )
+        returns (UnfilledBalances memory unfilled)
     {
-        uint256 numPositions = self.vars.positionsInAccount[accountId].length;
-        if (numPositions != 0) {
-            for (uint256 i = 0; i < numPositions; i++) {
-                // Get how liquidity is currently arranged. In particular, 
-                // how much of the liquidity is available to traders in each direction?
-                (
-                    uint256 unfilledLongBase,
-                    uint256 unfilledShortBase,
-                    uint256 unfilledLongQuote,
-                    uint256 unfilledShortQuote
-                ) = 
-                    self._getUnfilledBalancesFromPosition(
-                        self.vars.positionsInAccount[accountId][i]
-                    );
-                unfilledBaseLong += unfilledLongBase;
-                unfilledBaseShort += unfilledShortBase;
-                unfilledQuoteLong += unfilledLongQuote;
-                unfilledQuoteShort += unfilledShortQuote;
+        uint256[] memory positions = self.vars.accountPositions[accountId].values();
+
+        UD60x18 liquidityIndex = PoolConfiguration
+            .getRateOracle(self.immutableConfig.marketId)
+            .getCurrentIndex();
+
+        UD60x18 timeDelta = FixedAndVariableMath.accrualFact(
+            self.immutableConfig.maturityTimestamp - block.timestamp
+        );
+
+        for (uint256 i = 0; i < positions.length; i++) {
+            LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
+
+            if (position.tickLower == position.tickUpper) {
+                continue;
+            }
+            
+            {
+                (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
+                    position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
+                    position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
+                    position.liquidity.toInt(),
+                    timeDelta,
+                    liquidityIndex,
+                    self.mutableConfig.spread,
+                    true
+                );
+            
+                unfilled.baseLong += unfilledBase;
+                unfilled.quoteLong += unfilledQuote;
+            }
+            
+            {
+                (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
+                    position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
+                    position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
+                    position.liquidity.toInt(),
+                    timeDelta,
+                    liquidityIndex,
+                    self.mutableConfig.spread,
+                    true
+                );
+
+                unfilled.baseShort += unfilledBase;
+                unfilled.quoteShort += unfilledQuote;
             }
         }
     }
 
-    function _getUnfilledBalancesFromPosition(
-        Data storage self,
-        uint128 positionId
-    )
-        internal
-        view
-        returns ( uint256, uint256, uint256, uint256 ) {
-        LPPosition.Data storage position = LPPosition.exists(positionId);
-        (
-            uint256 unfilledShortBase,
-            uint256 unfilledLongBase,
-            uint256 unfilledShortQuote,
-            uint256 unfilledLongQuote
-        ) = _getUnfilledBaseTokenValues(
-            self,
-            position.tickLower,
-            position.tickUpper,
-            position.liquidity
+    function getOneSideUnfilledBalances(
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidity,
+        UD60x18 timeDelta,
+        UD60x18 liquidityIndex,
+        UD60x18 spread,
+        bool isLong
+    ) private pure returns (uint256 /* unfilledBase */ , uint256 /* unfilledQuote */)
+    {
+        if (tickLower == tickUpper) {
+            return (0, 0);
+        }
+
+        uint256 unfilledBase = VammHelpers.baseBetweenTicks(
+            tickLower,
+            tickUpper,
+            liquidity
+        ).toUint();
+
+        if (unfilledBase == 0) {
+            return (0, 0);
+        }
+        
+        int256 unbalancedQuoteTokens = VammHelpers.unbalancedQuoteBetweenTicks(
+            tickLower,
+            tickUpper,
+            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt()
         );
 
-        return ( unfilledLongBase, unfilledShortBase, unfilledLongQuote, unfilledShortQuote);
+        /// @notice: calculateQuoteTokenDelta considers spread in advantage (for LPs)
+        int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
+            unbalancedQuoteTokens,
+            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
+            timeDelta,
+            liquidityIndex,
+            spread
+        );
+
+        uint256 absUnfilledQuote = ((isLong) ? unfilledQuote : -unfilledQuote).toUint();
+
+        return (unfilledBase, absUnfilledQuote);
     }
 
     /// @dev For a given LP posiiton, how much of it is already traded and what are base and 
@@ -557,13 +613,15 @@ library DatedIrsVamm {
         internal
         view
         returns (int256 baseBalancePool, int256 quoteBalancePool) {
-        
-        uint256 numPositions = self.vars.positionsInAccount[accountId].length;
 
-        for (uint256 i = 0; i < numPositions; i++) {
-            LPPosition.Data storage position = LPPosition.exists(self.vars.positionsInAccount[accountId][i]);
+        uint256[] memory positions = self.vars.accountPositions[accountId].values();
+        
+        for (uint256 i = 0; i < positions.length; i++) {
+            LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
+
             (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth) = 
                 growthBetweenTicks(self, position.tickLower, position.tickUpper);
+        
             (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = 
                 position.getUpdatedPositionBalances(trackerQuoteTokenGlobalGrowth, trackerBaseTokenGlobalGrowth); 
 
@@ -571,122 +629,6 @@ library DatedIrsVamm {
             quoteBalancePool += trackerQuoteTokenAccumulated;
         }
 
-    }
-
-    /// @dev Private but labelled internal for testability.
-    ///
-    /// Gets the number of "unfilled" (still available as liquidity) base tokens within the specified tick range,
-    /// looking both left and right of the current tick.
-    function _getUnfilledBaseTokenValues(
-        Data storage self,
-        int24 tickLower,
-        int24 tickUpper,
-        uint128 liquidityPerTick
-    ) internal view returns(
-        uint256 unfilledBaseTokensLeft,
-        uint256 unfilledBaseTokensRight,
-        uint256 unfilledQuoteTokensLeft,
-        uint256 unfilledQuoteTokensRight
-    ) {
-        if (tickLower == tickUpper) {
-            return (0, 0, 0, 0);
-        }
-
-        uint256 secondsTillMaturity = self.immutableConfig.maturityTimestamp - block.timestamp;
-        // Compute unfilled tokens in our range and to the left of the current tick
-        (unfilledBaseTokensLeft, unfilledQuoteTokensLeft) = self._getUnfilledBalancesLeft(
-            tickLower < self.vars.tick ? tickLower : self.vars.tick, // min(tickLower, currentTick)
-            tickUpper < self.vars.tick ? tickUpper : self.vars.tick,  // min(tickUpper, currentTick)
-            liquidityPerTick.toInt(),
-            secondsTillMaturity
-        );
-
-        // Compute unfilled tokens in our range and to the right of the current tick
-        (unfilledBaseTokensRight, unfilledQuoteTokensRight) = self._getUnfilledBalancesRight(
-            tickLower > self.vars.tick ? tickLower : self.vars.tick, // max(tickLower, currentTick)
-            tickUpper > self.vars.tick ? tickUpper : self.vars.tick,  // max(tickUpper, currentTick)
-            liquidityPerTick.toInt(),
-            secondsTillMaturity
-        );
-    }
-
-    function _getUnfilledBalancesLeft(
-        Data storage self,
-        int24 leftLowerTick,
-        int24 leftUpperTick,
-        int128 liquidityPerTick,
-        uint256 secondsTillMaturity
-    ) 
-        internal view
-        returns (uint256, uint256) {
-        
-        uint256 unfilledBaseTokensLeft = VammHelpers.baseBetweenTicks(
-            leftLowerTick,
-            leftUpperTick,
-            liquidityPerTick
-        ).toUint();
-
-        if ( unfilledBaseTokensLeft == 0 ) {
-            return (0, 0);
-        }
-
-        // unfilledBaseTokensLeft is negative
-        int256 unbalancedQuoteTokensLeft = VammHelpers.unbalancedQuoteBetweenTicks(
-            leftLowerTick,
-            leftUpperTick,
-            -(unfilledBaseTokensLeft).toInt()
-        );
-        // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
-        uint256 unfilledQuoteTokensLeft = VammHelpers.calculateQuoteTokenDelta(
-            unbalancedQuoteTokensLeft,
-            -(unfilledBaseTokensLeft).toInt(),
-            FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex(),
-            self.mutableConfig.spread
-        ).toUint();
-
-        return (unfilledBaseTokensLeft, unfilledQuoteTokensLeft);
-    }
-
-    function _getUnfilledBalancesRight(
-        Data storage self,
-        int24 rightLowerTick,
-        int24 rightUpperTick,
-        int128 liquidityPerTick,
-        uint256 secondsTillMaturity
-    ) 
-        internal view
-        returns (uint256, uint256){
-        
-        uint256 unfilledBaseTokensRight = VammHelpers.baseBetweenTicks(
-            rightLowerTick,
-            rightUpperTick,
-            liquidityPerTick
-        ).toUint();
-
-        if ( unfilledBaseTokensRight == 0 ) {
-            return (0, 0);
-        }
-
-        // unbalancedQuoteTokensRight is positive
-        int256 unbalancedQuoteTokensRight = VammHelpers.unbalancedQuoteBetweenTicks(
-            rightLowerTick,
-            rightUpperTick,
-            unfilledBaseTokensRight.toInt()
-        );
-
-        // unfilledQuoteTokensRight is negative
-        uint256 unfilledQuoteTokensRight = (-VammHelpers.calculateQuoteTokenDelta(
-            unbalancedQuoteTokensRight,
-            unfilledBaseTokensRight.toInt(),
-            FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            PoolConfiguration
-                .getRateOracle(self.immutableConfig.marketId)
-                .getCurrentIndex(),
-            self.mutableConfig.spread
-        )).toUint();
-
-        return (unfilledBaseTokensRight, unfilledQuoteTokensRight);
     }
 
     function growthBetweenTicks(
@@ -742,7 +684,6 @@ library DatedIrsVamm {
         view
         returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
     {
-
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
         baseTokenGrowthInsideX128 = self.vars._ticks.getBaseTokenGrowthInside(
@@ -777,6 +718,9 @@ library DatedIrsVamm {
             bool flippedUpper
         )
     {
+        int24 tickSpacing = self.immutableConfig.tickSpacing;
+        uint128 maxLiquidityPerTick = self.immutableConfig.maxLiquidityPerTick;
+
         /// @dev isUpper = false
         flippedLower = self.vars._ticks.update(
             tickLower,
@@ -785,7 +729,7 @@ library DatedIrsVamm {
             self.vars.trackerQuoteTokenGrowthGlobalX128,
             self.vars.trackerBaseTokenGrowthGlobalX128,
             false,
-            self.immutableConfig._maxLiquidityPerTick
+            maxLiquidityPerTick
         );
 
         /// @dev isUpper = true
@@ -796,15 +740,15 @@ library DatedIrsVamm {
             self.vars.trackerQuoteTokenGrowthGlobalX128,
             self.vars.trackerBaseTokenGrowthGlobalX128,
             true,
-            self.immutableConfig._maxLiquidityPerTick
+            maxLiquidityPerTick
         );
 
         if (flippedLower) {
-            self.vars._tickBitmap.flipTick(tickLower, self.immutableConfig._tickSpacing);
+            self.vars._tickBitmap.flipTick(tickLower, tickSpacing);
         }
 
         if (flippedUpper) {
-            self.vars._tickBitmap.flipTick(tickUpper, self.immutableConfig._tickSpacing);
+            self.vars._tickBitmap.flipTick(tickUpper, tickSpacing);
         }
     }
 }

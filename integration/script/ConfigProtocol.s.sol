@@ -88,8 +88,8 @@ contract ConfigProtocol is SetupProtocol {
     deployPool({
       immutableConfig: VammConfiguration.Immutable({
         maturityTimestamp: 1688990400,
-        _maxLiquidityPerTick: type(uint128).max,
-        _tickSpacing: 60,
+        maxLiquidityPerTick: type(uint128).max,
+        tickSpacing: 60,
         marketId: 1
       }),
       mutableConfig: VammConfiguration.Mutable({

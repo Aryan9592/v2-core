@@ -1,15 +1,18 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { Oracle } from "../../storage/Oracle.sol";
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
+import { Tick } from "../ticks/Tick.sol";
+import { TickMath } from "../ticks/TickMath.sol";
 import { VammCustomErrors } from "../../libraries/errors/VammCustomErrors.sol";
 
-import "../../storage/Oracle.sol";
-import "../../storage/DatedIrsVamm.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks configurations for dated irs markets
@@ -18,6 +21,7 @@ library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65535];
     using VammConfiguration for DatedIrsVamm.Data;
+    using SetUtil for SetUtil.UintSet;
 
     struct Mutable {
         /// @dev the phi value to use when adjusting a TWAP price for the likely price impact of liquidation
@@ -37,9 +41,9 @@ library VammConfiguration {
         /// @dev UNIX timestamp in seconds marking swap maturity
         uint32 maturityTimestamp;
         /// @dev Maximun liquidity amount per tick
-        uint128 _maxLiquidityPerTick;
+        uint128 maxLiquidityPerTick;
         /// @dev Granularity of ticks
-        int24 _tickSpacing;
+        int24 tickSpacing;
         /// @dev market id used to identify vamm alongside maturity timestamp
         uint128 marketId;
     }
@@ -66,9 +70,11 @@ library VammConfiguration {
 
         /// Circular buffer of Oracle Observations. Resizable but no more than type(uint16).max slots in the buffer
         Oracle.Observation[65535] observations;
+
         /// @dev Maps from an account address to a list of the position IDs of positions associated with that account address. 
-        ///     Use the `positions` mapping to see full details of any given `LPPosition`.
-        mapping(uint128 => uint128[]) positionsInAccount;
+        ///      Use the `positions` mapping to see full details of any given `LPPosition`.
+        mapping(uint128 => SetUtil.UintSet) accountPositions;
+
         /// @notice The currently in range liquidity available to the pool
         /// @dev This value has no relationship to the total liquidity across all ticks
         uint128 liquidity;
@@ -108,11 +114,11 @@ library VammConfiguration {
         // tick spacing is capped at 16384 to prevent the situation where tickSpacing is so large that
         // TickBitmap#nextInitializedTickWithinOneWord overflows int24 container from a valid tick
         // 16384 ticks represents a >5x price change with ticks of 1 bips
-        require(_config._tickSpacing > 0 && _config._tickSpacing < Tick.MAXIMUM_TICK_SPACING, "TSOOB");
+        require(_config.tickSpacing > 0 && _config.tickSpacing < Tick.MAXIMUM_TICK_SPACING, "TSOOB");
 
         irsVamm.immutableConfig.maturityTimestamp = _config.maturityTimestamp;
-        irsVamm.immutableConfig._maxLiquidityPerTick = _config._maxLiquidityPerTick;
-        irsVamm.immutableConfig._tickSpacing = _config._tickSpacing;
+        irsVamm.immutableConfig.maxLiquidityPerTick = _config.maxLiquidityPerTick;
+        irsVamm.immutableConfig.tickSpacing = _config.tickSpacing;
         irsVamm.immutableConfig.marketId = _marketId;
 
         initialize(irsVamm, _sqrtPriceX96, times, observedTicks);
