@@ -181,27 +181,25 @@ library VammHelpers {
     /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
     /// The answer must be a valid `int256`. Reverts on overflow.
     function baseBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
-        int128 _liquidityPerTick
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidityPerTick
     ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
-
-        return VammHelpers.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
+        return VammHelpers.baseAmountFromLiquidity(liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
     }
 
     function unbalancedQuoteBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
+        int24 tickLower,
+        int24 tickUpper,
         int256 baseAmount
     ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
         return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
