@@ -196,7 +196,7 @@ library DatedIrsVamm {
     ) private {
         if (position.liquidity > 0) {
             (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128) = 
-                self.computeGrowthInside(tickLower, tickUpper);
+                computeGrowthInside(self, tickLower, tickUpper);
 
             (int256 quoteTokenDelta, int256 baseTokenDelta) = 
                 position.calculateFixedAndVariableDelta(
@@ -213,7 +213,7 @@ library DatedIrsVamm {
         } else {
             if (isMintBurn) {
                 ( int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128) = 
-                    self.computeGrowthInside(tickLower, tickUpper);
+                    computeGrowthInside(self, tickLower, tickUpper);
                 
                 position.updateTrackers(
                     quoteTokenGrowthInsideX128,
@@ -248,7 +248,8 @@ library DatedIrsVamm {
 
         /// @dev update the ticks if necessary
         if (liquidityDelta != 0) {
-            (flippedLower, flippedUpper) = self.flipTicks(
+            (flippedLower, flippedUpper) = flipTicks(
+                self,
                 tickLower,
                 tickUpper,
                 liquidityDelta
@@ -632,7 +633,7 @@ library DatedIrsVamm {
         Data storage self,
         int24 tickLower,
         int24 tickUpper
-    ) internal view returns (
+    ) private view returns (
         int256 trackerQuoteTokenGrowthBetween,
         int256 trackerBaseTokenGrowthBetween
     )
@@ -677,7 +678,7 @@ library DatedIrsVamm {
         int24 tickLower,
         int24 tickUpper
     )
-        internal
+        private
         view
         returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
     {
@@ -709,7 +710,7 @@ library DatedIrsVamm {
         int24 tickUpper,
         int128 liquidityDelta
     )
-        internal
+        private
         returns (
             bool flippedLower,
             bool flippedUpper
