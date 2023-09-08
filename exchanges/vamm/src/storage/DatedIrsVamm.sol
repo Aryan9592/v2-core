@@ -1,27 +1,96 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+import { Oracle } from "./Oracle.sol";
+import { Tick } from "../libraries/ticks/Tick.sol";
+
 import { AccountBalances } from "../libraries/vamm-utils/AccountBalances.sol";
 import { Swap } from "../libraries/vamm-utils/Swap.sol";
 import { LP } from "../libraries/vamm-utils/LP.sol";
 import { VammConfiguration } from "../libraries/vamm-utils/VammConfiguration.sol";
-import { VammCustomErrors } from "../libraries/errors/VammCustomErrors.sol";
+import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
  *
  */
 library DatedIrsVamm {
+    struct Mutable {
+        /// @dev the phi value to use when adjusting a TWAP price for the likely price impact of liquidation
+        UD60x18 priceImpactPhi;
+        /// @dev the spread taken by LPs on each trade. 
+        ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
+        UD60x18 spread;
+        /// @dev minimum seconds between observation entries in the oracle buffer
+        uint32 minSecondsBetweenOracleObservations;
+        /// @dev The minimum allowed tick of the vamm
+        int24 minTickAllowed;
+        /// @dev The maximum allowed tick of the vamm
+        int24 maxTickAllowed;
+    }
+
+    struct Immutable {
+        /// @dev UNIX timestamp in seconds marking swap maturity
+        uint32 maturityTimestamp;
+        /// @dev Maximun liquidity amount per tick
+        uint128 maxLiquidityPerTick;
+        /// @dev Granularity of ticks
+        int24 tickSpacing;
+        /// @dev market id used to identify vamm alongside maturity timestamp
+        uint128 marketId;
+    }
+
+    /// @dev frequently-updated state of the VAMM
+    struct State {
+        /**
+         * @dev do not rearrange storage from sqrtPriceX96 to unlocked including.
+         * It is arranged on purpose to for one single storage slot.
+         */
+
+        // the current price of the pool as a sqrt(trackerBaseToken/trackerQuoteToken) Q64.96 value
+        uint160 sqrtPriceX96;
+        // the current tick of the vamm, i.e. according to the last tick transition that was run.
+        int24 tick;
+        // the most-recently updated index of the observations array
+        uint16 observationIndex;
+        // the current maximum number of observations that are being stored
+        uint16 observationCardinality;
+        // the next maximum number of observations to store, triggered in observations.write
+        uint16 observationCardinalityNext;
+        // whether the pool is locked
+        bool unlocked;
+
+        /// Circular buffer of Oracle Observations. Resizable but no more than type(uint16).max slots in the buffer
+        Oracle.Observation[65535] observations;
+
+        /// @dev Maps from an account address to a list of the position IDs of positions associated with that account address. 
+        ///      Use the `positions` mapping to see full details of any given `LPPosition`.
+        mapping(uint128 => SetUtil.UintSet) accountPositions;
+
+        /// @notice The currently in range liquidity available to the pool
+        /// @dev This value has no relationship to the total liquidity across all ticks
+        uint128 liquidity;
+        /// @dev total amount of variable tokens in vamm
+        int256 trackerQuoteTokenGrowthGlobalX128;
+        /// @dev total amount of base tokens in vamm
+        int256 trackerBaseTokenGrowthGlobalX128;
+        /// @dev map from tick to tick info
+        mapping(int24 => Tick.Info) ticks;
+        /// @dev map from tick to tick bitmap
+        mapping(int16 => uint256) tickBitmap;
+    }
+
     /// @dev Internal, frequently-updated state of the VAMM, which is compressed into one storage slot.
     struct Data {
         /// @dev vamm config set at initialization, can't be modified after creation
-        VammConfiguration.Immutable immutableConfig;
+        Immutable immutableConfig;
         /// @dev configurable vamm config
-        VammConfiguration.Mutable mutableConfig;
+        Mutable mutableConfig;
         /// @dev vamm state frequently-updated
-        VammConfiguration.State vars;
+        State vars;
         /// @dev Equivalent to getSqrtRatioAtTick(minTickAllowed)
         uint160 minSqrtRatioAllowed;
         /// @dev Equivalent to getSqrtRatioAtTick(maxTickAllowed)
@@ -45,6 +114,23 @@ library DatedIrsVamm {
         uint256 baseShort;
         uint256 quoteLong;
         uint256 quoteShort;
+    }
+
+    function create(
+        uint160 sqrtPriceX96,
+        uint32[] memory times,
+        int24[] memory observedTicks,
+        Immutable memory config,
+        Mutable memory mutableConfig
+    ) internal returns (Data storage) {
+        return VammConfiguration.create(sqrtPriceX96, times, observedTicks, config, mutableConfig);
+    }
+
+    function configure(
+        DatedIrsVamm.Data storage self,
+        DatedIrsVamm.Mutable memory config
+    ) internal {
+        VammConfiguration.configure(self, config);
     }
 
     /**

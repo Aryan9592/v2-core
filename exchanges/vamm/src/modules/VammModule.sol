@@ -7,7 +7,6 @@ import {LPPosition} from "../storage/LPPosition.sol";
 import {Oracle} from "../storage/Oracle.sol";
 import {Tick} from "../libraries/ticks/Tick.sol";
 import {Twap} from "../libraries/vamm-utils/Twap.sol";
-import {VammConfiguration} from "../libraries/vamm-utils/VammConfiguration.sol";
 
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -19,7 +18,6 @@ import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.
  */
 contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
-    using VammConfiguration for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
     using SafeCastU256 for uint256;
 
@@ -30,12 +28,12 @@ contract VammModule is IVammModule {
         uint160 sqrtPriceX96, 
         uint32[] calldata times, 
         int24[] calldata observedTicks, 
-        VammConfiguration.Immutable calldata config, 
-        VammConfiguration.Mutable calldata mutableConfig
+        DatedIrsVamm.Immutable calldata config, 
+        DatedIrsVamm.Mutable calldata mutableConfig
     ) external override {
         OwnableStorage.onlyOwner();
     
-        DatedIrsVamm.Data storage vamm = VammConfiguration.create(
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.create(
             sqrtPriceX96,
             times,
             observedTicks,
@@ -54,7 +52,7 @@ contract VammModule is IVammModule {
     /**
      * @inheritdoc IVammModule
      */
-    function configureVamm(uint128 marketId, uint32 maturityTimestamp, VammConfiguration.Mutable calldata config)
+    function configureVamm(uint128 marketId, uint32 maturityTimestamp, DatedIrsVamm.Mutable calldata config)
     external override
     {
         OwnableStorage.onlyOwner();
@@ -77,8 +75,8 @@ contract VammModule is IVammModule {
 
     function getVammConfig(uint128 marketId, uint32 maturityTimestamp)
         external view override returns (
-        VammConfiguration.Immutable memory config,
-        VammConfiguration.Mutable memory mutableConfig
+        DatedIrsVamm.Immutable memory config,
+        DatedIrsVamm.Mutable memory mutableConfig
     ) {
          DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
          config = vamm.immutableConfig;

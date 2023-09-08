@@ -7,7 +7,7 @@ import { Oracle } from "../../storage/Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { Time } from "..//time/Time.sol";
 import { VammTicks } from "./VammTicks.sol";
-import { VammCustomErrors } from "../errors/VammCustomErrors.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 

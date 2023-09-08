@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../libraries/vamm-utils/VammConfiguration.sol";
-import "../storage/LPPosition.sol";
+import { LPPosition } from "../storage/LPPosition.sol";
+import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
+import { Oracle } from "../storage/Oracle.sol";
+import { Tick } from "../libraries/ticks/Tick.sol";
 
 interface IVammModule {
   /// @dev Emitted when vamm configurations are updated
   event VammConfigUpdated(
       uint128 marketId,
       uint32 maturityTimestamp,
-      VammConfiguration.Mutable config,
+      DatedIrsVamm.Mutable config,
       uint256 blockTimestamp
   );
 
   /// @dev Emitted when a new vamm is created and initialized
   event VammCreated(
       int24 tick,
-      VammConfiguration.Immutable config,
-      VammConfiguration.Mutable mutableConfig,
+      DatedIrsVamm.Immutable config,
+      DatedIrsVamm.Mutable mutableConfig,
       uint256 blockTimestamp
   );
 
@@ -28,8 +30,8 @@ interface IVammModule {
     uint160 sqrtPriceX96, 
     uint32[] memory times, 
     int24[] memory observedTicks, 
-    VammConfiguration.Immutable calldata config, 
-    VammConfiguration.Mutable calldata mutableConfig
+    DatedIrsVamm.Immutable calldata config, 
+    DatedIrsVamm.Mutable calldata mutableConfig
   ) external;
 
   /**
@@ -39,7 +41,7 @@ interface IVammModule {
   function configureVamm(
     uint128 marketId,
     uint32 maturityTimestamp,
-    VammConfiguration.Mutable calldata config
+    DatedIrsVamm.Mutable calldata config
   ) external;
 
   /**
@@ -57,8 +59,8 @@ interface IVammModule {
     */
   function getVammConfig(uint128 marketId, uint32 maturityTimestamp)
     external view returns (
-      VammConfiguration.Immutable memory config,
-      VammConfiguration.Mutable memory mutableConfig
+      DatedIrsVamm.Immutable memory config,
+      DatedIrsVamm.Mutable memory mutableConfig
     );
 
   function getVammSqrtPriceX96(uint128 marketId, uint32 maturityTimestamp)

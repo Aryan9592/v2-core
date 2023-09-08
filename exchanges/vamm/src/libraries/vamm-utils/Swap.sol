@@ -14,7 +14,7 @@ import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 import { Tick } from "../ticks/Tick.sol";
 
-import { VammCustomErrors } from "../errors/VammCustomErrors.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -50,13 +50,24 @@ library Swap {
             liquidityIndex: PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex()
         });
 
-        VammTicks.checksBeforeSwap(
-            self,
-            params.amountSpecified, 
-            params.sqrtPriceLimitX96, 
-            params.amountSpecified > 0,
-            swapFixedValues.tickLimits.minSqrtRatio,
-            swapFixedValues.tickLimits.maxSqrtRatio
+        if (params.amountSpecified == 0) {
+            revert VammCustomErrors.IRSNotionalAmountSpecifiedMustBeNonZero();
+        }
+
+        /// @dev if a trader is an FT, they consume fixed in return for variable
+        /// @dev Movement from right to left along the VAMM, hence the sqrtPriceLimitX96 needs to be higher 
+        // than the current sqrtPriceX96, but lower than the MAX_SQRT_RATIO
+        /// @dev if a trader is a VT, they consume variable in return for fixed
+        /// @dev Movement from left to right along the VAMM, hence the sqrtPriceLimitX96 needs to be lower 
+        // than the current sqrtPriceX96, but higher than the MIN_SQRT_RATIO
+
+        require(
+            params.amountSpecified > 0
+                ? params.sqrtPriceLimitX96 > self.vars.sqrtPriceX96 &&
+                    params.sqrtPriceLimitX96 < swapFixedValues.tickLimits.minSqrtRatio
+                : params.sqrtPriceLimitX96 < self.vars.sqrtPriceX96 &&
+                    params.sqrtPriceLimitX96 > swapFixedValues.tickLimits.maxSqrtRatio,
+            "SPL"
         );
 
         uint128 liquidityStart = self.vars.liquidity;

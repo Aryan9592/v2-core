@@ -7,7 +7,7 @@ import { TickMath } from "../ticks/TickMath.sol";
 import { UD60x18, ZERO, ud } from "@prb/math/UD60x18.sol";
 
 import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
-import {VammCustomErrors} from "../errors/VammCustomErrors.sol";
+import {VammCustomErrors} from "./VammCustomErrors.sol";
 import {FixedPoint96} from "../math/FixedPoint96.sol";
 import {FullMath} from "../math/FullMath.sol";
 
@@ -25,8 +25,8 @@ library VammTicks {
         uint160 maxSqrtRatio;
     }
 
-    function getPriceFromTick(int24 _tick) internal pure returns (UD60x18 price) {
-        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_tick);
+    function getPriceFromTick(int24 tick) internal pure returns (UD60x18 price) {
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
         uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
         return UD60x18.wrap(FullMath.mulDiv(1e18, FixedPoint96.Q96, priceX96));
     }
@@ -42,9 +42,10 @@ library VammTicks {
         TickLimits memory currentTickLimits
     ) {
         (int24 dynamicMinTick, int24 dynamicMaxTick) = dynamicTickLimits(markPrice, markPriceBand);
+
         if (self.mutableConfig.minTickAllowed < dynamicMinTick) {
             currentTickLimits.minTick = dynamicMinTick;
-            currentTickLimits.minSqrtRatio = TickMath.getSqrtRatioAtTick(currentTickLimits.minTick);
+            currentTickLimits.minSqrtRatio = TickMath.getSqrtRatioAtTick(dynamicMinTick);
         } else {
             currentTickLimits.minTick = self.mutableConfig.minTickAllowed;
             currentTickLimits.minSqrtRatio = self.minSqrtRatioAllowed;
@@ -52,7 +53,7 @@ library VammTicks {
 
         if (dynamicMaxTick < self.mutableConfig.maxTickAllowed) {
             currentTickLimits.maxTick = dynamicMaxTick;
-            currentTickLimits.maxSqrtRatio = TickMath.getSqrtRatioAtTick(currentTickLimits.maxTick);
+            currentTickLimits.maxSqrtRatio = TickMath.getSqrtRatioAtTick(dynamicMaxTick);
         } else {
             currentTickLimits.maxTick = self.mutableConfig.maxTickAllowed;
             currentTickLimits.maxSqrtRatio = self.maxSqrtRatioAllowed;
@@ -85,36 +86,6 @@ library VammTicks {
         
         dynamicMinTick = getTickFromPrice(maxPrice);
         dynamicMaxTick = getTickFromPrice(minPrice);
-    }
-
-    function checksBeforeSwap(
-        DatedIrsVamm.Data storage self,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bool isFT,
-        uint160 currentMinSqrtRatio,
-        uint160 currentMaxSqrtRatio
-    ) internal view {
-
-        if (amountSpecified == 0) {
-            revert VammCustomErrors.IRSNotionalAmountSpecifiedMustBeNonZero();
-        }
-
-        /// @dev if a trader is an FT, they consume fixed in return for variable
-        /// @dev Movement from right to left along the VAMM, hence the sqrtPriceLimitX96 needs to be higher 
-        // than the current sqrtPriceX96, but lower than the MAX_SQRT_RATIO
-        /// @dev if a trader is a VT, they consume variable in return for fixed
-        /// @dev Movement from left to right along the VAMM, hence the sqrtPriceLimitX96 needs to be lower 
-        // than the current sqrtPriceX96, but higher than the MIN_SQRT_RATIO
-
-        require(
-            isFT
-                ? sqrtPriceLimitX96 > self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 < currentMaxSqrtRatio
-                : sqrtPriceLimitX96 < self.vars.sqrtPriceX96 &&
-                    sqrtPriceLimitX96 > currentMinSqrtRatio,
-            "SPL"
-        );
     }
 
     function getSqrtRatioTargetX96(int256 amountSpecified, uint160 sqrtPriceNextX96, uint160 sqrtPriceLimitX96) 

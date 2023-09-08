@@ -17,12 +17,12 @@ import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.so
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
+import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 import {Market as DatedIrsMarket} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
 import {PoolConfiguration} from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
-import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 
 import {Config} from "@voltz-protocol/periphery/src/storage/Config.sol";
 
@@ -35,7 +35,7 @@ import {UD60x18, ud60x18} from "@prb/math/UD60x18.sol";
 import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
-import {IRateOracle} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
+import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
 
 import {Commands} from "@voltz-protocol/periphery/src/libraries/Commands.sol";
 import {IWETH9} from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";
@@ -281,8 +281,8 @@ contract SetupProtocol is BatchScript {
   }
 
   function deployPool(
-    VammConfiguration.Immutable memory immutableConfig,
-    VammConfiguration.Mutable memory mutableConfig,
+    DatedIrsVamm.Immutable memory immutableConfig,
+    DatedIrsVamm.Mutable memory mutableConfig,
     int24 initTick,
     uint16 observationCardinalityNext,
     uint32[] memory times,
@@ -767,8 +767,8 @@ contract SetupProtocol is BatchScript {
     uint160 sqrtPriceX96,
     uint32[] memory times,
     int24[] memory observedTicks,
-    VammConfiguration.Immutable memory config, 
-    VammConfiguration.Mutable memory mutableConfig
+    DatedIrsVamm.Immutable memory config, 
+    DatedIrsVamm.Mutable memory mutableConfig
   ) public {
     if (!settings.multisig) {
       broadcastOrPrank();
@@ -787,7 +787,7 @@ contract SetupProtocol is BatchScript {
   function configureVamm(
     uint128 marketId,
     uint32 maturityTimestamp,
-    VammConfiguration.Mutable memory mutableConfig
+    DatedIrsVamm.Mutable memory mutableConfig
   ) public {
     if (!settings.multisig) {
       broadcastOrPrank();

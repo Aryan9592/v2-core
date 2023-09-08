@@ -86,13 +86,13 @@ contract ConfigProtocol is SetupProtocol {
     observedTicks[0] = -13860;
     observedTicks[1] = -13860;
     deployPool({
-      immutableConfig: VammConfiguration.Immutable({
+      immutableConfig: DatedIrsVamm.Immutable({
         maturityTimestamp: 1688990400,
         maxLiquidityPerTick: type(uint128).max,
         tickSpacing: 60,
         marketId: 1
       }),
-      mutableConfig: VammConfiguration.Mutable({
+      mutableConfig: DatedIrsVamm.Mutable({
         priceImpactPhi: ud60x18(1e17), // 0.1
         spread: ud60x18(3e15), // 0.3%
         minSecondsBetweenOracleObservations: 3600,

@@ -13,7 +13,7 @@ import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 
-import { VammCustomErrors } from "../errors/VammCustomErrors.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 library LP {
@@ -167,7 +167,7 @@ library LP {
     }
 
     /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`) 
-    ///     `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
+    /// `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
     function updateLiquidity(
         DatedIrsVamm.Data storage self,
         int24 tickLower,
@@ -208,8 +208,7 @@ library LP {
         }
 
         if (liquidityDelta != 0) {
-            if (tickLower <= self.vars.tick && (self.vars.tick < tickUpper)) 
-            {
+            if (tickLower <= self.vars.tick && self.vars.tick < tickUpper) {
                 // current tick is inside the passed range
                 uint128 liquidityBefore = self.vars.liquidity; // SLOAD for gas optimization
 

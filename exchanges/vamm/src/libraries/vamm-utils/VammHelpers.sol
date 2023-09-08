@@ -5,8 +5,6 @@ pragma solidity >=0.8.13;
 import {Tick} from "../ticks/Tick.sol";
 import {TickMath} from "../ticks/TickMath.sol";
 import {TickBitmap} from "../ticks/TickBitmap.sol";
-import {VammConfiguration} from "./VammConfiguration.sol";
-
 
 import {FullMath} from "../math/FullMath.sol";
 import {FixedPoint96} from "../math/FixedPoint96.sol";
