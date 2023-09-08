@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "@voltz-protocol/util-contracts/src/proxy/UUPSProxyWithOwner.sol";
+import {UUPSProxyWithOwner} from "@voltz-protocol/util-contracts/src/proxy/UUPSProxyWithOwner.sol";
 
 /**
  * Voltz V2 VAMM Proxy Contract

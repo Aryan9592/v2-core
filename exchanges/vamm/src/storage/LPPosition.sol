@@ -168,7 +168,7 @@ library LPPosition {
         );
 
         int256 baseTokenGrowthInsideDeltaX128 = baseTokenGrowthInsideX128 -
-                self.trackers.baseTokenUpdatedGrowth;
+            self.trackers.baseTokenUpdatedGrowth;
 
         baseTokenDelta = FullMath.mulDivSigned(
             baseTokenGrowthInsideDeltaX128,

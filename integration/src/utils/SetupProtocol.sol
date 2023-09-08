@@ -289,7 +289,6 @@ contract SetupProtocol is BatchScript {
     int24[] memory observedTicks
   ) public {
     createVamm({
-      marketId: immutableConfig.marketId,
       sqrtPriceX96: TickMath.getSqrtRatioAtTick(initTick),
       times: times,
       observedTicks: observedTicks,
@@ -298,8 +297,8 @@ contract SetupProtocol is BatchScript {
     });
 
     (, , uint16 currentObservationCardinalityNext) = contracts.vammProxy.getVammObservationInfo({
-      _marketId: immutableConfig.marketId, 
-      _maturityTimestamp: immutableConfig.maturityTimestamp
+      marketId: immutableConfig.marketId, 
+      maturityTimestamp: immutableConfig.maturityTimestamp
     });
 
     while (currentObservationCardinalityNext < observationCardinalityNext) {
@@ -765,7 +764,6 @@ contract SetupProtocol is BatchScript {
   }
 
   function createVamm(
-    uint128 marketId, 
     uint160 sqrtPriceX96,
     uint32[] memory times,
     int24[] memory observedTicks,
@@ -774,13 +772,13 @@ contract SetupProtocol is BatchScript {
   ) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.vammProxy.createVamm(marketId, sqrtPriceX96, times, observedTicks, config, mutableConfig);
+      contracts.vammProxy.createVamm(sqrtPriceX96, times, observedTicks, config, mutableConfig);
     } else {
       addToBatch(
         address(contracts.vammProxy),
         abi.encodeCall(
           contracts.vammProxy.createVamm,
-          (marketId, sqrtPriceX96, times, observedTicks, config, mutableConfig)
+          (sqrtPriceX96, times, observedTicks, config, mutableConfig)
         )
       );
     }

@@ -1,13 +1,18 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
+import { Tick } from "../ticks/Tick.sol";
 
+import { Oracle } from "../../storage/Oracle.sol";
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
+import { Time } from "../../libraries/time/Time.sol";
+import { VammTicks } from "../../libraries/vamm-utils/VammTicks.sol";
+import { VammCustomErrors } from "../../libraries/errors/VammCustomErrors.sol";
+
+import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+
+import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, UNIT, wrap, sqrt, ZERO, convert } from "@prb/math/UD60x18.sol";
-
-import "../../storage/Oracle.sol";
-import "../../storage/DatedIrsVamm.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
 /**
  * @title Tracks configurations for dated irs markets
@@ -155,12 +160,15 @@ library Twap {
         lock(self)
     {
         uint16 observationCardinalityNextOld =  self.vars.observationCardinalityNext; // for the event
+
         uint16 observationCardinalityNextNew =  self.vars.observations.grow(
             observationCardinalityNextOld,
             observationCardinalityNext
         );
-         self.vars.observationCardinalityNext = observationCardinalityNextNew;
-        if (observationCardinalityNextOld != observationCardinalityNextNew)
+
+        self.vars.observationCardinalityNext = observationCardinalityNextNew;
+        
+        if (observationCardinalityNextOld != observationCardinalityNextNew) {
             emit IncreaseObservationCardinalityNext(
                 self.immutableConfig.marketId,
                 self.immutableConfig.maturityTimestamp,
@@ -168,6 +176,7 @@ library Twap {
                 observationCardinalityNextNew,
                 block.timestamp
             );
+        }
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
