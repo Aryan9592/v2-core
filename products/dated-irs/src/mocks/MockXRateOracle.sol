@@ -7,8 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IRateOracle.sol";
-import "./IMockXRateOracle.sol";
+import {IRateOracle} from "../interfaces/IRateOracle.sol";
+import {IMockXRateOracle} from "./IMockXRateOracle.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 contract MockXRateOracle is IRateOracle, IMockXRateOracle {
     uint256 private _xChainId;

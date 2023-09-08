@@ -13,7 +13,9 @@ import {IPool} from "../../interfaces/IPool.sol";
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
+import {Market} from "../../storage/Market.sol";
 import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
 /**
  * @title Library for maker orders logic.

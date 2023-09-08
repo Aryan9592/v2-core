@@ -11,9 +11,7 @@ import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-
 import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
-
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 library MarketRateOracle {

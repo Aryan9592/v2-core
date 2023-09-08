@@ -18,6 +18,10 @@ import {IPool} from "../../interfaces/IPool.sol";
 import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+
 /**
  * @title Library for taker orders logic.
  */

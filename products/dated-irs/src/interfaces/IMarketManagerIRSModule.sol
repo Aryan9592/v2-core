@@ -7,8 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
-import "../storage/MarketManagerConfiguration.sol";
+import {IMarketManager} from "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
+import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 
 /// @title Interface of a dated irs market
 interface IMarketManagerIRSModule is IMarketManager {
