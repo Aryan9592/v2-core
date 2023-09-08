@@ -286,7 +286,10 @@ library AccountExposure {
         return false;
     }
 
-    function getTotalAbsoluteMarketExposure(Account.Data storage self, uint128 marketId) internal view returns (uint256 totalMarketExposure) {
+    function getTotalAbsoluteMarketExposure(Account.Data storage self, uint128 marketId)
+    internal
+    view
+    returns (uint256 totalMarketExposure) {
         Market.Data storage market = Market.exists(marketId);
         Account.MakerMarketExposure[] memory makerExposures = 
             market.getAccountTakerAndMakerExposures(self.id);
