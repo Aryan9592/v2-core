@@ -23,6 +23,7 @@ library AutoExchangeConfiguration {
          * @dev Auto-exchange occurs when an account has a negative balance for one collateral asset in USD terms
          * is below the singleAutoExchangeThresholdInUSD (e.g. 5,000 USD)
          */
+        // todo: consider having the single auto-exchange threshold configurable separately for each collateral asset
         uint256 singleAutoExchangeThresholdInUSD;
 
         /**
