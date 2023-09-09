@@ -10,17 +10,24 @@ pragma solidity >=0.8.19;
 import { OracleManager } from  "./OracleManager.sol";
 
 import { INodeModule } from "@voltz-protocol/oracle-manager/src/interfaces/INodeModule.sol";
+import {CollateralPool} from  "./CollateralPool.sol";
+import {GlobalCollateralConfiguration} from  "./GlobalCollateralConfiguration.sol";
+
 import { NodeOutput } from "@voltz-protocol/oracle-manager/src/storage/NodeOutput.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 library CollateralConfiguration {
     using CollateralConfiguration for CollateralConfiguration.Data;
+    using CollateralPool for CollateralPool.Data;
     using SetUtil for SetUtil.AddressSet;
     using SafeCastI256 for int256;
+    using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
 
     /**
      * @notice Emitted when a collateral type’s configuration is created or updated.
@@ -56,6 +63,11 @@ library CollateralConfiguration {
      */
     error CollateralNotConfigured(uint128 collateralPoolId, address collateralType);
 
+    /**
+     * @dev Thrown when the withdraw limit was reached for a collateral type.
+     */
+    error CollateralTypeWithdrawLimitReached(address collateralType, uint32 windowStartTimestamp);
+
     struct Configuration {
         /**
          * @dev Allows the owner to control deposits and delegation of collateral types.
@@ -66,6 +78,16 @@ library CollateralConfiguration {
          * @dev Cap which limits the amount of tokens that can be deposited.
          */
         uint256 cap;
+
+        /**
+         * @dev Time window in seconds in which the withdraw limit is applied
+         */
+        uint32 withdrawalWindowSize;
+
+        /**
+         * @dev Percentage of tvl that is allowed to be withdrawn in one time window
+         */
+        UD60x18 withdrawalTvlPercentageLimit;
     }
 
     struct CachedConfiguration {
@@ -85,10 +107,14 @@ library CollateralConfiguration {
         address tokenAddress;
 
         /**
-         * @dev The token decimals for this collateral type.
-         * @notice If the address is ZERO_ADDRESS, it represents USD.
+         * @dev Total value of withdrawals in the current window
          */
-        uint8 tokenDecimals;
+        uint256 windowWithdrawals;
+    
+        /**
+         * @dev Unix timestamp of the latest cached withdraw period start
+         */
+        uint32 windowStartTimestamp;
     }
 
     struct ParentConfiguration {
@@ -160,6 +186,8 @@ library CollateralConfiguration {
      * @param config The Configuration object with all the settings for the collateral type being configured.
      */
     function setBaseConfig(uint128 collateralPoolId, address tokenAddress, Configuration memory config) internal {
+        GlobalCollateralConfiguration.exists(tokenAddress);
+
         Data storage storedConfig = load(collateralPoolId, tokenAddress);
 
         storedConfig.baseConfig = config;
@@ -167,8 +195,9 @@ library CollateralConfiguration {
         storedConfig.cachedConfig = CachedConfiguration({
             collateralPoolId: collateralPoolId,
             tokenAddress: tokenAddress,
-            tokenDecimals: IERC20(tokenAddress).decimals(),
-            set: true
+            set: true,
+            windowWithdrawals: 0,
+            windowStartTimestamp: 0
         });
 
         emit CollateralConfigurationUpdated(storedConfig.baseConfig, storedConfig.parentConfig, block.timestamp);
@@ -308,5 +337,39 @@ library CollateralConfiguration {
             price: exchangeA.price.div(exchangeB.price),
             haircut: exchangeA.haircut.mul(exchangeB.haircut)
         });
+    }
+
+    /**
+     * @dev Updates the withdraw limit trackers and checks if limit was reached
+     */
+    function checkWithdrawLimits(Data storage self, uint256 shares) internal {
+        address tokenAddress = self.cachedConfig.tokenAddress;
+        uint32 timestamp = Time.blockTimestampTruncated();
+
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(self.cachedConfig.collateralPoolId);
+        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(tokenAddress);
+    
+        bool isNewWindow = timestamp > 
+            self.cachedConfig.windowStartTimestamp + self.baseConfig.withdrawalWindowSize;
+        
+        if (isNewWindow) {
+            self.cachedConfig.windowStartTimestamp = timestamp;
+            self.cachedConfig.windowWithdrawals = 0;
+        }
+
+        uint256 assets = globalConfig.convertToAssets(shares);
+        self.cachedConfig.windowWithdrawals += assets;
+
+        // check withdraw limits against tvl
+        uint256 tvl = collateralPool.getCollateralBalance(tokenAddress);
+
+        if ( 
+            self.cachedConfig.windowWithdrawals > 
+            mulUDxUint(self.baseConfig.withdrawalTvlPercentageLimit, tvl)
+        ) {
+            revert CollateralTypeWithdrawLimitReached(tokenAddress, self.cachedConfig.windowStartTimestamp);
+        }
+
+        globalConfig.checkWithdrawLimits(assets);
     }
 }

@@ -10,10 +10,8 @@ pragma solidity >=0.8.19;
 
 import {Account} from "./Account.sol";
 import {CollateralConfiguration} from "./CollateralConfiguration.sol";
+import {GlobalCollateralConfiguration} from "./GlobalCollateralConfiguration.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-
-import {TokenAdapter} from  "./TokenAdapter.sol";
-import {ITokenAdapterModule} from "../interfaces/ITokenAdapterModule.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -28,6 +26,8 @@ library CollateralPool {
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.AddressSet;
+    using CollateralConfiguration for CollateralConfiguration.Data;
+    using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
 
     /**
      * @dev Thrown when a collateral pool cannot be found
@@ -333,11 +333,8 @@ library CollateralPool {
             return 0;
         }
 
-        address tokenAdapter = TokenAdapter.exists().tokenAdapterAddress;
-        return ITokenAdapterModule(tokenAdapter).convertToAssets(
-            collateralType, 
-            self.collateralShares[collateralType]
-        );
+        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
+        return globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
     function increaseCollateralShares(
@@ -369,6 +366,9 @@ library CollateralPool {
         if (self.collateralShares[collateralType] < shares) {
             revert InsufficientCollateralInCollateralPool(shares);
         }
+
+        // check withdraw limits
+        CollateralConfiguration.exists(self.id, collateralType).checkWithdrawLimits(shares);
 
         self.collateralShares[collateralType] -= shares;
 
