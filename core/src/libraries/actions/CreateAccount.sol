@@ -38,6 +38,8 @@ library CreateAccount {
     event AccountCreated(uint128 indexed accountId, address indexed owner, address indexed trigger, uint256 blockTimestamp);
 
     function createAccount(uint128 requestedAccountId, address accountOwner) internal {
+        // todo: the comment below is confusing, since the account module exposes this function, not just the
+        // execution module, is the intention to remove this function from the account module?
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             This feature will only be available to the Executor Module which will need to make sure accountOwner == msg.sender
