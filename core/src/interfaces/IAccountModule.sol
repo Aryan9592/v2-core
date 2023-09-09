@@ -137,7 +137,7 @@ interface IAccountModule {
      * @param accountId The id of the account whose permission is being queried.
      * @param permission The bytes32 identifier of the permission.
      * @param target The target address whose permission is being queried.
-     * @return isAuthorized A boolean with the response of the query.
+     * @return isAuthorized A boolean with the response of the query. If true, then the target is authorized.
      */
     function isAuthorized(uint128 accountId, bytes32 permission, address target)
         external

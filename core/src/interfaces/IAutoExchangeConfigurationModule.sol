@@ -15,14 +15,16 @@ import "../storage/AutoExchangeConfiguration.sol";
  * @notice Allows the owner to configure auto-exchange parameters
  */
 interface IAutoExchangeConfigurationModule {
-    
+
+    // todo: need to make sure that auto-exchange configuration is configurable on collateral pool level
+    // and then update the comments accordingly
     /**
-     * @notice Creates or updates the auto-exchange configuration on the protocol (i.e. system-wide) level
+     * @notice Creates or updates the auto-exchange configuration on collateral pool level
      * @param config The AutoExchangeConfiguration object describing the new configuration.
      *
      * Requirements:
      *
-     * - `msg.sender` must be the owner of the protocol.
+     * - `msg.sender` must be the owner of the collateral pool.
      *
      * Emits a {AutoExchangeConfigured} event.
      *
@@ -31,8 +33,8 @@ interface IAutoExchangeConfigurationModule {
 
 
     /**
-     * @notice Returns detailed information on protocol-wide auto-exchange configuration
-     * @return config The configuration object describing the protocol-wide auto-exchange configuration.
+     * @notice Returns detailed information on collateral pool auto-exchange configuration
+     * @return config The configuration object describing the collateral pool auto-exchange configuration.
      */
     function getAutoExchangeConfiguration() external pure returns (AutoExchangeConfiguration.Data memory config);
 

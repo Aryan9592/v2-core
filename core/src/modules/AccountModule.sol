@@ -102,6 +102,7 @@ contract AccountModule is IAccountModule {
      * @inheritdoc IAccountModule
      */
     function isAuthorized(uint128 accountId, bytes32 permission, address user) public view override returns (bool) {
+        // todo: the interface uses target instead of user, consider aligning
         return Account.exists(accountId).authorized(permission, user);
     }
 
