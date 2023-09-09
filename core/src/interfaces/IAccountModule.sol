@@ -121,8 +121,8 @@ interface IAccountModule {
         returns (bool hasPermission);
 
     /**
-     * @notice Returns the address for the account token used by the manager.
-     * @return accountNftToken The address of the account token.
+     * @notice Returns the address for the account token NFT that represents ownership of a given Reya account.
+     * @return accountNftToken The address of the account token NFT contract.
      */
     function getAccountTokenAddress() external view returns (address accountNftToken);
 
