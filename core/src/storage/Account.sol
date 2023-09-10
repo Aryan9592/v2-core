@@ -88,7 +88,8 @@ library Account {
     /**
       * @dev Thrown when attempting the liquidation bidder belongs to a different collateral pool from the liquidatee
     */
-    error LiquidatorAndLiquidateeBelongToDifferentCollateralPools(uint128 liquidatorId);
+    error LiquidatorAndLiquidateeBelongToDifferentCollateralPools(uint128 liquidatorCollateralPoolId,
+        uint128 liquidateeCollateralPoolId);
 
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
