@@ -32,6 +32,9 @@ contract MarketManagerModule is IMarketManagerModule {
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.UintSet;
 
+    /**
+     * @inheritdoc IMarketManagerModule
+     */
     function getLastCreatedMarketId() external view override returns (uint128) {
         return MarketStore.getMarketStore().lastCreatedMarketId;
     }
