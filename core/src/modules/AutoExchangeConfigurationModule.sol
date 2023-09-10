@@ -21,6 +21,7 @@ contract AutoExchangeConfigurationModule is IAutoExchangeConfigurationModule {
      * @inheritdoc IAutoExchangeConfigurationModule
      */
     function configureAutoExchange(AutoExchangeConfiguration.Data memory config) external override {
+        // todo: this should be owned by the collateral pool owner rather than the protocol owner?
         OwnableStorage.onlyOwner();
         AutoExchangeConfiguration.set(config);
     }
