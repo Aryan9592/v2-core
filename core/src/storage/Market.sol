@@ -41,13 +41,13 @@ library Market {
 
     struct FeeConfiguration {
         /**
-         * @dev Atomic Maker Fee is multiplied by the annualised notional traded
-         * @dev to derived the maker fee.
+         * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
+         * @dev to derive the maker fee charged by the protocol.
          */
         UD60x18 atomicMakerFee;
         /**
          * @dev Atomic Taker Fee is multiplied by the annualised notional traded
-         * @dev to derived the taker fee.
+         * @dev to derive the taker fee charged by the protocol.
          */
         UD60x18 atomicTakerFee;
     }
