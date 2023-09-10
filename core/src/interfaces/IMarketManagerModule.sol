@@ -37,7 +37,7 @@ interface IMarketManagerModule {
     function getLastCreatedMarketId() external returns (uint128);
 
 
-    /// @notice returns account taker and maker exposures for a given market, account and collateral type
+    /// @notice returns account taker and maker exposures for a given market and account
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
         returns (Account.MakerMarketExposure[] memory exposures);
@@ -47,8 +47,9 @@ interface IMarketManagerModule {
     /**
      * @notice Connects a market to the system.
      * @dev Creates a market object to track the market, and returns the newly created market id.
-     * @param market The address of the market that is to be registered in the system.
-     * @dev On the other hand, trustless markets can be registered by anyone
+     * @param market The address of the instrument that powers the market to be registered in the system.
+     * @dev Markets can be registered by anyone
+     * @param name Name of the market
      * @return newMarketId The id with which the market will be registered in the system.
      */
     function registerMarket(address market, string memory name) external returns (uint128 newMarketId);
