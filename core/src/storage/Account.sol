@@ -493,13 +493,11 @@ library Account {
         return 0;
     }
 
-    // todo: consider moving this logic to a separate library similar to account exposures, etc?
     function submitLiquidationBid(
         Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
-        // todo: submission of pre & post bid execution hooks
         // todo: check if the MMR condition is breached while the LM condition is still not breached
         // todo: make sure max length of a queue is not breached -> make it configurable in risk params
 

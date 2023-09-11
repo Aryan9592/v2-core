@@ -101,6 +101,14 @@ library CollateralPool {
          * where IM = imMultiplier * LM
          */
         UD60x18 imMultiplier;
+
+        /**
+         * @dev MMR (maintenance margin requirement multiplier)
+         * is used to introduce a buffer before liquidations occur to allow for liquidation bid submissions
+         * where IM = imMultiplier * LM
+         */
+        UD60x18 mmrMultiplier;
+
         /**
          * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward
          * amount
@@ -390,6 +398,7 @@ library CollateralPool {
         self.checkRoot();
 
         self.riskConfig.imMultiplier = config.imMultiplier;
+        self.riskConfig.mmrMultiplier = config.mmrMultiplier;
         self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
         self.riskConfig.liquidationBidPriorityQueueDurationInSeconds = config.liquidationBidPriorityQueueDurationInSeconds;
         self.riskConfig.maxNumberOfOrdersInLiquidationBid = config.maxNumberOfOrdersInLiquidationBid;
