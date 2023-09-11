@@ -220,7 +220,7 @@ library Account {
         mapping(address => SetUtil.UintSet) activeMarketsPerQuoteToken;
 
         /**
-         * @dev Addresses of all collateral types in which the account has a non-zero balance
+         * @dev Addresses of all collateral types in which the account has a non-zero balance or active positions
          */
         SetUtil.AddressSet activeQuoteTokens;
 
@@ -553,7 +553,18 @@ library Account {
     function closeAllUnfilledOrders(
         Account.Data storage self
     ) internal {
-        // todo: implement
+        address[] memory quoteTokens = self.activeQuoteTokens.values();
+
+        for (uint256 i = 0; i < quoteTokens.length; i++) {
+            address quoteToken = quoteTokens[i];
+            uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+            for (uint256 j = 0; i < markets.length; j++) {
+                uint128 marketId = markets[j].to128();
+                Market.exists(marketId).closeAllUnfilledOrders(self.id);
+            }
+        }
+
+
     }
 
 }

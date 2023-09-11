@@ -214,9 +214,9 @@ library Market {
     }
 
     /**
-     * @dev The market at self.marketManagerAddress is expected to close filled and unfilled positions for all maturities and pools
+     * @dev The market at self.marketManagerAddress is expected to close all unfilled orders for all maturities and pools
      */
-    function closeAccount(Data storage self, uint128 accountId) internal {
-        IMarketManager(self.marketManagerAddress).closeAccount(self.id, accountId);
+    function closeAllUnfilledOrders(Data storage self, uint128 accountId) internal {
+        IMarketManager(self.marketManagerAddress).closeAllUnfilledOrders(self.id, accountId);
     }
 }
