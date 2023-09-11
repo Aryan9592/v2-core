@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "../storage/Account.sol";
+import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
 
 /**
  * @title Liquidation Engine interface
@@ -27,4 +28,16 @@ interface ILiquidationModule {
         external 
         view 
         returns (Account.MarginRequirementDeltas memory);
+
+    // todo: add natspec
+    function submitLiquidationBid(
+        uint128 liquidateeAccountId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) external;
+
+    // todo: add natspec
+    function executeTopRankedLiquidationBid(
+        uint128 liquidatedAccountId
+    ) external;
+
 }
