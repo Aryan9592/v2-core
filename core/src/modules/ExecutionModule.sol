@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 import "./AccountModule.sol";
 import "../interfaces/external/IMarketManager.sol";
 import "../libraries/actions/EditCollateral.sol";
-import "../libraries/actions/CloseAccount.sol";
 import "../libraries/actions/AutoExchange.sol";
 import "../libraries/Propagation.sol";
 
@@ -153,15 +152,6 @@ contract ExecutionModule {
                 amountToAutoExchangeQuote,
                 collateralType,
                 quoteType
-            );
-        } else if (command == V2_CORE_CLOSE_ACCOUNT) {
-            uint128 marketId;
-            assembly {
-                marketId := calldataload(inputs.offset)
-            }
-            CloseAccount.closeAccount(
-                marketId,
-                accountId
             );
         } else if (command == V2_CORE_GRANT_PERMISSION_TO_CORE) {
             Account.exists(accountId).grantPermission(Account.ADMIN_PERMISSION, address(this));

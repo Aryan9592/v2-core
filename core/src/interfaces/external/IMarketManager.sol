@@ -31,10 +31,10 @@ interface IMarketManager is IERC165 {
 
     //// STATE CHANGING FUNCTIONS ////
 
-    /// @notice attempts to close all the unfilled and filled positions of a given account in the market
+    /// @notice attempts to close all the unfilled orders of a given account in the market
     // if there are multiple maturities in which the account has active positions, the market is expected to close
     // all of them
-    function closeAccount(uint128 marketId, uint128 accountId) external;
+    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) external;
     
     /**
      * @notice Decoded inputs and execute taker order
