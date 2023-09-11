@@ -126,6 +126,8 @@ library Account {
         int256 realBalance;
         /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
+        /// Difference between margin balance and maintenance margin requirement
+        int256 maintenanceDelta;
         /// Difference between margin balance and liquidation margin requirement
         int256 liquidationDelta;
     }
@@ -398,12 +400,12 @@ library Account {
         return AccountExposure.getMarginInfoByBubble(self, collateralType);
     }
 
-    function getMarginInfoByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+    function getMarginInfoByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier, UD60x18 mmrMultiplier)
         internal
         view
         returns (Account.MarginInfo memory)
     {
-        return AccountExposure.getMarginInfoByCollateralType(self, collateralType, imMultiplier);
+        return AccountExposure.getMarginInfoByCollateralType(self, collateralType, imMultiplier, mmrMultiplier);
     }
 
     /**

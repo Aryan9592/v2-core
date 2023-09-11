@@ -38,9 +38,10 @@ library AccountExposure {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
+        UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
 
         address quoteToken = address(0);
-        Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(account, collateralPoolId, quoteToken, imMultiplier); 
+        Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(account, collateralPoolId, quoteToken, imMultiplier, mmrMultiplier); 
 
         if (token == quoteToken) {
             return marginInfo;
@@ -56,6 +57,7 @@ library AccountExposure {
             marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.haircut),
             realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.haircut),
             initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
+            maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.haircut),
             liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut)
         });
     }
@@ -64,19 +66,20 @@ library AccountExposure {
         Account.Data storage account, 
         uint128 collateralPoolId, 
         address quoteToken, 
-        UD60x18 imMultiplier
+        UD60x18 imMultiplier,
+        UD60x18 mmrMultiplier
     ) 
         private 
         view
         returns(Account.MarginInfo memory marginInfo) 
     {
-        marginInfo = getMarginInfoByCollateralType(account, quoteToken, imMultiplier);
+        marginInfo = getMarginInfoByCollateralType(account, quoteToken, imMultiplier, mmrMultiplier);
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteToken).childTokens.values();
 
         for (uint256 i = 0; i < tokens.length; i++) {
             Account.MarginInfo memory subMarginInfo  = 
-                computeMarginInfoByBubble(account, collateralPoolId, tokens[i], imMultiplier);
+                computeMarginInfoByBubble(account, collateralPoolId, tokens[i], imMultiplier, mmrMultiplier);
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
@@ -94,6 +97,9 @@ library AccountExposure {
                 initialDelta: 
                     marginInfo.initialDelta + 
                     getExchangedQuantity(subMarginInfo.initialDelta, price, haircut),
+                maintenanceDelta:
+                    marginInfo.maintenanceDelta + 
+                    getExchangedQuantity(subMarginInfo.maintenanceDelta, price, haircut),
                 liquidationDelta: 
                     marginInfo.liquidationDelta + 
                     getExchangedQuantity(subMarginInfo.liquidationDelta, price, haircut)
@@ -108,7 +114,8 @@ library AccountExposure {
     function getMarginInfoByCollateralType(
         Account.Data storage self, 
         address collateralType,
-        UD60x18 imMultiplier
+        UD60x18 imMultiplier,
+        UD60x18 mmrMultiplier
     )
         internal
         view
@@ -165,13 +172,17 @@ library AccountExposure {
             }
         }
 
+        // Get the initial margin requirement
+        uint256 initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
+
+        // Get the maintenance margin requirement
+        uint256 maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, liquidationMarginRequirement);
+
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
 
         int256 marginBalance = netDeposits + accruedCashflows + lockedPnL + highestUnrealizedLoss;
         int256 realBalance = netDeposits + accruedCashflows + lockedPnL;
-
-        uint256 initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
         
         return Account.MarginInfo({
             collateralType: collateralType,
@@ -179,6 +190,7 @@ library AccountExposure {
             marginBalance: marginBalance,
             realBalance: realBalance,
             initialDelta: marginBalance - initialMarginRequirement.toInt(),
+            maintenanceDelta: marginBalance - maintenanceMarginRequirement.toInt(),
             liquidationDelta: marginBalance - liquidationMarginRequirement.toInt()
         });
     }
@@ -209,16 +221,6 @@ library AccountExposure {
         return liquidationMarginRequirement;
     }
 
-    /**
-     * @dev Returns the initial margin requirement given the liquidation margin requirement and the im multiplier
-     */
-    function computeInitialMarginRequirement(uint256 liquidationMarginRequirement, UD60x18 imMultiplier)
-    private
-    pure
-    returns (uint256 initialMarginRequirement)
-    {
-        initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
-    }
 
     function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
     private 
