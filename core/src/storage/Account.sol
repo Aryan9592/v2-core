@@ -117,6 +117,8 @@ library Account {
         int256 initialDelta;
         int256 maintenanceDelta;
         int256 liquidationDelta;
+        int256 dutchDelta;
+        int256 adlDelta;
         address collateralType;
     }
 
@@ -403,12 +405,19 @@ library Account {
     }
 
     function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType,
-        UD60x18 imMultiplier, UD60x18 mmrMultiplier)
+        UD60x18 imMultiplier, UD60x18 mmrMultiplier, UD60x18 dutchMultiplier, UD60x18 adlMultiplier)
         internal
         view
         returns (Account.MarginRequirementDeltas memory)
     {
-        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier, mmrMultiplier);
+        return AccountExposure.getRequirementDeltasByCollateralType(
+            self,
+            collateralType,
+            imMultiplier,
+            mmrMultiplier,
+            dutchMultiplier,
+            adlMultiplier
+        );
     }
 
     /**
@@ -608,7 +617,10 @@ library Account {
         bytes memory inputs
     ) internal {
 
+        // todo: consider checking if the market is paused?
+
         self.hasUnfilledOrders();
+
 
 
 

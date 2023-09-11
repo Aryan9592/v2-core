@@ -38,10 +38,20 @@ library AccountExposure {
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
         UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
+        UD60x18 dutchMultiplier = collateralPool.riskConfig.dutchMultiplier;
+        UD60x18 adlMultiplier = collateralPool.riskConfig.adlMultiplier;
 
         // multi-token mode by default
         Account.MarginRequirementDeltas memory deltasInUSD =
-            computeRequirementDeltasByBubble(account, collateralPoolId, address(0), imMultiplier, mmrMultiplier);
+            computeRequirementDeltasByBubble(
+                account,
+                collateralPoolId,
+                address(0),
+                imMultiplier,
+                mmrMultiplier,
+                dutchMultiplier,
+                adlMultiplier
+            );
 
         if (baseToken == address(0)) {
             return deltasInUSD;
@@ -53,11 +63,15 @@ library AccountExposure {
         int256 initialDelta = divIntUD(deltasInUSD.initialDelta, exchange.price.mul(exchange.haircut));
         int256 maintenanceDelta = divIntUD(deltasInUSD.maintenanceDelta, exchange.price.mul(exchange.haircut));
         int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, exchange.price.mul(exchange.haircut));
+        int256 dutchDelta = divIntUD(deltasInUSD.dutchDelta, exchange.price.mul(exchange.haircut));
+        int256 adlDelta = divIntUD(deltasInUSD.adlDelta, exchange.price.mul(exchange.haircut));
 
         return Account.MarginRequirementDeltas({
             initialDelta: initialDelta,
             liquidationDelta: liquidationDelta,
             maintenanceDelta: maintenanceDelta,
+            dutchDelta: dutchDelta,
+            adlDelta: adlDelta,
             collateralType: baseToken
         });
 
@@ -70,24 +84,45 @@ library AccountExposure {
         uint128 collateralPoolId, 
         address baseToken, 
         UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier
+        UD60x18 mmrMultiplier,
+        UD60x18 dutchMultiplier,
+        UD60x18 adlMultiplier
     ) 
         private 
         view
         returns(Account.MarginRequirementDeltas memory deltas) 
     {
-        deltas = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier, mmrMultiplier);
+        deltas = getRequirementDeltasByCollateralType(
+            account,
+            baseToken,
+            imMultiplier,
+            mmrMultiplier,
+            dutchMultiplier,
+            adlMultiplier
+        );
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, baseToken).childTokens.values();
 
+        // todo: why do we need to loop through the margin requirements of child tokens when only base tokens
+        // can have margin requirements attached to them given only base tokens can be quite tokens for a given market?
+
         for (uint256 i = 0; i < tokens.length; i++) {
             Account.MarginRequirementDeltas memory subMR = 
-                computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier, mmrMultiplier);
+                computeRequirementDeltasByBubble(
+                    account,
+                    collateralPoolId,
+                    tokens[i],
+                    imMultiplier,
+                    mmrMultiplier,
+                    dutchMultiplier,
+                    adlMultiplier
+                );
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
             UD60x18 haircut = collateral.parentConfig.exchangeHaircut;
 
+            // todo: similar if/else patterns, consider abstracting into a helper method
             if (subMR.initialDelta <= 0) {
                 deltas.initialDelta += mulUDxInt(price, subMR.initialDelta);
             }
@@ -108,6 +143,20 @@ library AccountExposure {
             else {
                 deltas.liquidationDelta += mulUDxInt(price.mul(haircut), subMR.liquidationDelta);
             }
+
+            if (subMR.dutchDelta <= 0) {
+                deltas.dutchDelta += mulUDxInt(price, subMR.dutchDelta);
+            }
+            else {
+                deltas.dutchDelta += mulUDxInt(price.mul(haircut), subMR.dutchDelta);
+            }
+
+            if (subMR.adlDelta <= 0) {
+                deltas.adlDelta += mulUDxInt(price, subMR.adlDelta);
+            }
+            else {
+                deltas.adlDelta += mulUDxInt(price.mul(haircut), subMR.adlDelta);
+            }
         }
     }
 
@@ -119,7 +168,9 @@ library AccountExposure {
         Account.Data storage self, 
         address collateralType,
         UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier
+        UD60x18 mmrMultiplier,
+        UD60x18 dutchMultiplier,
+        UD60x18 adlMultiplier
     )
         internal
         view
@@ -177,18 +228,32 @@ library AccountExposure {
         // Get the maintenance margin requirement
         uint256 maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, liquidationMarginRequirement);
 
+        // Get the dutch margin requirement
+        uint256 dutchMarginRequirement  = mulUDxUint(dutchMultiplier, liquidationMarginRequirement);
+
+        // Get the adl margin requirement
+        uint256 adlMarginRequirement  = mulUDxUint(adlMultiplier, liquidationMarginRequirement);
+
         // Get the collateral balance of the account in this specific collateral
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
         // Compute and return the initial and liquidation deltas
+
+        // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
+        // filled orders should be taken care of in the balance calculations
+
         int256 initialDelta = collateralBalance.toInt() - (initialMarginRequirement + highestUnrealizedLoss).toInt();
         int256 maintenanceDelta = collateralBalance.toInt() - (maintenanceMarginRequirement + highestUnrealizedLoss).toInt();
         int256 liquidationDelta = collateralBalance.toInt() - (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
+        int256 dutchDelta = collateralBalance.toInt() - (dutchMarginRequirement + highestUnrealizedLoss).toInt();
+        int256 adlDelta = collateralBalance.toInt() - (adlMarginRequirement + highestUnrealizedLoss).toInt();
 
         return Account.MarginRequirementDeltas({
             initialDelta: initialDelta,
             maintenanceDelta: maintenanceDelta,
             liquidationDelta: liquidationDelta,
+            dutchDelta: dutchDelta,
+            adlDelta: adlDelta,
             collateralType: collateralType
         });
     }
