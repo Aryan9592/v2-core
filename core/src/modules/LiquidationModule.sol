@@ -7,7 +7,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {Account} from "../storage/Account.sol";
+import {Market} from "../storage/Market.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
+import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
+import "../interfaces/external/IMarketManager.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -17,5 +21,90 @@ import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
  */
 
 contract LiquidationModule is ILiquidationModule {
-    // todo: implement during liquidations
+    using Account for Account.Data;
+    using Market for Market.Data;
+    using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
+
+    /**
+     * @inheritdoc ILiquidationModule
+     */
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
+        external 
+        view 
+        override 
+        returns (Account.MarginInfo memory) 
+    {
+        return Account.exists(accountId).getMarginInfoByBubble(collateralType);
+    }
+
+    /**
+     * @inheritdoc ILiquidationModule
+     */
+    function submitLiquidationBid(
+        uint128 liquidatableAccountId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) external override {
+        // grab the liquidatable account and check its existance
+        Account.Data storage account = Account.exists(liquidatableAccountId);
+
+        account.submitLiquidationBid(liquidationBid);
+    }
+
+    function executeLiquidationBid(
+        uint128 liquidatableAccountId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) public {
+        require(msg.sender == address(this));
+
+        // grab the liquidator account
+        Account.Data storage liquidatorAccount = Account.exists(liquidationBid.liquidatorAccountId);
+
+        for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
+            uint128 marketId = liquidationBid.marketIds[i];
+            Market.Data memory market = Market.exists(marketId);
+            IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
+            marketManager.executeLiquidationOrder(liquidatableAccountId, liquidationBid.liquidatorAccountId,  marketId,
+                liquidationBid.inputs[i]);
+        }
+
+        liquidatorAccount.imCheck(address(0));
+
+    }
+
+    function executeTopRankedLiquidationBid(
+        uint128 liquidatableAccountId
+    ) external override {
+
+        // grab the liquidatable account and check its existance
+        Account.Data storage account = Account.exists(liquidatableAccountId);
+
+        if (block.timestamp > account.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+            // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
+            revert Account.LiquidationBidPriorityQueueExpired(
+                account.liquidationBidPriorityQueues.latestQueueId,
+                account.liquidationBidPriorityQueues.latestQueueEndTimestamp
+            );
+        }
+
+        // extract top ranked order
+
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = account.liquidationBidPriorityQueues
+        .priorityQueues[
+        account.liquidationBidPriorityQueues.latestQueueId
+        ].topBid();
+
+        (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
+            "executeLiquidationBid(uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
+            liquidatableAccountId, topRankedLiquidationBid));
+
+        // dequeue wether it's successful or not
+
+
+        account.liquidationBidPriorityQueues.priorityQueues[
+        account.liquidationBidPriorityQueues.latestQueueId
+        ].dequeue();
+
+    }
+
+
 }

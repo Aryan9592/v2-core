@@ -7,6 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import "../storage/Account.sol";
+import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
+
 /**
  * @title Liquidation Engine interface
  */
@@ -21,8 +24,20 @@ interface ILiquidationModule {
      * where the collateral type is the centre of a given collateral bubble
      * @return Margin requirement information object
      */
-    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
         external 
         view 
-        returns (Account.MarginRequirementDeltas memory);
+        returns (Account.MarginInfo memory);
+
+    // todo: add natspec
+    function submitLiquidationBid(
+        uint128 liquidateeAccountId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) external;
+
+    // todo: add natspec
+    function executeTopRankedLiquidationBid(
+        uint128 liquidatedAccountId
+    ) external;
+
 }

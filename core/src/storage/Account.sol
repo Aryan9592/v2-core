@@ -500,7 +500,7 @@ library Account {
         return 0;
     }
 
-    // todo: consider moving this logic to a separate library similar to account exposures, etc (CR)?
+    // todo: consider moving this logic to a separate library similar to account exposures, etc?
     function submitLiquidationBid(
         Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
@@ -532,62 +532,6 @@ library Account {
 
     }
 
-    function executeTopRankedLiquidationBid(
-        Account.Data storage self
-    ) internal {
-
-        // todo: make sure this can only be executed if lm is breached but dutchM is not (needs more thinking)
-        // todo: add logic for liquidator rewards & allocation towards backstop lps and the insurance fund
-        // todo: make sure the liquidator reward is applied before the im check
-        // todo: make sure pre and post execution hooks are executed around this function
-        // todo: fee collection flow for transfers from liquidations (do we want to collect fees in this case?)
-
-        if (block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
-            // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
-            revert LiquidationBidPriorityQueueExpired(
-                self.liquidationBidPriorityQueues.latestQueueId,
-                self.liquidationBidPriorityQueues.latestQueueEndTimestamp
-            );
-        }
-
-        // extract top ranked order (don't dequeue it yet)
-
-        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = self.liquidationBidPriorityQueues
-        .priorityQueues[
-            self.liquidationBidPriorityQueues.latestQueueId
-        ].topBid();
-
-        // execute orders within the liquidation bid
-
-        for (uint256 i = 0; i < topRankedLiquidationBid.marketIds.length; i++) {
-            uint128 marketId = topRankedLiquidationBid.marketIds[i];
-            Market.Data memory market = Market.exists(marketId);
-            IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
-            marketManager.executeLiquidationOrder(self.id, topRankedLiquidationBid.liquidatorAccountId,  marketId,
-                topRankedLiquidationBid.inputs[i]);
-        }
-
-        // check if the liquidator satisfies the IM requirement
-
-        bool isBelowIM = Account.exists(topRankedLiquidationBid.liquidatorAccountId)
-            .getMarginInfoByBubble(address(0)).initialDelta < 0;
-
-        if (isBelowIM) {
-            // similar logic to the above except we're reversing here
-            for (uint256 i = 0; i < topRankedLiquidationBid.marketIds.length; i++) {
-                uint128 marketId = topRankedLiquidationBid.marketIds[i];
-                Market.Data memory market = Market.exists(marketId);
-                IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
-                marketManager.reverseLiquidationOrder(self.id, topRankedLiquidationBid.liquidatorAccountId,  marketId,
-                    topRankedLiquidationBid.inputs[i]);
-            }
-        }
-
-        self.liquidationBidPriorityQueues.priorityQueues[
-            self.liquidationBidPriorityQueues.latestQueueId
-        ].dequeue();
-
-    }
 
     function closeAllUnfilledOrders(
         Account.Data storage self
