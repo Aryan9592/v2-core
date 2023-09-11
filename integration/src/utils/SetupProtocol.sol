@@ -163,14 +163,22 @@ contract SetupProtocol is BatchScript {
   function configureCollateralPool(
     uint128 collateralPoolId,
     UD60x18 imMultiplier,
+    UD60x18 mmrMultiplier,
     UD60x18 liquidatorRewardParameter,
+    uint256 liquidationBidPriorityQueueDurationInSeconds,
+    uint256 maxNumberOfOrdersInLiquidationBid,
+    uint256 maxNumberOfBidsInLiquidationBidPriorityQueue,
     uint128 feeCollectorAccountId
   ) public {  
     configureProtocolRisk(
       collateralPoolId,
       CollateralPool.RiskConfiguration({
         imMultiplier:imMultiplier,
-        liquidatorRewardParameter: liquidatorRewardParameter
+        mmrMultiplier: mmrMultiplier,
+        liquidatorRewardParameter: liquidatorRewardParameter,
+        liquidationBidPriorityQueueDurationInSeconds: liquidationBidPriorityQueueDurationInSeconds,
+        maxNumberOfOrdersInLiquidationBid: maxNumberOfOrdersInLiquidationBid,
+        maxNumberOfBidsInLiquidationBidPriorityQueue: maxNumberOfBidsInLiquidationBidPriorityQueue
       })
     );
 
