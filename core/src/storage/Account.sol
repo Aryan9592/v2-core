@@ -514,20 +514,20 @@ library Account {
     ) internal {
 
         self.isBetweenMmrAndLmCheck(address(0));
-        // todo: make sure max length of a queue is not breached -> make it configurable in risk params
 
         self.validateLiquidationBid(liquidationBid);
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
         if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
             block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp
         ) {
             // this is the first liquidation bid ever to be submitted against this account id
             // or the latest queue has expired, so we need to push the bid into a new queue
-            CollateralPool.Data storage collateralPool = self.getCollateralPool();
             uint256 liquidationBidPriorityQueueDurationInSeconds = collateralPool.riskConfig
             .liquidationBidPriorityQueueDurationInSeconds;
-            self.liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp + liquidationBidPriorityQueueDurationInSeconds;
+            self.liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp
+            + liquidationBidPriorityQueueDurationInSeconds;
             self.liquidationBidPriorityQueues.latestQueueId += 1;
         }
 
@@ -535,6 +535,17 @@ library Account {
             liquidationBidRank,
             liquidationBid
         );
+
+        if (self.liquidationBidPriorityQueues.priorityQueues
+        [self.liquidationBidPriorityQueues.latestQueueId].ranks.length >
+            collateralPool.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue) {
+            revert LiquidationBidPriorityQueueOverflow(
+            self.liquidationBidPriorityQueues.latestQueueId,
+            self.liquidationBidPriorityQueues.latestQueueEndTimestamp,
+                self.liquidationBidPriorityQueues.priorityQueues
+                [self.liquidationBidPriorityQueues.latestQueueId].ranks.length
+            );
+        }
 
     }
 
