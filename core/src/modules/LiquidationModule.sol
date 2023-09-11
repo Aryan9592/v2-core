@@ -85,6 +85,9 @@ contract LiquidationModule is ILiquidationModule {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
+        // revert if the account has any unfilled orders
+        account.hasUnfilledOrders();
+
         if (block.timestamp > account.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
             revert Account.LiquidationBidPriorityQueueExpired(
