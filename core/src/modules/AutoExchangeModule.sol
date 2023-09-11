@@ -7,7 +7,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Account} from "../storage/Account.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
 
 
@@ -17,29 +16,5 @@ import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
  */
 
 contract AutoExchangeModule is IAutoExchangeModule {
-    using Account for Account.Data;
-    /**
-     * @inheritdoc IAutoExchangeModule
-     */
-    function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view override returns (
-        bool
-    ) {
-        // todo: during liquidations implementation
-        // return Account.exists(accountId).isEligibleForAutoExchange(quoteType);
-    }
-    
-    /**
-     * @inheritdoc IAutoExchangeModule
-     */
-    function getMaxAmountToExchangeQuote(
-        uint128 accountId,
-        address coveringToken,
-        address autoExchangedToken
-    ) external view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
-        // todo: during liquidations implementation
-        // return Account.exists(accountId).getMaxAmountToExchangeQuote(
-        //     coveringToken,
-        //     autoExchangedToken
-        // );
-    }
+    // todo: implement after freezing storages
 }
