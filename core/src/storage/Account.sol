@@ -412,6 +412,20 @@ library Account {
         }
     }
 
+    /**
+     * @dev Checks if the account is below maintenance margin requirement and above
+     * liquidation margin requirement, returns true if that's the case, otherwise returns false
+     */
+    function isBetweenMmrAndLm(Data storage self, address collateralType) internal view returns (bool) {
+        Account.MarginRequirementDeltas memory mr = self.getRequirementDeltasByBubble(collateralType);
+
+        if (mr.maintenanceDelta < 0 && mr.liquidationDelta > 0) {
+            return true;
+        }
+
+        return false;
+
+    }
 
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
@@ -440,7 +454,6 @@ library Account {
         return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     }
 
-    // todo: consider moving to a separate library
     function validateLiquidationBid(
         Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
@@ -485,11 +498,10 @@ library Account {
 
     }
 
-    // todo: consider moving to a separate library
     function computeLiquidationBidRank(
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal returns (uint256) {
-        // todo: implement rank calculation
+        // implement
         return 0;
     }
 
