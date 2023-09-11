@@ -84,15 +84,20 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function closeAccount(uint128 accountId, uint128 marketId) external override {
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
-    
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        if (msg.sender != coreProxy) {
-            revert NotAuthorized(msg.sender, "closeAccount");
-        }
+    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) external {
+        // todo: needs implementation & a return?
+    }
 
-        Portfolio.exists(accountId, marketId).closeAccount();
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function executeLiquidationOrder(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output) {
+        // todo: needs implementation
     }
 
     /**
