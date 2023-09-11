@@ -72,6 +72,10 @@ contract LiquidationModule is ILiquidationModule {
 
         liquidatorAccount.imCheck(address(0));
 
+        // todo: should in theory revert if the account is insolvent (& insurance fund
+        // can't cover the insolvency after the liquidation (socialized losses via adl
+        // should kick in here
+
     }
 
     /**
@@ -86,6 +90,8 @@ contract LiquidationModule is ILiquidationModule {
 
         // revert if the account has any unfilled orders
         account.hasUnfilledOrders();
+
+        // todo: make sure below LM
 
         if (block.timestamp > account.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid

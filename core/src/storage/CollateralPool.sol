@@ -104,11 +104,27 @@ library CollateralPool {
         UD60x18 imMultiplier;
 
         /**
-         * @dev MMR (maintenance margin requirement multiplier)
+         * @dev MMR Multiplier (maintenance margin requirement multiplier)
          * is used to introduce a buffer before liquidations occur to allow for liquidation bid submissions
-         * where IM = imMultiplier * LM
+         * where MMR = mmrMultiplier * LM
          */
         UD60x18 mmrMultiplier;
+
+
+        /**
+         * @dev Dutch Multiplier (dutch margin requirement multiplier)
+         * is used to determine when dutch liquidations can kick off (if liquidation bids take too long to execute)
+         * where dutch margin requirement = dutchMultiplier * LM
+         */
+        UD60x18 dutchMultiplier;
+
+
+        /**
+         * @dev ADL Multiplier (auto-deleveraging margin requirement multiplier)
+         * is used to determine when adl & backstop lps can jump in to remove risk from the system
+         * where adl margin requirement = adlMultiplier * LM
+         */
+        UD60x18 adlMultiplier;
 
         /**
          * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward

@@ -39,9 +39,19 @@ library AccountExposure {
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
         UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
+        UD60x18 dutchMultiplier = collateralPool.riskConfig.dutchMultiplier;
+        UD60x18 adlMultiplier = collateralPool.riskConfig.adlMultiplier;
 
         address quoteToken = address(0);
-        Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(account, collateralPoolId, quoteToken, imMultiplier, mmrMultiplier); 
+        Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(
+            account,
+            collateralPoolId,
+            address(0),
+            imMultiplier,
+            mmrMultiplier,
+            dutchMultiplier,
+            adlMultiplier
+        ); 
 
         if (token == quoteToken) {
             return marginInfo;
@@ -58,7 +68,9 @@ library AccountExposure {
             realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.haircut),
             initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
             maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.haircut),
-            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut)
+            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut),
+            dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.haircut),
+            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.haircut)
         });
     }
 
@@ -67,19 +79,39 @@ library AccountExposure {
         uint128 collateralPoolId, 
         address quoteToken, 
         UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier
+        UD60x18 mmrMultiplier,
+        UD60x18 dutchMultiplier,
+        UD60x18 adlMultiplier
     ) 
         private 
         view
         returns(Account.MarginInfo memory marginInfo) 
     {
-        marginInfo = getMarginInfoByCollateralType(account, quoteToken, imMultiplier, mmrMultiplier);
+        marginInfo = getMarginInfoByCollateralType(
+            account,
+            quoteToken,
+            imMultiplier,
+            mmrMultiplier,
+            dutchMultiplier,
+            adlMultiplier
+        );
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteToken).childTokens.values();
 
+        // todo: why do we need to loop through the margin requirements of child tokens when only base tokens
+        // can have margin requirements attached to them given only base tokens can be quite tokens for a given market?
+
         for (uint256 i = 0; i < tokens.length; i++) {
             Account.MarginInfo memory subMarginInfo  = 
-                computeMarginInfoByBubble(account, collateralPoolId, tokens[i], imMultiplier, mmrMultiplier);
+                computeMarginInfoByBubble(
+                    account,
+                    collateralPoolId,
+                    tokens[i],
+                    imMultiplier,
+                    mmrMultiplier,
+                    dutchMultiplier,
+                    adlMultiplier
+                );
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
@@ -102,7 +134,13 @@ library AccountExposure {
                     getExchangedQuantity(subMarginInfo.maintenanceDelta, price, haircut),
                 liquidationDelta: 
                     marginInfo.liquidationDelta + 
-                    getExchangedQuantity(subMarginInfo.liquidationDelta, price, haircut)
+                    getExchangedQuantity(subMarginInfo.liquidationDelta, price, haircut),
+                dutchDelta: 
+                    marginInfo.dutchDelta + 
+                    getExchangedQuantity(subMarginInfo.dutchDelta, price, haircut),
+                adlDelta: 
+                    marginInfo.adlDelta + 
+                    getExchangedQuantity(subMarginInfo.adlDelta, price, haircut)
             });
         }
     }
@@ -115,7 +153,9 @@ library AccountExposure {
         Account.Data storage self, 
         address collateralType,
         UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier
+        UD60x18 mmrMultiplier,
+        UD60x18 dutchMultiplier,
+        UD60x18 adlMultiplier
     )
         internal
         view
@@ -178,6 +218,12 @@ library AccountExposure {
         // Get the maintenance margin requirement
         uint256 maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, liquidationMarginRequirement);
 
+        // Get the dutch margin requirement
+        uint256 dutchMarginRequirement  = mulUDxUint(dutchMultiplier, liquidationMarginRequirement);
+
+        // Get the adl margin requirement
+        uint256 adlMarginRequirement  = mulUDxUint(adlMultiplier, liquidationMarginRequirement);
+
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
 
@@ -191,7 +237,9 @@ library AccountExposure {
             realBalance: realBalance,
             initialDelta: marginBalance - initialMarginRequirement.toInt(),
             maintenanceDelta: marginBalance - maintenanceMarginRequirement.toInt(),
-            liquidationDelta: marginBalance - liquidationMarginRequirement.toInt()
+            liquidationDelta: marginBalance - liquidationMarginRequirement.toInt(),
+            dutchDelta: marginBalance - dutchMarginRequirement.toInt(),
+            adlDelta: marginBalance - adlMarginRequirement.toInt()
         });
     }
 

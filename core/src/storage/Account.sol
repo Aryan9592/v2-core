@@ -141,6 +141,10 @@ library Account {
         int256 maintenanceDelta;
         /// Difference between margin balance and liquidation margin requirement
         int256 liquidationDelta;
+        /// Difference between margin balance and dutch margin requirement
+        int256 dutchDelta;
+        /// Difference between margin balance and adl margin requirement
+        int256 adlDelta;
     }
 
     /**
@@ -413,12 +417,26 @@ library Account {
         return AccountExposure.getMarginInfoByBubble(self, collateralType);
     }
 
-    function getMarginInfoByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier, UD60x18 mmrMultiplier)
+    function getMarginInfoByCollateralType(
+        Account.Data storage self, 
+        address collateralType, 
+        UD60x18 imMultiplier, 
+        UD60x18 mmrMultiplier,
+        UD60x18 dutchMultiplier, 
+        UD60x18 adlMultiplier
+    )
         internal
         view
         returns (Account.MarginInfo memory)
     {
-        return AccountExposure.getMarginInfoByCollateralType(self, collateralType, imMultiplier, mmrMultiplier);
+        return AccountExposure.getMarginInfoByCollateralType(
+            self, 
+            collateralType, 
+            imMultiplier, 
+            mmrMultiplier,
+            dutchMultiplier,
+            adlMultiplier
+        );
     }
 
     /**
@@ -604,7 +622,10 @@ library Account {
         bytes memory inputs
     ) internal {
 
+        // todo: consider checking if the market is paused?
+
         self.hasUnfilledOrders();
+
 
 
 

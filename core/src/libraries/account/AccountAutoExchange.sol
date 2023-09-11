@@ -42,7 +42,10 @@ library AccountAutoExchange {
             Account.MarginInfo memory marginInfo =
                 self.getMarginInfoByCollateralType(collateralType,
                     collateralPool.riskConfig.imMultiplier,
-                    collateralPool.riskConfig.mmrMultiplier);
+                    collateralPool.riskConfig.mmrMultiplier,
+                    collateralPool.riskConfig.dutchMultiplier,
+                    collateralPool.riskConfig.adlMultiplier
+                );
 
             if (marginInfo.initialDelta > 0) {
                 return false;
@@ -50,6 +53,8 @@ library AccountAutoExchange {
 
             UD60x18 price = 
                 CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0)).price;
+
+            // todo: check if we want to include the IM in the account value calculation below
 
             int256 accountValueOfCollateralInUSD = 
                 mulUDxInt(price, marginInfo.initialDelta);
@@ -71,17 +76,19 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            address quoteToken = quoteTokens[i];
 
             Account.MarginInfo memory deltas = 
                 self.getMarginInfoByCollateralType(
-                    quoteToken,
+                    quoteTokens[i],
                     collateralPool.riskConfig.imMultiplier,
-                    collateralPool.riskConfig.mmrMultiplier);
+                    collateralPool.riskConfig.mmrMultiplier,
+                    collateralPool.riskConfig.dutchMultiplier,
+                    collateralPool.riskConfig.adlMultiplier
+                );
             
             if (deltas.initialDelta < 0) {
                 UD60x18 price = 
-                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, address(0)).price;
+                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0)).price;
 
                 sumOfNegativeAccountValuesInUSD += 
                     mulUDxUint(price, (-deltas.initialDelta).toUint());
@@ -114,11 +121,15 @@ library AccountAutoExchange {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
-        UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
-        UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
 
         Account.MarginInfo memory marginInfo = 
-            self.getMarginInfoByCollateralType(autoExchangedToken, imMultiplier, mmrMultiplier);
+            self.getMarginInfoByCollateralType(
+                autoExchangedToken,
+                collateralPool.riskConfig.imMultiplier,
+                collateralPool.riskConfig.mmrMultiplier,
+                collateralPool.riskConfig.dutchMultiplier,
+                collateralPool.riskConfig.adlMultiplier
+            );
 
         if (marginInfo.initialDelta > 0) {
             return (0, 0);
