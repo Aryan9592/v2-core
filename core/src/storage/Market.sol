@@ -219,4 +219,18 @@ library Market {
     function closeAllUnfilledOrders(Data storage self, uint128 accountId) internal {
         IMarketManager(self.marketManagerAddress).closeAllUnfilledOrders(self.id, accountId);
     }
+
+    function executeLiquidationOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        bytes memory inputs
+    ) internal {
+        IMarketManager(self.marketManagerAddress).executeLiquidationOrder(
+            liquidatableAccountId,
+            liquidatorAccountId,
+            self.id,
+            inputs
+        );
+    }
 }

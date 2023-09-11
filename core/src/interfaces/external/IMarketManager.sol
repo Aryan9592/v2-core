@@ -72,7 +72,7 @@ interface IMarketManager is IERC165 {
 
     /**
      * @notice Decoded inputs and execute liquidation order
-     * @param liquidatedAccountId Id of the account that is getting liquidated
+     * @param liquidatableAccountId Id of the account that is getting liquidated
      * @param liquidatorAccountId Id of the account that performs the liquidation
      * @param marketId Id of the market in which the liquidation is taking place
      * @param inputs The extra inputs required by the liquidation order
@@ -83,7 +83,7 @@ interface IMarketManager is IERC165 {
      *
      */
     function executeLiquidationOrder(
-        uint128 liquidatedAccountId,
+        uint128 liquidatableAccountId,
         uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
