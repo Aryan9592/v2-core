@@ -97,6 +97,11 @@ library Account {
     error LiquidatorAndLiquidateeBelongToDifferentCollateralPools(uint128 liquidatorCollateralPoolId,
         uint128 liquidateeCollateralPoolId);
 
+    /**
+      * @dev Thrown if an account has unfilled orders in any of its active markets
+    */
+    error AccountHasUnfilledOrders(uint128 accountId);
+
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
         /// result of having a positions open in a derivative instrument, as determined 
@@ -219,6 +224,8 @@ library Account {
          */
         mapping(address => SetUtil.UintSet) activeMarketsPerQuoteToken;
 
+
+        // todo: do we mark active quote tokens when an unfilled order is created?
         /**
          * @dev Addresses of all collateral types in which the account has a non-zero balance or active positions
          */
@@ -564,6 +571,27 @@ library Account {
             for (uint256 j = 0; i < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
+            }
+        }
+
+    }
+
+    function hasUnfilledOrders(
+        Account.Data storage self
+    ) internal {
+        address[] memory quoteTokens = self.activeQuoteTokens.values();
+
+        for (uint256 i = 0; i < quoteTokens.length; i++) {
+            address quoteToken = quoteTokens[i];
+            uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+            for (uint256 j = 0; i < markets.length; j++) {
+                uint128 marketId = markets[j].to128();
+                bool hasUnfilledOrdersInMarket = Market.exists(marketId).hasUnfilledOrders(self.id);
+
+                if (hasUnfilledOrdersInMarket) {
+                    revert AccountHasUnfilledOrders(self.id);
+                }
+
             }
         }
 
