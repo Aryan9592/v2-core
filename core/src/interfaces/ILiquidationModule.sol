@@ -40,4 +40,11 @@ interface ILiquidationModule {
         uint128 liquidatedAccountId
     ) external;
 
+    // todo: add natspec
+    function executeDutchLiquidation(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        bytes memory inputs
+    ) external;
+
 }
