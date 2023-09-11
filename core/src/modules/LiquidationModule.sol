@@ -59,6 +59,8 @@ contract LiquidationModule is ILiquidationModule {
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidationBid.liquidatorAccountId);
 
+        // todo: need to mark active markets once liquidation orders are executed
+
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
             Market.exists(marketId).executeLiquidationOrder(

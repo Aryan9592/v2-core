@@ -463,17 +463,12 @@ library Account {
 
     function validateLiquidationBid(
         Account.Data storage self,
+        Account.Data storage liquidatorAccount,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
         // collateral pool of the liquidated account
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
-
-        Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
-            liquidationBid.liquidatorAccountId,
-            Account.ADMIN_PERMISSION,
-            msg.sender
-        );
 
         // liquidator and liquidatee should belong to the same collateral pool
         // note, it's fine for the liquidator to not belong to any collateral pool
@@ -519,7 +514,13 @@ library Account {
 
         self.isBetweenMmrAndLmCheck(address(0));
 
-        self.validateLiquidationBid(liquidationBid);
+        Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
+            liquidationBid.liquidatorAccountId,
+            Account.ADMIN_PERMISSION,
+            msg.sender
+        );
+
+        self.validateLiquidationBid(liquidatorAccount, liquidationBid);
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -550,6 +551,8 @@ library Account {
                 [self.liquidationBidPriorityQueues.latestQueueId].ranks.length
             );
         }
+
+        liquidatorAccount.imCheck(address(0));
 
     }
 
