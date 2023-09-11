@@ -11,7 +11,6 @@ import {Account} from "../storage/Account.sol";
 import {Market} from "../storage/Market.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
 import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
-import "../interfaces/external/IMarketManager.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -61,10 +60,11 @@ contract LiquidationModule is ILiquidationModule {
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
-            Market.Data memory market = Market.exists(marketId);
-            IMarketManager marketManager = IMarketManager(market.marketManagerAddress);
-            marketManager.executeLiquidationOrder(liquidatableAccountId, liquidationBid.liquidatorAccountId,  marketId,
-                liquidationBid.inputs[i]);
+            Market.exists(marketId).executeLiquidationOrder(
+                liquidatableAccountId,
+                liquidationBid.liquidatorAccountId,
+                liquidationBid.inputs[i]
+            );
         }
 
         liquidatorAccount.imCheck(address(0));

@@ -497,7 +497,6 @@ library Account {
         }
 
         // todo: all markets should belong to the collateral pool of the account and same collateral bubble
-        // in theory this should be flagged during rank calculation?
 
     }
 
