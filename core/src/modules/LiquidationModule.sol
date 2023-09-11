@@ -97,8 +97,7 @@ contract LiquidationModule is ILiquidationModule {
             "executeLiquidationBid(uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
             liquidatableAccountId, topRankedLiquidationBid));
 
-        // dequeue wether it's successful or not
-
+        // dequeue top bid it's successfully executed or not
 
         account.liquidationBidPriorityQueues.priorityQueues[
         account.liquidationBidPriorityQueues.latestQueueId
