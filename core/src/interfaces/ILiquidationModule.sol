@@ -44,6 +44,7 @@ interface ILiquidationModule {
     function executeDutchLiquidation(
         uint128 liquidatableAccountId,
         uint128 liquidatorAccountId,
+        uint128 marketId,
         bytes memory inputs
     ) external;
 
