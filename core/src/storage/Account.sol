@@ -496,14 +496,15 @@ library Account {
                 collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid);
         }
 
-        // todo: all markets should belong to the collateral pool of the account and same collateral bubble
-
     }
 
     function computeLiquidationBidRank(
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal returns (uint256) {
         // implement
+        // note, the ranking function should revert if the liquidation bid is attempting to liquidate more exposure
+        // than the user has
+        // also note, the ranking function should revert if the liquidation bid is attempting to touch non-active markets
         return 0;
     }
 
