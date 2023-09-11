@@ -571,6 +571,17 @@ library Account {
             }
         }
 
+    }
+
+    function executeDutchLiquidation(
+        Account.Data storage self,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        bytes memory inputs
+    ) internal {
+
+
+
 
     }
 
