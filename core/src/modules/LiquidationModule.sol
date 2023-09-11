@@ -59,6 +59,7 @@ contract LiquidationModule is ILiquidationModule {
         Account.Data storage liquidatorAccount = Account.exists(liquidationBid.liquidatorAccountId);
 
         // todo: need to mark active markets once liquidation orders are executed
+        // todo: also need to make sure the collateral pool id of the liquidator is updated accordingly as well
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
@@ -73,6 +74,9 @@ contract LiquidationModule is ILiquidationModule {
 
     }
 
+    /**
+     * @inheritdoc ILiquidationModule
+     */
     function executeTopRankedLiquidationBid(
         uint128 liquidatableAccountId
     ) external override {
@@ -107,5 +111,16 @@ contract LiquidationModule is ILiquidationModule {
 
     }
 
+
+    /**
+     * @inheritdoc ILiquidationModule
+     */
+    function executeDutchLiquidation(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        bytes memory inputs
+    ) external override {
+        // implementation
+    }
 
 }
