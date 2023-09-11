@@ -36,12 +36,13 @@ library AccountAutoExchange {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
-        UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
 
         // Single auto-exchange threshold check
         {
             Account.MarginRequirementDeltas memory deltas =
-                self.getRequirementDeltasByCollateralType(collateralType, imMultiplier);
+                self.getRequirementDeltasByCollateralType(collateralType,
+                    collateralPool.riskConfig.imMultiplier,
+                    collateralPool.riskConfig.mmrMultiplier);
 
             if (deltas.initialDelta > 0) {
                 return false;
@@ -73,7 +74,10 @@ library AccountAutoExchange {
             address quoteToken = quoteTokens[i];
 
             Account.MarginRequirementDeltas memory deltas = 
-                self.getRequirementDeltasByCollateralType(quoteToken, imMultiplier);
+                self.getRequirementDeltasByCollateralType(
+                    quoteToken,
+                    collateralPool.riskConfig.imMultiplier,
+                    collateralPool.riskConfig.mmrMultiplier);
             
             if (deltas.initialDelta < 0) {
                 UD60x18 price = 
@@ -111,9 +115,10 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
+        UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
 
         Account.MarginRequirementDeltas memory deltas = 
-            self.getRequirementDeltasByCollateralType(autoExchangedToken, imMultiplier);
+            self.getRequirementDeltasByCollateralType(autoExchangedToken, imMultiplier, mmrMultiplier);
 
         if (deltas.initialDelta > 0) {
             return (0, 0);

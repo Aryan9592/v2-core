@@ -104,6 +104,7 @@ library Account {
      */
     struct MarginRequirementDeltas {
         int256 initialDelta;
+        int256 maintenanceDelta;
         int256 liquidationDelta;
         address collateralType;
     }
@@ -388,12 +389,13 @@ library Account {
         return AccountExposure.getRequirementDeltasByBubble(self, collateralType);
     }
 
-    function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+    function getRequirementDeltasByCollateralType(Account.Data storage self, address collateralType,
+        UD60x18 imMultiplier, UD60x18 mmrMultiplier)
         internal
         view
         returns (Account.MarginRequirementDeltas memory)
     {
-        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier);
+        return AccountExposure.getRequirementDeltasByCollateralType(self, collateralType, imMultiplier, mmrMultiplier);
     }
 
     /**

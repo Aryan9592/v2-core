@@ -37,31 +37,30 @@ library AccountExposure {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
+        UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
 
-        if (account.accountMode == Account.SINGLE_TOKEN_MODE) {
-            return computeRequirementDeltasByBubble(account, collateralPoolId, baseToken, imMultiplier); 
+        // multi-token mode by default
+        Account.MarginRequirementDeltas memory deltasInUSD =
+            computeRequirementDeltasByBubble(account, collateralPoolId, address(0), imMultiplier, mmrMultiplier);
+
+        if (baseToken == address(0)) {
+            return deltasInUSD;
         }
 
-        if (account.accountMode == Account.MULTI_TOKEN_MODE) {
-            Account.MarginRequirementDeltas memory deltasInUSD = 
-                computeRequirementDeltasByBubble(account, collateralPoolId, address(0), imMultiplier); 
+        CollateralConfiguration.ExchangeInfo memory exchange =
+            CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
 
-            if (baseToken == address(0)) {
-                return deltasInUSD;
-            }
+        int256 initialDelta = divIntUD(deltasInUSD.initialDelta, exchange.price.mul(exchange.haircut));
+        int256 maintenanceDelta = divIntUD(deltasInUSD.maintenanceDelta, exchange.price.mul(exchange.haircut));
+        int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, exchange.price.mul(exchange.haircut));
 
-            CollateralConfiguration.ExchangeInfo memory exchange = 
-                CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
-        
-            int256 initialDelta = divIntUD(deltasInUSD.initialDelta, exchange.price.mul(exchange.haircut));
-            int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, exchange.price.mul(exchange.haircut));
-            
-            return Account.MarginRequirementDeltas({
-                initialDelta: initialDelta,
-                liquidationDelta: liquidationDelta,
-                collateralType: baseToken
-            });
-        }
+        return Account.MarginRequirementDeltas({
+            initialDelta: initialDelta,
+            liquidationDelta: liquidationDelta,
+            maintenanceDelta: maintenanceDelta,
+            collateralType: baseToken
+        });
+
 
         revert UnsupportedAccountExposure(account.accountMode);
     }
@@ -70,19 +69,20 @@ library AccountExposure {
         Account.Data storage account, 
         uint128 collateralPoolId, 
         address baseToken, 
-        UD60x18 imMultiplier
+        UD60x18 imMultiplier,
+        UD60x18 mmrMultiplier
     ) 
         private 
         view
         returns(Account.MarginRequirementDeltas memory deltas) 
     {
-        deltas = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier);
+        deltas = getRequirementDeltasByCollateralType(account, baseToken, imMultiplier, mmrMultiplier);
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, baseToken).childTokens.values();
 
         for (uint256 i = 0; i < tokens.length; i++) {
             Account.MarginRequirementDeltas memory subMR = 
-                computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier);
+                computeRequirementDeltasByBubble(account, collateralPoolId, tokens[i], imMultiplier, mmrMultiplier);
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
@@ -93,6 +93,13 @@ library AccountExposure {
             }
             else {
                 deltas.initialDelta += mulUDxInt(price.mul(haircut), subMR.initialDelta);
+            }
+
+            if (subMR.maintenanceDelta <= 0) {
+                deltas.maintenanceDelta += mulUDxInt(price, subMR.maintenanceDelta);
+            }
+            else {
+                deltas.maintenanceDelta += mulUDxInt(price.mul(haircut), subMR.maintenanceDelta);
             }
 
             if (subMR.liquidationDelta <= 0) {
@@ -111,7 +118,8 @@ library AccountExposure {
     function getRequirementDeltasByCollateralType(
         Account.Data storage self, 
         address collateralType,
-        UD60x18 imMultiplier
+        UD60x18 imMultiplier,
+        UD60x18 mmrMultiplier
     )
         internal
         view
@@ -164,17 +172,22 @@ library AccountExposure {
         }
 
         // Get the initial margin requirement
-        uint256 initialMarginRequirement = computeInitialMarginRequirement(liquidationMarginRequirement, imMultiplier);
+        uint256 initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
+
+        // Get the maintenance margin requirement
+        uint256 maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, liquidationMarginRequirement);
 
         // Get the collateral balance of the account in this specific collateral
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
 
         // Compute and return the initial and liquidation deltas
         int256 initialDelta = collateralBalance.toInt() - (initialMarginRequirement + highestUnrealizedLoss).toInt();
+        int256 maintenanceDelta = collateralBalance.toInt() - (maintenanceMarginRequirement + highestUnrealizedLoss).toInt();
         int256 liquidationDelta = collateralBalance.toInt() - (liquidationMarginRequirement + highestUnrealizedLoss).toInt();
 
         return Account.MarginRequirementDeltas({
             initialDelta: initialDelta,
+            maintenanceDelta: maintenanceDelta,
             liquidationDelta: liquidationDelta,
             collateralType: collateralType
         });
@@ -193,16 +206,6 @@ library AccountExposure {
         return liquidationMarginRequirement;
     }
 
-    /**
-     * @dev Returns the initial margin requirement given the liquidation margin requirement and the im multiplier
-     */
-    function computeInitialMarginRequirement(uint256 liquidationMarginRequirement, UD60x18 imMultiplier)
-    private
-    pure
-    returns (uint256 initialMarginRequirement)
-    {
-        initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
-    }
 
     function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
     private 
