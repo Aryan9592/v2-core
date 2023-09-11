@@ -9,6 +9,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
 import { ITokenAdapter } from "../interfaces/ITokenAdapter.sol";
 
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
@@ -20,6 +23,7 @@ import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
  */
 library GlobalCollateralConfiguration {
     using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
+    using SafeCastU256 for uint256;
 
     /**
      * @notice Emitted when the withdraw limits for a collateral are created or updated
@@ -148,8 +152,20 @@ library GlobalCollateralConfiguration {
         return ITokenAdapter(self.config.tokenAdapter).convertToShares(assets);
     }
 
+    function convertToShares(Data storage self, int256 assets) internal view returns (int256) {
+        uint256 absAssets = SignedMath.abs(assets);
+        uint256 absShares = ITokenAdapter(self.config.tokenAdapter).convertToShares(absAssets);
+        return (assets > 0) ? absShares.toInt() : -absShares.toInt();
+    }
+
     function convertToAssets(Data storage self, uint256 shares) internal view returns (uint256) {
         return ITokenAdapter(self.config.tokenAdapter).convertToAssets(shares);
+    }
+
+    function convertToAssets(Data storage self, int256 shares) internal view returns (int256) {
+        uint256 absShares = SignedMath.abs(shares);
+        uint256 absAssets = ITokenAdapter(self.config.tokenAdapter).convertToAssets(absShares);
+        return (shares > 0) ? absAssets.toInt() : -absAssets.toInt();
     }
 
     /**

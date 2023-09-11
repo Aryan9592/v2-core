@@ -78,9 +78,8 @@ library AccountCollateral {
     ) internal {
         // Convert assets to shares
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
-        uint256 shares = globalConfig.convertToShares(SignedMath.abs(assets));
-
-        updateNetCollateralShares(self, collateralType, (assets > 0) ? shares.toInt() : -shares.toInt());
+        int256 shares = globalConfig.convertToShares(assets);
+        updateNetCollateralShares(self, collateralType, shares);
     }
 
     /**
@@ -95,9 +94,7 @@ library AccountCollateral {
         returns (int256)
     {
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
-        uint256 absAssets = globalConfig.convertToAssets(SignedMath.abs(self.collateralShares[collateralType]));
-
-        return (self.collateralShares[collateralType] > 0) ? absAssets.toInt() : -absAssets.toInt();
+        return globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
     /**
@@ -112,8 +109,8 @@ library AccountCollateral {
         int256 withdrawableBalanceBubble = SignedMath.max(
             0,
             SignedMath.min(
-                marginInfoBubble.mrDeltas.initialDelta, 
-                marginInfoBubble.balances.realBalance
+                marginInfoBubble.initialDelta, 
+                marginInfoBubble.realBalance
             )
         );
 
@@ -128,7 +125,7 @@ library AccountCollateral {
             0,
             SignedMath.min(
                 withdrawableBalanceBubble, 
-                marginInfoCollateral.balances.realBalance
+                marginInfoCollateral.realBalance
             )
         );
 

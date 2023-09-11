@@ -94,29 +94,18 @@ library Account {
         int256 unrealizedPnL;
     }
 
-    struct Balances {
+    struct MarginInfo {
+        address collateralType;
+        int256 netDeposits;
         /// These are all amounts that are available to contribute to cover margin requirements. 
         int256 marginBalance;
         /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement 
         /// token and not as value of an instrument which settles in that token
         int256 realBalance;
-    }
-
-    /**
-     * @dev Structure for tracking margin requirement information.
-     */
-    struct MarginRequirementDeltas {
         /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
         /// Difference between margin balance and liquidation margin requirement
         int256 liquidationDelta;
-    }
-
-    struct MarginInfo {
-        address collateralType;
-        int256 netDeposits;
-        Balances balances;
-        MarginRequirementDeltas mrDeltas;
     }
 
     /**
@@ -390,7 +379,7 @@ library Account {
     {
         marginInfo = self.getMarginInfoByBubble(collateralType);
         
-        if (marginInfo.mrDeltas.initialDelta < 0) {
+        if (marginInfo.initialDelta < 0) {
             revert AccountBelowIM(self.id, marginInfo);
         }
     }

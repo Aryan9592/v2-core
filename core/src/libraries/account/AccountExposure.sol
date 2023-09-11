@@ -63,14 +63,10 @@ library AccountExposure {
         return Account.MarginInfo({
             collateralType: token,
             netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.haircut),
-            balances: Account.Balances({
-                marginBalance: getExchangedQuantity(marginInfo.balances.marginBalance, exchange.price, exchange.haircut),
-                realBalance: getExchangedQuantity(marginInfo.balances.realBalance, exchange.price, exchange.haircut)
-            }),
-            mrDeltas: Account.MarginRequirementDeltas({
-                initialDelta: getExchangedQuantity(marginInfo.mrDeltas.initialDelta, exchange.price, exchange.haircut),
-                liquidationDelta: getExchangedQuantity(marginInfo.mrDeltas.liquidationDelta, exchange.price, exchange.haircut)
-            })
+            marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.haircut),
+            realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.haircut),
+            initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
+            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut)
         });
     }
 
@@ -99,22 +95,18 @@ library AccountExposure {
             marginInfo = Account.MarginInfo({
                 collateralType: marginInfo.collateralType,
                 netDeposits: marginInfo.netDeposits,
-                balances: Account.Balances({
-                    marginBalance: 
-                        marginInfo.balances.marginBalance + 
-                        getExchangedQuantity(subMarginInfo.balances.marginBalance, price, haircut),
-                    realBalance: 
-                        marginInfo.balances.realBalance + 
-                        getExchangedQuantity(subMarginInfo.balances.realBalance, price, haircut)
-                }),
-                mrDeltas: Account.MarginRequirementDeltas({
-                    initialDelta: 
-                        marginInfo.mrDeltas.initialDelta + 
-                        getExchangedQuantity(subMarginInfo.mrDeltas.initialDelta, price, haircut),
-                    liquidationDelta: 
-                        marginInfo.mrDeltas.liquidationDelta + 
-                        getExchangedQuantity(subMarginInfo.mrDeltas.liquidationDelta, price, haircut)
-                })
+                marginBalance: 
+                    marginInfo.marginBalance + 
+                    getExchangedQuantity(subMarginInfo.marginBalance, price, haircut),
+                realBalance: 
+                    marginInfo.realBalance + 
+                    getExchangedQuantity(subMarginInfo.realBalance, price, haircut),
+                initialDelta: 
+                    marginInfo.initialDelta + 
+                    getExchangedQuantity(subMarginInfo.initialDelta, price, haircut),
+                liquidationDelta: 
+                    marginInfo.liquidationDelta + 
+                    getExchangedQuantity(subMarginInfo.liquidationDelta, price, haircut)
             });
         }
     }
@@ -162,18 +154,23 @@ library AccountExposure {
                 uint256 lowerLMR = 
                     computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
 
-                uint256 upperLMR = 
-                    computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-                if (
-                    lowerLMR.toInt() + exposureLower.pnlComponents.unrealizedPnL >
-                    upperLMR.toInt() + exposureUpper.pnlComponents.unrealizedPnL
-                ) {
+                if (equalExposures(exposureLower, exposureUpper)) {
                     liquidationMarginRequirement += lowerLMR;
                     highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
                 } else {
-                    liquidationMarginRequirement += upperLMR;
-                    highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
+                    uint256 upperLMR = 
+                    computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
+
+                    if (
+                        lowerLMR.toInt() + exposureLower.pnlComponents.unrealizedPnL >
+                        upperLMR.toInt() + exposureUpper.pnlComponents.unrealizedPnL
+                    ) {
+                        liquidationMarginRequirement += lowerLMR;
+                        highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
+                    } else {
+                        liquidationMarginRequirement += upperLMR;
+                        highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
+                    }
                 }
             }
         }
@@ -189,14 +186,10 @@ library AccountExposure {
         return Account.MarginInfo({
             collateralType: collateralType,
             netDeposits: netDeposits,
-            balances: Account.Balances({
-                marginBalance: marginBalance,
-                realBalance: realBalance
-            }),
-            mrDeltas: Account.MarginRequirementDeltas({
-                initialDelta: marginBalance - initialMarginRequirement.toInt(),
-                liquidationDelta: marginBalance - liquidationMarginRequirement.toInt()
-            })
+            marginBalance: marginBalance,
+            realBalance: realBalance,
+            initialDelta: marginBalance - initialMarginRequirement.toInt(),
+            liquidationDelta: marginBalance - liquidationMarginRequirement.toInt()
         });
     }
 
@@ -235,5 +228,22 @@ library AccountExposure {
     returns (uint256 initialMarginRequirement)
     {
         initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
+    }
+
+    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
+    private 
+    pure 
+    returns (bool) 
+    {
+        if (
+            a.annualizedNotional == b.annualizedNotional && 
+            a.pnlComponents.accruedCashflows == b.pnlComponents.accruedCashflows &&
+            a.pnlComponents.lockedPnL == b.pnlComponents.lockedPnL &&
+            a.pnlComponents.unrealizedPnL == b.pnlComponents.unrealizedPnL
+        ) {
+            return true;
+        }
+
+        return false;
     }
 }
