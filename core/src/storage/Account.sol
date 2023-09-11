@@ -55,10 +55,16 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
+     * @dev Thrown when a given account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
     error AccountBelowIM(uint128 accountId, MarginInfo marginInfo);
+
+    /**
+     * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
+     */
+    error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginRequirements);
+
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -426,16 +432,15 @@ library Account {
 
     /**
      * @dev Checks if the account is below maintenance margin requirement and above
-     * liquidation margin requirement, returns true if that's the case, otherwise returns false
+     * liquidation margin requirement, if that's not the case revert
      */
-    function isBetweenMmrAndLm(Data storage self, address collateralType) internal view returns (bool) {
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
+    function isBetweenMmrAndLmCheck(Data storage self, address collateralType) internal view returns
+    (Account.MarginInfo memory marginInfo) {
+        marginInfo = self.getMarginInfoByBubble(collateralType);
 
-        if (marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0) {
-            return true;
+        if (!(marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0)) {
+            revert AccountNotBetweenMmrAndLm(self.id, marginInfo);
         }
-
-        return false;
 
     }
 
@@ -508,7 +513,7 @@ library Account {
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
-        // todo: check if the MMR condition is breached while the LM condition is still not breached
+        self.isBetweenMmrAndLmCheck(address(0));
         // todo: make sure max length of a queue is not breached -> make it configurable in risk params
 
         self.validateLiquidationBid(liquidationBid);
