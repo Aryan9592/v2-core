@@ -107,6 +107,12 @@ library Account {
     */
     error AccountHasUnfilledOrders(uint128 accountId);
 
+    /**
+    * @dev Thrown if attempting to perform a dutch liquidation while the account is above the dutch
+    * margin requirement threshold and the liquidation bid queue is not empty
+    */
+    error AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(uint128 accountId);
+
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
         /// result of having a positions open in a derivative instrument, as determined 
@@ -489,6 +495,15 @@ library Account {
 
     }
 
+    /**
+     * @dev Checks if the account is above the dutch margin requirement
+     * if that's the case, return true, otherwise return false
+     */
+    function isAboveDutch(Data storage self, address collateralType) internal view returns (bool) {
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
+        return marginInfo.dutchDelta > 0;
+    }
+
     function isEligibleForAutoExchange(
         Account.Data storage self,
         address collateralType
@@ -654,9 +669,22 @@ library Account {
 
         // todo: consider reverting if the market is paused?
 
+        // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
 
-        self.isBelowLMCheck();
+        // revert if account is not below liquidation margin requirement
+        self.isBelowLMCheck(address(0));
+
+        // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
+
+        uint256 liquidationBidQueueLength = self.liquidationBidPriorityQueues.priorityQueues
+        [self.liquidationBidPriorityQueues.latestQueueId].ranks.length;
+
+        if (liquidationBidQueueLength > 0 && self.isAboveDutch(address(0))) {
+            revert AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(
+                self.id
+            );
+        }
 
     }
 
