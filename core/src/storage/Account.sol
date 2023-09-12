@@ -78,6 +78,10 @@ library Account {
      */
     error AccountNotBelowLM(uint128 accountId, MarginRequirementDeltas marginRequirements);
 
+    /**
+     * @dev Thrown when account is not below the maintenance margin requirement
+     */
+    error AccountNotBelowMMR(uint128 accountId, MarginRequirementDeltas marginRequirements);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -431,6 +435,8 @@ library Account {
         );
     }
 
+    // todo: lots of margin requirement check functions, is it even worth having the one-off ones as helpers?
+
     /**
      * @dev Checks if the account is below initial margin requirement and reverts if so,
      * otherwise  returns the initial margin requirement (single token account)
@@ -472,6 +478,21 @@ library Account {
 
         if (mr.liquidationDelta > 0) {
             revert AccountNotBelowLM(self.id, mr);
+        }
+
+    }
+
+    /**
+     * @dev Checks if the account is below the maintenance margin requirement
+     * and reverts if that's not the case (i.e. reverts if the mmr requirement is satisfied by the account)
+     */
+    function isBelowMMRCheck(Data storage self, address collateralType) internal view returns
+    (Account.MarginRequirementDeltas memory mr) {
+
+        mr = self.getRequirementDeltasByBubble(collateralType);
+
+        if (mr.maintenanceDelta > 0) {
+            revert AccountNotBelowMMR(self.id, mr);
         }
 
     }
@@ -611,6 +632,9 @@ library Account {
     function closeAllUnfilledOrders(
         Account.Data storage self
     ) internal {
+
+        self.isBelowMMRCheck(address(0));
+
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
