@@ -65,6 +65,11 @@ library Account {
      */
     error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginRequirements);
 
+    /**
+     * @dev Thrown when account is not below the liquidation margin requirement
+     */
+    error AccountNotBelowLM(uint128 accountId, MarginInfo marginRequirements);
+
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -469,18 +474,43 @@ library Account {
 
     }
 
-    // todo: during liquidations implementation
-    // function getMaxAmountToExchangeQuote(
-    //     Account.Data storage self,
-    //     address coveringToken,
-    //     address autoExchangedToken
-    // )
-    //     internal
-    //     view
-    //     returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
-    // {
-    //     return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
-    // }
+    /**
+     * @dev Checks if the account is below the liquidation margin requirement
+     * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
+     */
+    function isBelowLMCheck(Data storage self, address collateralType) internal view returns
+    (Account.MarginInfo memory marginInfo) {
+
+        marginInfo = self.getMarginInfoByBubble(collateralType);
+
+        if (marginInfo.liquidationDelta > 0) {
+            revert AccountNotBelowLM(self.id, marginInfo);
+        }
+
+    }
+
+    function isEligibleForAutoExchange(
+        Account.Data storage self,
+        address collateralType
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
+    }
+
+    function getMaxAmountToExchangeQuote(
+        Account.Data storage self,
+        address coveringToken,
+        address autoExchangedToken
+    )
+        internal
+        view
+        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
+    {
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
+    }
 
     function validateLiquidationBid(
         Account.Data storage self,
@@ -622,10 +652,9 @@ library Account {
         bytes memory inputs
     ) internal {
 
-        // todo: consider checking if the market is paused?
+        // todo: consider reverting if the market is paused?
 
         self.hasUnfilledOrders();
-
 
 
 
