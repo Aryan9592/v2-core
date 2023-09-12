@@ -73,6 +73,11 @@ library Account {
      */
     error AccountNotBetweenMmrAndLm(uint128 accountId, MarginRequirementDeltas marginRequirements);
 
+    /**
+     * @dev Thrown when account is not below the liquidation margin requirement
+     */
+    error AccountNotBelowLM(uint128 accountId, MarginRequirementDeltas marginRequirements);
+
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -450,6 +455,21 @@ library Account {
 
     }
 
+    /**
+     * @dev Checks if the account is below the liquidation margin requirement
+     * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
+     */
+    function isBelowLMCheck(Data storage self, address collateralType) internal view returns
+    (Account.MarginRequirementDeltas memory mr) {
+
+        mr = self.getRequirementDeltasByBubble(collateralType);
+
+        if (mr.liquidationDelta > 0) {
+            revert AccountNotBelowLM(self.id, mr);
+        }
+
+    }
+
     function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
         AccountMode.changeAccountMode(self, newAccountMode);
     }
@@ -617,10 +637,9 @@ library Account {
         bytes memory inputs
     ) internal {
 
-        // todo: consider checking if the market is paused?
+        // todo: consider reverting if the market is paused?
 
         self.hasUnfilledOrders();
-
 
 
 
