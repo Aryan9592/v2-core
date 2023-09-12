@@ -48,4 +48,9 @@ interface ILiquidationModule {
         bytes memory inputs
     ) external;
 
+    // todo: add natspec
+    function closeAllUnfilledOrders(
+        uint128 liquidatableAccountId
+    ) external;
+
 }
