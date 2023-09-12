@@ -93,7 +93,7 @@ contract LiquidationModule is ILiquidationModule {
         account.hasUnfilledOrders();
 
         // revert if the account is not below the liquidation margin requirement
-        account.isBelowLMCheck();
+        account.isBelowLMCheck(address(0));
 
         if (block.timestamp > account.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
