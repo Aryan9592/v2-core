@@ -710,6 +710,17 @@ library Account {
             );
         }
 
+        // grab the liquidator account
+        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+
+        Market.exists(marketId).executeLiquidationOrder(
+            self.id,
+            liquidatorAccountId,
+            inputs
+        );
+
+        liquidatorAccount.imCheck(address(0));
+
     }
 
 }
