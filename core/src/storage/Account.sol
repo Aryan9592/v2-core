@@ -22,8 +22,8 @@ import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
 
-import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import "../interfaces/external/IMarketManager.sol";
 
 
@@ -35,6 +35,7 @@ library Account {
     using Market for Market.Data;
     using CollateralPool for CollateralPool.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
@@ -124,6 +125,11 @@ library Account {
     * margin requirement threshold and the liquidation bid queue is not empty
     */
     error AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(uint128 accountId);
+
+    /**
+    * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
+    */
+    error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, int256 lmDeltaChange);
 
     /**
      * @dev Structure for tracking margin requirement information.
@@ -669,7 +675,7 @@ library Account {
 
     }
 
-    function computeDutchLiquidatorRewardParameter(Account.Data storage self) internal view returns (UD60x18) {
+    function computeDutchLiquidationPenaltyParameter(Account.Data storage self) internal view returns (UD60x18) {
         // todo: implement
         return UD60x18.wrap(10e17);
     }
@@ -703,7 +709,7 @@ library Account {
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
-        UD60x18 liquidatorRewardParameter = self.computeDutchLiquidatorRewardParameter();
+        UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
         int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(address(0)).liquidationDelta;
 
@@ -718,6 +724,15 @@ library Account {
         // should we revert if it's negative?
         int256 lmDeltaChange = self.getRequirementDeltasByBubble(address(0)).liquidationDelta
         - lmDeltaBeforeLiquidation;
+
+        if (lmDeltaChange < 0) {
+            revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+        }
+
+        uint256 liquidationPenalty = mulUDxUint(
+            liquidationPenaltyParameter,
+            lmDeltaChange.toUint()
+        );
 
         liquidatorAccount.imCheck(address(0));
 
