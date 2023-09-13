@@ -135,6 +135,7 @@ library AccountAutoExchange {
             return (0, 0);
         }
 
+        // todo: double check if we want to look at the im delta or just the collateral balance for auto-exchange
         uint256 amountToAutoExchange = mulUDxUint(
             AutoExchangeConfiguration.load().autoExchangeRatio,
             (-marginInfo.initialDelta).toUint()
