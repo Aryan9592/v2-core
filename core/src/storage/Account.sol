@@ -669,6 +669,11 @@ library Account {
 
     }
 
+    function computeDutchLiquidatorRewardParameter(Account.Data storage self) internal view returns (UD60x18) {
+        // todo: implement
+        return UD60x18.wrap(10e17);
+    }
+
     function executeDutchLiquidation(
         Account.Data storage self,
         uint128 liquidatorAccountId,
@@ -698,11 +703,21 @@ library Account {
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
+        UD60x18 liquidatorRewardParameter = self.computeDutchLiquidatorRewardParameter();
+
+        int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(address(0)).liquidationDelta;
+
         Market.exists(marketId).executeLiquidationOrder(
             self.id,
             liquidatorAccountId,
             inputs
         );
+
+        // todo: double check this calculation gives (delta LM following the liquidation)
+        // todo: can there ever be an edge case where the below value is not positive?
+        // should we revert if it's negative?
+        int256 lmDeltaChange = self.getRequirementDeltasByBubble(address(0)).liquidationDelta
+        - lmDeltaBeforeLiquidation;
 
         liquidatorAccount.imCheck(address(0));
 

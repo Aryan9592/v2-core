@@ -60,6 +60,10 @@ library AccountExposure {
         CollateralConfiguration.ExchangeInfo memory exchange =
             CollateralConfiguration.getExchangeInfo(collateralPoolId, baseToken, address(0));
 
+        // todo: note, in here we divide by the exchange rate that also has the haircut applied to it
+        // to make sure the deltas are in the units of the base token
+        // however, the haircut is originally only applied if the delta is positive, that same logic
+        // doesn't seem to be present here, is that intentional?
         int256 initialDelta = divIntUD(deltasInUSD.initialDelta, exchange.price.mul(exchange.haircut));
         int256 maintenanceDelta = divIntUD(deltasInUSD.maintenanceDelta, exchange.price.mul(exchange.haircut));
         int256 liquidationDelta = divIntUD(deltasInUSD.liquidationDelta, exchange.price.mul(exchange.haircut));
@@ -236,8 +240,6 @@ library AccountExposure {
 
         // Get the collateral balance of the account in this specific collateral
         uint256 collateralBalance = self.getCollateralBalance(collateralType);
-
-        // Compute and return the initial and liquidation deltas
 
         // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
         // filled orders should be taken care of in the balance calculations
