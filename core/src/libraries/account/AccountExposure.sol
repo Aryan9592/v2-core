@@ -61,6 +61,10 @@ library AccountExposure {
         CollateralConfiguration.ExchangeInfo memory exchange = 
             CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, token);
 
+        // todo: note, in here we divide by the exchange rate that also has the haircut applied to it
+        // to make sure the deltas are in the units of the base token
+        // however, the haircut is originally only applied if the delta is positive, that same logic
+        // doesn't seem to be present here, is that intentional?
         return Account.MarginInfo({
             collateralType: token,
             netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.haircut),
@@ -230,6 +234,8 @@ library AccountExposure {
         int256 marginBalance = netDeposits + accruedCashflows + lockedPnL + highestUnrealizedLoss;
         int256 realBalance = netDeposits + accruedCashflows + lockedPnL;
         
+        // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
+        // filled orders should be taken care of in the balance calculations
         return Account.MarginInfo({
             collateralType: collateralType,
             netDeposits: netDeposits,

@@ -63,17 +63,17 @@ library Account {
     /**
      * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
      */
-    error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginRequirements);
+    error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the liquidation margin requirement
      */
-    error AccountNotBelowLM(uint128 accountId, MarginInfo marginRequirements);
+    error AccountNotBelowLM(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the maintenance margin requirement
      */
-    error AccountNotBelowMMR(uint128 accountId, MarginRequirementDeltas marginRequirements);
+    error AccountNotBelowMMR(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -506,12 +506,12 @@ library Account {
      * and reverts if that's not the case (i.e. reverts if the mmr requirement is satisfied by the account)
      */
     function isBelowMMRCheck(Data storage self, address collateralType) internal view returns
-    (Account.MarginRequirementDeltas memory mr) {
+    (Account.MarginInfo memory marginInfo) {
 
-        mr = self.getRequirementDeltasByBubble(collateralType);
+        marginInfo = self.getMarginInfoByBubble(collateralType);
 
-        if (mr.maintenanceDelta > 0) {
-            revert AccountNotBelowMMR(self.id, mr);
+        if (marginInfo.maintenanceDelta > 0) {
+            revert AccountNotBelowMMR(self.id, marginInfo);
         }
 
     }
@@ -684,6 +684,11 @@ library Account {
 
     }
 
+    function computeDutchLiquidatorRewardParameter(Account.Data storage self) internal view returns (UD60x18) {
+        // todo: implement
+        return UD60x18.wrap(10e17);
+    }
+
     function executeDutchLiquidation(
         Account.Data storage self,
         uint128 liquidatorAccountId,
@@ -713,11 +718,21 @@ library Account {
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
+        UD60x18 liquidatorRewardParameter = self.computeDutchLiquidatorRewardParameter();
+
+        int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(address(0)).liquidationDelta;
+
         Market.exists(marketId).executeLiquidationOrder(
             self.id,
             liquidatorAccountId,
             inputs
         );
+
+        // todo: double check this calculation gives (delta LM following the liquidation)
+        // todo: can there ever be an edge case where the below value is not positive?
+        // should we revert if it's negative?
+        int256 lmDeltaChange = 
+            self.getMarginInfoByBubble(address(0)).liquidationDelta - lmDeltaBeforeLiquidation;
 
         liquidatorAccount.imCheck(address(0));
 
