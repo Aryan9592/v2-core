@@ -86,6 +86,7 @@ library CollateralPool {
         uint128 rootId,
         RiskConfiguration riskConfig,
         InsuranceFundConfig insuranceFundConfig,
+        BackstopLPConfig backstopLPConfig,
         uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
@@ -157,6 +158,26 @@ library CollateralPool {
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
         UD60x18 autoExchangeFee;
+        /**
+         * @dev Percentage of liquidation penalty that goes towards the insurance fund
+         */
+        UD60x18 liquidationFee;
+    }
+
+    struct BackstopLPConfig {
+
+        /**
+         * @dev Backstop LP Account Id
+         */
+        uint128 accountId;
+
+        /**
+         * @dev Percentage of liquidation penalty that goes towards backstop lp
+         */
+        UD60x18 liquidationFee;
+
+        // todo: do we want to allocate a share of auto-exchange rewards to backstop lp as well?
+
     }
 
     struct Data {
@@ -193,6 +214,11 @@ library CollateralPool {
          * @dev Collateral pool wide insurance fund configuration 
          */
         InsuranceFundConfig insuranceFundConfig;
+
+        /**
+         * @dev Collateral pool wide backstop lp configuration
+         */
+        BackstopLPConfig backstopLPConfig;
         /**
          * @dev Account id for the collector of protocol fees
          */
@@ -222,6 +248,7 @@ library CollateralPool {
             id,
             collateralPool.riskConfig,
             collateralPool.insuranceFundConfig,
+            collateralPool.backstopLPConfig,
             collateralPool.feeCollectorAccountId,
             block.timestamp
         );
@@ -283,6 +310,7 @@ library CollateralPool {
             child.rootId,
             child.riskConfig,
             child.insuranceFundConfig,
+            child.backstopLPConfig,
             child.feeCollectorAccountId,
             block.timestamp
         );
@@ -425,6 +453,7 @@ library CollateralPool {
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );
@@ -432,7 +461,7 @@ library CollateralPool {
 
     /**
      * @dev Set the collateral pool wide insurance fund configuration
-     * @param config The InsuranceFundConfig object with the account id and fee config
+     * @param config The InsuranceFundConfig object with the account id and fee configs
      */
     function setInsuranceFundConfig(Data storage self, InsuranceFundConfig memory config) internal {
         self.checkRoot();
@@ -442,12 +471,39 @@ library CollateralPool {
 
         self.insuranceFundConfig.accountId = config.accountId;
         self.insuranceFundConfig.autoExchangeFee = config.autoExchangeFee;
+        self.insuranceFundConfig.liquidationFee = config.liquidationFee;
 
         emit CollateralPoolUpdated(
             self.id,
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
+            self.feeCollectorAccountId,
+            block.timestamp
+        );
+    }
+
+    // todo: expose in the collateral pool config module
+    /**
+     * @dev Set the collateral pool wide backstop lp configuration
+     * @param config The BackstopLPConfig object with the account id and fee config
+     */
+    function setBackstopLPConfig(Data storage self, BackstopLPConfig memory config) internal {
+        self.checkRoot();
+
+        // ensure the given account exists
+        Account.exists(config.accountId);
+
+        self.backstopLPConfig.accountId = config.accountId;
+        self.backstopLPConfig.liquidationFee = config.liquidationFee;
+
+        emit CollateralPoolUpdated(
+            self.id,
+            self.rootId,
+            self.riskConfig,
+            self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );
@@ -466,6 +522,7 @@ library CollateralPool {
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );
