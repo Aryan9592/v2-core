@@ -737,6 +737,7 @@ library Account {
         // todo: double check this calculation gives (delta LM following the liquidation)
         // todo: can there ever be an edge case where the below value is not positive?
         // should we revert if it's negative?
+        // todo: base token must be the quote token of the market!
         int256 lmDeltaChange = 
             self.getMarginInfoByBubble(address(0)).liquidationDelta - lmDeltaBeforeLiquidation;
 
