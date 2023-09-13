@@ -680,6 +680,15 @@ library Account {
         return UD60x18.wrap(10e17);
     }
 
+    function distributeLiquidationPenalty(
+        Account.Data storage self,
+        Account.Data storage liquidatorAccount,
+        uint256 liquidationPenalty,
+        address token
+    ) internal {
+        // todo: implement
+    }
+
     function executeDutchLiquidation(
         Account.Data storage self,
         uint128 liquidatorAccountId,
@@ -734,6 +743,9 @@ library Account {
             liquidationPenaltyParameter,
             lmDeltaChange.toUint()
         );
+
+        // todo: quote token instead of address(0)
+        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, address(0));
 
         liquidatorAccount.imCheck(address(0));
 
