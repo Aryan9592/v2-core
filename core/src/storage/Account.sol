@@ -554,27 +554,34 @@ library Account {
         return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
     }
 
-    function validateLiquidationBid(
-        Account.Data storage self,
-        Account.Data storage liquidatorAccount,
-        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    function collateralPoolsCheck(
+        uint128 liquidatableAccountCollateralPoolId,
+        Account.Data storage liquidatorAccount
     ) internal {
-
-        // collateral pool of the liquidated account
-        CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
         // liquidator and liquidatee should belong to the same collateral pool
         // note, it's fine for the liquidator to not belong to any collateral pool
 
         if (liquidatorAccount.firstMarketId != 0) {
             CollateralPool.Data storage liquidatorCollateralPool = liquidatorAccount.getCollateralPool();
-            if (liquidatorCollateralPool.id != collateralPool.id) {
+            if (liquidatorCollateralPool.id != liquidatableAccountCollateralPoolId) {
                 revert LiquidatorAndLiquidateeBelongToDifferentCollateralPools(
                     liquidatorCollateralPool.id,
-                    collateralPool.id
+                    liquidatableAccountCollateralPoolId
                 );
             }
         }
+    }
+
+    function validateLiquidationBid(
+        Account.Data storage self,
+        Account.Data storage liquidatorAccount,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
+    ) internal {
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        collateralPoolsCheck(collateralPool.id, liquidatorAccount);
 
         uint256 marketIdsLength = liquidationBid.marketIds.length;
         uint256 inputsLength = liquidationBid.inputs.length;
@@ -738,8 +745,12 @@ library Account {
         // revert if account is not below liquidation margin requirement
         self.isBelowLMCheck(address(0));
 
-        // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
+        // grab the liquidator account
+        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
+        collateralPoolsCheck(self.getCollateralPool().id, liquidatorAccount);
+
+        // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
         uint256 liquidationBidQueueLength = self.liquidationBidPriorityQueues.priorityQueues
         [self.liquidationBidPriorityQueues.latestQueueId].ranks.length;
 
@@ -748,9 +759,6 @@ library Account {
                 self.id
             );
         }
-
-        // grab the liquidator account
-        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
