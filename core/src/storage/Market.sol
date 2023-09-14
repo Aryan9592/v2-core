@@ -58,6 +58,13 @@ library Market {
          * @dev There cannot be a market with id zero (See MarketCreator.create()). Id zero is used as a null market reference.
          */
         uint128 id;
+
+        /**
+         * @dev Address of the market's quote token. Must match the quote token address in the external
+         * `IMarketManager` contract.
+         */
+        address quoteToken;
+
         /**
          * @dev Address for the external contract that implements the `IMarketManager` interface, 
          * which this Market objects connects to.
@@ -104,7 +111,7 @@ library Market {
      * tracks, resulting in multiple ids for the same address.
      * For example if a given Market works across maturities, each maturity internally will be represented as a unique Market id
      */
-    function create(address marketManagerAddress, string memory name, address owner)
+    function create(address marketManagerAddress, address quoteToken, string memory name, address owner)
         internal
         returns (Data storage market)
     {
@@ -112,6 +119,7 @@ library Market {
         market = load(id);
     
         market.id = id;
+        market.quoteToken = quoteToken;
         market.marketManagerAddress = marketManagerAddress;
         market.name = name;
 
