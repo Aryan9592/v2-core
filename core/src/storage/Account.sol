@@ -720,9 +720,11 @@ library Account {
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
-        int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(address(0)).liquidationDelta;
+        Market.Data storage market = Market.exists(marketId);
 
-        Market.exists(marketId).executeLiquidationOrder(
+        int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(market.quoteToken).liquidationDelta;
+
+        market.executeLiquidationOrder(
             self.id,
             liquidatorAccountId,
             inputs
@@ -732,7 +734,7 @@ library Account {
         // todo: can there ever be an edge case where the below value is not positive?
         // should we revert if it's negative?
         // todo: base token must be the quote token of the market!
-        int256 lmDeltaChange = self.getRequirementDeltasByBubble(address(0)).liquidationDelta
+        int256 lmDeltaChange = self.getRequirementDeltasByBubble(market.quoteToken).liquidationDelta
         - lmDeltaBeforeLiquidation;
 
         if (lmDeltaChange < 0) {
@@ -745,7 +747,7 @@ library Account {
         );
 
         // todo: quote token instead of address(0)
-        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, address(0));
+        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken);
 
         liquidatorAccount.imCheck(address(0));
 
