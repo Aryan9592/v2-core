@@ -1,47 +1,42 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
+import { Tick } from "../ticks/Tick.sol";
 
-import { UD60x18, UNIT, wrap, sqrt } from "@prb/math/UD60x18.sol";
+import { Oracle } from "../../storage/Oracle.sol";
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
+import { Time } from "..//time/Time.sol";
+import { VammTicks } from "./VammTicks.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
 
-import "../../storage/Oracle.sol";
-import "../../storage/DatedIrsVamm.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
-/**
- * @title Tracks configurations for dated irs markets
- */
+import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18, UNIT, wrap, sqrt, ZERO, convert } from "@prb/math/UD60x18.sol";
+
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65535];
-    using Twap for DatedIrsVamm.Data;
     using SafeCastI256 for int256;
 
-    /// @notice Emitted by the pool for increases to the number of observations that can be stored
-    /// @dev observationCardinalityNext is not the observation cardinality until an observation is written at the index
-    /// just before a mint/swap/burn.
-    /// @param observationCardinalityNextOld The previous value of the next observation cardinality
-    /// @param observationCardinalityNextNew The updated value of the next observation cardinality
-    event IncreaseObservationCardinalityNext(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        uint16 observationCardinalityNextOld,
-        uint16 observationCardinalityNextNew,
-        uint256 blockTimestamp
-    );
-
-    /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
+    /// @notice Calculates time-weighted geometric mean price based on the past `orderSizeWad` seconds
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
+    /// @param orderSizeWad The order size to use when adjusting the price for price impact or spread.
     /// Must not be zero if either of the boolean params is true because it used to indicate the direction 
     /// of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` 
-    // overflows when cast to a `U60x18`. Must have wad precision.
+    /// overflows when cast to a `U60x18`. Must have wad precision.
     /// @param adjustForPriceImpact Whether or not to adjust the returned price by the VAMM's configured spread.
     /// @param adjustForSpread Whether or not to adjust the returned price by the VAMM's configured spread.
     /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
-    ///     May return zero if adjustments would take the price to or below zero - e.g. when anticipated price impact is large because the order size is large.
-    function twap(DatedIrsVamm.Data storage self, uint32 secondsAgo, int256 orderSizeWad, bool adjustForPriceImpact,  bool adjustForSpread)
+    /// May return zero if adjustments would take the price to or below zero 
+    /// - e.g. when anticipated price impact is large because the order size is large.
+    function twap(
+        DatedIrsVamm.Data storage self, 
+        uint32 secondsAgo, 
+        int256 orderSizeWad, 
+        bool adjustForPriceImpact,  
+        bool adjustForSpread
+    )
         internal
         view
         returns (UD60x18 geometricMeanPrice)
@@ -92,7 +87,7 @@ library Twap {
     /// @notice Calculates time-weighted arithmetic mean tick
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
     function observe(DatedIrsVamm.Data storage self, uint32 secondsAgo)
-        internal
+        private
         view
         returns (int24 arithmeticMeanTick)
     {
@@ -125,7 +120,7 @@ library Twap {
     function observe(
         DatedIrsVamm.Data storage self,
         uint32[] memory secondsAgos)
-        internal
+        private
         view
         returns (int56[] memory tickCumulatives)
     {
@@ -148,19 +143,13 @@ library Twap {
         lock(self)
     {
         uint16 observationCardinalityNextOld =  self.vars.observationCardinalityNext; // for the event
+
         uint16 observationCardinalityNextNew =  self.vars.observations.grow(
             observationCardinalityNextOld,
             observationCardinalityNext
         );
-         self.vars.observationCardinalityNext = observationCardinalityNextNew;
-        if (observationCardinalityNextOld != observationCardinalityNextNew)
-            emit IncreaseObservationCardinalityNext(
-                self.immutableConfig.marketId,
-                self.immutableConfig.maturityTimestamp,
-                observationCardinalityNextOld,
-                observationCardinalityNextNew,
-                block.timestamp
-            );
+
+        self.vars.observationCardinalityNext = observationCardinalityNextNew;
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
@@ -168,12 +157,12 @@ library Twap {
     /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
     modifier lock(DatedIrsVamm.Data storage self) {
         if (!self.vars.unlocked) {
-            revert VammCustomErrors.CanOnlyTradeIfUnlocked();
+            revert VammCustomErrors.Lock(true);
         }
         self.vars.unlocked = false;
         _;
         if (self.vars.unlocked) {
-            revert VammCustomErrors.CanOnlyUnlockIfLocked();
+            revert VammCustomErrors.Lock(false);
         }
         self.vars.unlocked = true;
     }

@@ -10,11 +10,6 @@ interface VammCustomErrors {
    error MarketAndMaturityCombinaitonAlreadyExists(uint128 marketId, uint32 maturityTimestamp);
 
    /**
-    * @dev No VAMM currently exists for the specified {market, maturity}
-    */ 
-   error MarketAndMaturityCombinaitonNotSupported(uint128 marketId, uint32 maturityTimestamp);
-
-   /**
     * @dev If the sqrt price of the vamm is non-zero before a vamm is initialized, 
     * it has already been initialized. Initialization can only be done once.
     */ 
@@ -35,12 +30,7 @@ interface VammCustomErrors {
    /**
     * @dev Error which ensures the VAMM is unlocked
     */ 
-   error CanOnlyTradeIfUnlocked();
-
-   /**
-    * @dev Error which ensures the VAMM is unlocked
-    */ 
-   error CanOnlyUnlockIfLocked();
+   error Lock(bool locked);
 
    /**
     * @dev Error which ensures the VAMM maturity is in the future

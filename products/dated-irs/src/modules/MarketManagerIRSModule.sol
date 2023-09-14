@@ -174,6 +174,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             tickUpper := calldataload(add(inputs.offset, 0x40))
             liquidityDelta := calldataload(add(inputs.offset, 0x60))
         }
+
+        output = abi.encode();
         annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
             InitiateMakerOrder.MakerOrderParams({
                 accountId: accountId,
@@ -203,6 +205,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         assembly {
             maturityTimestamp := calldataload(inputs.offset)
         }
+
+        output = abi.encode();
         cashflowAmount = Settlement.settle(accountId, marketId, maturityTimestamp);
     }
 

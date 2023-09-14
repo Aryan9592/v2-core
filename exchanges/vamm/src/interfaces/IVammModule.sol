@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../libraries/vamm-utils/VammConfiguration.sol";
-import "../storage/LPPosition.sol";
+import { LPPosition } from "../storage/LPPosition.sol";
+import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
+import { Oracle } from "../storage/Oracle.sol";
+import { Tick } from "../libraries/ticks/Tick.sol";
 
 interface IVammModule {
   /// @dev Emitted when vamm configurations are updated
   event VammConfigUpdated(
       uint128 marketId,
       uint32 maturityTimestamp,
-      VammConfiguration.Mutable config,
+      DatedIrsVamm.Mutable config,
       uint256 blockTimestamp
   );
 
   /// @dev Emitted when a new vamm is created and initialized
   event VammCreated(
-      uint128 marketId,
       int24 tick,
-      VammConfiguration.Immutable config,
-      VammConfiguration.Mutable mutableConfig,
+      DatedIrsVamm.Immutable config,
+      DatedIrsVamm.Mutable mutableConfig,
       uint256 blockTimestamp
   );
 
@@ -26,12 +27,11 @@ interface IVammModule {
     * @notice registers a new vamm with the specified configurationsa and initializes the price
     */
   function createVamm(
-    uint128 _marketId, 
-    uint160 _sqrtPriceX96, 
+    uint160 sqrtPriceX96, 
     uint32[] memory times, 
     int24[] memory observedTicks, 
-    VammConfiguration.Immutable calldata _config, 
-    VammConfiguration.Mutable calldata _mutableConfig
+    DatedIrsVamm.Immutable calldata config, 
+    DatedIrsVamm.Mutable calldata mutableConfig
   ) external;
 
   /**
@@ -39,17 +39,17 @@ interface IVammModule {
     * @dev Only configures mutable vamm variables
     */
   function configureVamm(
-    uint128 _marketId,
-    uint32 _maturityTimestamp,
-    VammConfiguration.Mutable calldata _config
+    uint128 marketId,
+    uint32 maturityTimestamp,
+    DatedIrsVamm.Mutable calldata config
   ) external;
 
   /**
-    * @param _marketId Id of the market for which we want to increase the number of observations
-    * @param _maturityTimestamp Timestamp at which the given market matures
-    * @param _observationCardinalityNext The desired minimum number of observations for the pool to store
+    * @param marketId Id of the market for which we want to increase the number of observations
+    * @param maturityTimestamp Timestamp at which the given market matures
+    * @param observationCardinalityNext The desired minimum number of observations for the pool to store
     */
-  function increaseObservationCardinalityNext(uint128 _marketId, uint32 _maturityTimestamp, uint16 _observationCardinalityNext)
+  function increaseObservationCardinalityNext(uint128 marketId, uint32 maturityTimestamp, uint16 observationCardinalityNext)
     external;
 
   ///////////// GETTERS /////////////
@@ -57,43 +57,43 @@ interface IVammModule {
   /**
     * @notice Returns vamm configuration
     */
-  function getVammConfig(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammConfig(uint128 marketId, uint32 maturityTimestamp)
     external view returns (
-      VammConfiguration.Immutable memory _config,
-      VammConfiguration.Mutable memory _mutableConfig
+      DatedIrsVamm.Immutable memory config,
+      DatedIrsVamm.Mutable memory mutableConfig
     );
 
-  function getVammSqrtPriceX96(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammSqrtPriceX96(uint128 marketId, uint32 maturityTimestamp)
     external view returns (uint160 sqrtPriceX96);
 
-  function getVammTick(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammTick(uint128 marketId, uint32 maturityTimestamp)
     external view returns (int24 tick);
 
-  function getVammTickInfo(uint128 _marketId, uint32 _maturityTimestamp, int24 tick)
+  function getVammTickInfo(uint128 marketId, uint32 maturityTimestamp, int24 tick)
     external view returns (Tick.Info memory tickInfo);
 
-  function getVammTickBitmap(uint128 _marketId, uint32 _maturityTimestamp, int16 wordPosition)
+  function getVammTickBitmap(uint128 marketId, uint32 maturityTimestamp, int16 wordPosition)
     external view returns (uint256);
   
-  function getVammLiquidity(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammLiquidity(uint128 marketId, uint32 maturityTimestamp)
     external view returns (uint128 liquidity);
 
-  function getVammPositionsInAccount(uint128 _marketId, uint32 _maturityTimestamp, uint128 accountId)
+  function getVammPositionsInAccount(uint128 marketId, uint32 maturityTimestamp, uint128 accountId)
     external view returns (uint128[] memory positionsInAccount);
 
-  function getVammTrackerQuoteTokenGrowthGlobalX128(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammTrackerQuoteTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
     external view returns (int256 trackerQuoteTokenGrowthGlobalX128);
   
-  function getVammTrackerBaseTokenGrowthGlobalX128(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammTrackerBaseTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
     external view returns (int256 trackerBaseTokenGrowthGlobalX128);
 
-  function getVammObservationInfo(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammObservationInfo(uint128 marketId, uint32 maturityTimestamp)
       external view returns (uint16, uint16, uint16);
 
-  function getVammObservations(uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammObservations(uint128 marketId, uint32 maturityTimestamp)
       external view returns (Oracle.Observation[65535] memory);
 
-  function getVammObservationAtIndex(uint16 index, uint128 _marketId, uint32 _maturityTimestamp)
+  function getVammObservationAtIndex(uint16 index, uint128 marketId, uint32 maturityTimestamp)
         external view returns (Oracle.Observation memory);
 
   function getVammPosition(uint128 positionId)

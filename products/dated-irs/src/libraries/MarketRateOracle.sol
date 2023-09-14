@@ -50,10 +50,6 @@ library MarketRateOracle {
         uint128 indexed marketId, address oracleAddress, uint32 timestamp, uint256 rate, uint256 blockTimestamp
     );
 
-    function validateOracleInterface(address oracleAddress) internal view returns (bool isValid) {
-        return IERC165(oracleAddress).supportsInterface(type(IRateOracle).interfaceId);
-    }
-
     function backfillRateIndexAtMaturityCache(
         Market.Data storage self, 
         uint32 maturityTimestamp, 

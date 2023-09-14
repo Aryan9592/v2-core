@@ -18,12 +18,12 @@ library Time {
         return timestampAsUint32(block.timestamp);
     }
 
-    function timestampAsUint32(uint256 _timestamp)
+    function timestampAsUint32(uint256 timestamp)
         internal
         pure
-        returns (uint32 timestamp)
+        returns (uint32 timestampU32)
     {
-        require((timestamp = uint32(_timestamp)) == _timestamp, "TSOFLOW");
+        require((timestampU32 = uint32(timestamp)) == timestamp, "TSOFLOW");
     }
 
     function isCloseToMaturityOrBeyondMaturity(uint32 maturityTimestamp)

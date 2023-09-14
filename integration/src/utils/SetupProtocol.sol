@@ -17,11 +17,12 @@ import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.so
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
+import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 import {Market as DatedIrsMarket} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
-import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
+import {PoolConfiguration} from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
 
 import {Config} from "@voltz-protocol/periphery/src/storage/Config.sol";
 
@@ -34,7 +35,7 @@ import {UD60x18, ud60x18} from "@prb/math/UD60x18.sol";
 import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
-import {IRateOracle} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
+import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
 
 import {Commands} from "@voltz-protocol/periphery/src/libraries/Commands.sol";
 import {IWETH9} from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";
@@ -198,7 +199,7 @@ contract SetupProtocol is BatchScript {
   }
 
   // todo: alex return new product id to be used in ConfigProtocol.s.sol
-  function registerDatedIrsMarketManager() public {
+  function registerDatedIrsMarketManager(uint256 makerPositionsPerAccountLimit) public {
     registerMarketManager(address(contracts.datedIrsProxy), "Dated IRS Market Manager");
     
     configureMarketManager(
@@ -207,9 +208,10 @@ contract SetupProtocol is BatchScript {
       })
     );
 
-    setMarketManagerAddress({
-      marketManagerAddress: address(contracts.datedIrsProxy)
-    });
+    setPoolConfiguration(PoolConfiguration.Data({
+      marketManagerAddress: address(contracts.datedIrsProxy),
+      makerPositionsPerAccountLimit: makerPositionsPerAccountLimit
+    }));
   }
 
   function configureMarket(
@@ -279,16 +281,14 @@ contract SetupProtocol is BatchScript {
   }
 
   function deployPool(
-    VammConfiguration.Immutable memory immutableConfig,
-    VammConfiguration.Mutable memory mutableConfig,
+    DatedIrsVamm.Immutable memory immutableConfig,
+    DatedIrsVamm.Mutable memory mutableConfig,
     int24 initTick,
     uint16 observationCardinalityNext,
-    uint256 makerPositionsPerAccountLimit,
     uint32[] memory times,
     int24[] memory observedTicks
   ) public {
     createVamm({
-      marketId: immutableConfig.marketId,
       sqrtPriceX96: TickMath.getSqrtRatioAtTick(initTick),
       times: times,
       observedTicks: observedTicks,
@@ -297,8 +297,8 @@ contract SetupProtocol is BatchScript {
     });
 
     (, , uint16 currentObservationCardinalityNext) = contracts.vammProxy.getVammObservationInfo({
-      _marketId: immutableConfig.marketId, 
-      _maturityTimestamp: immutableConfig.maturityTimestamp
+      marketId: immutableConfig.marketId, 
+      maturityTimestamp: immutableConfig.maturityTimestamp
     });
 
     while (currentObservationCardinalityNext < observationCardinalityNext) {
@@ -315,8 +315,6 @@ contract SetupProtocol is BatchScript {
 
       currentObservationCardinalityNext = nextObservationCardinalityNext;
     }
-
-    setMakerPositionsPerAccountLimit(makerPositionsPerAccountLimit);
   }
 
   struct MintOrBurnParams {
@@ -750,38 +748,37 @@ contract SetupProtocol is BatchScript {
   /////////////////                VAMM              /////////////////
   ////////////////////////////////////////////////////////////////////
 
-  function setMarketManagerAddress(address marketManagerAddress) public {
+  function setPoolConfiguration(PoolConfiguration.Data memory config) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.vammProxy.setMarketManagerAddress(marketManagerAddress);
+      contracts.vammProxy.setPoolConfiguration(config);
     } else {
       addToBatch(
         address(contracts.vammProxy),
         abi.encodeCall(
-          contracts.vammProxy.setMarketManagerAddress,
-          (marketManagerAddress)
+          contracts.vammProxy.setPoolConfiguration,
+          (config)
         )
       );
     }
   }
 
   function createVamm(
-    uint128 marketId, 
     uint160 sqrtPriceX96,
     uint32[] memory times,
     int24[] memory observedTicks,
-    VammConfiguration.Immutable memory config, 
-    VammConfiguration.Mutable memory mutableConfig
+    DatedIrsVamm.Immutable memory config, 
+    DatedIrsVamm.Mutable memory mutableConfig
   ) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.vammProxy.createVamm(marketId, sqrtPriceX96, times, observedTicks, config, mutableConfig);
+      contracts.vammProxy.createVamm(sqrtPriceX96, times, observedTicks, config, mutableConfig);
     } else {
       addToBatch(
         address(contracts.vammProxy),
         abi.encodeCall(
           contracts.vammProxy.createVamm,
-          (marketId, sqrtPriceX96, times, observedTicks, config, mutableConfig)
+          (sqrtPriceX96, times, observedTicks, config, mutableConfig)
         )
       );
     }
@@ -790,7 +787,7 @@ contract SetupProtocol is BatchScript {
   function configureVamm(
     uint128 marketId,
     uint32 maturityTimestamp,
-    VammConfiguration.Mutable memory mutableConfig
+    DatedIrsVamm.Mutable memory mutableConfig
   ) public {
     if (!settings.multisig) {
       broadcastOrPrank();
@@ -801,23 +798,6 @@ contract SetupProtocol is BatchScript {
         abi.encodeCall(
           contracts.vammProxy.configureVamm,
           (marketId, maturityTimestamp, mutableConfig)
-        )
-      );
-    }
-  }
-
-  function setPoolPauseState(
-    bool paused
-  ) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.vammProxy.setPauseState(paused);
-    } else {
-      addToBatch(
-        address(contracts.vammProxy),
-        abi.encodeCall(
-          contracts.vammProxy.setPauseState,
-          (paused)
         )
       );
     }
@@ -856,21 +836,6 @@ contract SetupProtocol is BatchScript {
         abi.encodeCall(
           contracts.vammProxy.increaseObservationCardinalityNext,
           (marketId, maturityTimestamp, observationCardinalityNext)
-        )
-      );
-    }
-  }
-
-  function setMakerPositionsPerAccountLimit(uint256 makerPositionsPerAccountLimit) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.vammProxy.setMakerPositionsPerAccountLimit(makerPositionsPerAccountLimit);
-    } else {
-      addToBatch(
-        address(contracts.vammProxy),
-        abi.encodeCall(
-          contracts.vammProxy.setMakerPositionsPerAccountLimit,
-          (makerPositionsPerAccountLimit)
         )
       );
     }

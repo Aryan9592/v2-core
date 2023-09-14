@@ -58,7 +58,7 @@ contract ConfigProtocol is SetupProtocol {
       liquidatorRewardParameter: ud60x18(5e16),
       feeCollectorAccountId: 999
     });
-    registerDatedIrsMarketManager();
+    registerDatedIrsMarketManager(1);
     configureMarket({
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
       marketId: 1,
@@ -86,13 +86,13 @@ contract ConfigProtocol is SetupProtocol {
     observedTicks[0] = -13860;
     observedTicks[1] = -13860;
     deployPool({
-      immutableConfig: VammConfiguration.Immutable({
+      immutableConfig: DatedIrsVamm.Immutable({
         maturityTimestamp: 1688990400,
-        _maxLiquidityPerTick: type(uint128).max,
-        _tickSpacing: 60,
+        maxLiquidityPerTick: type(uint128).max,
+        tickSpacing: 60,
         marketId: 1
       }),
-      mutableConfig: VammConfiguration.Mutable({
+      mutableConfig: DatedIrsVamm.Mutable({
         priceImpactPhi: ud60x18(1e17), // 0.1
         spread: ud60x18(3e15), // 0.3%
         minSecondsBetweenOracleObservations: 3600,
@@ -101,7 +101,6 @@ contract ConfigProtocol is SetupProtocol {
       }),
       initTick: -13860, // price = 4%
       observationCardinalityNext: 16,
-      makerPositionsPerAccountLimit: 1,
       times: times,
       observedTicks: observedTicks
     });

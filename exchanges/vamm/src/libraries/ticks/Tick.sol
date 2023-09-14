@@ -2,17 +2,12 @@
 
 pragma solidity >=0.8.13;
 
-import "../math/LiquidityMath.sol";
-import "./TickMath.sol";
-
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {LiquidityMath} from "../math/LiquidityMath.sol";
+import {TickMath} from "./TickMath.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
 library Tick {
-    using SafeCastI256 for int256;
-    using SafeCastU256 for uint256;
-
     int24 internal constant MAXIMUM_TICK_SPACING = 16384;
 
     // info stored for each initialized individual tick
@@ -30,39 +25,27 @@ library Tick {
         bool initialized;
     }
 
-    function _getGrowthInside(
-        int24 _tickLower,
-        int24 _tickUpper,
-        int24 _tickCurrent,
-        int256 _growthGlobalX128,
-        int256 _lowerGrowthOutsideX128,
-        int256 _upperGrowthOutsideX128
+    function growthInside(
+        int24 tickLower,
+        int24 tickUpper,
+        int24 tickCurrent,
+        int256 growthGlobalX128,
+        int256 lowerGrowthOutsideX128,
+        int256 upperGrowthOutsideX128
     ) private pure returns (int256) {
         // calculate the growth below
-        int256 _growthBelowX128;
-
-        if (_tickCurrent >= _tickLower) {
-            _growthBelowX128 = _lowerGrowthOutsideX128;
-        } else {
-            _growthBelowX128 = _growthGlobalX128 - _lowerGrowthOutsideX128;
-        }
+        int256 growthBelowX128 = 
+            (tickCurrent >= tickLower) 
+                ? lowerGrowthOutsideX128 
+                : growthGlobalX128 - lowerGrowthOutsideX128;
 
         // calculate the growth above
-        int256 _growthAboveX128;
+        int256 growthAboveX128 = 
+            (tickCurrent < tickUpper) ? 
+                upperGrowthOutsideX128 : 
+                growthGlobalX128 - upperGrowthOutsideX128;
 
-        if (_tickCurrent < _tickUpper) {
-            _growthAboveX128 = _upperGrowthOutsideX128;
-        } else {
-            _growthAboveX128 = _growthGlobalX128 - _upperGrowthOutsideX128;
-        }
-
-        int256 _growthInsideX128;
-
-        _growthInsideX128 =
-            _growthGlobalX128 -
-            (_growthBelowX128 + _growthAboveX128);
-
-        return _growthInsideX128;
+        return growthGlobalX128 - (growthBelowX128 + growthAboveX128);
     }
 
     struct BaseTokenGrowthInsideParams {
@@ -79,7 +62,7 @@ library Tick {
         Info storage lower = self[params.tickLower];
         Info storage upper = self[params.tickUpper];
 
-        baseTokenGrowthInsideX128 = _getGrowthInside(
+        baseTokenGrowthInsideX128 = growthInside(
             params.tickLower,
             params.tickUpper,
             params.tickCurrent,
@@ -104,7 +87,7 @@ library Tick {
         Info storage upper = self[params.tickUpper];
 
         // do we need an unchecked block in here (given we are dealing with an int256)?
-        quoteTokenGrowthInsideX128 = _getGrowthInside(
+        quoteTokenGrowthInsideX128 = growthInside(
             params.tickLower,
             params.tickUpper,
             params.tickCurrent,

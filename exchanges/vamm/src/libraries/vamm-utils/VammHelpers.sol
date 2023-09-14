@@ -2,26 +2,21 @@
 
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
-import "../ticks/TickBitmap.sol";
-import {VammConfiguration} from "./VammConfiguration.sol";
+import {Tick} from "../ticks/Tick.sol";
+import {TickMath} from "../ticks/TickMath.sol";
+import {TickBitmap} from "../ticks/TickBitmap.sol";
 
+import {FullMath} from "../math/FullMath.sol";
+import {FixedPoint96} from "../math/FixedPoint96.sol";
+import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import "../math/FullMath.sol";
-import "../math/FixedPoint96.sol";
-import "../math/FixedPoint128.sol";
+import {Time} from "../time/Time.sol";
 
-import "../time/Time.sol";
+import { UD60x18, unwrap, ZERO, UNIT } from "@prb/math/UD60x18.sol";
+import { SD59x18, convert } from "@prb/math/SD59x18.sol";
 
-import { UD60x18, unwrap, convert as convert_ud, ZERO, UNIT } from "@prb/math/UD60x18.sol";
-import { SD59x18, convert as convert_sd } from "@prb/math/SD59x18.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import { ud60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
-/// @title Tick
-/// @notice Contains functions for managing tick processes and relevant calculations
 library VammHelpers {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
@@ -142,7 +137,7 @@ library VammHelpers {
         UD60x18 averagePrice = SD59x18.wrap(
             unbalancedQuoteTokenDelta
         ).div(SD59x18.wrap(baseTokenDelta)).div(
-            convert_sd(-100)
+            convert(-100)
         ).intoUD60x18();
 
         UD60x18 averagePriceWithSpread = averagePrice.add(spread);
@@ -181,27 +176,25 @@ library VammHelpers {
     /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
     /// The answer must be a valid `int256`. Reverts on overflow.
     function baseBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
-        int128 _liquidityPerTick
+        int24 tickLower,
+        int24 tickUpper,
+        int128 liquidityPerTick
     ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
-
-        return VammHelpers.baseAmountFromLiquidity(_liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
+        return VammHelpers.baseAmountFromLiquidity(liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
     }
 
     function unbalancedQuoteBetweenTicks(
-        int24 _tickLower,
-        int24 _tickUpper,
+        int24 tickLower,
+        int24 tickUpper,
         int256 baseAmount
     ) internal pure returns(int256) {
         // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(_tickLower);
-
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(_tickUpper);
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
         return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }

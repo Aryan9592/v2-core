@@ -1,23 +1,48 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../libraries/vamm-utils/VammHelpers.sol";
-import "../libraries/math/FullMath.sol";
-import "../libraries/math/FixedPoint128.sol";
-import "../libraries/math/LiquidityMath.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {FullMath} from "../libraries/math/FullMath.sol";
+import {FixedPoint128} from "../libraries/math/FixedPoint128.sol";
+import {LiquidityMath} from "../libraries/math/LiquidityMath.sol";
 
 /**
  * @title Tracks LP positions
  */
 library LPPosition {
     using LPPosition for LPPosition.Data;
-    using SafeCastU128 for uint128;
 
     error PositionNotFound();
-    error PositionAlreadyExists(uint128 positionId);
+
+    struct VammTrackers {
+        /** 
+        * @dev quote token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
+        */
+        int256 quoteTokenUpdatedGrowth;
+        /** 
+        * @dev variable token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
+        */
+        int256 baseTokenUpdatedGrowth;
+        /** 
+        * @dev current Quote Token balance of the position, 1 quote token can be redeemed for 
+        * 1% APY * (annualised amm term) at the maturity of the amm
+        * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
+        * can be negative/positive/zero
+        */
+        int256 quoteTokenAccumulated;
+        /** 
+        * @dev current Variable Token Balance of the position, 
+        * 1 variable token can be redeemed for underlyingPoolAPY*(annualised amm term) at the maturity of the amm
+        * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
+        * can be negative/positive/zero
+        */
+        int256 baseTokenAccumulated;
+    }
 
     struct Data {
+        /** 
+        * @dev position's account id
+        */
+        uint128 id;
         /** 
         * @dev position's account id
         */
@@ -35,126 +60,100 @@ library LPPosition {
         */
         int24 tickUpper;
         /** 
-        * @dev quote token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
+        * @dev vamm trackers
         */
-        int256 trackerQuoteTokenUpdatedGrowth;
-        /** 
-        * @dev variable token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
-        */
-        int256 trackerBaseTokenUpdatedGrowth;
-        /** 
-        * @dev current Quote Token balance of the position, 1 quote token can be redeemed for 
-        * 1% APY * (annualised amm term) at the maturity of the amm
-        * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
-        * can be negative/positive/zero
-        */
-        int256 trackerQuoteTokenAccumulated;
-        /** 
-        * @dev current Variable Token Balance of the position, 
-        * 1 variable token can be redeemed for underlyingPoolAPY*(annualised amm term) at the maturity of the amm
-        * assuming 1 token worth of notional "deposited" in the underlying pool at the inception of the amm
-        * can be negative/positive/zero
-        */
-        int256 trackerBaseTokenAccumulated;
+        VammTrackers trackers;
     }
 
     /**
      * @dev Loads the LPPosition object for the given position Id
      */
-    function load(uint128 positionId) private pure returns (Data storage position) {
-        bytes32 s = keccak256(abi.encode("xyz.voltz.LPPosition", positionId));
+    function load(uint128 id) private pure returns (Data storage position) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.LPPosition", id));
         assembly {
             position.slot := s
         }
     }
 
-    function exists(uint128 positionId) internal view returns (Data storage position) {
-        position = load(positionId);
-        if (position.accountId == 0) {
+    function exists(uint128 id) internal view returns (Data storage position) {
+        position = load(id);
+
+        if (position.id == 0) {
             revert PositionNotFound();
         }
     }
 
-    /**
-     * @dev Creates a position
-     */
-    function create(
+    function loadOrCreate(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp,
         int24 tickLower,
         int24 tickUpper
-    ) internal returns (Data storage position){
-
-        uint128 positionId = getPositionId(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
+    ) internal returns (Data storage position)
+    {
+        uint128 positionId = uint128(uint256(keccak256(
+            abi.encodePacked(accountId, marketId, maturityTimestamp, tickLower, tickUpper)
+        )));
 
         position = load(positionId);
 
-        if (position.accountId != 0) {
-            revert PositionAlreadyExists(positionId);
+        if (position.id == 0) {
+            position.id = positionId;
+            position.accountId = accountId;
+            position.tickUpper = tickUpper;
+            position.tickLower = tickLower;
         }
 
-        position.accountId = accountId;
-        position.tickUpper = tickUpper;
-        position.tickLower = tickLower;
+        return position;
     }
 
-    function updateTrackers(
+    /// @notice update position token balances and account for fees
+    /// @dev if the liquidity of the position supplied to this function is >0 then we
+    /// @dev 1. retrieve the fixed, variable and fee Growth variables from the vamm by 
+    ///     invoking the computeGrowthInside function of the VAMM
+    /// @dev 2. calculate the deltas that need to be applied to the position's fixed and variable token balances 
+    ///     by taking into account trades that took place in the VAMM since the last mint/poke/burn that invoked this function
+    /// @dev 3. update the fixed and variable token balances and the margin of the position to account for deltas (outlined above) 
+    ///     and fees generated by the active liquidity supplied by the position
+    /// @dev 4. additionally, we need to update the last growth inside variables in the Position.Info struct 
+    ///     so that we take a note that we've accounted for the changes up until this point
+    /// @dev if liquidity of the position supplied to this function is zero, 
+    ///     then we need to check if isMintBurn is set to true (if it is set to true) 
+    ///     then we know this function was called post a mint/burn event,
+    /// @dev meaning we still need to correctly update the last fixed, variable and fee growth variables in the Position.Info struct
+    function updateTokenBalances(
         Data storage self,
-        int256 trackerQuoteTokenUpdatedGrowth,
-        int256 trackerBaseTokenUpdatedGrowth,
-        int256 deltaTrackerQuoteTokenAccumulated,
-        int256 deltaTrackerBaseTokenAccumulated
+        int256 quoteTokenGrowthInsideX128, 
+        int256 baseTokenGrowthInsideX128
     ) internal {
+        int256 quoteTokenDelta = 0;
+        int256 baseTokenDelta = 0;
 
-        if (self.accountId == 0) {
-            revert PositionNotFound();
+        if (self.liquidity > 0) {
+            (quoteTokenDelta, baseTokenDelta) = 
+                calculateFixedAndVariableDelta(
+                    self,
+                    quoteTokenGrowthInsideX128, 
+                    baseTokenGrowthInsideX128
+                );
         }
-        self.trackerQuoteTokenUpdatedGrowth = trackerQuoteTokenUpdatedGrowth;
-        self.trackerBaseTokenUpdatedGrowth = trackerBaseTokenUpdatedGrowth;
-        self.trackerQuoteTokenAccumulated += deltaTrackerQuoteTokenAccumulated;
-        self.trackerBaseTokenAccumulated += deltaTrackerBaseTokenAccumulated;
+
+        self.trackers.quoteTokenUpdatedGrowth = quoteTokenGrowthInsideX128;
+        self.trackers.baseTokenUpdatedGrowth = baseTokenGrowthInsideX128;
+        self.trackers.quoteTokenAccumulated += quoteTokenDelta;
+        self.trackers.baseTokenAccumulated += baseTokenDelta;
     }
 
     function updateLiquidity(Data storage self, int128 liquidityDelta) internal {
-        if (self.accountId == 0) {
-            revert PositionNotFound();
-        }
         self.liquidity = LiquidityMath.addDelta(self.liquidity, liquidityDelta);
-    }
-
-    function ensurePositionOpened(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int24 tickLower,
-        int24 tickUpper
-    ) 
-        internal
-        returns (Data storage position, bool newlyCreated){
-
-        uint128 positionId = getPositionId(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
-
-        position = load(positionId);
-
-        if(position.accountId != 0) {
-            return (position, false);
-        }
-
-        return (create(accountId, marketId, maturityTimestamp, tickLower, tickUpper), true);
     }
 
     function getUpdatedPositionBalances(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
         int256 baseTokenGrowthInsideX128
-    )
-        internal pure returns (int256, int256) {
-
-        if (self.accountId == 0) {
-            revert PositionNotFound();
-        }
-
+    ) internal pure returns (int256, int256) 
+    {
         (int256 quoteTokenDelta, int256 baseTokenDelta) = calculateFixedAndVariableDelta(
             self,
             quoteTokenGrowthInsideX128,
@@ -162,62 +161,39 @@ library LPPosition {
         );
 
         return (
-            self.trackerQuoteTokenAccumulated + quoteTokenDelta,
-            self.trackerBaseTokenAccumulated + baseTokenDelta
+            self.trackers.quoteTokenAccumulated + quoteTokenDelta,
+            self.trackers.baseTokenAccumulated + baseTokenDelta
         );
-    }
-
-    /**
-     * @notice Returns the positionId that such a position would have, should it exist. Does not check for existence.
-     */
-    function getPositionId(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int24 tickLower,
-        int24 tickUpper
-    )
-        internal
-        pure
-        returns (uint128){
-
-        return uint128(uint256(keccak256(
-            abi.encodePacked(accountId, marketId, maturityTimestamp, tickLower, tickUpper)
-        )));
     }
 
     /// @notice Returns Fixed and Variable Token Deltas
     /// @param self position info struct represeting a liquidity provider
     /// @param quoteTokenGrowthInsideX128 quote token growth per unit of liquidity as of now (in wei)
     /// @param baseTokenGrowthInsideX128 variable token growth per unit of liquidity as of now (in wei)
-    /// @return _quoteTokenDelta = (quoteTokenGrowthInside-quoteTokenGrowthInsideLast) * liquidity of a position
-    /// @return _baseTokenDelta = (baseTokenGrowthInside-baseTokenGrowthInsideLast) * liquidity of a position
+    /// @return quoteTokenDelta = (quoteTokenGrowthInside-quoteTokenGrowthInsideLast) * liquidity of a position
+    /// @return baseTokenDelta = (baseTokenGrowthInside-baseTokenGrowthInsideLast) * liquidity of a position
     function calculateFixedAndVariableDelta(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
         int256 baseTokenGrowthInsideX128
     )
-        internal
+        private
         pure
-        returns (int256 _quoteTokenDelta, int256 _baseTokenDelta)
+        returns (int256 quoteTokenDelta, int256 baseTokenDelta)
     {
-        if (self.accountId == 0) {
-            revert PositionNotFound();
-        }
-
         int256 quoteTokenGrowthInsideDeltaX128 = quoteTokenGrowthInsideX128 -
-            self.trackerQuoteTokenUpdatedGrowth;
+            self.trackers.quoteTokenUpdatedGrowth;
 
-        _quoteTokenDelta = FullMath.mulDivSigned(
+        quoteTokenDelta = FullMath.mulDivSigned(
             quoteTokenGrowthInsideDeltaX128,
             self.liquidity,
             FixedPoint128.Q128
         );
 
         int256 baseTokenGrowthInsideDeltaX128 = baseTokenGrowthInsideX128 -
-                self.trackerBaseTokenUpdatedGrowth;
+            self.trackers.baseTokenUpdatedGrowth;
 
-        _baseTokenDelta = FullMath.mulDivSigned(
+        baseTokenDelta = FullMath.mulDivSigned(
             baseTokenGrowthInsideDeltaX128,
             self.liquidity,
             FixedPoint128.Q128

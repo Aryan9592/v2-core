@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+
+import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 /// @title Pool configuration
 library PoolConfiguration {
     event PauseState(bool newPauseState, uint256 blockTimestamp);
 
+    bytes32 private constant _PAUSER_FEATURE_FLAG = "pauser";
+
     struct Data {
-        bool paused;
         address marketManagerAddress;
         uint256 makerPositionsPerAccountLimit;
     }
@@ -21,26 +24,21 @@ library PoolConfiguration {
         }
     }
 
-    function setPauseState(Data storage self, bool state) internal {
-        self.paused = state;
-        emit PauseState(state, block.timestamp);
-    }
+    function set(Data memory config) internal {
+        Data storage storedConfig = load();
 
-    function setMarketManagerAddress(Data storage self, address _marketManagerAddress) internal {
-        self.marketManagerAddress = _marketManagerAddress;
-    }
-
-    function setMakerPositionsPerAccountLimit(Data storage self, uint256 limit) internal {
-        self.makerPositionsPerAccountLimit = limit;
+        storedConfig.marketManagerAddress = config.marketManagerAddress;
+        storedConfig.makerPositionsPerAccountLimit = config.makerPositionsPerAccountLimit;
     }
 
     function whenNotPaused() internal view {
-        require(!PoolConfiguration.load().paused, "Paused");
+        FeatureFlag.ensureAccessToFeature(_PAUSER_FEATURE_FLAG);
     }
 
     function getRateOracle(uint128 marketId) internal view returns (IRateOracle) {
         address rateOracleAddress = IRateOracleModule(load().marketManagerAddress)
             .getRateOracleConfiguration(marketId).oracleAddress;
+
         return IRateOracle(rateOracleAddress);
     }
 }

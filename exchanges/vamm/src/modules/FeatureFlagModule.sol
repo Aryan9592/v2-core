@@ -9,6 +9,4 @@ import {FeatureFlagModule as BaseFeatureFlagModule} from "@voltz-protocol/util-m
  * Users will not be able to interact with certain functions associated to disabled features.
  */
 // solhint-disable-next-line no-empty-blocks
-contract FeatureFlagModule is BaseFeatureFlagModule {
-  uint a = 1;
-}
+contract FeatureFlagModule is BaseFeatureFlagModule { }

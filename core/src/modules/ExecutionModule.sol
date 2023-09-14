@@ -35,6 +35,7 @@ contract ExecutionModule {
 
     bytes1 internal constant COMMAND_TYPE_MASK = 0x3f;
     // Command Types. Maximum supported command at this moment is 64.
+    // todo: would it be a good idea to leave 0 as some special op?
     uint256 constant V2_CORE_CREATE_ACCOUNT = 0x00;
     uint256 constant V2_CORE_DEPOSIT = 0x01;
     uint256 constant V2_CORE_WITHDRAW = 0x02;
@@ -47,6 +48,7 @@ contract ExecutionModule {
     // marker manager commands
     uint256 constant V2_MARKET_MANAGER_TAKER_ORDER = 0x08;
     uint256 constant V2_MARKET_MANAGER_MAKER_ORDER = 0x09;
+    // todo: shouldn't be 0x0A?
     uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0xA0;
 
     struct Command {
