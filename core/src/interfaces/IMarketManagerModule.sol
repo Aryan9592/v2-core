@@ -27,7 +27,8 @@ interface IMarketManagerModule {
      */
     event MarketRegistered(
         address indexed marketManager, 
-        uint128 indexed marketId, 
+        uint128 indexed marketId,
+        address quoteToken,
         string name, 
         address indexed sender, 
         uint256 blockTimestamp
@@ -52,5 +53,5 @@ interface IMarketManagerModule {
      * @param name Name of the market
      * @return newMarketId The id with which the market will be registered in the system.
      */
-    function registerMarket(address market, string memory name) external returns (uint128 newMarketId);
+    function registerMarket(address market, address quoteToken, string memory name) external returns (uint128 newMarketId);
 }
