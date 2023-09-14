@@ -686,7 +686,25 @@ library Account {
         uint256 liquidationPenalty,
         address token
     ) internal {
-        // todo: implement
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
+        Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
+
+        uint256 insuranceFundReward = mulUDxUint(
+            collateralPool.insuranceFundConfig.liquidationFee,
+            liquidationPenalty
+        );
+        uint256 backstopLPReward = mulUDxUint(
+            collateralPool.backstopLPConfig.liquidationFee,
+            liquidationPenalty
+        );
+        uint256 liquidatorReward = liquidationPenalty - insuranceFundReward - backstopLPReward;
+
+        self.decreaseCollateralBalance(token, liquidationPenalty);
+        insuranceFundAccount.increaseCollateralBalance(token, insuranceFundReward);
+        backstopLpAccount.increaseCollateralBalance(token, backstopLPReward);
+        liquidatorAccount.increaseCollateralBalance(token, liquidatorReward);
     }
 
     function executeDutchLiquidation(
@@ -697,6 +715,7 @@ library Account {
     ) internal {
 
         // todo: consider reverting if the market is paused?
+        // todo: ensure the liquidator belongs to the same collateral pool or doesn't have a collateral pool
 
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
