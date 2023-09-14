@@ -721,8 +721,7 @@ library Account {
         bytes memory inputs
     ) internal {
 
-        // todo: consider reverting if the market is paused?
-        // todo: ensure the liquidator belongs to the same collateral pool or doesn't have a collateral pool
+        // todo: consider reverting if the market is paused? (can be implemented in the market manager)
 
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
@@ -757,10 +756,6 @@ library Account {
             inputs
         );
 
-        // todo: double check this calculation gives (delta LM following the liquidation)
-        // todo: can there ever be an edge case where the below value is not positive?
-        // should we revert if it's negative?
-        // todo: base token must be the quote token of the market!
         int256 lmDeltaChange = self.getRequirementDeltasByBubble(market.quoteToken).liquidationDelta
         - lmDeltaBeforeLiquidation;
 
@@ -773,7 +768,6 @@ library Account {
             lmDeltaChange.toUint()
         );
 
-        // todo: quote token instead of address(0)
         self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken);
 
         liquidatorAccount.imCheck(address(0));
