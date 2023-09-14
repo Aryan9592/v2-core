@@ -128,10 +128,14 @@ library CollateralPool {
         UD60x18 adlMultiplier;
 
         /**
-         * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward
-         * amount
+         * @dev Parameter that's multiplied by the change in LM caused by triggering closure of unfilled orders
          */
-        UD60x18 liquidatorRewardParameter; // todo: get rid of this
+        UD60x18 unfilledOrderLiquidationPenaltyParameter;
+
+        /**
+         * @dev Fee percentage charged by the keepers that execute liquidation bids
+         */
+        UD60x18 bidSubmissionKeeperFee;
 
         /**
          * @dev Liquidation Bid Priority Queue Duration In Seconds
@@ -433,7 +437,8 @@ library CollateralPool {
 
         self.riskConfig.imMultiplier = config.imMultiplier;
         self.riskConfig.mmrMultiplier = config.mmrMultiplier;
-        self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
+        self.riskConfig.unfilledOrderLiquidationPenaltyParameter = config.unfilledOrderLiquidationPenaltyParameter;
+        self.riskConfig.bidSubmissionKeeperFee = config.bidSubmissionKeeperFee;
         self.riskConfig.liquidationBidPriorityQueueDurationInSeconds = config.liquidationBidPriorityQueueDurationInSeconds;
         self.riskConfig.maxNumberOfOrdersInLiquidationBid = config.maxNumberOfOrdersInLiquidationBid;
         self.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue = config.maxNumberOfBidsInLiquidationBidPriorityQueue;
