@@ -735,9 +735,11 @@ library Account {
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
-        int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(address(0)).liquidationDelta;
+        Market.Data storage market = Market.exists(marketId);
 
-        Market.exists(marketId).executeLiquidationOrder(
+        int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(market.quoteToken).liquidationDelta;
+
+        market.executeLiquidationOrder(
             self.id,
             liquidatorAccountId,
             inputs
@@ -748,7 +750,7 @@ library Account {
         // should we revert if it's negative?
         // todo: base token must be the quote token of the market!
         int256 lmDeltaChange = 
-            self.getMarginInfoByBubble(address(0)).liquidationDelta - lmDeltaBeforeLiquidation;
+            self.getMarginInfoByBubble(market.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
 
         if (lmDeltaChange < 0) {
             revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
@@ -760,7 +762,7 @@ library Account {
         );
 
         // todo: quote token instead of address(0)
-        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, address(0));
+        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken);
 
         liquidatorAccount.imCheck(address(0));
 
