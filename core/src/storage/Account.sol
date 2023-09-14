@@ -643,20 +643,42 @@ library Account {
 
 
     function closeAllUnfilledOrders(
-        Account.Data storage self
+        Account.Data storage self,
+        uint128 liquidatorAccountId
     ) internal {
 
         self.isBelowMMRCheck(address(0));
+
+        // grab the liquidator account
+        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        collateralPoolsCheck(collateralPool.id, liquidatorAccount);
 
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
+            int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(quoteToken).liquidationDelta;
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
             for (uint256 j = 0; i < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
+            int256 lmDeltaChange = self.getRequirementDeltasByBubble(quoteToken).liquidationDelta
+            - lmDeltaBeforeLiquidation;
+
+            if (lmDeltaChange < 0) {
+                revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+            }
+
+            uint256 liquidationPenalty = mulUDxUint(
+                collateralPool.riskConfig.unfilledOrderLiquidationPenaltyParameter,
+                lmDeltaChange.toUint()
+            );
+
+            self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, quoteToken);
         }
 
     }

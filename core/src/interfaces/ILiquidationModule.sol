@@ -50,7 +50,8 @@ interface ILiquidationModule {
 
     // todo: add natspec
     function closeAllUnfilledOrders(
-        uint128 liquidatableAccountId
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId
     ) external;
 
 }

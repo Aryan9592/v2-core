@@ -138,11 +138,11 @@ contract LiquidationModule is ILiquidationModule {
         account.executeDutchLiquidation(liquidatorAccountId, marketId, inputs);
     }
 
-    function closeAllUnfilledOrders(uint128 liquidatableAccountId) external override {
+    function closeAllUnfilledOrders(uint128 liquidatableAccountId, uint128 liquidatorAccountId) external override {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
-        account.closeAllUnfilledOrders();
+        account.closeAllUnfilledOrders(liquidatorAccountId);
     }
 
 }
