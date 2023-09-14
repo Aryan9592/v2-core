@@ -1,7 +1,6 @@
 pragma solidity >=0.8.19;
 
 import {BatchScript} from "../utils/BatchScript.sol";
-import {console2} from "forge-std/Test.sol";
 
 import "../../test/fuzzing/Hevm.sol";
 
@@ -15,6 +14,7 @@ import {AccessPassNFT} from "@voltz-protocol/access-pass-nft/src/AccessPassNFT.s
 import {AccessPassConfiguration} from "@voltz-protocol/core/src/storage/AccessPassConfiguration.sol";
 import {CollateralPool} from "@voltz-protocol/core/src/storage/CollateralPool.sol";
 import {Market} from "@voltz-protocol/core/src/storage/Market.sol";
+import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {AaveV3BorrowRateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3BorrowRateOracle.sol";
 import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
@@ -217,6 +217,7 @@ contract SetupProtocol is BatchScript {
   function configureMarket(
     uint128 marketId,
     address tokenAddress,
+    bytes32 marketType,
     uint128 feeCollectorAccountId,
     uint256 cap,
     UD60x18 atomicMakerFee,
@@ -230,7 +231,8 @@ contract SetupProtocol is BatchScript {
 
     createMarket({
       marketId: marketId,
-      quoteToken: tokenAddress
+      quoteToken: tokenAddress,
+      marketType: marketType
     });
 
     setMarketConfiguration({
@@ -680,16 +682,16 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function createMarket(uint128 marketId, address quoteToken) public {
+  function createMarket(uint128 marketId, address quoteToken, bytes32 marketType) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.datedIrsProxy.createMarket(marketId, quoteToken);
+      contracts.datedIrsProxy.createMarket(marketId, quoteToken, marketType);
     } else {
       addToBatch(
         address(contracts.datedIrsProxy),
         abi.encodeCall(
           contracts.datedIrsProxy.createMarket,
-          (marketId, quoteToken)
+          (marketId, quoteToken, marketType)
         )
       );
     }

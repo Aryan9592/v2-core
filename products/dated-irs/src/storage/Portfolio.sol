@@ -9,17 +9,14 @@ pragma solidity >=0.8.19;
 
 import {Position} from "./Position.sol";
 import {Market} from "./Market.sol";
-import {MarketManagerConfiguration} from "./MarketManagerConfiguration.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
@@ -172,29 +169,42 @@ library Portfolio {
         uint32 maturityTimestamp,
         address poolAddress
     ) private view returns (ExposureHelpers.PoolExposureState memory poolState) {
-        poolState.marketId = self.marketId;
-        poolState.maturityTimestamp = maturityTimestamp;
-
-        poolState.baseBalance = self.positions[poolState.maturityTimestamp].baseBalance;
-        poolState.quoteBalance = self.positions[poolState.maturityTimestamp].quoteBalance;
-
-        (poolState.baseBalancePool, poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
+        (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
             poolState.marketId, 
             poolState.maturityTimestamp, 
             self.accountId
         );
 
-        (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
+        (uint256 unfilledBaseLong, uint256 unfilledBaseShort, uint256 unfilledQuoteLong, uint256 unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
                 poolState.marketId, 
                 poolState.maturityTimestamp, 
                 self.accountId
             );
-        
-        poolState.annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
-            poolState.marketId,
-            poolState.maturityTimestamp
-        );
+
+        return ExposureHelpers.PoolExposureState({
+            marketId: self.marketId,
+            maturityTimestamp: maturityTimestamp,
+
+            annualizedExposureFactor: 
+                ExposureHelpers.annualizedExposureFactor(
+                    poolState.marketId,
+                    poolState.maturityTimestamp
+                ),
+
+            baseBalance: self.positions[poolState.maturityTimestamp].baseBalance,
+            quoteBalance: self.positions[poolState.maturityTimestamp].quoteBalance,
+            accruedInterest: self.positions[poolState.maturityTimestamp].accruedInterest,
+
+            baseBalancePool: baseBalancePool,
+            quoteBalancePool: quoteBalancePool,
+            accruedInterestPool: accruedInterestPool,
+
+            unfilledBaseLong: unfilledBaseLong,
+            unfilledQuoteLong: unfilledQuoteLong,
+            unfilledBaseShort: unfilledBaseShort,
+            unfilledQuoteShort: unfilledQuoteShort
+        });
     }
 
     function getAccountExposuresPerMaturity(
@@ -237,6 +247,12 @@ library Portfolio {
         return exposures;
     }
 
+    struct CloseAccountVars {
+        UD60x18 currentRateIndex;
+        uint32 maturityTimestamp;
+        int256 unwindBase;
+    }
+
     /**
      * @dev Fully Close all the positions owned by the account within the dated irs portfolio
      * poolAddress in which to close the account, note in the beginning we'll only have a single pool
@@ -244,27 +260,30 @@ library Portfolio {
     function closeAccount(Data storage self) internal {
         Market.Data storage market = Market.exists(self.marketId);
 
+        CloseAccountVars memory vars;
+        vars.currentRateIndex = market.getRateIndexCurrent();
+
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
-            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-            Position.Data storage position = self.positions[maturityTimestamp];
+            vars.maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+            Position.Data storage position = self.positions[vars.maturityTimestamp];
             int256[] memory baseAmounts = new int256[](2);
 
             baseAmounts[0] = IPool(
                 market.marketConfig.poolAddress
-            ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
+            ).closeUnfilledBase(self.marketId, vars.maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
-            (int256 filledBasePool,) = IPool(
+            (int256 filledBasePool,,) = IPool(
                 market.marketConfig.poolAddress
-            ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
+            ).getAccountFilledBalances(self.marketId, vars.maturityTimestamp, self.accountId);
 
-            int256 unwindBase = -(position.baseBalance + filledBasePool);
+            vars.unwindBase = -(position.baseBalance + filledBasePool);
 
             UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
                 self.marketId, 
-                maturityTimestamp, 
+                vars.maturityTimestamp, 
                 DecimalMath.changeDecimals(
-                    unwindBase,
+                    vars.unwindBase,
                     IERC20(market.quoteToken).decimals(),
                     DecimalMath.WAD_DECIMALS
                 ), 
@@ -275,37 +294,35 @@ library Portfolio {
             (baseAmounts[1], executedQuoteAmount) =
                 IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
                     self.marketId, 
-                    maturityTimestamp, 
-                    unwindBase, 
+                    vars.maturityTimestamp, 
+                    vars.unwindBase, 
                     0, 
                     markPrice, 
                     market.marketConfig.markPriceBand
                 );
 
-            position.update(baseAmounts[1], executedQuoteAmount);
+            position.update(baseAmounts[1], executedQuoteAmount, block.timestamp, vars.currentRateIndex);
 
             // position size check
             ExposureHelpers.checkPositionSizeLimit(
-                self.accountId, self.marketId, maturityTimestamp
+                self.accountId, self.marketId, vars.maturityTimestamp
             );
 
             // update open interest
-            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, maturityTimestamp);
+            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, vars.maturityTimestamp);
             ExposureHelpers.checkOpenInterestLimit(
                 self.marketId,
-                maturityTimestamp,
+                vars.maturityTimestamp,
                 (exposures[0] > 0 ? -exposures[0] : exposures[0]) + 
                 (exposures[1] > 0 ? -exposures[1] : exposures[1]) // negative
             );
-
-            // todo: propagation!
 
             market.updateOracleStateIfNeeded();
 
             emit PositionUpdated(
                 self.accountId, 
                 self.marketId, 
-                maturityTimestamp, 
+                vars.maturityTimestamp, 
                 baseAmounts[1], 
                 executedQuoteAmount, 
                 block.timestamp
@@ -331,7 +348,10 @@ library Portfolio {
             activateMarketMaturity(self, maturityTimestamp);
         }
 
-        position.update(baseDelta, quoteDelta);
+        Market.Data storage market = Market.exists(self.marketId);
+        UD60x18 rateIndexCurrent = market.getRateIndexCurrent();
+
+        position.update(baseDelta, quoteDelta, block.timestamp, rateIndexCurrent);
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, baseDelta, quoteDelta, block.timestamp);
     }
 
@@ -355,17 +375,25 @@ library Portfolio {
 
         UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
 
-        (int256 filledBase, int256 filledQuote) = 
-            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+        /// @dev reverts if not active
+        self.deactivateMarketMaturity(maturityTimestamp);
 
         (int256 marketBase, int256 marketQuote) = (position.baseBalance, position.quoteBalance);
 
-        settlementCashflow =
-            mulUDxInt(liquidityIndexMaturity, marketBase + filledBase) + marketQuote + filledQuote;
-
-        position.update(-marketBase, -marketQuote);
-    
-        deactivateMarketMaturity(self, maturityTimestamp);
+        /// @dev update position's accrued interest
+        position.update(
+            -marketBase,
+            -marketQuote,
+            maturityTimestamp,
+            liquidityIndexMaturity
+        );
+        /// @dev Note that the settle function will not update the
+        /// last MTM timestamp in the VAMM. However, this is not an
+        /// issue since the market has been deactivated and the position
+        /// cannot be settled anymore.
+        (,, int256 accruedInterest) = 
+            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+        settlementCashflow = accruedInterest + position.accruedInterest;
 
         emit PositionUpdated(
             self.accountId, 
@@ -416,13 +444,8 @@ library Portfolio {
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
-        if (!self.activeMaturities.contains(maturityTimestamp)) {
-            return;
-        }
-
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         self.activeMaturities.remove(maturityTimestamp);
-        
         emit MarketMaturityDeactivated(
             self.accountId,
             self.marketId,

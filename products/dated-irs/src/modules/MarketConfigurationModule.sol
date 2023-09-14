@@ -19,9 +19,9 @@ import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/Ownable
 contract MarketConfigurationModule is IMarketConfigurationModule {
     using Market for Market.Data;
 
-    function createMarket(uint128 marketId, address quoteToken) external override {
+    function createMarket(uint128 marketId, address quoteToken, bytes32 marketType) external override {
         OwnableStorage.onlyOwner();
-        Market.create(marketId, quoteToken);
+        Market.create(marketId, quoteToken, marketType);
     }
 
     /**

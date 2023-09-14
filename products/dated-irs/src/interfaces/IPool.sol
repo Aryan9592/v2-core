@@ -66,7 +66,7 @@ interface IPool is IERC165 {
     )
         external
         view
-        returns (int256 baseBalancePool, int256 quoteBalancePool);
+        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool);
 
     /**
      * @notice Returns the base amount minted by an account but not used in a swap.

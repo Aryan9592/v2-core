@@ -19,6 +19,15 @@ import {UD60x18} from "@prb/math/UD60x18.sol";
  * @title Tracks configurations and metadata for dated irs markets
  */
 library Market {
+    /// Market types
+    bytes32 internal constant LINEAR_MARKET = "linear";
+    bytes32 internal constant COMPOUNDING_MARKET = "compounding";
+
+    /**
+     * @dev Thrown when a market is created with an unsupported market type 
+     */
+    error UnsupportedMarketType(bytes32 marketType);
+
     /**
      * @dev Thrown when a market cannot be found.
      */
@@ -131,6 +140,11 @@ library Market {
         address quoteToken;
 
         /**
+         * @dev Market type, either linear or compounding.
+         */
+        bytes32 marketType;
+
+        /**
          * @dev Market configuration
          */
         MarketConfiguration marketConfig;
@@ -178,9 +192,13 @@ library Market {
      * @param id The id of the market
      * @param quoteToken The quote token of the market
      */
-    function create(uint128 id, address quoteToken) internal {
+    function create(uint128 id, address quoteToken, bytes32 marketType) internal {
         if (quoteToken == address(0)) {
             revert ZeroQuoteTokenAddress();
+        }
+
+        if (marketType != LINEAR_MARKET && marketType != COMPOUNDING_MARKET) {
+            revert UnsupportedMarketType(marketType);
         }
 
         Data storage market = load(id);
@@ -191,6 +209,7 @@ library Market {
 
         market.id = id;
         market.quoteToken = quoteToken;
+        market.marketType = marketType;
 
         emit MarketCreated(id, quoteToken, block.timestamp);
     }

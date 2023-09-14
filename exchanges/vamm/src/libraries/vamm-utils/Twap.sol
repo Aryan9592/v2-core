@@ -5,11 +5,9 @@ import { Tick } from "../ticks/Tick.sol";
 
 import { Oracle } from "../../storage/Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { Time } from "..//time/Time.sol";
+import { Time } from "../time/Time.sol";
 import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
-
-import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, UNIT, wrap, sqrt, ZERO, convert } from "@prb/math/UD60x18.sol";

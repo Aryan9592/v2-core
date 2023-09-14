@@ -13,6 +13,10 @@ import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { PoolConfiguration } from "./PoolConfiguration.sol";
+
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
  *
@@ -77,6 +81,11 @@ library DatedIrsVamm {
         int256 trackerQuoteTokenGrowthGlobalX128;
         /// @dev total amount of base tokens in vamm
         int256 trackerBaseTokenGrowthGlobalX128;
+
+        int256 trackerAccruedInterestGrowthGlobalX128;
+        uint256 trackerLastMTMTimestampGlobal;
+        UD60x18 trackerLastMTMRateIndexGlobal;
+        
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;
         /// @dev map from tick to tick bitmap
@@ -197,7 +206,7 @@ library DatedIrsVamm {
             liquidityDelta
         );
     }
-    
+
     /// @notice For a given LP account, how much liquidity is available to trade in each direction.
     /// @param accountId The LP account. All positions within the account will be considered.
     /// @return unfilled The unfilled base and quote balances
@@ -213,7 +222,25 @@ library DatedIrsVamm {
     function getAccountFilledBalances(DatedIrsVamm.Data storage self,uint128 accountId)
     internal
     view
-    returns (int256 /* baseBalancePool */, int256 /* quoteBalancePool */) {
+    returns (int256 /* baseBalancePool */, int256 /* quoteBalancePool */, int256 /* accruedInterestPool */) {
         return AccountBalances.getAccountFilledBalances(self, accountId);
+    }
+
+    function getNewMTMTimestampAndRateIndex(
+        Data storage self
+    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
+        if (block.timestamp < self.immutableConfig.maturityTimestamp) {
+            newMTMTimestamp = block.timestamp;
+            newMTMRateIndex = PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex();
+        } else {
+            newMTMTimestamp = self.immutableConfig.maturityTimestamp;
+            newMTMRateIndex = 
+                IRateOracleModule(
+                    PoolConfiguration.load().marketManagerAddress
+                ).getRateIndexMaturity(
+                    self.immutableConfig.marketId, 
+                    self.immutableConfig.maturityTimestamp
+                );
+        }
     }
 }

@@ -19,6 +19,7 @@ interface IMarketConfigurationModule {
      * @notice Creates a market
      * @param marketId The market id
      * @param quoteToken The quote token of the market
+     * @param marketType The type of the market
      *
      * Requirements:
      *
@@ -27,7 +28,7 @@ interface IMarketConfigurationModule {
      * Emits a {MarketCreated} event.
      *
      */
-    function createMarket(uint128 marketId, address quoteToken) external;
+    function createMarket(uint128 marketId, address quoteToken, bytes32 marketType) external;
 
     /**
      * @notice Sets the market configuration

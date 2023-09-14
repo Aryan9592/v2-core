@@ -225,8 +225,6 @@ contract ExecutionModule {
             );
             return abi.encode(result, fee);
         } else if (command == V2_MARKET_MANAGER_COMPLETE_POSITION) {
-            /// todo: remove during tokenization logic
-            
             (bytes memory result, int256 cashflowAmount) = 
                 marketManager.completeOrder(accountId, marketId, inputs);
 

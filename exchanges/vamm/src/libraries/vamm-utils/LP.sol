@@ -16,11 +16,15 @@ import { LiquidityMath } from "../math/LiquidityMath.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
+
 library LP {
     using LPPosition for LPPosition.Data;
     using SetUtil for SetUtil.UintSet;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
+    using DatedIrsVamm for DatedIrsVamm.Data;
 
     /**
      * @notice Executes a dated maker order that provides liquidity to (or removes liquidty from) this VAMM
@@ -61,12 +65,15 @@ library LP {
 
         // this also checks if the position has enough liquidity to burn
         {
-            (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128) = 
-                computeGrowthInside(self, position.tickLower, position.tickUpper);
-
+            (
+                int256 quoteTokenGrowthInsideX128,
+                int256 baseTokenGrowthInsideX128,
+                int256 accruedInterestGrowthInsideX128
+            ) = computeGrowthInside(self, tickLower, tickUpper);
             position.updateTokenBalances(
                 quoteTokenGrowthInsideX128,
-                baseTokenGrowthInsideX128
+                baseTokenGrowthInsideX128,
+                accruedInterestGrowthInsideX128
             );
         }
 
@@ -93,7 +100,7 @@ library LP {
     )
         private
         view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
+        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128, int256 accruedInterestGrowthInsideX128)
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
@@ -112,6 +119,29 @@ library LP {
                 tickUpper: tickUpper,
                 tickCurrent: self.vars.tick,
                 quoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128
+            })
+        );
+
+        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
+            self.getNewMTMTimestampAndRateIndex();
+        
+        int256 latestTrackerAccruedInterestGrowthGlobalX128 = 
+            self.vars.trackerAccruedInterestGrowthGlobalX128 +
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.vars.trackerLastMTMTimestampGlobal,
+                newMTMTimestamp,
+                self.vars.trackerLastMTMRateIndexGlobal,
+                newMTMRateIndex
+            );
+
+        accruedInterestGrowthInsideX128 = self.vars.ticks.getAccruedInterestGrowthInside(
+            Tick.AccruedInterestGrowthInsideParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                tickCurrent: self.vars.tick,
+                accruedInterestGrowthGlobalX128: latestTrackerAccruedInterestGrowthGlobalX128
             })
         );
     }

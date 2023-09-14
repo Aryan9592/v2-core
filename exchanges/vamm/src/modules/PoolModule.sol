@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import { Twap } from "../libraries/vamm-utils/Twap.sol";
-import { TickMath } from "../libraries/ticks/TickMath.sol";
-import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
-import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
-import { IPoolModule, IPool } from "../interfaces/IPoolModule.sol";
-import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
-import { LPPosition } from "../storage/LPPosition.sol";
-import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
-
-import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+
+import {IPoolModule} from "../interfaces/IPoolModule.sol";
+
+import {Twap} from "../libraries/vamm-utils/Twap.sol";
+import {VammTicks} from "../libraries/vamm-utils/VammTicks.sol";
+import {TickMath} from "../libraries/ticks/TickMath.sol";
+import {VammHelpers} from "../libraries/vamm-utils/VammHelpers.sol";
+
+import {DatedIrsVamm} from "../storage/DatedIrsVamm.sol";
+import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
+import {LPPosition} from "../storage/LPPosition.sol";
+
+import {SafeCastU128, SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
 
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
@@ -146,7 +152,7 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (int256 baseBalancePool, int256 quoteBalancePool){     
+        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool){     
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.getAccountFilledBalances(accountId);
     

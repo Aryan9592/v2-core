@@ -6,6 +6,7 @@ import { TickMath } from "../ticks/TickMath.sol";
 
 import { UD60x18, ZERO, ud } from "@prb/math/UD60x18.sol";
 
+import {TickMath} from "../ticks/TickMath.sol";
 import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
 import {VammCustomErrors} from "./VammCustomErrors.sol";
 import {FixedPoint96} from "../math/FixedPoint96.sol";
