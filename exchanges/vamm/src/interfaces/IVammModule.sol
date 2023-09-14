@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "../libraries/vamm-utils/VammConfiguration.sol";
-import "../storage/LPPosition.sol";
+import {VammConfiguration} from "../libraries/vamm-utils/VammConfiguration.sol";
+import {Tick} from "../libraries/ticks/Tick.sol";
+import {LPPosition} from "../storage/LPPosition.sol";
+import {Oracle} from "../storage/Oracle.sol";
 
 interface IVammModule {
   /// @dev Emitted when vamm configurations are updated

@@ -3,13 +3,14 @@ pragma solidity >=0.8.13;
 
 import "../ticks/Tick.sol";
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 import { VammCustomErrors } from "../../libraries/errors/VammCustomErrors.sol";
 
-import "../../storage/Oracle.sol";
-import "../../storage/DatedIrsVamm.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import { TickMath } from "../../libraries/ticks/TickMath.sol";
+import { VammCustomErrors } from "../../libraries/errors/VammCustomErrors.sol";
+
+import {Oracle} from "../../storage/Oracle.sol";
+import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
 
 /**
  * @title Tracks configurations for dated irs markets
@@ -76,6 +77,11 @@ library VammConfiguration {
         int256 trackerQuoteTokenGrowthGlobalX128;
         /// @dev total amount of base tokens in vamm
         int256 trackerBaseTokenGrowthGlobalX128;
+
+        int256 trackerAccruedInterestGrowthGlobalX128;
+        uint256 trackerLastMTMTimestampGlobal;
+        UD60x18 trackerLastMTMRateIndexGlobal;
+
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) _ticks;
         /// @dev map from tick to tick bitmap

@@ -3,11 +3,14 @@ pragma solidity >=0.8.13;
 
 import "../ticks/Tick.sol";
 
-import { UD60x18, UNIT, wrap, sqrt } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, wrap, sqrt, ZERO, convert } from "@prb/math/UD60x18.sol";
 
-import "../../storage/Oracle.sol";
-import "../../storage/DatedIrsVamm.sol";
-import "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
+import {Oracle} from "../../storage/Oracle.sol";
+import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
+
+import {VammTicks} from "./VammTicks.sol";
+import {VammCustomErrors} from "../errors/VammCustomErrors.sol";
+import {Time} from "../time/Time.sol";
 
 /**
  * @title Tracks configurations for dated irs markets

@@ -62,6 +62,7 @@ contract ConfigProtocol is SetupProtocol {
     configureMarket({
       tokenAddress: Utils.getUSDCAddress(metadata.chainId),
       marketId: 1,
+      marketType: "compounding",
       feeCollectorAccountId: 999,
       cap: 1000e6,
       atomicMakerFee: ud60x18(1e16),

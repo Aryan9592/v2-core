@@ -2,23 +2,23 @@
 
 pragma solidity >=0.8.13;
 
-import "../ticks/Tick.sol";
-import "../ticks/TickBitmap.sol";
-import {VammConfiguration} from "./VammConfiguration.sol";
+import {Tick} from "../ticks/Tick.sol";
+import {TickMath} from "../ticks/TickMath.sol";
+import {TickBitmap} from "../ticks/TickBitmap.sol";
 
+import {FullMath} from "../math/FullMath.sol";
+import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import "../math/FullMath.sol";
-import "../math/FixedPoint96.sol";
-import "../math/FixedPoint128.sol";
+import {Time} from "../time/Time.sol";
 
-import "../time/Time.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
-import { UD60x18, unwrap, convert as convert_ud, ZERO, UNIT } from "@prb/math/UD60x18.sol";
-import { SD59x18, convert as convert_sd } from "@prb/math/SD59x18.sol";
+import { UD60x18, ZERO, UNIT } from "@prb/math/UD60x18.sol";
 
 import { ud60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -71,6 +71,7 @@ library VammHelpers {
         int256 trackerQuoteTokenGrowthGlobalX128;
         /// @dev the global variable token growth
         int256 trackerBaseTokenGrowthGlobalX128;
+        int256 trackerAccruedInterestGrowthGlobalX128;
         /// @dev the current liquidity in range
         uint128 liquidity;
         /// @dev quoteTokenDelta that will be applied to the quote token balance of the position executing the swap
@@ -92,7 +93,7 @@ library VammHelpers {
         uint256 amountIn;
         /// @dev how much is being swapped out
         uint256 amountOut;
-        int256 unbalancedQuoteTokenDelta;
+        UD60x18 averagePrice;
         /// @dev ...
         int256 quoteTokenDelta; // for LP
         /// @dev ...
@@ -127,34 +128,30 @@ library VammHelpers {
     }
 
     function calculateQuoteTokenDelta(
-        int256 unbalancedQuoteTokenDelta,
         int256 baseTokenDelta,
-        UD60x18 yearsUntilMaturity,
-        UD60x18 currentOracleValue,
-        UD60x18 spread
+        UD60x18 averagePrice,
+        UD60x18 spread,
+        uint128 marketId
     ) 
         internal
-        pure
+        view
         returns (
-            int256 balancedQuoteTokenDelta
+            int256 quoteTokenDelta
         )
     {
-        UD60x18 averagePrice = SD59x18.wrap(
-            unbalancedQuoteTokenDelta
-        ).div(SD59x18.wrap(baseTokenDelta)).div(
-            convert_sd(-100)
-        ).intoUD60x18();
-
         UD60x18 averagePriceWithSpread = averagePrice.add(spread);
         if (baseTokenDelta > 0) {
             averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
         }
 
-        balancedQuoteTokenDelta = SD59x18.wrap(
-            -baseTokenDelta
-        ).mul(currentOracleValue.intoSD59x18()).mul(
-            UNIT.add(averagePriceWithSpread.mul(yearsUntilMaturity)).intoSD59x18()
-        ).unwrap();
+        int256[] memory baseAmounts = new int256[](1);
+        baseAmounts[0] = baseTokenDelta;
+        int256[] memory exposures = ExposureHelpers.baseToExposure(
+            baseAmounts,
+            marketId
+        );
+
+        quoteTokenDelta = mulUDxInt(UNIT.add(averagePriceWithSpread), -exposures[0]);
     }
 
     function calculateGlobalTrackerValues(
@@ -205,5 +202,4 @@ library VammHelpers {
 
         return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
-    
 }

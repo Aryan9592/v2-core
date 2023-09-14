@@ -20,7 +20,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -41,9 +41,11 @@ library ExposureHelpers {
 
         int256 baseBalance;
         int256 quoteBalance;
+        int256 accruedInterest;
 
         int256 baseBalancePool;
         int256 quoteBalancePool;
+        int256 accruedInterestPool;
 
         uint256 unfilledBaseLong;
         uint256 unfilledQuoteLong;
@@ -96,16 +98,29 @@ library ExposureHelpers {
         unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
     }
 
+    function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
+        bytes32 marketType = Market.exists(marketId).marketType;
+        if (marketType == Market.LINEAR_MARKET) {
+            return UNIT;
+        } else if (marketType == Market.COMPOUNDING_MARKET) {
+            UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
+            return currentLiquidityIndex;
+        }
+
+        revert Market.UnsupportedMarketType(marketType);
+    }
+
     /**
      * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
      * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
      * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
      * underlying rate oracle (e.g. aUSDC lend rate oracle)
      */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18 factor) {
-        UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
+    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        factor = currentLiquidityIndex.mul(timeDeltaAnnualized);
+        UD60x18 factor = exposureFactor(marketId);
+
+        return timeDeltaAnnualized.mul(factor);
     }
 
     function baseToAnnualizedExposure(
@@ -115,10 +130,26 @@ library ExposureHelpers {
     )
         internal
         view
+        returns (int256[] memory annualizedExposures)
+    {
+        annualizedExposures = new int256[](baseAmounts.length);
+        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
+
+        for (uint256 i = 0; i < baseAmounts.length; i++) {
+            annualizedExposures[i] = mulUDxInt(factor, baseAmounts[i]);
+        }
+    }
+
+    function baseToExposure(
+        int256[] memory baseAmounts,
+        uint128 marketId
+    )
+        internal
+        view
         returns (int256[] memory exposures)
     {
         exposures = new int256[](baseAmounts.length);
-        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
+        UD60x18 factor = exposureFactor(marketId);
 
         for (uint256 i = 0; i < baseAmounts.length; i++) {
             exposures[i] = mulUDxInt(factor, baseAmounts[i]);
@@ -230,5 +261,19 @@ library ExposureHelpers {
                 revert OpenInterestLimitExceeded(upperLimit, currentOpenInterest);
             }
         }
+    }
+
+    function getMTMAccruedInterest(
+        int256 baseBalance,
+        int256 quoteBalance,
+        uint256 fromTimestamp, 
+        uint256 toTimestamp, 
+        UD60x18 fromRateIndex, 
+        UD60x18 toRateIndex
+    ) internal pure returns (int256 accruedInterest) {
+        UD60x18 annualizedTime = Time.timeDeltaAnnualized(uint32(fromTimestamp), uint32(toTimestamp));
+        return 
+            mulUDxInt(toRateIndex.sub(fromRateIndex), baseBalance) +
+            mulUDxInt(annualizedTime.div(convert_ud(100)), quoteBalance);
     }
 }

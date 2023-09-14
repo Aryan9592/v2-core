@@ -38,6 +38,9 @@ library LPPosition {
         * @dev quote token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
         */
         int256 trackerQuoteTokenUpdatedGrowth;
+
+        int256 trackerAccruedInterestUpdatedGrowth;
+
         /** 
         * @dev variable token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
         */
@@ -56,6 +59,8 @@ library LPPosition {
         * can be negative/positive/zero
         */
         int256 trackerBaseTokenAccumulated;
+
+        int256 trackerAccruedInterestAccumulated;
     }
 
     /**
@@ -103,8 +108,10 @@ library LPPosition {
         Data storage self,
         int256 trackerQuoteTokenUpdatedGrowth,
         int256 trackerBaseTokenUpdatedGrowth,
+        int256 trackerAccruedInterestUpdatedGrowth,
         int256 deltaTrackerQuoteTokenAccumulated,
-        int256 deltaTrackerBaseTokenAccumulated
+        int256 deltaTrackerBaseTokenAccumulated,
+        int256 deltaTrackerAccruedInterestAccumulated
     ) internal {
 
         if (self.accountId == 0) {
@@ -112,8 +119,11 @@ library LPPosition {
         }
         self.trackerQuoteTokenUpdatedGrowth = trackerQuoteTokenUpdatedGrowth;
         self.trackerBaseTokenUpdatedGrowth = trackerBaseTokenUpdatedGrowth;
+        self.trackerAccruedInterestUpdatedGrowth = trackerAccruedInterestUpdatedGrowth;
+
         self.trackerQuoteTokenAccumulated += deltaTrackerQuoteTokenAccumulated;
         self.trackerBaseTokenAccumulated += deltaTrackerBaseTokenAccumulated;
+        self.trackerAccruedInterestAccumulated += deltaTrackerAccruedInterestAccumulated;
     }
 
     function updateLiquidity(Data storage self, int128 liquidityDelta) internal {
@@ -147,23 +157,26 @@ library LPPosition {
     function getUpdatedPositionBalances(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
-        int256 baseTokenGrowthInsideX128
+        int256 baseTokenGrowthInsideX128,
+        int256 accruedInterestGrowthInsideX128
     )
-        internal pure returns (int256, int256) {
+        internal pure returns (int256, int256, int256) {
 
         if (self.accountId == 0) {
             revert PositionNotFound();
         }
 
-        (int256 quoteTokenDelta, int256 baseTokenDelta) = calculateFixedAndVariableDelta(
+        (int256 quoteTokenDelta, int256 baseTokenDelta, int256 accruedInterestDelta) = calculateTrackersDelta(
             self,
             quoteTokenGrowthInsideX128,
-            baseTokenGrowthInsideX128
+            baseTokenGrowthInsideX128,
+            accruedInterestGrowthInsideX128
         );
 
         return (
             self.trackerQuoteTokenAccumulated + quoteTokenDelta,
-            self.trackerBaseTokenAccumulated + baseTokenDelta
+            self.trackerBaseTokenAccumulated + baseTokenDelta,
+            self.trackerAccruedInterestAccumulated + accruedInterestDelta
         );
     }
 
@@ -192,14 +205,15 @@ library LPPosition {
     /// @param baseTokenGrowthInsideX128 variable token growth per unit of liquidity as of now (in wei)
     /// @return _quoteTokenDelta = (quoteTokenGrowthInside-quoteTokenGrowthInsideLast) * liquidity of a position
     /// @return _baseTokenDelta = (baseTokenGrowthInside-baseTokenGrowthInsideLast) * liquidity of a position
-    function calculateFixedAndVariableDelta(
+    function calculateTrackersDelta(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
-        int256 baseTokenGrowthInsideX128
+        int256 baseTokenGrowthInsideX128,
+        int256 accruedInterestGrowthInsideX128 
     )
         internal
         pure
-        returns (int256 _quoteTokenDelta, int256 _baseTokenDelta)
+        returns (int256 _quoteTokenDelta, int256 _baseTokenDelta, int256 _accruedInterestDelta)
     {
         if (self.accountId == 0) {
             revert PositionNotFound();
@@ -219,6 +233,15 @@ library LPPosition {
 
         _baseTokenDelta = FullMath.mulDivSigned(
             baseTokenGrowthInsideDeltaX128,
+            self.liquidity,
+            FixedPoint128.Q128
+        );
+
+        int256 accruedInterestGrowthInsideDeltaX128 = accruedInterestGrowthInsideX128 -
+                self.trackerAccruedInterestUpdatedGrowth;
+
+        _accruedInterestDelta = FullMath.mulDivSigned(
+            accruedInterestGrowthInsideDeltaX128,
             self.liquidity,
             FixedPoint128.Q128
         );

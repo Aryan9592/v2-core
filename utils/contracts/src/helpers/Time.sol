@@ -14,11 +14,15 @@ library Time {
 
     function timestampAsUint32(uint256 _timestamp) internal pure returns (uint32 timestamp) {
         require((timestamp = uint32(_timestamp)) == _timestamp, "TSOFLOW");
+    } 
+
+    function timeDeltaAnnualized(uint32 fromTimestamp, uint32 toTimestamp) internal pure returns (UD60x18 _timeDeltaAnnualized) {
+        _timeDeltaAnnualized = (uint256(toTimestamp) -fromTimestamp).toUD60x18().div(SECONDS_IN_YEAR.toUD60x18());
     }
 
-    function timeDeltaAnnualized(uint32 timestamp) internal view returns (UD60x18 _timeDeltaAnnualized) {
-        if (timestamp > blockTimestampTruncated()) {
-            _timeDeltaAnnualized = (uint256(timestamp) - block.timestamp).toUD60x18().div(SECONDS_IN_YEAR.toUD60x18());
+    function timeDeltaAnnualized(uint32 toTimestamp) internal view returns (UD60x18 _timeDeltaAnnualized) {
+        if (toTimestamp > blockTimestampTruncated()) {
+            _timeDeltaAnnualized = timeDeltaAnnualized(timestampAsUint32(block.timestamp), toTimestamp);
         }
     }
 }

@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import { UD60x18, ZERO } from "@prb/math/UD60x18.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
-import "../libraries/vamm-utils/Twap.sol";
-import "../storage/DatedIrsVamm.sol";
-import "../interfaces/IPoolModule.sol";
+import {IPoolModule} from "../interfaces/IPoolModule.sol";
+
+import {Twap} from "../libraries/vamm-utils/Twap.sol";
+import {VammTicks} from "../libraries/vamm-utils/VammTicks.sol";
+import {TickMath} from "../libraries/ticks/TickMath.sol";
+import {VammHelpers} from "../libraries/vamm-utils/VammHelpers.sol";
+
+import {DatedIrsVamm} from "../storage/DatedIrsVamm.sol";
 import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
+import {LPPosition} from "../storage/LPPosition.sol";
 
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
 
-import "oz/utils/math/SignedMath.sol";
 
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
@@ -145,7 +150,7 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (int256 baseBalancePool, int256 quoteBalancePool){     
+        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool){     
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.getAccountFilledBalances(accountId);
     

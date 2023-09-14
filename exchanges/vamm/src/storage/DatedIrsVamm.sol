@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import "./LPPosition.sol";
-import "./Oracle.sol";
+import {LPPosition} from "./LPPosition.sol";
+import {Oracle} from "./Oracle.sol";
 import {PoolConfiguration} from "./PoolConfiguration.sol";
 
-import "../libraries/vamm-utils/VammHelpers.sol";
-import "../libraries/vamm-utils/VammTicks.sol";
-import "../libraries/vamm-utils/SwapMath.sol";
-import "../libraries/vamm-utils/VammConfiguration.sol";
-import "../libraries/ticks/TickBitmap.sol";
-import "../libraries/time/Time.sol";
-import "../libraries/math/FixedAndVariableMath.sol";
-import "../libraries/errors/VammCustomErrors.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {VammHelpers} from "../libraries/vamm-utils/VammHelpers.sol";
+import {VammTicks} from "../libraries/vamm-utils/VammTicks.sol";
+import {SwapMath} from "../libraries/vamm-utils/SwapMath.sol";
+import {VammConfiguration} from "../libraries/vamm-utils/VammConfiguration.sol";
+import {TickBitmap} from "../libraries/ticks/TickBitmap.sol";
+import {Tick} from "../libraries/ticks/Tick.sol";
+import {TickMath} from "../libraries/ticks/TickMath.sol";
+import {Time} from "../libraries/time/Time.sol";
+import {LiquidityMath} from "../libraries/math/LiquidityMath.sol";
+import {VammCustomErrors} from "../libraries/errors/VammCustomErrors.sol";
 
-import { UD60x18, convert, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, convert as convert_ud, ud } from "@prb/math/UD60x18.sol";
 
 import {SafeCastU256, SafeCastI256, SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -166,6 +171,15 @@ library DatedIrsVamm {
         );
     }
 
+    struct UpdateTrackersParams {
+        int256 _quoteTokenGrowthInsideX128;
+        int256 _baseTokenGrowthInsideX128;
+        int256 _accruedInterestGrowthInsideX128;
+        int256 _quoteTokenDelta;
+        int256 _baseTokenDelta;
+        int256 _accruedInterestDelta;
+    }
+
     /// @notice update position token balances and account for fees
     /// @dev if the _liquidity of the position supplied to this function is >0 then we
     /// @dev 1. retrieve the fixed, variable and fee Growth variables from the vamm by 
@@ -186,32 +200,45 @@ library DatedIrsVamm {
         int24 tickUpper,
         bool isMintBurn
     ) internal {
+        UpdateTrackersParams memory params;
+
         if (position.liquidity > 0) {
             (
-                int256 _quoteTokenGrowthInsideX128,
-                int256 _baseTokenGrowthInsideX128
+                params._quoteTokenGrowthInsideX128,
+                params._baseTokenGrowthInsideX128,
+                params._accruedInterestGrowthInsideX128
             ) = self.computeGrowthInside(tickLower, tickUpper);
-            (int256 _quoteTokenDelta, int256 _baseTokenDelta) = position
-                .calculateFixedAndVariableDelta(
-                    _quoteTokenGrowthInsideX128,
-                    _baseTokenGrowthInsideX128
+            (
+                params._quoteTokenDelta,
+                params._baseTokenDelta,
+                params._accruedInterestDelta
+            ) = position
+                .calculateTrackersDelta(
+                    params._quoteTokenGrowthInsideX128,
+                    params._baseTokenGrowthInsideX128,
+                    params._accruedInterestGrowthInsideX128
                 );
             
             position.updateTrackers(
-                _quoteTokenGrowthInsideX128,
-                _baseTokenGrowthInsideX128,
-                _quoteTokenDelta,
-                _baseTokenDelta
+                params._quoteTokenGrowthInsideX128,
+                params._baseTokenGrowthInsideX128,
+                params._accruedInterestGrowthInsideX128,
+                params._quoteTokenDelta,
+                params._baseTokenDelta,
+                params._accruedInterestDelta
             );
         } else {
             if (isMintBurn) {
                 (
-                    int256 _quoteTokenGrowthInsideX128,
-                    int256 _baseTokenGrowthInsideX128
+                    params._quoteTokenGrowthInsideX128,
+                    params._baseTokenGrowthInsideX128,
+                    params._accruedInterestGrowthInsideX128
                 ) = self.computeGrowthInside(tickLower, tickUpper);
                 position.updateTrackers(
-                    _quoteTokenGrowthInsideX128,
-                    _baseTokenGrowthInsideX128,
+                    params._quoteTokenGrowthInsideX128,
+                    params._baseTokenGrowthInsideX128,
+                    params._accruedInterestGrowthInsideX128,
+                    0,
                     0,
                     0
                 );
@@ -275,6 +302,20 @@ library DatedIrsVamm {
         }
     }
 
+    function vammMarkToMarketGlobal(Data storage self, uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) internal {
+        self.vars.trackerAccruedInterestGrowthGlobalX128 += 
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.vars.trackerLastMTMTimestampGlobal,
+                newMTMTimestamp,
+                self.vars.trackerLastMTMRateIndexGlobal,
+                newMTMRateIndex
+            );
+        self.vars.trackerLastMTMTimestampGlobal = newMTMTimestamp;
+        self.vars.trackerLastMTMRateIndexGlobal = newMTMRateIndex;
+    }
+
     /// @dev Stores fixed values required in each swap step 
     struct SwapFixedValues {
         uint256 secondsTillMaturity;
@@ -309,15 +350,16 @@ library DatedIrsVamm {
             swapFixedValues.tickLimits.maxSqrtRatio
         );
 
-        uint128 liquidityStart = self.vars.liquidity;
+        self.vammMarkToMarketGlobal(block.timestamp, swapFixedValues.liquidityIndex);
 
         VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
-            liquidity: liquidityStart,
+            liquidity: self.vars.liquidity,
             trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
             trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
+            trackerAccruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128,
             quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
             baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
         });
@@ -382,22 +424,21 @@ library DatedIrsVamm {
             if (params.amountSpecified > 0) {
                 // LP is a Variable Taker
                 step.baseTokenDelta = step.amountIn.toInt(); // this is positive
-                step.unbalancedQuoteTokenDelta = -step.amountOut.toInt();
+                step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert_ud(100));
             } else {
                 // LP is a Fixed Taker
-                step.baseTokenDelta = -step.amountOut.toInt();
-                step.unbalancedQuoteTokenDelta = step.amountIn.toInt(); // this is positive
+                step.baseTokenDelta = -step.amountOut.toInt(); // this is negative
+                step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert_ud(100));
             }
 
             ///// UPDATE TRACKERS /////
             state.amountSpecifiedRemaining -= step.baseTokenDelta;
             if (state.liquidity > 0) {
                 step.quoteTokenDelta = VammHelpers.calculateQuoteTokenDelta(
-                    step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
-                    FixedAndVariableMath.accrualFact(swapFixedValues.secondsTillMaturity),
-                    swapFixedValues.liquidityIndex,
-                    self.mutableConfig.spread
+                    step.averagePrice,
+                    self.mutableConfig.spread,
+                    self.immutableConfig.marketId
                 );
 
                 (
@@ -422,7 +463,10 @@ library DatedIrsVamm {
                     int128 liquidityNet = self.vars._ticks.cross(
                         step.tickNext,
                         state.trackerQuoteTokenGrowthGlobalX128,
-                        state.trackerBaseTokenGrowthGlobalX128
+                        state.trackerBaseTokenGrowthGlobalX128,
+                        state.trackerAccruedInterestGrowthGlobalX128,
+                        block.timestamp,
+                        swapFixedValues.liquidityIndex
                     );
 
                     state.liquidity = LiquidityMath.addDelta(
@@ -459,8 +503,7 @@ library DatedIrsVamm {
             self.vars.sqrtPriceX96 = state.sqrtPriceX96;
         }
 
-        // update liquidity if it changed
-        if (liquidityStart != state.liquidity) self.vars.liquidity = state.liquidity;
+        self.vars.liquidity = state.liquidity;
 
         self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
         self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
@@ -558,19 +601,20 @@ library DatedIrsVamm {
     )
         internal
         view
-        returns (int256 baseBalancePool, int256 quoteBalancePool) {
+        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) {
         
         uint256 numPositions = self.vars.positionsInAccount[accountId].length;
 
         for (uint256 i = 0; i < numPositions; i++) {
             LPPosition.Data storage position = LPPosition.exists(self.vars.positionsInAccount[accountId][i]);
-            (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth) = 
+            (int256 trackerQuoteTokenGlobalGrowth, int256 trackerBaseTokenGlobalGrowth, int256 trackerAccruedInterestGlobalGrowth) = 
                 growthBetweenTicks(self, position.tickLower, position.tickUpper);
-            (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated) = 
-                position.getUpdatedPositionBalances(trackerQuoteTokenGlobalGrowth, trackerBaseTokenGlobalGrowth); 
+            (int256 trackerQuoteTokenAccumulated, int256 trackerBaseTokenAccumulated, int256 trackerAccruedInterestAccumulated) = 
+                position.getUpdatedPositionBalances(trackerQuoteTokenGlobalGrowth, trackerBaseTokenGlobalGrowth, trackerAccruedInterestGlobalGrowth); 
 
             baseBalancePool += trackerBaseTokenAccumulated;
             quoteBalancePool += trackerQuoteTokenAccumulated;
+            accruedInterestPool += trackerAccruedInterestAccumulated;
         }
 
     }
@@ -594,21 +638,18 @@ library DatedIrsVamm {
             return (0, 0, 0, 0);
         }
 
-        uint256 secondsTillMaturity = self.immutableConfig.maturityTimestamp - block.timestamp;
         // Compute unfilled tokens in our range and to the left of the current tick
         (unfilledBaseTokensLeft, unfilledQuoteTokensLeft) = self._getUnfilledBalancesLeft(
             tickLower < self.vars.tick ? tickLower : self.vars.tick, // min(tickLower, currentTick)
             tickUpper < self.vars.tick ? tickUpper : self.vars.tick,  // min(tickUpper, currentTick)
-            liquidityPerTick.toInt(),
-            secondsTillMaturity
+            liquidityPerTick.toInt()
         );
 
         // Compute unfilled tokens in our range and to the right of the current tick
         (unfilledBaseTokensRight, unfilledQuoteTokensRight) = self._getUnfilledBalancesRight(
             tickLower > self.vars.tick ? tickLower : self.vars.tick, // max(tickLower, currentTick)
             tickUpper > self.vars.tick ? tickUpper : self.vars.tick,  // max(tickUpper, currentTick)
-            liquidityPerTick.toInt(),
-            secondsTillMaturity
+            liquidityPerTick.toInt()
         );
     }
 
@@ -616,8 +657,7 @@ library DatedIrsVamm {
         Data storage self,
         int24 leftLowerTick,
         int24 leftUpperTick,
-        int128 liquidityPerTick,
-        uint256 secondsTillMaturity
+        int128 liquidityPerTick
     ) 
         internal view
         returns (uint256, uint256) {
@@ -640,11 +680,10 @@ library DatedIrsVamm {
         );
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
         uint256 unfilledQuoteTokensLeft = VammHelpers.calculateQuoteTokenDelta(
-            unbalancedQuoteTokensLeft,
             -(unfilledBaseTokensLeft).toInt(),
-            FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex(),
-            self.mutableConfig.spread
+            ud(SignedMath.abs(unbalancedQuoteTokensLeft)).div(ud(unfilledBaseTokensLeft)),
+            self.mutableConfig.spread,
+            self.immutableConfig.marketId
         ).toUint();
 
         return (unfilledBaseTokensLeft, unfilledQuoteTokensLeft);
@@ -654,8 +693,7 @@ library DatedIrsVamm {
         Data storage self,
         int24 rightLowerTick,
         int24 rightUpperTick,
-        int128 liquidityPerTick,
-        uint256 secondsTillMaturity
+        int128 liquidityPerTick
     ) 
         internal view
         returns (uint256, uint256){
@@ -679,16 +717,21 @@ library DatedIrsVamm {
 
         // unfilledQuoteTokensRight is negative
         uint256 unfilledQuoteTokensRight = (-VammHelpers.calculateQuoteTokenDelta(
-            unbalancedQuoteTokensRight,
             unfilledBaseTokensRight.toInt(),
-            FixedAndVariableMath.accrualFact(secondsTillMaturity),
-            PoolConfiguration
-                .getRateOracle(self.immutableConfig.marketId)
-                .getCurrentIndex(),
-            self.mutableConfig.spread
+            ud(SignedMath.abs(unbalancedQuoteTokensRight)).div(ud(unfilledBaseTokensRight)),
+            self.mutableConfig.spread,
+            self.immutableConfig.marketId
         )).toUint();
 
         return (unfilledBaseTokensRight, unfilledQuoteTokensRight);
+    }
+
+    struct GrowthBetweenTickVars {
+        uint256 newMTMTimestamp;
+        UD60x18 newMTMRateIndex;
+        int256 latestLowerTrackerAccruedInterestGrowthOutsideX128;
+        int256 latestUpperTrackerAccruedInterestGrowthOutsideX128;
+        int256 latestTrackerAccruedInterestGrowthGlobalX128;
     }
 
     function growthBetweenTicks(
@@ -697,42 +740,88 @@ library DatedIrsVamm {
         int24 tickUpper
     ) internal view returns (
         int256 trackerQuoteTokenGrowthBetween,
-        int256 trackerBaseTokenGrowthBetween
+        int256 trackerBaseTokenGrowthBetween,
+        int256 trackerAccruedInterestGrowthBetween
     )
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
+        GrowthBetweenTickVars memory vars;
+
+        (vars.newMTMTimestamp, vars.newMTMRateIndex) = 
+            self.getNewMTMTimestampAndRateIndex();
+
         int256 trackerQuoteTokenBelowLowerTick;
         int256 trackerBaseTokenBelowLowerTick;
+        int256 trackerAccruedInterestBelowLowerTick;
+
+        vars.latestLowerTrackerAccruedInterestGrowthOutsideX128 = 
+            self.vars._ticks[tickLower].trackerAccruedInterestGrowthOutsideX128 +
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars._ticks[tickLower].trackerBaseTokenGrowthOutsideX128,
+                self.vars._ticks[tickLower].trackerQuoteTokenGrowthOutsideX128,
+                self.vars._ticks[tickLower].trackerLastMTMTimestampOutside,
+                vars.newMTMTimestamp,
+                self.vars._ticks[tickLower].trackerLastMTMRateIndexOutside,
+                vars.newMTMRateIndex
+            );
+        vars.latestUpperTrackerAccruedInterestGrowthOutsideX128 = 
+            self.vars._ticks[tickUpper].trackerAccruedInterestGrowthOutsideX128 +
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars._ticks[tickUpper].trackerBaseTokenGrowthOutsideX128,
+                self.vars._ticks[tickUpper].trackerQuoteTokenGrowthOutsideX128,
+                self.vars._ticks[tickUpper].trackerLastMTMTimestampOutside,
+                vars.newMTMTimestamp,
+                self.vars._ticks[tickUpper].trackerLastMTMRateIndexOutside,
+                vars.newMTMRateIndex
+            );
+        vars.latestTrackerAccruedInterestGrowthGlobalX128 = 
+            self.vars.trackerAccruedInterestGrowthGlobalX128 +
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.vars.trackerLastMTMTimestampGlobal,
+                vars.newMTMTimestamp,
+                self.vars.trackerLastMTMRateIndexGlobal,
+                vars.newMTMRateIndex
+            );
 
         if (tickLower <= self.vars.tick) {
             trackerQuoteTokenBelowLowerTick = self.vars._ticks[tickLower].trackerQuoteTokenGrowthOutsideX128;
             trackerBaseTokenBelowLowerTick = self.vars._ticks[tickLower].trackerBaseTokenGrowthOutsideX128;
+            trackerAccruedInterestBelowLowerTick = vars.latestLowerTrackerAccruedInterestGrowthOutsideX128;
         } else {
             trackerQuoteTokenBelowLowerTick = self.vars.trackerQuoteTokenGrowthGlobalX128 -
                 self.vars._ticks[tickLower].trackerQuoteTokenGrowthOutsideX128;
             trackerBaseTokenBelowLowerTick = self.vars.trackerBaseTokenGrowthGlobalX128 -
                 self.vars._ticks[tickLower].trackerBaseTokenGrowthOutsideX128;
+            trackerAccruedInterestBelowLowerTick = vars.latestTrackerAccruedInterestGrowthGlobalX128 - 
+                vars.latestLowerTrackerAccruedInterestGrowthOutsideX128;
         }
 
         int256 trackerQuoteTokenAboveUpperTick;
         int256 trackerBaseTokenAboveUpperTick;
+        int256 trackerAccruedInterestAboveUpperTick;
 
         if (tickUpper > self.vars.tick) {
             trackerQuoteTokenAboveUpperTick = self.vars._ticks[tickUpper].trackerQuoteTokenGrowthOutsideX128;
             trackerBaseTokenAboveUpperTick = self.vars._ticks[tickUpper].trackerBaseTokenGrowthOutsideX128;
+            trackerAccruedInterestAboveUpperTick = vars.latestUpperTrackerAccruedInterestGrowthOutsideX128;
         } else {
             trackerQuoteTokenAboveUpperTick = self.vars.trackerQuoteTokenGrowthGlobalX128 -
                 self.vars._ticks[tickUpper].trackerQuoteTokenGrowthOutsideX128;
             trackerBaseTokenAboveUpperTick = self.vars.trackerBaseTokenGrowthGlobalX128 -
                 self.vars._ticks[tickUpper].trackerBaseTokenGrowthOutsideX128;
+            trackerAccruedInterestAboveUpperTick = vars.latestTrackerAccruedInterestGrowthGlobalX128 - 
+                vars.latestUpperTrackerAccruedInterestGrowthOutsideX128;
         }
 
         trackerQuoteTokenGrowthBetween = 
             self.vars.trackerQuoteTokenGrowthGlobalX128 - trackerQuoteTokenBelowLowerTick - trackerQuoteTokenAboveUpperTick;
         trackerBaseTokenGrowthBetween = 
             self.vars.trackerBaseTokenGrowthGlobalX128 - trackerBaseTokenBelowLowerTick - trackerBaseTokenAboveUpperTick;
-
+        trackerAccruedInterestGrowthBetween = 
+            vars.latestTrackerAccruedInterestGrowthGlobalX128 - trackerAccruedInterestBelowLowerTick - trackerAccruedInterestAboveUpperTick;
     }
 
     function computeGrowthInside(
@@ -742,9 +831,8 @@ library DatedIrsVamm {
     )
         internal
         view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
+        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128, int256 accruedInterestGrowthInsideX128)
     {
-
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
         baseTokenGrowthInsideX128 = self.vars._ticks.getBaseTokenGrowthInside(
@@ -765,6 +853,28 @@ library DatedIrsVamm {
             })
         );
 
+        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
+            self.getNewMTMTimestampAndRateIndex();
+        
+        int256 latestTrackerAccruedInterestGrowthGlobalX128 = 
+            self.vars.trackerAccruedInterestGrowthGlobalX128 +
+            ExposureHelpers.getMTMAccruedInterest(
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.vars.trackerLastMTMTimestampGlobal,
+                newMTMTimestamp,
+                self.vars.trackerLastMTMRateIndexGlobal,
+                newMTMRateIndex
+            );
+
+        accruedInterestGrowthInsideX128 = self.vars._ticks.getAccruedInterestGrowthInside(
+            Tick.AccruedInterestGrowthInsideParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                tickCurrent: self.vars.tick,
+                accruedInterestGrowthGlobalX128: latestTrackerAccruedInterestGrowthGlobalX128
+            })
+        );
     }
 
     function flipTicks(
@@ -807,6 +917,24 @@ library DatedIrsVamm {
 
         if (flippedUpper) {
             self.vars._tickBitmap.flipTick(tickUpper, self.immutableConfig._tickSpacing);
+        }
+    }
+
+    function getNewMTMTimestampAndRateIndex(
+        Data storage self
+    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
+        if (block.timestamp < self.immutableConfig.maturityTimestamp) {
+            newMTMTimestamp = block.timestamp;
+            newMTMRateIndex = PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex();
+        } else {
+            newMTMTimestamp = self.immutableConfig.maturityTimestamp;
+            newMTMRateIndex = 
+                IRateOracleModule(
+                    PoolConfiguration.load().marketManagerAddress
+                ).getRateIndexMaturity(
+                    self.immutableConfig.marketId, 
+                    self.immutableConfig.maturityTimestamp
+                );
         }
     }
 }

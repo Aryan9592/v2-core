@@ -2,10 +2,12 @@
 
 pragma solidity >=0.8.13;
 
-import "../math/LiquidityMath.sol";
-import "./TickMath.sol";
+import {LiquidityMath} from "../math/LiquidityMath.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastI256, SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
+import {UD60x18} from "@prb/math/UD60x18.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -25,6 +27,11 @@ library Tick {
         /// @dev only has relative meaning, not absolute — the value depends on when the tick is initialized
         int256 trackerQuoteTokenGrowthOutsideX128;
         int256 trackerBaseTokenGrowthOutsideX128;
+
+        int256 trackerAccruedInterestGrowthOutsideX128;
+        uint256 trackerLastMTMTimestampOutside;
+        UD60x18 trackerLastMTMRateIndexOutside;
+
         /// @dev true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
         /// @dev these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
         bool initialized;
@@ -114,6 +121,30 @@ library Tick {
         );
     }
 
+    struct AccruedInterestGrowthInsideParams {
+        int24 tickLower;
+        int24 tickUpper;
+        int24 tickCurrent;
+        int256 accruedInterestGrowthGlobalX128;
+    }
+
+    function getAccruedInterestGrowthInside(
+        mapping(int24 => Tick.Info) storage self,
+        AccruedInterestGrowthInsideParams memory params
+    ) internal view returns (int256 accruedInterestGrowthInsideX128) {
+        Info storage lower = self[params.tickLower];
+        Info storage upper = self[params.tickUpper];
+
+        accruedInterestGrowthInsideX128 = _getGrowthInside(
+            params.tickLower,
+            params.tickUpper,
+            params.tickCurrent,
+            params.accruedInterestGrowthGlobalX128,
+            lower.trackerAccruedInterestGrowthOutsideX128,
+            upper.trackerAccruedInterestGrowthOutsideX128
+        );
+    }
+
     /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The tick that will be updated
@@ -194,9 +225,23 @@ library Tick {
         mapping(int24 => Tick.Info) storage self,
         int24 tick,
         int256 quoteTokenGrowthGlobalX128,
-        int256 baseTokenGrowthGlobalX128
+        int256 baseTokenGrowthGlobalX128,
+        int256 accruedInterestGrowthGlobalX128,
+        uint256 newMTMTimestamp,
+        UD60x18 newMTMRateIndex
     ) internal returns (int128 liquidityNet) {
         Tick.Info storage info = self[tick];
+
+        info.trackerAccruedInterestGrowthOutsideX128 += ExposureHelpers.getMTMAccruedInterest(
+            info.trackerBaseTokenGrowthOutsideX128,
+            info.trackerQuoteTokenGrowthOutsideX128,
+            info.trackerLastMTMTimestampOutside,
+            newMTMTimestamp,
+            info.trackerLastMTMRateIndexOutside,
+            newMTMRateIndex
+        );
+        info.trackerLastMTMTimestampOutside = newMTMTimestamp;
+        info.trackerLastMTMRateIndexOutside = newMTMRateIndex;
 
         info.trackerQuoteTokenGrowthOutsideX128 =
             quoteTokenGrowthGlobalX128 -
@@ -205,6 +250,10 @@ library Tick {
         info.trackerBaseTokenGrowthOutsideX128 =
             baseTokenGrowthGlobalX128 -
             info.trackerBaseTokenGrowthOutsideX128;
+
+        info.trackerAccruedInterestGrowthOutsideX128 = 
+            accruedInterestGrowthGlobalX128 -
+            info.trackerAccruedInterestGrowthOutsideX128;
 
         liquidityNet = info.liquidityNet;
     }
