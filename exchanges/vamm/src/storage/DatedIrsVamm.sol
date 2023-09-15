@@ -13,9 +13,7 @@ import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { PoolConfiguration } from "./PoolConfiguration.sol";
-
-import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -82,9 +80,7 @@ library DatedIrsVamm {
         /// @dev total amount of base tokens in vamm
         int256 trackerBaseTokenGrowthGlobalX128;
 
-        int256 trackerAccruedInterestGrowthGlobalX128;
-        uint256 trackerLastMTMTimestampGlobal;
-        UD60x18 trackerLastMTMRateIndexGlobal;
+        ExposureHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
         
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;
@@ -224,23 +220,5 @@ library DatedIrsVamm {
     view
     returns (int256 /* baseBalancePool */, int256 /* quoteBalancePool */, int256 /* accruedInterestPool */) {
         return AccountBalances.getAccountFilledBalances(self, accountId);
-    }
-
-    function getNewMTMTimestampAndRateIndex(
-        Data storage self
-    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
-        if (block.timestamp < self.immutableConfig.maturityTimestamp) {
-            newMTMTimestamp = block.timestamp;
-            newMTMRateIndex = PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex();
-        } else {
-            newMTMTimestamp = self.immutableConfig.maturityTimestamp;
-            newMTMRateIndex = 
-                IRateOracleModule(
-                    PoolConfiguration.load().marketManagerAddress
-                ).getRateIndexMaturity(
-                    self.immutableConfig.marketId, 
-                    self.immutableConfig.maturityTimestamp
-                );
-        }
     }
 }

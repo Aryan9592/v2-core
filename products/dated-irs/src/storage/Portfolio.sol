@@ -194,7 +194,7 @@ library Portfolio {
 
             baseBalance: self.positions[poolState.maturityTimestamp].baseBalance,
             quoteBalance: self.positions[poolState.maturityTimestamp].quoteBalance,
-            accruedInterest: self.positions[poolState.maturityTimestamp].accruedInterest,
+            accruedInterest: self.positions[poolState.maturityTimestamp].accruedInterestTrackers.accruedInterest,
 
             baseBalancePool: baseBalancePool,
             quoteBalancePool: quoteBalancePool,
@@ -247,12 +247,6 @@ library Portfolio {
         return exposures;
     }
 
-    struct CloseAccountVars {
-        UD60x18 currentRateIndex;
-        uint32 maturityTimestamp;
-        int256 unwindBase;
-    }
-
     /**
      * @dev Fully Close all the positions owned by the account within the dated irs portfolio
      * poolAddress in which to close the account, note in the beginning we'll only have a single pool
@@ -260,30 +254,27 @@ library Portfolio {
     function closeAccount(Data storage self) internal {
         Market.Data storage market = Market.exists(self.marketId);
 
-        CloseAccountVars memory vars;
-        vars.currentRateIndex = market.getRateIndexCurrent();
-
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
-            vars.maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-            Position.Data storage position = self.positions[vars.maturityTimestamp];
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+            Position.Data storage position = self.positions[maturityTimestamp];
             int256[] memory baseAmounts = new int256[](2);
 
             baseAmounts[0] = IPool(
                 market.marketConfig.poolAddress
-            ).closeUnfilledBase(self.marketId, vars.maturityTimestamp, self.accountId);
+            ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
             (int256 filledBasePool,,) = IPool(
                 market.marketConfig.poolAddress
-            ).getAccountFilledBalances(self.marketId, vars.maturityTimestamp, self.accountId);
+            ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
 
-            vars.unwindBase = -(position.baseBalance + filledBasePool);
+            int256 unwindBase = -(position.baseBalance + filledBasePool);
 
             UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
                 self.marketId, 
-                vars.maturityTimestamp, 
+                maturityTimestamp, 
                 DecimalMath.changeDecimals(
-                    vars.unwindBase,
+                    unwindBase,
                     IERC20(market.quoteToken).decimals(),
                     DecimalMath.WAD_DECIMALS
                 ), 
@@ -294,25 +285,25 @@ library Portfolio {
             (baseAmounts[1], executedQuoteAmount) =
                 IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
                     self.marketId, 
-                    vars.maturityTimestamp, 
-                    vars.unwindBase, 
+                    maturityTimestamp, 
+                    unwindBase, 
                     0, 
                     markPrice, 
                     market.marketConfig.markPriceBand
                 );
 
-            position.update(baseAmounts[1], executedQuoteAmount, block.timestamp, vars.currentRateIndex);
+            position.update(baseAmounts[1], executedQuoteAmount, self.marketId, maturityTimestamp);
 
             // position size check
             ExposureHelpers.checkPositionSizeLimit(
-                self.accountId, self.marketId, vars.maturityTimestamp
+                self.accountId, self.marketId, maturityTimestamp
             );
 
             // update open interest
-            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, vars.maturityTimestamp);
+            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, maturityTimestamp);
             ExposureHelpers.checkOpenInterestLimit(
                 self.marketId,
-                vars.maturityTimestamp,
+                maturityTimestamp,
                 (exposures[0] > 0 ? -exposures[0] : exposures[0]) + 
                 (exposures[1] > 0 ? -exposures[1] : exposures[1]) // negative
             );
@@ -322,7 +313,7 @@ library Portfolio {
             emit PositionUpdated(
                 self.accountId, 
                 self.marketId, 
-                vars.maturityTimestamp, 
+                maturityTimestamp, 
                 baseAmounts[1], 
                 executedQuoteAmount, 
                 block.timestamp
@@ -348,10 +339,7 @@ library Portfolio {
             activateMarketMaturity(self, maturityTimestamp);
         }
 
-        Market.Data storage market = Market.exists(self.marketId);
-        UD60x18 rateIndexCurrent = market.getRateIndexCurrent();
-
-        position.update(baseDelta, quoteDelta, block.timestamp, rateIndexCurrent);
+        position.update(baseDelta, quoteDelta, self.marketId, maturityTimestamp);
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, baseDelta, quoteDelta, block.timestamp);
     }
 
@@ -373,8 +361,6 @@ library Portfolio {
 
         Position.Data storage position = self.positions[maturityTimestamp];
 
-        UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
-
         /// @dev reverts if not active
         self.deactivateMarketMaturity(maturityTimestamp);
 
@@ -384,8 +370,8 @@ library Portfolio {
         position.update(
             -marketBase,
             -marketQuote,
-            maturityTimestamp,
-            liquidityIndexMaturity
+            marketId,
+            maturityTimestamp
         );
         /// @dev Note that the settle function will not update the
         /// last MTM timestamp in the VAMM. However, this is not an
@@ -393,7 +379,7 @@ library Portfolio {
         /// cannot be settled anymore.
         (,, int256 accruedInterest) = 
             IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
-        settlementCashflow = accruedInterest + position.accruedInterest;
+        settlementCashflow = accruedInterest + position.accruedInterestTrackers.accruedInterest;
 
         emit PositionUpdated(
             self.accountId, 

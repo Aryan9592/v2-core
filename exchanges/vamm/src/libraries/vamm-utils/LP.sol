@@ -12,12 +12,10 @@ import { VammTicks } from "./VammTicks.sol";
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
+import {AccountBalances} from "./AccountBalances.sol";
 
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-
-import { UD60x18 } from "@prb/math/UD60x18.sol";
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
 library LP {
     using LPPosition for LPPosition.Data;
@@ -69,7 +67,7 @@ library LP {
                 int256 quoteTokenGrowthInsideX128,
                 int256 baseTokenGrowthInsideX128,
                 int256 accruedInterestGrowthInsideX128
-            ) = computeGrowthInside(self, tickLower, tickUpper);
+            ) = AccountBalances.computeGrowthInside(self, tickLower, tickUpper);
             position.updateTokenBalances(
                 quoteTokenGrowthInsideX128,
                 baseTokenGrowthInsideX128,
@@ -90,59 +88,6 @@ library LP {
             tickUpper,
             liquidityDelta,
             block.timestamp
-        );
-    }
-
-    function computeGrowthInside(
-        DatedIrsVamm.Data storage self,
-        int24 tickLower,
-        int24 tickUpper
-    )
-        private
-        view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128, int256 accruedInterestGrowthInsideX128)
-    {
-        VammTicks.checkTicksLimits(tickLower, tickUpper);
-
-        baseTokenGrowthInsideX128 = self.vars.ticks.getBaseTokenGrowthInside(
-            Tick.BaseTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                baseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128
-            })
-        );
-
-        quoteTokenGrowthInsideX128 = self.vars.ticks.getQuoteTokenGrowthInside(
-            Tick.QuoteTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                quoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128
-            })
-        );
-
-        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
-            self.getNewMTMTimestampAndRateIndex();
-        
-        int256 latestTrackerAccruedInterestGrowthGlobalX128 = 
-            self.vars.trackerAccruedInterestGrowthGlobalX128 +
-            ExposureHelpers.getMTMAccruedInterest(
-                self.vars.trackerBaseTokenGrowthGlobalX128,
-                self.vars.trackerQuoteTokenGrowthGlobalX128,
-                self.vars.trackerLastMTMTimestampGlobal,
-                newMTMTimestamp,
-                self.vars.trackerLastMTMRateIndexGlobal,
-                newMTMRateIndex
-            );
-
-        accruedInterestGrowthInsideX128 = self.vars.ticks.getAccruedInterestGrowthInside(
-            Tick.AccruedInterestGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                accruedInterestGrowthGlobalX128: latestTrackerAccruedInterestGrowthGlobalX128
-            })
         );
     }
 

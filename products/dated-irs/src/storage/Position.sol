@@ -9,8 +9,6 @@ pragma solidity >=0.8.19;
 
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 
-import {UD60x18} from "@prb/math/UD60x18.sol";
-
 /**
  * @title Object for tracking a dated irs position
  */
@@ -18,31 +16,23 @@ library Position {
     struct Data {
         int256 baseBalance;
         int256 quoteBalance;
-        int256 accruedInterest;
-		uint256 lastMTMTimestamp;
-		UD60x18 lastMTMRateIndex;
+        ExposureHelpers.AccruedInterestTrackers accruedInterestTrackers;
     }
 
     function update(
         Data storage self, 
         int256 baseDelta, 
         int256 quoteDelta,
-        uint256 newMTMTimestamp,
-        UD60x18 newMTMRateIndex
+        uint128 marketId,
+        uint32 maturityTimestamp
     ) internal {
-        if (self.lastMTMTimestamp < newMTMTimestamp) {
-            self.accruedInterest += 
-                ExposureHelpers.getMTMAccruedInterest(
-                    self.baseBalance,
-                    self.quoteBalance,
-                    self.lastMTMTimestamp,
-                    newMTMTimestamp,
-                    self.lastMTMRateIndex,
-                    newMTMRateIndex
-                );
-            self.lastMTMTimestamp = newMTMTimestamp;
-            self.lastMTMRateIndex = newMTMRateIndex;
-        }
+        self.accruedInterestTrackers = ExposureHelpers.getMTMAccruedInterestTrackers(
+            self.accruedInterestTrackers,
+            self.baseBalance,
+            self.quoteBalance,
+            marketId,
+            maturityTimestamp
+        );
         
         self.baseBalance += baseDelta;
         self.quoteBalance += quoteDelta;

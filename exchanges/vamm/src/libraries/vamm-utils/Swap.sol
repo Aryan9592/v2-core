@@ -35,20 +35,6 @@ library Swap {
         UD60x18 liquidityIndex;
     }
 
-    function vammMarkToMarketGlobal(DatedIrsVamm.Data storage self, uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) internal {
-        self.vars.trackerAccruedInterestGrowthGlobalX128 += 
-            ExposureHelpers.getMTMAccruedInterest(
-                self.vars.trackerBaseTokenGrowthGlobalX128,
-                self.vars.trackerQuoteTokenGrowthGlobalX128,
-                self.vars.trackerLastMTMTimestampGlobal,
-                newMTMTimestamp,
-                self.vars.trackerLastMTMRateIndexGlobal,
-                newMTMRateIndex
-            );
-        self.vars.trackerLastMTMTimestampGlobal = newMTMTimestamp;
-        self.vars.trackerLastMTMRateIndexGlobal = newMTMRateIndex;
-    }
-
     function vammSwap(
         DatedIrsVamm.Data storage self,
         DatedIrsVamm.SwapParams memory params
@@ -85,7 +71,14 @@ library Swap {
             "SPL"
         );
 
-        vammMarkToMarketGlobal(self, block.timestamp, swapFixedValues.liquidityIndex);
+        self.vars.trackerAccruedInterestGrowthGlobalX128 = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                self.vars.trackerAccruedInterestGrowthGlobalX128,
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp
+            );
 
         VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
@@ -94,7 +87,7 @@ library Swap {
             liquidity: self.vars.liquidity,
             trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
             trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
-            trackerAccruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128,
+            trackerAccruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128.accruedInterest,
             quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
             baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
         });
@@ -200,8 +193,8 @@ library Swap {
                         state.trackerQuoteTokenGrowthGlobalX128,
                         state.trackerBaseTokenGrowthGlobalX128,
                         state.trackerAccruedInterestGrowthGlobalX128,
-                        block.timestamp,
-                        swapFixedValues.liquidityIndex
+                        self.immutableConfig.marketId,
+                        self.immutableConfig.maturityTimestamp
                     );
 
                     state.liquidity = LiquidityMath.addDelta(
