@@ -17,7 +17,6 @@ import {AccountActiveMarket} from "../libraries/account/AccountActiveMarket.sol"
 import {AccountAutoExchange} from "../libraries/account/AccountAutoExchange.sol";
 import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
 import {AccountExposure} from "../libraries/account/AccountExposure.sol";
-import {AccountMode} from "../libraries/account/AccountMode.sol";
 import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
@@ -40,13 +39,6 @@ library Account {
      * need to be hardcoded here.
      */
     bytes32 internal constant ADMIN_PERMISSION = "ADMIN";
-
-    /**
-     * @dev All account modes used by the system
-     * need to be hardcoded here.
-     */
-    bytes32 constant public SINGLE_TOKEN_MODE = "SINGLE_TOKEN_MODE";
-    bytes32 constant public MULTI_TOKEN_MODE = "MULTI_TOKEN_MODE";
 
     /**
      * @dev Thrown when an account is already created
@@ -180,11 +172,6 @@ library Account {
          */
         uint128 firstMarketId;
 
-        /**
-         * @dev Account mode (i.e. single-token or multi-token mode)
-         */
-        bytes32 accountMode;
-
         // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
         // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
         // synthetix/contracts/storage/Account.sol#L58
@@ -193,7 +180,7 @@ library Account {
     /**
      * @dev Creates an account for the given id, and associates it to the given owner.
      */
-    function create(uint128 id, address owner, bytes32 accountMode) 
+    function create(uint128 id, address owner) 
         internal 
         returns (Data storage account) 
     {
@@ -213,7 +200,6 @@ library Account {
         // set the account details
         account.id = id;
         account.setOwner(owner);
-        AccountMode.setAccountMode(account, accountMode);
     }
 
      /**
@@ -382,11 +368,6 @@ library Account {
         if (marginInfo.initialDelta < 0) {
             revert AccountBelowIM(self.id, marginInfo);
         }
-    }
-
-
-    function changeAccountMode(Data storage self, bytes32 newAccountMode) internal {
-        AccountMode.changeAccountMode(self, newAccountMode);
     }
 
     // todo: during liquidations implementation

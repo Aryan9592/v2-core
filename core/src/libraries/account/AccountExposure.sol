@@ -30,8 +30,6 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
-    error UnsupportedAccountExposure(bytes32 accountMode);
-
     function getMarginInfoByBubble(Account.Data storage account, address token) 
         internal 
         view
@@ -41,15 +39,7 @@ library AccountExposure {
         uint128 collateralPoolId = collateralPool.id;
         UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
 
-        address quoteToken;
-        if (account.accountMode == Account.SINGLE_TOKEN_MODE) {
-            quoteToken = CollateralConfiguration.getQuoteToken(collateralPoolId, token);
-        } else if (account.accountMode == Account.MULTI_TOKEN_MODE) {
-            quoteToken = address(0);
-        } else {
-            revert UnsupportedAccountExposure(account.accountMode);
-        }
-
+        address quoteToken = address(0);
         Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(account, collateralPoolId, quoteToken, imMultiplier); 
 
         if (token == quoteToken) {

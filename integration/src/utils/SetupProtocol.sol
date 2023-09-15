@@ -193,8 +193,7 @@ contract SetupProtocol is BatchScript {
     // create fee collector account owned by protocol owner
     createAccount({
       requestedAccountId: feeCollectorAccountId, 
-      accountOwner: metadata.owner,
-      accountMode: "SINGLE_TOKEN_MODE"
+      accountOwner: metadata.owner
     });
   }
 
@@ -614,16 +613,16 @@ contract SetupProtocol is BatchScript {
 
   // todo: add collateral configuration support
 
-  function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) public {
+  function createAccount(uint128 requestedAccountId, address accountOwner) public {
     if (!settings.multisig) {
       broadcastOrPrank();
-      contracts.coreProxy.createAccount(requestedAccountId, accountOwner, accountMode);
+      contracts.coreProxy.createAccount(requestedAccountId, accountOwner);
     } else {
       addToBatch(
         address(contracts.coreProxy),
         abi.encodeCall(
           contracts.coreProxy.createAccount,
-          (requestedAccountId, accountOwner, accountMode)
+          (requestedAccountId, accountOwner)
         )
       );
     }

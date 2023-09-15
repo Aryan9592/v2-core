@@ -91,7 +91,6 @@ contract ExecutionModule {
             }
         }
 
-        // @0xZenus what happens if account is in single mode?
         marginInfo = Account.exists(accountId).imCheck(address(0));
     }
 
@@ -114,11 +113,7 @@ contract ExecutionModule {
         uint256 command = uint8(commandType & COMMAND_TYPE_MASK);
 
         if (command == V2_CORE_CREATE_ACCOUNT) {
-            bytes32 accountMode;
-            assembly {
-                accountMode := calldataload(inputs.offset)
-            }
-            CreateAccount.createAccount(accountId, msg.sender, accountMode);
+            CreateAccount.createAccount(accountId, msg.sender);
         } else if (command == V2_CORE_DEPOSIT) {
             address collateralType;
             uint256 tokenAmount;
