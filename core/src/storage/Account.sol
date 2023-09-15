@@ -675,13 +675,13 @@ library Account {
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
-            int256 lmDeltaBeforeLiquidation = self.getRequirementDeltasByBubble(quoteToken).liquidationDelta;
+            int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(quoteToken).liquidationDelta;
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
             for (uint256 j = 0; i < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
-            int256 lmDeltaChange = self.getRequirementDeltasByBubble(quoteToken).liquidationDelta
+            int256 lmDeltaChange = self.getMarginInfoByBubble(quoteToken).liquidationDelta
             - lmDeltaBeforeLiquidation;
 
             if (lmDeltaChange < 0) {

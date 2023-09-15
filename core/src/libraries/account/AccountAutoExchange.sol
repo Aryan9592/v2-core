@@ -76,7 +76,6 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-
             Account.MarginInfo memory deltas = 
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],

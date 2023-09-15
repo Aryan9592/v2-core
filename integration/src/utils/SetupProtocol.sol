@@ -170,17 +170,18 @@ contract SetupProtocol is BatchScript {
     uint256 maxNumberOfBidsInLiquidationBidPriorityQueue,
     uint128 feeCollectorAccountId
   ) public {  
-    configureProtocolRisk(
-      collateralPoolId,
-      CollateralPool.RiskConfiguration({
-        imMultiplier:imMultiplier,
-        mmrMultiplier: mmrMultiplier,
-        liquidatorRewardParameter: liquidatorRewardParameter,
-        liquidationBidPriorityQueueDurationInSeconds: liquidationBidPriorityQueueDurationInSeconds,
-        maxNumberOfOrdersInLiquidationBid: maxNumberOfOrdersInLiquidationBid,
-        maxNumberOfBidsInLiquidationBidPriorityQueue: maxNumberOfBidsInLiquidationBidPriorityQueue
-      })
-    );
+    // todo implement once liquidations are completed
+    // configureProtocolRisk(
+    //   collateralPoolId,
+    //   CollateralPool.RiskConfiguration({
+    //     imMultiplier:imMultiplier,
+    //     mmrMultiplier: mmrMultiplier,
+    //     liquidatorRewardParameter: liquidatorRewardParameter,
+    //     liquidationBidPriorityQueueDurationInSeconds: liquidationBidPriorityQueueDurationInSeconds,
+    //     maxNumberOfOrdersInLiquidationBid: maxNumberOfOrdersInLiquidationBid,
+    //     maxNumberOfBidsInLiquidationBidPriorityQueue: maxNumberOfBidsInLiquidationBidPriorityQueue
+    //   })
+    // );
 
     periphery_configure(
       Config.Data({
@@ -207,7 +208,8 @@ contract SetupProtocol is BatchScript {
 
   // todo: alex return new product id to be used in ConfigProtocol.s.sol
   function registerDatedIrsMarketManager(uint256 makerPositionsPerAccountLimit) public {
-    registerMarketManager(address(contracts.datedIrsProxy), "Dated IRS Market Manager");
+    // todo: implement once liquidations is completed
+    // registerMarketManager(address(contracts.datedIrsProxy), "Dated IRS Market Manager");
     
     configureMarketManager(
       MarketManagerConfiguration.Data({
@@ -604,20 +606,21 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function registerMarketManager(address marketManager, string memory name) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.coreProxy.registerMarket(marketManager, name);
-    } else {
-      addToBatch(
-        address(contracts.coreProxy),
-        abi.encodeCall(
-          contracts.coreProxy.registerMarket,
-          (marketManager, name)
-        )
-      );
-    }
-  }
+  // todo: implement once liquidations is completed
+  // function registerMarketManager(address marketManager, string memory name) public {
+  //   if (!settings.multisig) {
+  //     broadcastOrPrank();
+  //     contracts.coreProxy.registerMarket(marketManager, name);
+  //   } else {
+  //     addToBatch(
+  //       address(contracts.coreProxy),
+  //       abi.encodeCall(
+  //         contracts.coreProxy.registerMarket,
+  //         (marketManager, name)
+  //       )
+  //     );
+  //   }
+  // }
 
   // todo: add collateral configuration support
 

@@ -149,6 +149,19 @@ library AccountExposure {
         }
     }
 
+    struct MarginInfoVars {
+        uint256 liquidationMarginRequirement;
+
+        int256 accruedCashflows;
+        int256 lockedPnL;
+        int256 highestUnrealizedLoss;
+
+        uint256 initialMarginRequirement;
+        uint256 maintenanceMarginRequirement;
+        uint256 dutchMarginRequirement;
+        uint256 adlMarginRequirement;
+    }
+
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirement deltas
      * @dev The amounts are in collateral type. 
@@ -165,11 +178,7 @@ library AccountExposure {
         view
         returns (Account.MarginInfo memory marginInfo)
     {
-        uint256 liquidationMarginRequirement = 0;
-
-        int256 accruedCashflows;
-        int256 lockedPnL;
-        int256 highestUnrealizedLoss = 0;
+        MarginInfoVars memory vars;
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
@@ -189,15 +198,15 @@ library AccountExposure {
                 Account.MarketExposure memory exposureLower = makerExposures[j].lower;
                 Account.MarketExposure memory exposureUpper = makerExposures[j].upper;
 
-                accruedCashflows += exposureLower.pnlComponents.accruedCashflows;
-                lockedPnL += exposureLower.pnlComponents.lockedPnL;
+                vars.accruedCashflows += exposureLower.pnlComponents.accruedCashflows;
+                vars.lockedPnL += exposureLower.pnlComponents.lockedPnL;
 
                 uint256 lowerLMR = 
                     computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
 
                 if (equalExposures(exposureLower, exposureUpper)) {
-                    liquidationMarginRequirement += lowerLMR;
-                    highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
+                    vars.liquidationMarginRequirement += lowerLMR;
+                    vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
                 } else {
                     uint256 upperLMR = 
                     computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
@@ -206,33 +215,33 @@ library AccountExposure {
                         lowerLMR.toInt() + exposureLower.pnlComponents.unrealizedPnL >
                         upperLMR.toInt() + exposureUpper.pnlComponents.unrealizedPnL
                     ) {
-                        liquidationMarginRequirement += lowerLMR;
-                        highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
+                        vars.liquidationMarginRequirement += lowerLMR;
+                        vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
                     } else {
-                        liquidationMarginRequirement += upperLMR;
-                        highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
+                        vars.liquidationMarginRequirement += upperLMR;
+                        vars.highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
                     }
                 }
             }
         }
 
         // Get the initial margin requirement
-        uint256 initialMarginRequirement = mulUDxUint(imMultiplier, liquidationMarginRequirement);
+        vars.initialMarginRequirement = mulUDxUint(imMultiplier, vars.liquidationMarginRequirement);
 
         // Get the maintenance margin requirement
-        uint256 maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, liquidationMarginRequirement);
+        vars.maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, vars.liquidationMarginRequirement);
 
         // Get the dutch margin requirement
-        uint256 dutchMarginRequirement  = mulUDxUint(dutchMultiplier, liquidationMarginRequirement);
+        vars.dutchMarginRequirement  = mulUDxUint(dutchMultiplier, vars.liquidationMarginRequirement);
 
         // Get the adl margin requirement
-        uint256 adlMarginRequirement  = mulUDxUint(adlMultiplier, liquidationMarginRequirement);
+        vars.adlMarginRequirement  = mulUDxUint(adlMultiplier, vars.liquidationMarginRequirement);
 
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
 
-        int256 marginBalance = netDeposits + accruedCashflows + lockedPnL + highestUnrealizedLoss;
-        int256 realBalance = netDeposits + accruedCashflows + lockedPnL;
+        int256 marginBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL + vars.highestUnrealizedLoss;
+        int256 realBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL;
         
         // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
         // filled orders should be taken care of in the balance calculations
@@ -241,11 +250,11 @@ library AccountExposure {
             netDeposits: netDeposits,
             marginBalance: marginBalance,
             realBalance: realBalance,
-            initialDelta: marginBalance - initialMarginRequirement.toInt(),
-            maintenanceDelta: marginBalance - maintenanceMarginRequirement.toInt(),
-            liquidationDelta: marginBalance - liquidationMarginRequirement.toInt(),
-            dutchDelta: marginBalance - dutchMarginRequirement.toInt(),
-            adlDelta: marginBalance - adlMarginRequirement.toInt()
+            initialDelta: marginBalance - vars.initialMarginRequirement.toInt(),
+            maintenanceDelta: marginBalance - vars.maintenanceMarginRequirement.toInt(),
+            liquidationDelta: marginBalance - vars.liquidationMarginRequirement.toInt(),
+            dutchDelta: marginBalance - vars.dutchMarginRequirement.toInt(),
+            adlDelta: marginBalance - vars.adlMarginRequirement.toInt()
         });
     }
 

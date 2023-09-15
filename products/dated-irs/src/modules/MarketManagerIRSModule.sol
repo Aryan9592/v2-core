@@ -224,4 +224,9 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         // ensure market is enabled
         FeatureFlagSupport.ensureEnabledMarket(marketId);
     }
+
+    function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view override returns (bool) {
+        // todo: to be implemented
+        return false;
+    }
 }
