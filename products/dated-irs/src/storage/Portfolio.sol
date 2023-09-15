@@ -439,4 +439,38 @@ library Portfolio {
             block.timestamp
         );
     }
+
+    function hasUnfilledOrders(Data storage self) internal view returns (bool) {
+        Market.Data storage market = Market.exists(self.marketId);
+
+        for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+
+            if (
+                IPool(market.marketConfig.poolAddress).hasUnfilledOrders(
+                    self.marketId,
+                    maturityTimestamp,
+                    self.accountId
+                )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function closeAllUnfilledOrders(Data storage self) internal returns (int256 closedUnfilledBasePool) {
+        Market.Data storage market = Market.exists(self.marketId);
+
+        for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+
+            closedUnfilledBasePool += IPool(market.marketConfig.poolAddress).closeUnfilledBase(
+                self.marketId,
+                maturityTimestamp,
+                self.accountId
+            );
+        }
+    }
 }

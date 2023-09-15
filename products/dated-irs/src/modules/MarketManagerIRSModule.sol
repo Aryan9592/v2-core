@@ -84,8 +84,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) external {
-        // todo: needs implementation & a return?
+    function closeAllUnfilledOrders(
+        uint128 marketId, 
+        uint128 accountId
+    ) external override returns (int256 /* closedUnfilledBasePool */) {
+        return Portfolio.exists(accountId, marketId).closeAllUnfilledOrders();
     }
 
     /**
@@ -226,7 +229,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view override returns (bool) {
-        // todo: to be implemented
-        return false;
+        return Portfolio.exists(accountId, marketId).hasUnfilledOrders();
     }
 }

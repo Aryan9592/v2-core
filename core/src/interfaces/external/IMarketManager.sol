@@ -34,7 +34,10 @@ interface IMarketManager is IERC165 {
     /// @notice attempts to close all the unfilled orders of a given account in the market
     // if there are multiple maturities in which the account has active positions, the market is expected to close
     // all of them
-    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) external;
+    function closeAllUnfilledOrders(
+        uint128 marketId, 
+        uint128 accountId
+    ) external returns (int256 /* closedUnfilledBasePool */);
 
     /// @notice returns true if the account has unfilled on-chain orders in the market
     function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view returns (bool);
