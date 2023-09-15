@@ -20,7 +20,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -41,14 +41,22 @@ library ExposureHelpers {
 
         int256 baseBalance;
         int256 quoteBalance;
+        int256 accruedInterest;
 
         int256 baseBalancePool;
         int256 quoteBalancePool;
+        int256 accruedInterestPool;
 
         uint256 unfilledBaseLong;
         uint256 unfilledQuoteLong;
         uint256 unfilledBaseShort;
         uint256 unfilledQuoteShort;
+    }
+
+    struct AccruedInterestTrackers {
+        int256 accruedInterest;
+        uint256 lastMTMTimestamp;
+        UD60x18 lastMTMRateIndex;
     }
 
     function computeUnrealizedLoss(
@@ -96,16 +104,29 @@ library ExposureHelpers {
         unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
     }
 
+    function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
+        bytes32 marketType = Market.exists(marketId).marketType;
+        if (marketType == Market.LINEAR_MARKET) {
+            return UNIT;
+        } else if (marketType == Market.COMPOUNDING_MARKET) {
+            UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
+            return currentLiquidityIndex;
+        }
+
+        revert Market.UnsupportedMarketType(marketType);
+    }
+
     /**
      * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
      * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
      * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
      * underlying rate oracle (e.g. aUSDC lend rate oracle)
      */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18 factor) {
-        UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
+    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        factor = currentLiquidityIndex.mul(timeDeltaAnnualized);
+        UD60x18 factor = exposureFactor(marketId);
+
+        return timeDeltaAnnualized.mul(factor);
     }
 
     function baseToAnnualizedExposure(
@@ -115,10 +136,26 @@ library ExposureHelpers {
     )
         internal
         view
+        returns (int256[] memory annualizedExposures)
+    {
+        annualizedExposures = new int256[](baseAmounts.length);
+        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
+
+        for (uint256 i = 0; i < baseAmounts.length; i++) {
+            annualizedExposures[i] = mulUDxInt(factor, baseAmounts[i]);
+        }
+    }
+
+    function baseToExposure(
+        int256[] memory baseAmounts,
+        uint128 marketId
+    )
+        internal
+        view
         returns (int256[] memory exposures)
     {
         exposures = new int256[](baseAmounts.length);
-        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
+        UD60x18 factor = exposureFactor(marketId);
 
         for (uint256 i = 0; i < baseAmounts.length; i++) {
             exposures[i] = mulUDxInt(factor, baseAmounts[i]);
@@ -142,7 +179,11 @@ library ExposureHelpers {
                 poolState.annualizedExposureFactor, 
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
             ),
-            unrealizedLoss: unrealizedLossLower
+            pnlComponents: Account.PnLComponents({
+                accruedCashflows: 0,     // todo: during tokenization implementation
+                lockedPnL: 0,            // todo: during tokenization implementation
+                unrealizedPnL: -unrealizedLossLower.toInt()
+            })
         });
     }
 
@@ -163,7 +204,11 @@ library ExposureHelpers {
                 poolState.annualizedExposureFactor,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
             ),
-            unrealizedLoss: unrealizedLossUpper
+            pnlComponents: Account.PnLComponents({
+                accruedCashflows: 0,     // todo: during tokenization implementation
+                lockedPnL: 0,            // todo: during tokenization implementation
+                unrealizedPnL: -unrealizedLossUpper.toInt()
+            })
         });
     }
 
@@ -221,6 +266,48 @@ library ExposureHelpers {
             if (currentOpenInterest > upperLimit) {
                 revert OpenInterestLimitExceeded(upperLimit, currentOpenInterest);
             }
+        }
+    }
+
+    function getNewMTMTimestampAndRateIndex(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
+        Market.Data storage market = Market.exists(marketId);
+
+        if (block.timestamp < maturityTimestamp) {
+            newMTMTimestamp = block.timestamp;
+            newMTMRateIndex = market.getRateIndexCurrent();
+        } else {
+            newMTMTimestamp = maturityTimestamp;
+            newMTMRateIndex = market.getRateIndexMaturity(maturityTimestamp);
+        }
+    }
+
+    function getMTMAccruedInterestTrackers(
+        AccruedInterestTrackers memory accruedInterestTrackers,
+        int256 baseBalance,
+        int256 quoteBalance,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
+        mtmAccruedInterestTrackers = accruedInterestTrackers;
+
+        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
+            getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
+
+        if (accruedInterestTrackers.lastMTMTimestamp < newMTMTimestamp) {
+            UD60x18 annualizedTime = 
+                Time.timeDeltaAnnualized(uint32(accruedInterestTrackers.lastMTMTimestamp), uint32(newMTMTimestamp));
+            int256 accruedInterestDelta = 
+                mulUDxInt(newMTMRateIndex.sub(accruedInterestTrackers.lastMTMRateIndex), baseBalance) +
+                mulUDxInt(annualizedTime, quoteBalance);
+
+            mtmAccruedInterestTrackers = AccruedInterestTrackers({
+                accruedInterest: accruedInterestTrackers.accruedInterest + accruedInterestDelta,
+                lastMTMTimestamp: newMTMTimestamp,
+                lastMTMRateIndex: newMTMRateIndex
+            });
         }
     }
 }

@@ -15,13 +15,17 @@ library LPPosition {
 
     struct VammTrackers {
         /** 
-        * @dev quote token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
+        * @dev quote token growth per unit of liquidity as of the last update to liquidity or base/quote token balance
         */
         int256 quoteTokenUpdatedGrowth;
         /** 
-        * @dev variable token growth per unit of liquidity as of the last update to liquidity or fixed/variable token balance
+        * @dev variable token growth per unit of liquidity as of the last update to liquidity or base/quote token balance
         */
         int256 baseTokenUpdatedGrowth;
+        /**
+         * @dev accrued interest growth per unit of liquidity as of the last update to liquidity or base/quote token balance
+         */
+        int256 accruedInterestUpdatedGrowth;
         /** 
         * @dev current Quote Token balance of the position, 1 quote token can be redeemed for 
         * 1% APY * (annualised amm term) at the maturity of the amm
@@ -36,6 +40,10 @@ library LPPosition {
         * can be negative/positive/zero
         */
         int256 baseTokenAccumulated;
+        /**
+         * @dev current Accrued Interest of the position
+         */
+        int256 accruedInterestAccumulated;
     }
 
     struct Data {
@@ -124,24 +132,29 @@ library LPPosition {
     function updateTokenBalances(
         Data storage self,
         int256 quoteTokenGrowthInsideX128, 
-        int256 baseTokenGrowthInsideX128
+        int256 baseTokenGrowthInsideX128,
+        int256 accruedInterestGrowthInsideX128
     ) internal {
         int256 quoteTokenDelta = 0;
         int256 baseTokenDelta = 0;
+        int256 accruedInterestDelta = 0;
 
         if (self.liquidity > 0) {
-            (quoteTokenDelta, baseTokenDelta) = 
-                calculateFixedAndVariableDelta(
+            (quoteTokenDelta, baseTokenDelta, accruedInterestDelta) = 
+                calculateTrackersDelta(
                     self,
                     quoteTokenGrowthInsideX128, 
-                    baseTokenGrowthInsideX128
+                    baseTokenGrowthInsideX128,
+                    accruedInterestGrowthInsideX128
                 );
         }
 
         self.trackers.quoteTokenUpdatedGrowth = quoteTokenGrowthInsideX128;
         self.trackers.baseTokenUpdatedGrowth = baseTokenGrowthInsideX128;
+        self.trackers.accruedInterestUpdatedGrowth = accruedInterestGrowthInsideX128;
         self.trackers.quoteTokenAccumulated += quoteTokenDelta;
         self.trackers.baseTokenAccumulated += baseTokenDelta;
+        self.trackers.accruedInterestAccumulated += accruedInterestDelta;
     }
 
     function updateLiquidity(Data storage self, int128 liquidityDelta) internal {
@@ -151,18 +164,21 @@ library LPPosition {
     function getUpdatedPositionBalances(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
-        int256 baseTokenGrowthInsideX128
-    ) internal pure returns (int256, int256) 
+        int256 baseTokenGrowthInsideX128,
+        int256 accruedInterestGrowthInsideX128
+    ) internal pure returns (int256, int256, int256) 
     {
-        (int256 quoteTokenDelta, int256 baseTokenDelta) = calculateFixedAndVariableDelta(
+        (int256 quoteTokenDelta, int256 baseTokenDelta, int256 accruedInterestDelta) = calculateTrackersDelta(
             self,
             quoteTokenGrowthInsideX128,
-            baseTokenGrowthInsideX128
+            baseTokenGrowthInsideX128,
+            accruedInterestGrowthInsideX128
         );
 
         return (
             self.trackers.quoteTokenAccumulated + quoteTokenDelta,
-            self.trackers.baseTokenAccumulated + baseTokenDelta
+            self.trackers.baseTokenAccumulated + baseTokenDelta,
+            self.trackers.accruedInterestAccumulated + accruedInterestDelta
         );
     }
 
@@ -172,14 +188,15 @@ library LPPosition {
     /// @param baseTokenGrowthInsideX128 variable token growth per unit of liquidity as of now (in wei)
     /// @return quoteTokenDelta = (quoteTokenGrowthInside-quoteTokenGrowthInsideLast) * liquidity of a position
     /// @return baseTokenDelta = (baseTokenGrowthInside-baseTokenGrowthInsideLast) * liquidity of a position
-    function calculateFixedAndVariableDelta(
+    function calculateTrackersDelta(
         Data memory self,
         int256 quoteTokenGrowthInsideX128,
-        int256 baseTokenGrowthInsideX128
+        int256 baseTokenGrowthInsideX128,
+        int256 accruedInterestGrowthInsideX128 
     )
         private
         pure
-        returns (int256 quoteTokenDelta, int256 baseTokenDelta)
+        returns (int256 quoteTokenDelta, int256 baseTokenDelta, int256 accruedInterestDelta)
     {
         int256 quoteTokenGrowthInsideDeltaX128 = quoteTokenGrowthInsideX128 -
             self.trackers.quoteTokenUpdatedGrowth;
@@ -195,6 +212,15 @@ library LPPosition {
 
         baseTokenDelta = FullMath.mulDivSigned(
             baseTokenGrowthInsideDeltaX128,
+            self.liquidity,
+            FixedPoint128.Q128
+        );
+
+        int256 accruedInterestGrowthInsideDeltaX128 = accruedInterestGrowthInsideX128 -
+                self.trackers.accruedInterestUpdatedGrowth;
+
+        accruedInterestDelta = FullMath.mulDivSigned(
+            accruedInterestGrowthInsideDeltaX128,
             self.liquidity,
             FixedPoint128.Q128
         );

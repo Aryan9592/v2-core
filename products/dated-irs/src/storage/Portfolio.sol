@@ -9,17 +9,14 @@ pragma solidity >=0.8.19;
 
 import {Position} from "./Position.sol";
 import {Market} from "./Market.sol";
-import {MarketManagerConfiguration} from "./MarketManagerConfiguration.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
@@ -172,29 +169,42 @@ library Portfolio {
         uint32 maturityTimestamp,
         address poolAddress
     ) private view returns (ExposureHelpers.PoolExposureState memory poolState) {
-        poolState.marketId = self.marketId;
-        poolState.maturityTimestamp = maturityTimestamp;
-
-        poolState.baseBalance = self.positions[poolState.maturityTimestamp].baseBalance;
-        poolState.quoteBalance = self.positions[poolState.maturityTimestamp].quoteBalance;
-
-        (poolState.baseBalancePool, poolState.quoteBalancePool) = IPool(poolAddress).getAccountFilledBalances(
+        (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
             poolState.marketId, 
             poolState.maturityTimestamp, 
             self.accountId
         );
 
-        (poolState.unfilledBaseLong, poolState.unfilledBaseShort, poolState.unfilledQuoteLong, poolState.unfilledQuoteShort) =
+        (uint256 unfilledBaseLong, uint256 unfilledBaseShort, uint256 unfilledQuoteLong, uint256 unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
                 poolState.marketId, 
                 poolState.maturityTimestamp, 
                 self.accountId
             );
-        
-        poolState.annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
-            poolState.marketId,
-            poolState.maturityTimestamp
-        );
+
+        return ExposureHelpers.PoolExposureState({
+            marketId: self.marketId,
+            maturityTimestamp: maturityTimestamp,
+
+            annualizedExposureFactor: 
+                ExposureHelpers.annualizedExposureFactor(
+                    poolState.marketId,
+                    poolState.maturityTimestamp
+                ),
+
+            baseBalance: self.positions[poolState.maturityTimestamp].baseBalance,
+            quoteBalance: self.positions[poolState.maturityTimestamp].quoteBalance,
+            accruedInterest: self.positions[poolState.maturityTimestamp].accruedInterestTrackers.accruedInterest,
+
+            baseBalancePool: baseBalancePool,
+            quoteBalancePool: quoteBalancePool,
+            accruedInterestPool: accruedInterestPool,
+
+            unfilledBaseLong: unfilledBaseLong,
+            unfilledQuoteLong: unfilledQuoteLong,
+            unfilledBaseShort: unfilledBaseShort,
+            unfilledQuoteShort: unfilledQuoteShort
+        });
     }
 
     function getAccountExposuresPerMaturity(
@@ -254,7 +264,7 @@ library Portfolio {
             ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
 
             // left-over exposure in pool
-            (int256 filledBasePool,) = IPool(
+            (int256 filledBasePool,,) = IPool(
                 market.marketConfig.poolAddress
             ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
 
@@ -282,7 +292,7 @@ library Portfolio {
                     market.marketConfig.markPriceBand
                 );
 
-            position.update(baseAmounts[1], executedQuoteAmount);
+            position.update(baseAmounts[1], executedQuoteAmount, self.marketId, maturityTimestamp);
 
             // position size check
             ExposureHelpers.checkPositionSizeLimit(
@@ -297,8 +307,6 @@ library Portfolio {
                 (exposures[0] > 0 ? -exposures[0] : exposures[0]) + 
                 (exposures[1] > 0 ? -exposures[1] : exposures[1]) // negative
             );
-
-            // todo: propagation!
 
             market.updateOracleStateIfNeeded();
 
@@ -331,7 +339,7 @@ library Portfolio {
             activateMarketMaturity(self, maturityTimestamp);
         }
 
-        position.update(baseDelta, quoteDelta);
+        position.update(baseDelta, quoteDelta, self.marketId, maturityTimestamp);
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, baseDelta, quoteDelta, block.timestamp);
     }
 
@@ -353,19 +361,25 @@ library Portfolio {
 
         Position.Data storage position = self.positions[maturityTimestamp];
 
-        UD60x18 liquidityIndexMaturity = Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
-
-        (int256 filledBase, int256 filledQuote) = 
-            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+        /// @dev reverts if not active
+        self.deactivateMarketMaturity(maturityTimestamp);
 
         (int256 marketBase, int256 marketQuote) = (position.baseBalance, position.quoteBalance);
 
-        settlementCashflow =
-            mulUDxInt(liquidityIndexMaturity, marketBase + filledBase) + marketQuote + filledQuote;
-
-        position.update(-marketBase, -marketQuote);
-    
-        deactivateMarketMaturity(self, maturityTimestamp);
+        /// @dev update position's accrued interest
+        position.update(
+            -marketBase,
+            -marketQuote,
+            marketId,
+            maturityTimestamp
+        );
+        /// @dev Note that the settle function will not update the
+        /// last MTM timestamp in the VAMM. However, this is not an
+        /// issue since the market has been deactivated and the position
+        /// cannot be settled anymore.
+        (,, int256 accruedInterest) = 
+            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+        settlementCashflow = accruedInterest + position.accruedInterestTrackers.accruedInterest;
 
         emit PositionUpdated(
             self.accountId, 
@@ -416,13 +430,8 @@ library Portfolio {
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
-        if (!self.activeMaturities.contains(maturityTimestamp)) {
-            return;
-        }
-
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
         self.activeMaturities.remove(maturityTimestamp);
-        
         emit MarketMaturityDeactivated(
             self.accountId,
             self.marketId,

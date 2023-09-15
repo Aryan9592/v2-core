@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
@@ -26,11 +27,6 @@ library AccountCollateral {
     using SetUtil for SetUtil.AddressSet;
 
     /**
-     * @dev Thrown when an account does not have sufficient collateral.
-     */
-    error InsufficientCollateral(uint128 accountId, address collateralType, uint256 requestedAmount);
-
-    /**
      * @notice Emitted when collateral balance of account token with id `accountId` is updated.
      * @param accountId The id of the account.
      * @param collateralType The address of the collateral type.
@@ -44,127 +40,95 @@ library AccountCollateral {
         uint256 blockTimestamp
     );
 
-    function increaseCollateralShares(
+    function updateNetCollateralShares(
         Account.Data storage self, 
         address collateralType, 
-        uint256 shares
+        int256 shares
     ) private {
-        // increase collateral balance
+        // update collateral balance
         self.collateralShares[collateralType] += shares;
 
-        // add the collateral type to the active collaterals if missing
-        if (self.collateralShares[collateralType] > 0) {
+        // update the active collateral list
+        if (self.collateralShares[collateralType] != 0) {
             if (!self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.add(collateralType);
             }
-        }
-
-        // update the corresponding collateral pool balance if exists
-        if (self.firstMarketId != 0) {
-            self.getCollateralPool().increaseCollateralShares(collateralType, shares);
-        }
-
-        // emit event
-        emit AccountCollateralUpdated(self.id, collateralType, shares.toInt(), block.timestamp);
-    }
-
-    /**
-     * @dev Increments the account's collateral balance.
-     */
-    function increaseCollateralBalance(
-        Account.Data storage self, 
-        address collateralType, 
-        uint256 assets
-    ) internal {
-        // Convert assets to shares
-        GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
-        uint256 shares = globalConfig.convertToShares(assets);
-
-        increaseCollateralShares(self, collateralType, shares);
-    }
-
-    function decreaseCollateralShares(
-        Account.Data storage self, 
-        address collateralType,
-        uint256 shares
-    ) private {
-        // check collateral balance and revert if not sufficient
-        if (self.collateralShares[collateralType] < shares) {
-            revert InsufficientCollateral(self.id, collateralType, shares);
-        }
-
-        // decrease collateral balance
-        self.collateralShares[collateralType] -= shares;
-
-        // remove the collateral type from the active collaterals if balance goes to zero
-        if (self.collateralShares[collateralType] == 0) {
+        } else if (self.collateralShares[collateralType] == 0) {
             if (self.activeCollaterals.contains(collateralType)) {
                 self.activeCollaterals.remove(collateralType);
             }
         }
 
-        // update the corresponding collateral pool balance
+        // update the corresponding collateral pool balance if exists
         if (self.firstMarketId != 0) {
-            self.getCollateralPool().decreaseCollateralShares(collateralType, shares);
+            self.getCollateralPool().updateCollateralShares(collateralType, shares);
         }
 
         // emit event
-        emit AccountCollateralUpdated(self.id, collateralType, -shares.toInt(), block.timestamp);
+        emit AccountCollateralUpdated(self.id, collateralType, shares, block.timestamp);
     }
 
     /**
-     * @dev Decrements the account's collateral balance.
+     * @dev Updates the account's net deposits
      */
-    function decreaseCollateralBalance(
+    function updateNetCollateralDeposits(
         Account.Data storage self, 
-        address collateralType,
-        uint256 assets
+        address collateralType, 
+        int256 assets
     ) internal {
         // Convert assets to shares
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
-        uint256 shares = globalConfig.convertToShares(assets);
-
-        // Decrease the account shares balance
-        decreaseCollateralShares(self, collateralType, shares);
+        int256 shares = globalConfig.convertToShares(assets);
+        updateNetCollateralShares(self, collateralType, shares);
     }
 
     /**
      * @dev Given a collateral type, returns information about the collateral balance of the account
      */
-    function getCollateralBalance(
+    function getAccountNetCollateralDeposits(
         Account.Data storage self,
         address collateralType
     )
         internal
         view
-        returns (uint256)
+        returns (int256)
     {
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
-        globalConfig.convertToAssets(self.collateralShares[collateralType]);
+        return globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
     /**
      * @dev Given a collateral type, returns information about the total balance of the account that's available to withdraw
      */
-    function getWithdrawableCollateralBalance(Account.Data storage self, address collateralType)
+    function getAccountWithdrawableCollateralBalance(Account.Data storage self, address collateralType)
         internal
         view
         returns (uint256 /* withdrawableCollateralBalance */)
     {
-        // get account value in the given collateral
-        Account.MarginRequirementDeltas memory deltas  = 
-            self.getRequirementDeltasByBubble(collateralType);
+        Account.MarginInfo memory marginInfoBubble = self.getMarginInfoByBubble(collateralType);
+        int256 withdrawableBalanceBubble = SignedMath.max(
+            0,
+            SignedMath.min(
+                marginInfoBubble.initialDelta, 
+                marginInfoBubble.realBalance
+            )
+        );
 
-        if (deltas.initialDelta <= 0) {
+        if (withdrawableBalanceBubble <= 0) {
             return 0;
         }
 
-        // get the account collateral balance
-        uint256 collateralBalance = self.getCollateralBalance(collateralType);
+        Account.MarginInfo memory marginInfoCollateral = 
+            self.getMarginInfoByCollateralType(collateralType, self.getCollateralPool().riskConfig.imMultiplier);
+        
+        int256 withdrawableBalanceCollateral = SignedMath.max(
+            0,
+            SignedMath.min(
+                withdrawableBalanceBubble, 
+                marginInfoCollateral.realBalance
+            )
+        );
 
-        // get minimum between account collateral balance and available collateral
-        return (collateralBalance <= deltas.initialDelta.toUint()) 
-            ? collateralBalance
-            : deltas.initialDelta.toUint();
+        return withdrawableBalanceCollateral.toUint();
     }
 }

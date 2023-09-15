@@ -37,7 +37,7 @@ library CreateAccount {
      */
     event AccountCreated(uint128 indexed accountId, address indexed owner, address indexed trigger, uint256 blockTimestamp);
 
-    function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) internal {
+    function createAccount(uint128 requestedAccountId, address accountOwner) internal {
         /*
             Note, anyone can create an account for any accountOwner as long as the accountOwner owns the account pass nft.
             This feature will only be available to the Executor Module which will need to make sure accountOwner == msg.sender
@@ -54,7 +54,7 @@ library CreateAccount {
         IAccountTokenModule accountTokenModule = IAccountTokenModule(getAccountTokenAddress());
         accountTokenModule.safeMint(accountOwner, requestedAccountId, "");
 
-        Account.create(requestedAccountId, accountOwner, accountMode);
+        Account.create(requestedAccountId, accountOwner);
         
         emit AccountCreated(requestedAccountId, accountOwner, msg.sender, block.timestamp);
     }

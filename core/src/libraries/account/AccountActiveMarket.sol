@@ -56,7 +56,7 @@ library AccountActiveMarket {
 
             for (uint256 i = 0; i < activeCollaterals.length; i++) {
                 address activeCollateral = activeCollaterals[i];
-                collateralPool.increaseCollateralShares(activeCollateral, self.collateralShares[activeCollateral]);
+                collateralPool.updateCollateralShares(activeCollateral, self.collateralShares[activeCollateral]);
             }
         }
         else {

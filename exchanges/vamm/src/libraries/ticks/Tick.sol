@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 import {LiquidityMath} from "../math/LiquidityMath.sol";
-import {TickMath} from "./TickMath.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -20,6 +20,7 @@ library Tick {
         /// @dev only has relative meaning, not absolute — the value depends on when the tick is initialized
         int256 trackerQuoteTokenGrowthOutsideX128;
         int256 trackerBaseTokenGrowthOutsideX128;
+        ExposureHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthOutsideX128;
         /// @dev true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
         /// @dev these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
         bool initialized;
@@ -94,6 +95,61 @@ library Tick {
             params.quoteTokenGrowthGlobalX128,
             lower.trackerQuoteTokenGrowthOutsideX128,
             upper.trackerQuoteTokenGrowthOutsideX128
+        );
+    }
+
+    struct AccruedInterestGrowthInsideParams {
+        int24 tickLower;
+        int24 tickUpper;
+        int24 tickCurrent;
+        int256 trackerBaseTokenGrowthGlobalX128;
+        int256 trackerQuoteTokenGrowthGlobalX128;
+        ExposureHelpers.AccruedInterestTrackers accruedInterestGrowthGlobalX128;
+        uint128 marketId;
+        uint32 maturityTimestamp;
+    }
+
+    function getAccruedInterestGrowthInside(
+        mapping(int24 => Tick.Info) storage self,
+        AccruedInterestGrowthInsideParams memory params
+    ) internal view returns (int256 accruedInterestGrowthInsideX128) {
+        Info storage lower = self[params.tickLower];
+        Info storage upper = self[params.tickUpper];
+
+        ExposureHelpers.AccruedInterestTrackers memory latestLowerAccruedInterestTrackers = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                lower.trackerAccruedInterestGrowthOutsideX128,
+                lower.trackerBaseTokenGrowthOutsideX128,
+                lower.trackerQuoteTokenGrowthOutsideX128,
+                params.marketId,
+                params.maturityTimestamp
+            );
+
+        ExposureHelpers.AccruedInterestTrackers memory latestUpperAccruedInterestTrackers = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                upper.trackerAccruedInterestGrowthOutsideX128,
+                upper.trackerBaseTokenGrowthOutsideX128,
+                upper.trackerQuoteTokenGrowthOutsideX128,
+                params.marketId,
+                params.maturityTimestamp
+            );
+
+        ExposureHelpers.AccruedInterestTrackers memory latestGlobalAccruedInterestTrackers = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                params.accruedInterestGrowthGlobalX128,
+                params.trackerBaseTokenGrowthGlobalX128,
+                params.trackerQuoteTokenGrowthGlobalX128,
+                params.marketId,
+                params.maturityTimestamp
+            );
+
+        accruedInterestGrowthInsideX128 = growthInside(
+            params.tickLower,
+            params.tickUpper,
+            params.tickCurrent,
+            latestGlobalAccruedInterestTrackers.accruedInterest,
+            latestLowerAccruedInterestTrackers.accruedInterest,
+            latestUpperAccruedInterestTrackers.accruedInterest
         );
     }
 
@@ -177,7 +233,10 @@ library Tick {
         mapping(int24 => Tick.Info) storage self,
         int24 tick,
         int256 quoteTokenGrowthGlobalX128,
-        int256 baseTokenGrowthGlobalX128
+        int256 baseTokenGrowthGlobalX128,
+        int256 accruedInterestGrowthGlobalX128,
+        uint128 marketId,
+        uint32 maturityTimestamp
     ) internal returns (int128 liquidityNet) {
         Tick.Info storage info = self[tick];
 
@@ -188,6 +247,19 @@ library Tick {
         info.trackerBaseTokenGrowthOutsideX128 =
             baseTokenGrowthGlobalX128 -
             info.trackerBaseTokenGrowthOutsideX128;
+
+        info.trackerAccruedInterestGrowthOutsideX128 = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                info.trackerAccruedInterestGrowthOutsideX128,
+                info.trackerBaseTokenGrowthOutsideX128,
+                info.trackerQuoteTokenGrowthOutsideX128,
+                marketId,
+                maturityTimestamp
+            );
+
+        info.trackerAccruedInterestGrowthOutsideX128.accruedInterest = 
+            accruedInterestGrowthGlobalX128 -
+            info.trackerAccruedInterestGrowthOutsideX128.accruedInterest;
 
         liquidityNet = info.liquidityNet;
     }

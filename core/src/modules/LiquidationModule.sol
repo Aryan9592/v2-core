@@ -7,9 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Account} from "../storage/Account.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
-
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -19,18 +17,5 @@ import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
  */
 
 contract LiquidationModule is ILiquidationModule {
-    using Account for Account.Data;
-
-    /**
-     * @inheritdoc ILiquidationModule
-     */
-    function getRequirementDeltasByBubble(uint128 accountId, address collateralType) 
-        external 
-        view 
-        override 
-        returns (Account.MarginRequirementDeltas memory) 
-    {
-        return Account.exists(accountId).getRequirementDeltasByBubble(collateralType);
-    }
-
+    // todo: implement during liquidations
 }

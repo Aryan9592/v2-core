@@ -12,6 +12,7 @@ import { VammTicks } from "./VammTicks.sol";
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
+import {AccountBalances} from "./AccountBalances.sol";
 
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -21,6 +22,7 @@ library LP {
     using SetUtil for SetUtil.UintSet;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
+    using DatedIrsVamm for DatedIrsVamm.Data;
 
     /**
      * @notice Executes a dated maker order that provides liquidity to (or removes liquidty from) this VAMM
@@ -61,12 +63,15 @@ library LP {
 
         // this also checks if the position has enough liquidity to burn
         {
-            (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128) = 
-                computeGrowthInside(self, position.tickLower, position.tickUpper);
-
+            (
+                int256 quoteTokenGrowthInsideX128,
+                int256 baseTokenGrowthInsideX128,
+                int256 accruedInterestGrowthInsideX128
+            ) = AccountBalances.computeGrowthInside(self, tickLower, tickUpper);
             position.updateTokenBalances(
                 quoteTokenGrowthInsideX128,
-                baseTokenGrowthInsideX128
+                baseTokenGrowthInsideX128,
+                accruedInterestGrowthInsideX128
             );
         }
 
@@ -83,36 +88,6 @@ library LP {
             tickUpper,
             liquidityDelta,
             block.timestamp
-        );
-    }
-
-    function computeGrowthInside(
-        DatedIrsVamm.Data storage self,
-        int24 tickLower,
-        int24 tickUpper
-    )
-        private
-        view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128)
-    {
-        VammTicks.checkTicksLimits(tickLower, tickUpper);
-
-        baseTokenGrowthInsideX128 = self.vars.ticks.getBaseTokenGrowthInside(
-            Tick.BaseTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                baseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128
-            })
-        );
-
-        quoteTokenGrowthInsideX128 = self.vars.ticks.getQuoteTokenGrowthInside(
-            Tick.QuoteTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                quoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128
-            })
         );
     }
 

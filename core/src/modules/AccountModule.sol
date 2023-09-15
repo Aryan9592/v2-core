@@ -59,8 +59,8 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function createAccount(uint128 requestedAccountId, address accountOwner, bytes32 accountMode) external override {
-        CreateAccount.createAccount(requestedAccountId, accountOwner, accountMode);
+    function createAccount(uint128 requestedAccountId, address accountOwner) external override {
+        CreateAccount.createAccount(requestedAccountId, accountOwner);
     }
 
     /**

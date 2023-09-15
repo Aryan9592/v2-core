@@ -7,10 +7,8 @@ import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 
-import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UNIT } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks configurations for dated irs markets

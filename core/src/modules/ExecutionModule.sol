@@ -70,7 +70,7 @@ contract ExecutionModule {
     function operate(
         uint128 accountId,
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs, Account.MarginRequirementDeltas memory marginRequirement) {
+    ) external returns (bytes[] memory outputs, Account.MarginInfo memory marginInfo) {
         preOperateCheck(accountId);
 
         outputs = new bytes[](commands.length);
@@ -91,7 +91,7 @@ contract ExecutionModule {
             }
         }
 
-        marginRequirement = Account.exists(accountId).imCheck(address(0));
+        marginInfo = Account.exists(accountId).imCheck(address(0));
     }
 
     /// @notice checks to be ran before starting the batch execution
@@ -113,11 +113,7 @@ contract ExecutionModule {
         uint256 command = uint8(commandType & COMMAND_TYPE_MASK);
 
         if (command == V2_CORE_CREATE_ACCOUNT) {
-            bytes32 accountMode;
-            assembly {
-                accountMode := calldataload(inputs.offset)
-            }
-            CreateAccount.createAccount(accountId, msg.sender, accountMode);
+            CreateAccount.createAccount(accountId, msg.sender);
         } else if (command == V2_CORE_DEPOSIT) {
             address collateralType;
             uint256 tokenAmount;
@@ -145,13 +141,14 @@ contract ExecutionModule {
                 collateralType := calldataload(add(inputs.offset, 0x40))
                 quoteType := calldataload(add(inputs.offset, 0x60))
             }
-            AutoExchange.triggerAutoExchange(
-                accountId,
-                liquidatorAccountId,
-                amountToAutoExchangeQuote,
-                collateralType,
-                quoteType
-            );
+            // todo: during liquidations implementation
+            // AutoExchange.triggerAutoExchange(
+            //     accountId,
+            //     liquidatorAccountId,
+            //     amountToAutoExchangeQuote,
+            //     collateralType,
+            //     quoteType
+            // );
         } else if (command == V2_CORE_LIQUIDATE) {
             uint128 liquidatorAccountId;
             address collateralType;
@@ -226,11 +223,8 @@ contract ExecutionModule {
             (bytes memory result, int256 cashflowAmount) = 
                 marketManager.completeOrder(accountId, marketId, inputs);
 
-            if (cashflowAmount > 0) {
-                account.increaseCollateralBalance(collateralType, cashflowAmount.toUint());
-            } else {
-                account.decreaseCollateralBalance(collateralType, (-cashflowAmount).toUint());
-            }
+            account.updateNetCollateralDeposits(collateralType, cashflowAmount);
+
             return abi.encode(result);
         } else {
             revert InvalidCommandType(command);

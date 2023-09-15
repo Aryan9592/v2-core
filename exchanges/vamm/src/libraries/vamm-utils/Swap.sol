@@ -5,7 +5,6 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 import { Oracle } from "../../storage/Oracle.sol";
 
-import { FixedAndVariableMath } from "../math/FixedAndVariableMath.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 import { Time } from "../time/Time.sol";
 import { SwapMath } from "./SwapMath.sol";
@@ -17,15 +16,17 @@ import { Tick } from "../ticks/Tick.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 
 library Swap {
     using TickBitmap for mapping(int16 => uint256);
     using SafeCastU256 for uint256;
     using Tick for mapping(int24 => Tick.Info);
     using Oracle for Oracle.Observation[65535];
+    using DatedIrsVamm for DatedIrsVamm.Data;
     
     /// @dev Stores fixed values required in each swap step 
     struct SwapFixedValues {
@@ -70,15 +71,23 @@ library Swap {
             "SPL"
         );
 
-        uint128 liquidityStart = self.vars.liquidity;
+        self.vars.trackerAccruedInterestGrowthGlobalX128 = 
+            ExposureHelpers.getMTMAccruedInterestTrackers(
+                self.vars.trackerAccruedInterestGrowthGlobalX128,
+                self.vars.trackerBaseTokenGrowthGlobalX128,
+                self.vars.trackerQuoteTokenGrowthGlobalX128,
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp
+            );
 
         VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
-            liquidity: liquidityStart,
+            liquidity: self.vars.liquidity,
             trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
             trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
+            trackerAccruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128.accruedInterest,
             quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
             baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
         });
@@ -143,22 +152,21 @@ library Swap {
             if (params.amountSpecified > 0) {
                 // LP is a Variable Taker
                 step.baseTokenDelta = step.amountIn.toInt(); // this is positive
-                step.unbalancedQuoteTokenDelta = -step.amountOut.toInt();
+                step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert_ud(100));
             } else {
                 // LP is a Fixed Taker
-                step.baseTokenDelta = -step.amountOut.toInt();
-                step.unbalancedQuoteTokenDelta = step.amountIn.toInt(); // this is positive
+                step.baseTokenDelta = -step.amountOut.toInt(); // this is negative
+                step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert_ud(100));
             }
 
             ///// UPDATE TRACKERS /////
             state.amountSpecifiedRemaining -= step.baseTokenDelta;
             if (state.liquidity > 0) {
                 step.quoteTokenDelta = VammHelpers.calculateQuoteTokenDelta(
-                    step.unbalancedQuoteTokenDelta,
                     step.baseTokenDelta,
-                    FixedAndVariableMath.accrualFact(swapFixedValues.secondsTillMaturity),
-                    swapFixedValues.liquidityIndex,
-                    self.mutableConfig.spread
+                    step.averagePrice,
+                    self.mutableConfig.spread,
+                    self.immutableConfig.marketId
                 );
 
                 (
@@ -183,7 +191,10 @@ library Swap {
                     int128 liquidityNet = self.vars.ticks.cross(
                         step.tickNext,
                         state.trackerQuoteTokenGrowthGlobalX128,
-                        state.trackerBaseTokenGrowthGlobalX128
+                        state.trackerBaseTokenGrowthGlobalX128,
+                        state.trackerAccruedInterestGrowthGlobalX128,
+                        self.immutableConfig.marketId,
+                        self.immutableConfig.maturityTimestamp
                     );
 
                     state.liquidity = LiquidityMath.addDelta(
@@ -220,8 +231,7 @@ library Swap {
             self.vars.sqrtPriceX96 = state.sqrtPriceX96;
         }
 
-        // update liquidity if it changed
-        if (liquidityStart != state.liquidity) self.vars.liquidity = state.liquidity;
+        self.vars.liquidity = state.liquidity;
 
         self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
         self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
