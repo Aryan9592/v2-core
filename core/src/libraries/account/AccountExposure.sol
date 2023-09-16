@@ -240,6 +240,8 @@ library AccountExposure {
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
 
+        // todo: margin balance should have the unrealized pnl from filled orders!
+        // otherwise we're being too restrictive
         int256 marginBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL + vars.highestUnrealizedLoss;
         int256 realBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL;
         

@@ -72,6 +72,11 @@ library Account {
     error AccountNotBelowLM(uint128 accountId, MarginInfo marginInfo);
 
     /**
+     * @dev Thrown when account is not below the adl margin requirement
+     */
+    error AccountNotBelowADL(uint128 accountId, MarginInfo marginInfo);
+
+    /**
      * @dev Thrown when account is not below the maintenance margin requirement
      */
     error AccountNotBelowMMR(uint128 accountId, MarginInfo marginInfo);
@@ -516,6 +521,21 @@ library Account {
     }
 
     /**
+     * @dev Checks if the account is below the adl margin requirement
+     * and reverts if that's not the case (i.e. reverts if the adl requirement is satisfied by the account)
+     */
+    function isBelowADLCheck(Data storage self, address collateralType) internal view returns
+    (Account.MarginInfo memory marginInfo) {
+
+        marginInfo = self.getMarginInfoByBubble(collateralType);
+
+        if (marginInfo.adlDelta > 0) {
+            revert AccountNotBelowADL(self.id, marginInfo);
+        }
+
+    }
+
+    /**
      * @dev Checks if the account is below the maintenance margin requirement
      * and reverts if that's not the case (i.e. reverts if the mmr requirement is satisfied by the account)
      */
@@ -537,6 +557,16 @@ library Account {
     function isAboveDutch(Data storage self, address collateralType) internal view returns (bool) {
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return marginInfo.dutchDelta > 0;
+    }
+
+    /**
+     * @dev Checks if an account is insolvent in a given bubble (assuming auto-exchange is exhausted!!!)
+     */
+    function isInsolvent(Data storage self, address collateralType) internal view returns (bool) {
+        // todo: note, doing too many redundunt calculations, can be optimized
+        // todo: consider reverting if address(0) is provided as collateralType
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
+        return marginInfo.marginBalance < 0;
     }
 
     function isEligibleForAutoExchange(
@@ -805,6 +835,8 @@ library Account {
         // revert if account is not below liquidation margin requirement
         self.isBelowLMCheck(address(0));
 
+        // todo: revert if below insolvency
+
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
@@ -850,6 +882,23 @@ library Account {
         self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken, 0);
 
         liquidatorAccount.imCheck(address(0));
+
+    }
+
+
+    function executeBackstopLiquidation(
+        Account.Data storage self,
+        uint128 liquidatorAccountId,
+        address quoteToken
+    ) internal {
+        self.hasUnfilledOrders();
+
+        // revert if account is not below adl margin requirement
+        self.isBelowADLCheck(address(0));
+
+        bool isInsolvent = self.isInsolvent(quoteToken);
+
+
 
     }
 
