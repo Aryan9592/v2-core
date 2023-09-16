@@ -11,6 +11,8 @@ import {Account} from "../storage/Account.sol";
 import {Market} from "../storage/Market.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
 import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -23,6 +25,7 @@ contract LiquidationModule is ILiquidationModule {
     using Account for Account.Data;
     using Market for Market.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
+    using SafeCastI256 for int256;
 
     /**
      * @inheritdoc ILiquidationModule
@@ -53,14 +56,18 @@ contract LiquidationModule is ILiquidationModule {
         uint128 liquidatableAccountId,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) public {
+        // todo: need to mark active markets once liquidation orders are executed
+        // todo: also need to make sure the collateral pool id of the liquidator is updated accordingly as well
+        // if it doesn't belong to any collateral pool
         require(msg.sender == address(this));
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidationBid.liquidatorAccountId);
 
-        // todo: need to mark active markets once liquidation orders are executed
-        // todo: also need to make sure the collateral pool id of the liquidator is updated accordingly as well
-        // if it doesn't belong to any collateral pool
+        // grab the liquidatable account and check its existance
+        Account.Data storage account = Account.exists(liquidatableAccountId);
+
+        int256 lmDeltaBeforeLiquidation = account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta;
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
@@ -70,6 +77,18 @@ contract LiquidationModule is ILiquidationModule {
                 liquidationBid.inputs[i]
             );
         }
+
+        int256 lmDeltaChange =
+        account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
+        if (lmDeltaChange < 0) {
+            revert Account.LiquidationCausedNegativeLMDeltaChange(account.id, lmDeltaChange);
+        }
+        uint256 liquidationPenalty = mulUDxUint(
+            liquidationBid.liquidatorRewardParameter,
+            lmDeltaChange.toUint()
+        );
+
+        account.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, liquidationBid.quoteToken);
 
         liquidatorAccount.imCheck(address(0));
 
@@ -87,7 +106,7 @@ contract LiquidationModule is ILiquidationModule {
         address queueQuoteToken
     ) external override {
 
-        // todo: consider pushing this function into the account.sol
+        // todo: consider pushing this function into account.sol
 
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
