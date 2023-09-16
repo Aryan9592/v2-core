@@ -220,6 +220,12 @@ library CollateralPool {
          */
         InsuranceFundConfig insuranceFundConfig;
 
+        // todo: expose these amounts via a view function and an external interface
+        /**
+         * @dev Funds underwritten by the insurance fund in terms of a given quote token
+         */
+        mapping(address => uint256) insuranceFundUnderwritings;
+
         /**
          * @dev Collateral pool wide backstop lp configuration
          */
@@ -229,6 +235,12 @@ library CollateralPool {
          */
         uint128 feeCollectorAccountId;
     }
+
+    function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
+        // todo: make sure doesn't overflow insurance fund balance (import account.sol)
+        self.insuranceFundUnderwritings[collateralType] += amount;
+    }
+
 
     /**
      * @dev Creates an collateral pool for the given id
