@@ -119,10 +119,16 @@ library Account {
     // todo: add reference to quote token of the queue
     error AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(uint128 accountId);
 
-     /**
+    /**
     * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
     */
     error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, int256 lmDeltaChange);
+
+    /**
+    * @dev Thrown if a liquidation bid quote token doesn't match the quote token of the market where
+    * a liquidation order should be executed
+    */
+    error LiquidationBidQuoteTokenMismatch(address liquidationBidQuoteToken, address marketQuoteToken);
 
     struct PnLComponents {
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
@@ -595,6 +601,18 @@ library Account {
         if (marketIdsLength > collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid) {
             revert LiquidationBidOrdersOverflow(marketIdsLength,
                 collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid);
+        }
+
+        for (uint256 i = 0; i < marketIdsLength; i++) {
+            uint128 marketId = liquidationBid.marketIds[i];
+            Market.Data storage market = Market.exists(marketId);
+            if (market.quoteToken != liquidationBid.quoteToken) {
+                revert LiquidationBidQuoteTokenMismatch(liquidationBid.quoteToken, market.quoteToken);
+            }
+            market.validateLiquidationOrder(
+                self.id,
+                liquidationBid.inputs[i]
+            );
         }
 
     }

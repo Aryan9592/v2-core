@@ -246,4 +246,16 @@ library Market {
         );
     }
 
+    function validateLiquidationOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        bytes memory inputs
+    ) internal view {
+        IMarketManager(self.marketManagerAddress).validateLiquidationOrder(
+            liquidatableAccountId,
+            self.id,
+            inputs
+        );
+    }
+
 }
