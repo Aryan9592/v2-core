@@ -566,12 +566,13 @@ library Account {
 
     /**
      * @dev Checks if an account is insolvent in a given bubble (assuming auto-exchange is exhausted!!!)
+     * and returns the shortfall
      */
-    function isInsolvent(Data storage self, address collateralType) internal view returns (bool) {
+    function isInsolvent(Data storage self, address collateralType) internal view returns (bool, int256) {
         // todo: note, doing too many redundunt calculations, can be optimized
         // todo: consider reverting if address(0) is provided as collateralType
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return marginInfo.marginBalance < 0;
+        return (marginInfo.marginBalance < 0, marginInfo.marginBalance);
     }
 
     function isEligibleForAutoExchange(
@@ -906,9 +907,11 @@ library Account {
         // todo: layer in rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
-        bool isInsolvent = self.isInsolvent(quoteToken);
+        (bool isInsolvent, int256 marginBalance) = self.isInsolvent(quoteToken);
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        uint256 shortfall = 0;
 
         if (!isInsolvent) {
 
@@ -927,10 +930,19 @@ library Account {
 
             backstopLpAccount.imCheck(address(0));
 
-            // execute adl orders at the market price
+        } else {
+            Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
+            uint256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
+            - collateralPool.insuranceFundUnderwritings[quoteToken];
 
-
+            uint256 insuranceFundDebit = (-marginBalance).toUint();
+            if (insuranceFundCoverAvailable < (-marginBalance).toUint()) {
+                shortfall = (-marginBalance).toUint() - insuranceFundCoverAvailable;
+                insuranceFundDebit = insuranceFundCoverAvailable;
+            }
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
         }
+
 
     }
 
