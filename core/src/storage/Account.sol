@@ -282,6 +282,11 @@ library Account {
         // todo: consider introducing empty slots for future use (also applies to other storage objects)
     }
 
+    struct LiquidationOrder {
+        uint128 marketId;
+        bytes inputs;
+    }
+
     /**
      * @dev Creates an account for the given id, and associates it to the given owner.
      */
@@ -889,16 +894,40 @@ library Account {
     function executeBackstopLiquidation(
         Account.Data storage self,
         uint128 liquidatorAccountId,
-        address quoteToken
+        address quoteToken,
+        LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
         self.hasUnfilledOrders();
 
         // revert if account is not below adl margin requirement
         self.isBelowADLCheck(address(0));
 
+        // todo: validate backstop lp liquidation orders
+        // todo: layer in rewards
+        // todo: make sure backstop lp capacity is exhausted before proceeding to adl
+
         bool isInsolvent = self.isInsolvent(quoteToken);
 
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
+        if (!isInsolvent) {
+
+            Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
+
+            // execute backstop lp liquidation orders
+            for (uint256 i = 0; i < backstopLPLiquidationOrders.length; i++) {
+                LiquidationOrder memory liquidationOrder = backstopLPLiquidationOrders[i];
+                Market.Data storage market = Market.exists(liquidationOrder.marketId);
+                market.executeLiquidationOrder(
+                    self.id,
+                    collateralPool.backstopLPConfig.accountId,
+                    liquidationOrder.inputs
+                );
+            }
+
+            backstopLpAccount.imCheck(address(0));
+
+        }
 
     }
 
