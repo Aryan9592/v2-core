@@ -54,6 +54,7 @@ contract LiquidationModule is ILiquidationModule {
 
     function executeLiquidationBid(
         uint128 liquidatableAccountId,
+        uint128 bidSubmissionKeeperId,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) public {
         // todo: need to mark active markets once liquidation orders are executed
@@ -88,7 +89,12 @@ contract LiquidationModule is ILiquidationModule {
             lmDeltaChange.toUint()
         );
 
-        account.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, liquidationBid.quoteToken);
+        account.distributeLiquidationPenalty(
+            liquidatorAccount,
+            liquidationPenalty,
+            liquidationBid.quoteToken,
+            bidSubmissionKeeperId
+        );
 
         liquidatorAccount.imCheck(address(0));
 
@@ -103,7 +109,8 @@ contract LiquidationModule is ILiquidationModule {
      */
     function executeTopRankedLiquidationBid(
         uint128 liquidatableAccountId,
-        address queueQuoteToken
+        address queueQuoteToken,
+        uint128 bidSubmissionKeeperId
     ) external override {
 
         // todo: consider pushing this function into account.sol
@@ -136,7 +143,7 @@ contract LiquidationModule is ILiquidationModule {
         ].topBid();
 
         (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
-            "executeLiquidationBid(uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
+            "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
             liquidatableAccountId, topRankedLiquidationBid));
 
         // dequeue top bid it's successfully executed or not

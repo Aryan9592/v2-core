@@ -716,7 +716,7 @@ library Account {
                 lmDeltaChange.toUint()
             );
 
-            self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, quoteToken);
+            self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, quoteToken, 0);
         }
 
     }
@@ -751,7 +751,8 @@ library Account {
         Account.Data storage self,
         Account.Data storage liquidatorAccount,
         uint256 liquidationPenalty,
-        address token
+        address token,
+        uint128 bidSubmissionKeeperId
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -766,12 +767,27 @@ library Account {
             collateralPool.backstopLPConfig.liquidationFee,
             liquidationPenalty
         );
-        uint256 liquidatorReward = liquidationPenalty - insuranceFundReward - backstopLPReward;
+
+        uint256 keeperReward = 0;
+
+        if (bidSubmissionKeeperId != 0) {
+            keeperReward = mulUDxUint(
+                collateralPool.riskConfig.bidSubmissionKeeperFee,
+                liquidationPenalty
+            );
+        }
+
+        uint256 liquidatorReward = liquidationPenalty - insuranceFundReward - backstopLPReward - keeperReward;
 
         self.updateNetCollateralDeposits(token, -liquidationPenalty.toInt());
         insuranceFundAccount.updateNetCollateralDeposits(token, insuranceFundReward.toInt());
         backstopLpAccount.updateNetCollateralDeposits(token, backstopLPReward.toInt());
         liquidatorAccount.updateNetCollateralDeposits(token, liquidatorReward.toInt());
+
+        if (keeperReward > 0) {
+            Account.Data storage keeperAccount = Account.exists(bidSubmissionKeeperId);
+            keeperAccount.updateNetCollateralDeposits(token, keeperReward.toInt());
+        }
     }
 
     function executeDutchLiquidation(
@@ -831,7 +847,7 @@ library Account {
             lmDeltaChange.toUint()
         );
 
-        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken);
+        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken, 0);
 
         liquidatorAccount.imCheck(address(0));
 
