@@ -927,6 +927,9 @@ library Account {
 
             backstopLpAccount.imCheck(address(0));
 
+            // execute adl orders at the market price
+
+
         }
 
     }

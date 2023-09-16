@@ -103,6 +103,13 @@ interface IMarketManager is IERC165 {
         bytes calldata inputs
     ) external view;
 
+    // todo: add natspec
+    function executeADLOrder(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint256 shortfall,
+        bytes calldata inputs
+    ) external;
 
     /**
      * @notice Decoded inputs and completes a position

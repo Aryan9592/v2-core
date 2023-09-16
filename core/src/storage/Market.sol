@@ -258,4 +258,18 @@ library Market {
         );
     }
 
+    function executeADLOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        uint256 shortfall,
+        bytes memory inputs
+    ) internal view {
+        IMarketManager(self.marketManagerAddress).executeADLOrder(
+            liquidatableAccountId,
+            self.id,
+            shortfall,
+            inputs
+        );
+    }
+
 }
