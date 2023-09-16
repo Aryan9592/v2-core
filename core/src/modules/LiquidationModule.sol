@@ -60,6 +60,7 @@ contract LiquidationModule is ILiquidationModule {
 
         // todo: need to mark active markets once liquidation orders are executed
         // todo: also need to make sure the collateral pool id of the liquidator is updated accordingly as well
+        // if it doesn't belong to any collateral pool
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
@@ -82,8 +83,11 @@ contract LiquidationModule is ILiquidationModule {
      * @inheritdoc ILiquidationModule
      */
     function executeTopRankedLiquidationBid(
-        uint128 liquidatableAccountId
+        uint128 liquidatableAccountId,
+        address queueQuoteToken
     ) external override {
+
+        // todo: consider pushing this function into the account.sol
 
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
@@ -94,19 +98,22 @@ contract LiquidationModule is ILiquidationModule {
         // revert if the account is not below the liquidation margin requirement
         account.isBelowLMCheck(address(0));
 
-        if (block.timestamp > account.liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+        Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        account.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
+
+        if (block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
             revert Account.LiquidationBidPriorityQueueExpired(
-                account.liquidationBidPriorityQueues.latestQueueId,
-                account.liquidationBidPriorityQueues.latestQueueEndTimestamp
+                liquidationBidPriorityQueues.latestQueueId,
+                liquidationBidPriorityQueues.latestQueueEndTimestamp
             );
         }
 
         // extract top ranked order
 
-        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = account.liquidationBidPriorityQueues
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = liquidationBidPriorityQueues
         .priorityQueues[
-        account.liquidationBidPriorityQueues.latestQueueId
+        liquidationBidPriorityQueues.latestQueueId
         ].topBid();
 
         (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
@@ -115,8 +122,8 @@ contract LiquidationModule is ILiquidationModule {
 
         // dequeue top bid it's successfully executed or not
 
-        account.liquidationBidPriorityQueues.priorityQueues[
-        account.liquidationBidPriorityQueues.latestQueueId
+        liquidationBidPriorityQueues.priorityQueues[
+        liquidationBidPriorityQueues.latestQueueId
         ].dequeue();
 
     }

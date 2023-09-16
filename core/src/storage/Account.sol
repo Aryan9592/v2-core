@@ -116,6 +116,7 @@ library Account {
     * @dev Thrown if attempting to perform a dutch liquidation while the account is above the dutch
     * margin requirement threshold and the liquidation bid queue is not empty
     */
+    // todo: add reference to quote token of the queue
     error AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(uint128 accountId);
 
      /**
@@ -261,12 +262,13 @@ library Account {
          */
         uint128 firstMarketId;
         /**
-         * @dev Liquidation Bid Priority Queues associated with the account alongside latest timestamp & id
+         * @dev Liquidation Bid Priority Queues associated with the account alongside latest timestamp & id per
+         * collateral bubble
+         * collateralBubbleQuoteTokenAddress -> LiquidationBidPriorityQueues
          */
-        LiquidationBidPriorityQueues liquidationBidPriorityQueues;
-        // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
-        // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
-        // synthetix/contracts/storage/Account.sol#L58
+        mapping(address => LiquidationBidPriorityQueues) liquidationBidPriorityQueuesPerBubble;
+
+        // todo: consider introducing empty slots for future use (also applies to other storage objects)
     }
 
     /**
@@ -624,31 +626,34 @@ library Account {
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        if (self.liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
-            block.timestamp > self.liquidationBidPriorityQueues.latestQueueEndTimestamp
+        LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        self.liquidationBidPriorityQueuesPerBubble[liquidationBid.quoteToken];
+
+        if (liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
+            block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp
         ) {
             // this is the first liquidation bid ever to be submitted against this account id
             // or the latest queue has expired, so we need to push the bid into a new queue
             uint256 liquidationBidPriorityQueueDurationInSeconds = collateralPool.riskConfig
             .liquidationBidPriorityQueueDurationInSeconds;
-            self.liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp
+            liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp
             + liquidationBidPriorityQueueDurationInSeconds;
-            self.liquidationBidPriorityQueues.latestQueueId += 1;
+            liquidationBidPriorityQueues.latestQueueId += 1;
         }
 
-        self.liquidationBidPriorityQueues.priorityQueues[self.liquidationBidPriorityQueues.latestQueueId].enqueue(
+        liquidationBidPriorityQueues.priorityQueues[liquidationBidPriorityQueues.latestQueueId].enqueue(
             liquidationBidRank,
             liquidationBid
         );
 
-        if (self.liquidationBidPriorityQueues.priorityQueues
-        [self.liquidationBidPriorityQueues.latestQueueId].ranks.length >
+        if (liquidationBidPriorityQueues.priorityQueues
+        [liquidationBidPriorityQueues.latestQueueId].ranks.length >
             collateralPool.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue) {
             revert LiquidationBidPriorityQueueOverflow(
-            self.liquidationBidPriorityQueues.latestQueueId,
-            self.liquidationBidPriorityQueues.latestQueueEndTimestamp,
-                self.liquidationBidPriorityQueues.priorityQueues
-                [self.liquidationBidPriorityQueues.latestQueueId].ranks.length
+            liquidationBidPriorityQueues.latestQueueId,
+            liquidationBidPriorityQueues.latestQueueEndTimestamp,
+                liquidationBidPriorityQueues.priorityQueues
+                [liquidationBidPriorityQueues.latestQueueId].ranks.length
             );
         }
 
@@ -771,9 +776,14 @@ library Account {
 
         collateralPoolsCheck(self.getCollateralPool().id, liquidatorAccount);
 
+        Market.Data storage market = Market.exists(marketId);
+
+        LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        self.liquidationBidPriorityQueuesPerBubble[market.quoteToken];
+
         // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
-        uint256 liquidationBidQueueLength = self.liquidationBidPriorityQueues.priorityQueues
-        [self.liquidationBidPriorityQueues.latestQueueId].ranks.length;
+        uint256 liquidationBidQueueLength = liquidationBidPriorityQueues.priorityQueues
+        [liquidationBidPriorityQueues.latestQueueId].ranks.length;
 
         if (liquidationBidQueueLength > 0 && self.isAboveDutch(address(0))) {
             revert AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(
@@ -782,8 +792,6 @@ library Account {
         }
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
-
-        Market.Data storage market = Market.exists(marketId);
 
         int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(market.quoteToken).liquidationDelta;
 
