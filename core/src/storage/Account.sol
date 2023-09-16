@@ -816,10 +816,10 @@ library Account {
         self.liquidationBidPriorityQueuesPerBubble[market.quoteToken];
 
         // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
-        uint256 liquidationBidQueueLength = liquidationBidPriorityQueues.priorityQueues
-        [liquidationBidPriorityQueues.latestQueueId].ranks.length;
 
-        if (liquidationBidQueueLength > 0 && self.isAboveDutch(address(0))) {
+        if (
+            liquidationBidPriorityQueues.priorityQueues
+        [liquidationBidPriorityQueues.latestQueueId].ranks.length > 0 && self.isAboveDutch(address(0))) {
             revert AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(
                 self.id
             );

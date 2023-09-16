@@ -38,7 +38,8 @@ interface ILiquidationModule {
     // todo: add natspec
     function executeTopRankedLiquidationBid(
         uint128 liquidatedAccountId,
-        address queueQuoteToken
+        address queueQuoteToken,
+        uint128 bidSubmissionKeeperId
     ) external;
 
     // todo: add natspec
