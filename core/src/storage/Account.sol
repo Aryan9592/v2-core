@@ -736,7 +736,7 @@ library Account {
             address quoteToken = quoteTokens[i];
             int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(quoteToken).liquidationDelta;
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
-            for (uint256 j = 0; i < markets.length; j++) {
+            for (uint256 j = 0; j < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
@@ -765,7 +765,7 @@ library Account {
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
-            for (uint256 j = 0; i < markets.length; j++) {
+            for (uint256 j = 0; j < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 bool hasUnfilledOrdersInMarket = Market.exists(marketId).hasUnfilledOrders(self.id);
 
@@ -932,6 +932,7 @@ library Account {
 
         } else {
             Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
+            // todo: sort out the int/uint
             uint256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
             - collateralPool.insuranceFundUnderwritings[quoteToken];
 
@@ -941,6 +942,17 @@ library Account {
                 insuranceFundDebit = insuranceFundCoverAvailable;
             }
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+        }
+
+        // execute adl orders (bankruptcy price is calculated in the market manager)
+
+        uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+        for (uint256 j = 0; j < markets.length; j++) {
+            uint128 marketId = markets[j].to128();
+            Market.exists(marketId).executeADLOrder(
+                self.id,
+                shortfall
+            );
         }
 
 

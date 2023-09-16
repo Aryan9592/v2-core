@@ -261,14 +261,12 @@ library Market {
     function executeADLOrder(
         Data storage self,
         uint128 liquidatableAccountId,
-        uint256 shortfall,
-        bytes memory inputs
+        uint256 shortfall
     ) internal view {
         IMarketManager(self.marketManagerAddress).executeADLOrder(
             liquidatableAccountId,
             self.id,
-            shortfall,
-            inputs
+            shortfall
         );
     }
 
