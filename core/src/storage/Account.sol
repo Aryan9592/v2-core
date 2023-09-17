@@ -904,7 +904,7 @@ library Account {
         self.isBelowADLCheck(address(0));
 
         // todo: validate backstop lp liquidation orders
-        // todo: layer in rewards
+        // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
         (bool isInsolvent, int256 marginBalance) = self.isInsolvent(quoteToken);
@@ -933,13 +933,13 @@ library Account {
         } else {
             Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
             // todo: sort out the int/uint
-            uint256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
-            - collateralPool.insuranceFundUnderwritings[quoteToken];
+            int256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
+            - collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
 
             uint256 insuranceFundDebit = (-marginBalance).toUint();
-            if (insuranceFundCoverAvailable < (-marginBalance).toUint()) {
-                shortfall = (-marginBalance).toUint() - insuranceFundCoverAvailable;
-                insuranceFundDebit = insuranceFundCoverAvailable;
+            if (insuranceFundCoverAvailable + marginBalance < 0) {
+                shortfall = (marginBalance-insuranceFundCoverAvailable).toUint();
+                insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
             }
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
         }

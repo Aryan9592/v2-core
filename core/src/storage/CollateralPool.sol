@@ -239,6 +239,7 @@ library CollateralPool {
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
         // todo: make sure doesn't overflow insurance fund balance (import account.sol)
         self.insuranceFundUnderwritings[collateralType] += amount;
+        // todo: emit event
     }
 
 
