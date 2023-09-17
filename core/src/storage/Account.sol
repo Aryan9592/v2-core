@@ -759,7 +759,7 @@ library Account {
 
     function hasUnfilledOrders(
         Account.Data storage self
-    ) internal {
+    ) internal view {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
@@ -907,13 +907,13 @@ library Account {
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
-        (bool isInsolvent, int256 marginBalance) = self.isInsolvent(quoteToken);
+        (bool _isInsolvent, int256 marginBalance) = self.isInsolvent(quoteToken);
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
         uint256 shortfall = 0;
 
-        if (!isInsolvent) {
+        if (!_isInsolvent) {
 
             Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
 

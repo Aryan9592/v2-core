@@ -144,7 +144,7 @@ contract LiquidationModule is ILiquidationModule {
 
         (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
             "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
-            liquidatableAccountId, topRankedLiquidationBid));
+            liquidatableAccountId, bidSubmissionKeeperId, topRankedLiquidationBid));
 
         // dequeue top bid it's successfully executed or not
 

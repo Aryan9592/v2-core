@@ -228,7 +228,7 @@ library Market {
         IMarketManager(self.marketManagerAddress).closeAllUnfilledOrders(self.id, accountId);
     }
 
-    function hasUnfilledOrders(Data storage self, uint128 accountId) internal returns (bool) {
+    function hasUnfilledOrders(Data storage self, uint128 accountId) internal view returns (bool) {
         return IMarketManager(self.marketManagerAddress).hasUnfilledOrders(self.id, accountId);
     }
 
@@ -262,7 +262,7 @@ library Market {
         Data storage self,
         uint128 liquidatableAccountId,
         uint256 shortfall
-    ) internal view {
+    ) internal {
         IMarketManager(self.marketManagerAddress).executeADLOrder(
             liquidatableAccountId,
             self.id,
