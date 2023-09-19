@@ -23,7 +23,6 @@ import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQu
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import "../interfaces/external/IMarketManager.sol";
 
 /*
 TODOs
@@ -38,13 +37,12 @@ TODOs
  */
 library Account {
     using Account for Account.Data;
-    using Market for Market.Data;
     using CollateralPool for CollateralPool.Data;
+    using Market for Market.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
-    using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
 
     /**
      * @dev All account permissions used by the system

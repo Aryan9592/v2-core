@@ -19,32 +19,45 @@ TODOs
 
 
 import {Account} from "../../storage/Account.sol";
+import {CollateralPool} from "../../storage/CollateralPool.sol";
+import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
+import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import "../../interfaces/external/IMarketManager.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Object for managing account liquidation utilities
 */
 library AccountLiquidation {
     using Account for Account.Data;
+    using AccountLiquidation for Account.Data;
+    using CollateralPool for CollateralPool.Data;
+    using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
+    using Market for Market.Data;
+    using SetUtil for SetUtil.AddressSet;
+    using SetUtil for SetUtil.UintSet;
+    using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
 
     /**
      * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
      */
-    error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginInfo);
+    error AccountNotBetweenMmrAndLm(uint128 accountId, Account.MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the liquidation margin requirement
      */
-    error AccountNotBelowLM(uint128 accountId, MarginInfo marginInfo);
+    error AccountNotBelowLM(uint128 accountId, Account.MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the adl margin requirement
      */
-    error AccountNotBelowADL(uint128 accountId, MarginInfo marginInfo);
+    error AccountNotBelowADL(uint128 accountId, Account.MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the maintenance margin requirement
      */
-    error AccountNotBelowMMR(uint128 accountId, MarginInfo marginInfo);
+    error AccountNotBelowMMR(uint128 accountId, Account.MarginInfo marginInfo);
 
 
     /**
@@ -105,7 +118,7 @@ library AccountLiquidation {
      * @dev Checks if the account is below the maintenance margin requirement
      * and reverts if that's not the case (i.e. reverts if the mmr requirement is satisfied by the account)
      */
-    function isBelowMMRCheck(Data storage self, address collateralType) internal view returns
+    function isBelowMMRCheck(Account.Data storage self, address collateralType) internal view returns
     (Account.MarginInfo memory marginInfo) {
 
         marginInfo = self.getMarginInfoByBubble(collateralType);
@@ -120,7 +133,7 @@ library AccountLiquidation {
      * @dev Checks if the account is below maintenance margin requirement and above
      * liquidation margin requirement, if that's not the case revert
      */
-    function isBetweenMmrAndLmCheck(Data storage self, address collateralType) internal view returns
+    function isBetweenMmrAndLmCheck(Account.Data storage self, address collateralType) internal view returns
     (Account.MarginInfo memory marginInfo) {
         marginInfo = self.getMarginInfoByBubble(collateralType);
 
@@ -134,7 +147,7 @@ library AccountLiquidation {
      * @dev Checks if the account is below the liquidation margin requirement
      * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
      */
-    function isBelowLMCheck(Data storage self, address collateralType) internal view returns
+    function isBelowLMCheck(Account.Data storage self, address collateralType) internal view returns
     (Account.MarginInfo memory marginInfo) {
 
         marginInfo = self.getMarginInfoByBubble(collateralType);
@@ -149,7 +162,7 @@ library AccountLiquidation {
      * @dev Checks if the account is below the adl margin requirement
      * and reverts if that's not the case (i.e. reverts if the adl requirement is satisfied by the account)
      */
-    function isBelowADLCheck(Data storage self, address collateralType) internal view returns
+    function isBelowADLCheck(Account.Data storage self, address collateralType) internal view returns
     (Account.MarginInfo memory marginInfo) {
 
         marginInfo = self.getMarginInfoByBubble(collateralType);
@@ -164,7 +177,7 @@ library AccountLiquidation {
      * @dev Checks if the account is above the dutch margin requirement
      * if that's the case, return true, otherwise return false
      */
-    function isAboveDutch(Data storage self, address collateralType) internal view returns (bool) {
+    function isAboveDutch(Account.Data storage self, address collateralType) internal view returns (bool) {
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return marginInfo.dutchDelta > 0;
     }
@@ -173,7 +186,7 @@ library AccountLiquidation {
      * @dev Checks if an account is insolvent in a given bubble (assuming auto-exchange is exhausted!!!)
      * and returns the shortfall
      */
-    function isInsolvent(Data storage self, address collateralType) internal view returns (bool, int256) {
+    function isInsolvent(Account.Data storage self, address collateralType) internal view returns (bool, int256) {
         // todo: note, doing too many redundunt calculations, can be optimized
         // todo: consider reverting if address(0) is provided as collateralType
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
@@ -264,7 +277,7 @@ library AccountLiquidation {
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[liquidationBid.quoteToken];
 
         if (liquidationBidPriorityQueues.latestQueueEndTimestamp == 0 ||
@@ -435,7 +448,7 @@ library AccountLiquidation {
 
         Market.Data storage market = Market.exists(marketId);
 
-        LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[market.quoteToken];
 
         // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
