@@ -34,6 +34,7 @@ library LiquidationBidPriorityQueue {
     }
 
     function top(Heap storage self) internal view notEmpty(self) returns(uint256) {
+        // todo: why not 0? (relevant to todo below around why initialize at zero)
         return self.ranks[1];
     }
 
