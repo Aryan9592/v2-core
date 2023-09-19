@@ -175,7 +175,7 @@ contract ExecutionModule {
         address collateralType = marketManager.getMarketQuoteToken(command.marketId);
         account.markActiveMarket(collateralType, command.marketId);
 
-        uint256 initialAccountMarketExposure = account.getTotalAbsoluteMarketExposure(command.marketId);
+        uint256 initialAccountMarketExposure = marketManager.getAccountAbsoluteMarketExposure(command.marketId, accountId);
 
         uint256 commandName = uint8(command.commandType & COMMAND_TYPE_MASK);
         if (commandName == V2_MARKET_MANAGER_TAKER_ORDER) {
@@ -185,7 +185,7 @@ contract ExecutionModule {
                 accountId,
                 command.marketId,
                 collateralType, 
-                getAnnualizedNotionalDelta(account, command.marketId, initialAccountMarketExposure)
+                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager)
             );
             return abi.encode(result, fee);
         } else if (commandName == V2_MARKET_MANAGER_MAKER_ORDER) {
@@ -195,7 +195,7 @@ contract ExecutionModule {
                 accountId,
                 command.marketId,
                 collateralType, // of the market
-                getAnnualizedNotionalDelta(account, command.marketId, initialAccountMarketExposure)
+                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager)
             );
             return abi.encode(result, fee);
         } else if (commandName == V2_MARKET_MANAGER_COMPLETE_POSITION) {
@@ -206,53 +206,52 @@ contract ExecutionModule {
 
             return abi.encode(result);
         } else if (commandName == V2_MATCHED_ORDER) {
-            (bytes memory matchResult, uint128 counterPartyAccountId, uint256 initialCounterPartyMarketExposure) = 
-                MatchedOrders.matchedOrder(
-                    accountId,
-                    command.marketId,
-                    marketManager,
-                    command.inputs
-                );
+            (
+                bytes memory result,
+                bytes memory counterPartyResult,
+                uint128 counterPartyAccountId,
+                int256 counterpartyAnnualizedNotionalDelta
+            ) = MatchedOrders.matchedOrder(
+                accountId,
+                command.marketId,
+                marketManager,
+                command.inputs
+            );
 
             // charge fees
-            int256 annualizedNotional = 
-                getAnnualizedNotionalDelta(account, command.marketId, initialAccountMarketExposure);
+            int256 annualizedNotionalDelta = 
+                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager);
             uint256 fee = Propagation.propagateTakerOrder(
                 accountId,
                 command.marketId,
                 collateralType, 
-                annualizedNotional
-            );
-            int256 counterpartyAnnualizedNotional = getAnnualizedNotionalDelta(
-                Account.exists(counterPartyAccountId),
-                command.marketId,
-                initialCounterPartyMarketExposure
+                annualizedNotionalDelta
             );
             uint256 counterPartyFee = Propagation.propagateMakerOrder(
                 counterPartyAccountId,
                 command.marketId,
                 collateralType,
-                counterpartyAnnualizedNotional
+                counterpartyAnnualizedNotionalDelta
             );
 
             // run counter party IM
-            Account.MarginRequirementDeltas memory counterPartyMarginRequirements = 
+            Account.MarginInfo memory counterPartyMarginRequirements = 
                 Account.exists(counterPartyAccountId).imCheck(address(0));
                 
-            return abi.encode(matchResult, fee, counterPartyFee, counterPartyMarginRequirements);
+            return abi.encode(result, fee, counterPartyResult, counterPartyFee, counterPartyMarginRequirements);
         } else {
             revert InvalidCommandType(commandName);
         }
     }
 
-    /// @notice utility function
     function getAnnualizedNotionalDelta(
-        Account.Data storage account,
+        uint128 accountId,
         uint128 marketId,
-        uint256 initialExposure
+        uint256 initialExposure,
+        IMarketManager marketManager
     ) private view returns (int256 delta) {
         delta = initialExposure.toInt() - 
-                account.getTotalAbsoluteMarketExposure(marketId).toInt();
+                marketManager.getAccountAbsoluteMarketExposure(marketId, accountId).toInt();
     }
 
 }
