@@ -122,7 +122,7 @@ library AccountLiquidation {
      * @dev Checks if the account is below the liquidation margin requirement
      * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
      */
-    function isBelowLMCheck(Account.Data storage self, address collateralType) internal view returns
+    function isBelowLMCheck(Account.Data storage self, address collateralType) private view returns
     (Account.MarginInfo memory marginInfo) {
 
         marginInfo = self.getMarginInfoByBubble(collateralType);
@@ -137,9 +137,11 @@ library AccountLiquidation {
      * @dev Checks if an account is insolvent in a given bubble (assuming auto-exchange is exhausted!!!)
      * and returns the shortfall
      */
-    function isInsolvent(Account.Data storage self, address collateralType) internal view returns (bool, int256) {
+    function isInsolvent(Account.Data storage self, address collateralType) private view returns (bool, int256) {
         // todo: note, doing too many redundunt calculations, can be optimized
         // todo: consider reverting if address(0) is provided as collateralType
+        // consider baking this function into the backstop lp function if it's not used anywhere else
+
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return (marginInfo.marginBalance < 0, marginInfo.marginBalance);
     }
@@ -148,7 +150,7 @@ library AccountLiquidation {
     function collateralPoolsCheck(
         uint128 liquidatableAccountCollateralPoolId,
         Account.Data storage liquidatorAccount
-    ) internal {
+    ) private {
 
         // liquidator and liquidatee should belong to the same collateral pool
         // note, it's fine for the liquidator to not belong to any collateral pool
@@ -169,7 +171,7 @@ library AccountLiquidation {
         Account.Data storage self,
         Account.Data storage liquidatorAccount,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-    ) internal {
+    ) private {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -203,7 +205,7 @@ library AccountLiquidation {
 
     function computeLiquidationBidRank(
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-    ) internal returns (uint256) {
+    ) private returns (uint256) {
         // implement
         // note, the ranking function should revert if the liquidation bid is attempting to liquidate more exposure
         // than the user has
@@ -228,7 +230,7 @@ library AccountLiquidation {
             msg.sender
         );
 
-        self.validateLiquidationBid(liquidatorAccount, liquidationBid);
+        validateLiquidationBid(self, liquidatorAccount, liquidationBid);
         uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -303,7 +305,8 @@ library AccountLiquidation {
                 revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
             }
 
-            self.distributeLiquidationPenalty(
+            distributeLiquidationPenalty(
+                self,
                 liquidatorAccount,
                 mulUDxUint(
                     collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
@@ -394,7 +397,7 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if the account is not below the liquidation margin requirement
-        self.isBelowLMCheck(address(0));
+        isBelowLMCheck(self, address(0));
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
@@ -438,7 +441,7 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if account is not below liquidation margin requirement
-        self.isBelowLMCheck(address(0));
+        isBelowLMCheck(self, address(0));
 
         // todo: revert if below insolvency
 
@@ -481,7 +484,8 @@ library AccountLiquidation {
             revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
         }
 
-        self.distributeLiquidationPenalty(
+        distributeLiquidationPenalty(
+            self,
             liquidatorAccount,
             mulUDxUint(
                 liquidationPenaltyParameter,
@@ -514,7 +518,7 @@ library AccountLiquidation {
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
-        (bool _isInsolvent, int256 marginBalance) = self.isInsolvent(quoteToken);
+        (bool _isInsolvent, int256 marginBalance) = isInsolvent(self, quoteToken);
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
