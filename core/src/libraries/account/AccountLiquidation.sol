@@ -15,15 +15,18 @@ TODOs
     - is there a way to re-use LiquidationOrder struct in liquidation bid and other places where relevant?
     - implement dutch reward parameter calculation
     - implement rank calculation
+    - remove address collateralType from im and lm checks
 */
 
 
 import {Account} from "../../storage/Account.sol";
+import {Market} from "../../storage/Market.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import "../../interfaces/external/IMarketManager.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 /**
  * @title Object for managing account liquidation utilities
@@ -115,35 +118,6 @@ library AccountLiquidation {
 
 
     /**
-     * @dev Checks if the account is below the maintenance margin requirement
-     * and reverts if that's not the case (i.e. reverts if the mmr requirement is satisfied by the account)
-     */
-    function isBelowMMRCheck(Account.Data storage self, address collateralType) internal view returns
-    (Account.MarginInfo memory marginInfo) {
-
-        marginInfo = self.getMarginInfoByBubble(collateralType);
-
-        if (marginInfo.maintenanceDelta > 0) {
-            revert AccountNotBelowMMR(self.id, marginInfo);
-        }
-
-    }
-
-    /**
-     * @dev Checks if the account is below maintenance margin requirement and above
-     * liquidation margin requirement, if that's not the case revert
-     */
-    function isBetweenMmrAndLmCheck(Account.Data storage self, address collateralType) internal view returns
-    (Account.MarginInfo memory marginInfo) {
-        marginInfo = self.getMarginInfoByBubble(collateralType);
-
-        if (!(marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0)) {
-            revert AccountNotBetweenMmrAndLm(self.id, marginInfo);
-        }
-
-    }
-
-    /**
      * @dev Checks if the account is below the liquidation margin requirement
      * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
      */
@@ -156,30 +130,6 @@ library AccountLiquidation {
             revert AccountNotBelowLM(self.id, marginInfo);
         }
 
-    }
-
-    /**
-     * @dev Checks if the account is below the adl margin requirement
-     * and reverts if that's not the case (i.e. reverts if the adl requirement is satisfied by the account)
-     */
-    function isBelowADLCheck(Account.Data storage self, address collateralType) internal view returns
-    (Account.MarginInfo memory marginInfo) {
-
-        marginInfo = self.getMarginInfoByBubble(collateralType);
-
-        if (marginInfo.adlDelta > 0) {
-            revert AccountNotBelowADL(self.id, marginInfo);
-        }
-
-    }
-
-    /**
-     * @dev Checks if the account is above the dutch margin requirement
-     * if that's the case, return true, otherwise return false
-     */
-    function isAboveDutch(Account.Data storage self, address collateralType) internal view returns (bool) {
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return marginInfo.dutchDelta > 0;
     }
 
     /**
@@ -265,7 +215,11 @@ library AccountLiquidation {
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
 
-        self.isBetweenMmrAndLmCheck(address(0));
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+
+        if (!(marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0)) {
+            revert AccountNotBetweenMmrAndLm(self.id, marginInfo);
+        }
 
         Account.Data storage liquidatorAccount = Account.loadAccountAndValidatePermission(
             liquidationBid.liquidatorAccountId,
@@ -318,7 +272,11 @@ library AccountLiquidation {
         uint128 liquidatorAccountId
     ) internal {
 
-        self.isBelowMMRCheck(address(0));
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+
+        if (marginInfo.maintenanceDelta > 0) {
+            revert AccountNotBelowMMR(self.id, marginInfo);
+        }
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
@@ -344,12 +302,14 @@ library AccountLiquidation {
                 revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
             }
 
-            uint256 liquidationPenalty = mulUDxUint(
-                collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
-                lmDeltaChange.toUint()
-            );
-
-            self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, quoteToken, 0);
+            self.distributeLiquidationPenalty(
+                liquidatorAccount,
+                mulUDxUint(
+                    collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
+                    lmDeltaChange.toUint()
+                ),
+                quoteToken,
+                0);
         }
 
     }
@@ -493,9 +453,11 @@ library AccountLiquidation {
 
         // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
 
+        bool isAboveDutch = self.getMarginInfoByBubble(address(0)).dutchDelta > 0;
+
         if (
             liquidationBidPriorityQueues.priorityQueues
-            [liquidationBidPriorityQueues.latestQueueId].ranks.length > 0 && self.isAboveDutch(address(0))) {
+            [liquidationBidPriorityQueues.latestQueueId].ranks.length > 0 && isAboveDutch) {
             revert AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(
                 self.id
             );
@@ -518,12 +480,14 @@ library AccountLiquidation {
             revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
         }
 
-        uint256 liquidationPenalty = mulUDxUint(
-            liquidationPenaltyParameter,
-            lmDeltaChange.toUint()
-        );
-
-        self.distributeLiquidationPenalty(liquidatorAccount, liquidationPenalty, market.quoteToken, 0);
+        self.distributeLiquidationPenalty(
+            liquidatorAccount,
+            mulUDxUint(
+                liquidationPenaltyParameter,
+                lmDeltaChange.toUint()
+            ),
+            market.quoteToken,
+            0);
 
         liquidatorAccount.imCheck(address(0));
 
@@ -539,7 +503,11 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if account is not below adl margin requirement
-        self.isBelowADLCheck(address(0));
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+
+        if (marginInfo.adlDelta > 0) {
+            revert AccountNotBelowADL(self.id, marginInfo);
+        }
 
         // todo: validate backstop lp liquidation orders
         // todo: layer in backstop lp & keeper rewards
