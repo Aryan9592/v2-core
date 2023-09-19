@@ -42,7 +42,6 @@ library LiquidationBidPriorityQueue {
     }
 
     function dequeue(Heap storage self) internal notEmpty(self) {
-        require(self.ranks.length > 1);
 
         uint256 toReturn = top(self);
         self.ranks[1] = self.ranks[self.ranks.length - 1];
@@ -85,14 +84,6 @@ library LiquidationBidPriorityQueue {
         }
 
         self.liquidationBidsMap[rank] = liquidationBid;
-    }
-
-    // todo: consider removing this function (feels redundunt)
-    function drain(Heap storage self, uint256 rankThreshold) internal {
-        while (self.ranks.length > 1 && top(self) < rankThreshold) {
-            dequeue(self);
-        }
-
     }
 
 }
