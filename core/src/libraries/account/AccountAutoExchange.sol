@@ -157,6 +157,8 @@ library AccountAutoExchange {
             return (coveringTokenAmount, availableToAutoExchange);
         }
         else {
+            // IR: why do we run this transformation? don't we want to return the amount represented in covering tokens?
+            // maybe coveringTokenAmount should be amountToAutoExchange here
             uint256 correspondingTokenCoveringAmount = divUintUD(coveringTokenAmount, price.mul(autoExchangeDiscount));
             return (correspondingTokenCoveringAmount, amountToAutoExchange);
         }
