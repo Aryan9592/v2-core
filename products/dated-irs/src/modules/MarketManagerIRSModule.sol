@@ -99,7 +99,29 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external returns (bytes memory output) {
+    ) external override returns (bytes memory output) {
+        // todo: needs implementation
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function validateLiquidationOrder(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external override view {
+        // todo: needs implementation
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function executeADLOrder(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint256 shortfall
+    ) external override {
         // todo: needs implementation
     }
 
