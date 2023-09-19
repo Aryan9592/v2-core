@@ -16,6 +16,7 @@ TODOs
     - implement dutch reward parameter calculation
     - implement rank calculation
     - remove address collateralType from im and lm checks
+    - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
 */
 
 
