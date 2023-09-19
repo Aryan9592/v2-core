@@ -424,6 +424,46 @@ library AccountLiquidation {
         return UD60x18.wrap(10e17);
     }
 
+    function executeTopRankedLiquidationBid(
+        Account.Data storage self,
+        address queueQuoteToken,
+        uint128 bidSubmissionKeeperId
+    ) internal {
+        // revert if the account has any unfilled orders
+        self.hasUnfilledOrders();
+
+        // revert if the account is not below the liquidation margin requirement
+        self.isBelowLMCheck(address(0));
+
+        Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
+        self.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
+
+        if (block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp) {
+            // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
+            revert AccountLiquidation.LiquidationBidPriorityQueueExpired(
+                liquidationBidPriorityQueues.latestQueueId,
+                liquidationBidPriorityQueues.latestQueueEndTimestamp
+            );
+        }
+
+        // extract top ranked order
+
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = liquidationBidPriorityQueues
+        .priorityQueues[
+        liquidationBidPriorityQueues.latestQueueId
+        ].topBid();
+
+        (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
+            "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
+            self.id, bidSubmissionKeeperId, topRankedLiquidationBid));
+
+        // dequeue top bid it's successfully executed or not
+
+        liquidationBidPriorityQueues.priorityQueues[
+        liquidationBidPriorityQueues.latestQueueId
+        ].dequeue();
+    }
+
     function executeDutchLiquidation(
         Account.Data storage self,
         uint128 liquidatorAccountId,

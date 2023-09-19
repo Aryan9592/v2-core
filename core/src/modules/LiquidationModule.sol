@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
+import {AccountLiquidation} from "../libraries/account/AccountLiquidation.sol";
 import {Market} from "../storage/Market.sol";
 import {ILiquidationModule} from "../interfaces/ILiquidationModule.sol";
 import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
@@ -23,6 +24,7 @@ import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCas
 
 contract LiquidationModule is ILiquidationModule {
     using Account for Account.Data;
+    using AccountLiquidation for Account.Data;
     using Market for Market.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
     using SafeCastI256 for int256;
@@ -82,7 +84,7 @@ contract LiquidationModule is ILiquidationModule {
         int256 lmDeltaChange =
         account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
         if (lmDeltaChange < 0) {
-            revert Account.LiquidationCausedNegativeLMDeltaChange(account.id, lmDeltaChange);
+            revert AccountLiquidation.LiquidationCausedNegativeLMDeltaChange(account.id, lmDeltaChange);
         }
         uint256 liquidationPenalty = mulUDxUint(
             liquidationBid.liquidatorRewardParameter,
@@ -113,44 +115,13 @@ contract LiquidationModule is ILiquidationModule {
         uint128 bidSubmissionKeeperId
     ) external override {
 
-        // todo: consider pushing this function into account.sol
-
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
-        // revert if the account has any unfilled orders
-        account.hasUnfilledOrders();
-
-        // revert if the account is not below the liquidation margin requirement
-        account.isBelowLMCheck(address(0));
-
-        Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
-        account.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
-
-        if (block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp) {
-            // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
-            revert Account.LiquidationBidPriorityQueueExpired(
-                liquidationBidPriorityQueues.latestQueueId,
-                liquidationBidPriorityQueues.latestQueueEndTimestamp
-            );
-        }
-
-        // extract top ranked order
-
-        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = liquidationBidPriorityQueues
-        .priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
-        ].topBid();
-
-        (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
-            "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
-            liquidatableAccountId, bidSubmissionKeeperId, topRankedLiquidationBid));
-
-        // dequeue top bid it's successfully executed or not
-
-        liquidationBidPriorityQueues.priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
-        ].dequeue();
+        account.executeTopRankedLiquidationBid(
+            queueQuoteToken,
+            bidSubmissionKeeperId
+        );
 
     }
 
