@@ -121,10 +121,7 @@ library AccountCollateral {
         Account.MarginInfo memory marginInfoCollateral = 
             self.getMarginInfoByCollateralType(
                 collateralType, 
-                self.getCollateralPool().riskConfig.imMultiplier,
-                self.getCollateralPool().riskConfig.mmrMultiplier,
-                self.getCollateralPool().riskConfig.dutchMultiplier,
-                self.getCollateralPool().riskConfig.adlMultiplier
+                self.getCollateralPool().riskConfig.riskMultipliers
             );
         
         int256 withdrawableBalanceCollateral = SignedMath.max(

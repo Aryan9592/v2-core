@@ -41,10 +41,7 @@ library AccountAutoExchange {
         {
             Account.MarginInfo memory marginInfo =
                 self.getMarginInfoByCollateralType(collateralType,
-                    collateralPool.riskConfig.imMultiplier,
-                    collateralPool.riskConfig.mmrMultiplier,
-                    collateralPool.riskConfig.dutchMultiplier,
-                    collateralPool.riskConfig.adlMultiplier
+                    collateralPool.riskConfig.riskMultipliers
                 );
 
             if (marginInfo.initialDelta > 0) {
@@ -79,10 +76,7 @@ library AccountAutoExchange {
             Account.MarginInfo memory deltas = 
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],
-                    collateralPool.riskConfig.imMultiplier,
-                    collateralPool.riskConfig.mmrMultiplier,
-                    collateralPool.riskConfig.dutchMultiplier,
-                    collateralPool.riskConfig.adlMultiplier
+                    collateralPool.riskConfig.riskMultipliers
                 );
             
             if (deltas.initialDelta < 0) {
@@ -124,10 +118,7 @@ library AccountAutoExchange {
         Account.MarginInfo memory marginInfo = 
             self.getMarginInfoByCollateralType(
                 autoExchangedToken,
-                collateralPool.riskConfig.imMultiplier,
-                collateralPool.riskConfig.mmrMultiplier,
-                collateralPool.riskConfig.dutchMultiplier,
-                collateralPool.riskConfig.adlMultiplier
+                collateralPool.riskConfig.riskMultipliers
             );
 
         if (marginInfo.initialDelta > 0) {

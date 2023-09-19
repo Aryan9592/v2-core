@@ -97,7 +97,8 @@ library CollateralPool {
      */
     event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount, uint256 blockTimestamp);
 
-    struct RiskConfiguration {
+    struct RiskMultipliers {
+
         /**
          * @dev IM Multiplier is used to introduce a buffer between the liquidation (LM) and initial (IM) margin requirements
          * where IM = imMultiplier * LM
@@ -127,30 +128,40 @@ library CollateralPool {
          */
         UD60x18 adlMultiplier;
 
+    }
+
+    struct LiquidationConfiguration {
         /**
-         * @dev Parameter that's multiplied by the change in LM caused by triggering closure of unfilled orders
+       * @dev Parameter that's multiplied by the change in LM caused by triggering closure of unfilled orders
          */
-        UD60x18 unfilledOrderLiquidationPenaltyParameter;
+        UD60x18 unfilledPenaltyParameter;
 
         /**
          * @dev Fee percentage charged by the keepers that execute liquidation bids
          */
-        UD60x18 bidSubmissionKeeperFee;
+        UD60x18 bidKeeperFee;
 
         /**
          * @dev Liquidation Bid Priority Queue Duration In Seconds
          */
-        uint256 liquidationBidPriorityQueueDurationInSeconds;
+        uint256 queueDurationInSeconds;
 
         /**
          * @dev Maximum number of orders that a liquidation bid can contain
          */
-        uint256 maxNumberOfOrdersInLiquidationBid;
+        uint256 maxOrdersInBid;
 
         /**
          * @dev Maximum number of liquidations bids that can be submitted to a single liquidation bid priority queue
          */
-        uint256 maxNumberOfBidsInLiquidationBidPriorityQueue;
+        uint256 maxBidsInQueue;
+    }
+
+    struct RiskConfiguration {
+
+        RiskMultipliers riskMultipliers;
+
+        LiquidationConfiguration liquidationConfiguration;
     }
 
     struct InsuranceFundConfig {
@@ -448,13 +459,13 @@ library CollateralPool {
     function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
         self.checkRoot();
 
-        self.riskConfig.imMultiplier = config.imMultiplier;
-        self.riskConfig.mmrMultiplier = config.mmrMultiplier;
-        self.riskConfig.unfilledOrderLiquidationPenaltyParameter = config.unfilledOrderLiquidationPenaltyParameter;
-        self.riskConfig.bidSubmissionKeeperFee = config.bidSubmissionKeeperFee;
-        self.riskConfig.liquidationBidPriorityQueueDurationInSeconds = config.liquidationBidPriorityQueueDurationInSeconds;
-        self.riskConfig.maxNumberOfOrdersInLiquidationBid = config.maxNumberOfOrdersInLiquidationBid;
-        self.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue = config.maxNumberOfBidsInLiquidationBidPriorityQueue;
+        self.riskConfig.riskMultipliers.imMultiplier = config.riskMultipliers.imMultiplier;
+        self.riskConfig.riskMultipliers.mmrMultiplier = config.riskMultipliers.mmrMultiplier;
+        self.riskConfig.liquidationConfiguration.unfilledPenaltyParameter = config.liquidationConfiguration.unfilledPenaltyParameter;
+        self.riskConfig.liquidationConfiguration.bidKeeperFee = config.liquidationConfiguration.bidKeeperFee;
+        self.riskConfig.liquidationConfiguration.queueDurationInSeconds = config.liquidationConfiguration.queueDurationInSeconds;
+        self.riskConfig.liquidationConfiguration.maxOrdersInBid = config.liquidationConfiguration.maxOrdersInBid;
+        self.riskConfig.liquidationConfiguration.maxBidsInQueue = config.liquidationConfiguration.maxBidsInQueue;
 
         emit CollateralPoolUpdated(
             self.id, 

@@ -387,10 +387,7 @@ library Account {
     function getMarginInfoByCollateralType(
         Account.Data storage self, 
         address collateralType, 
-        UD60x18 imMultiplier, 
-        UD60x18 mmrMultiplier,
-        UD60x18 dutchMultiplier, 
-        UD60x18 adlMultiplier
+        CollateralPool.RiskMultipliers memory riskMultipliers
     )
         internal
         view
@@ -399,10 +396,7 @@ library Account {
         return AccountExposure.getMarginInfoByCollateralType(
             self, 
             collateralType, 
-            imMultiplier, 
-            mmrMultiplier,
-            dutchMultiplier,
-            adlMultiplier
+            riskMultipliers
         );
     }
 

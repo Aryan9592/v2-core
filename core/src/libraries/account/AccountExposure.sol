@@ -37,20 +37,13 @@ library AccountExposure {
     {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
-        UD60x18 imMultiplier = collateralPool.riskConfig.imMultiplier;
-        UD60x18 mmrMultiplier = collateralPool.riskConfig.mmrMultiplier;
-        UD60x18 dutchMultiplier = collateralPool.riskConfig.dutchMultiplier;
-        UD60x18 adlMultiplier = collateralPool.riskConfig.adlMultiplier;
 
         address quoteToken = address(0);
         Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(
             account,
             collateralPoolId,
             address(0),
-            imMultiplier,
-            mmrMultiplier,
-            dutchMultiplier,
-            adlMultiplier
+            collateralPool.riskConfig.riskMultipliers
         ); 
 
         if (token == quoteToken) {
@@ -82,10 +75,7 @@ library AccountExposure {
         Account.Data storage account, 
         uint128 collateralPoolId, 
         address quoteToken, 
-        UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier,
-        UD60x18 dutchMultiplier,
-        UD60x18 adlMultiplier
+        CollateralPool.RiskMultipliers memory riskMultipliers
     ) 
         private 
         view
@@ -94,10 +84,7 @@ library AccountExposure {
         marginInfo = getMarginInfoByCollateralType(
             account,
             quoteToken,
-            imMultiplier,
-            mmrMultiplier,
-            dutchMultiplier,
-            adlMultiplier
+            riskMultipliers
         );
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteToken).childTokens.values();
@@ -111,10 +98,7 @@ library AccountExposure {
                     account,
                     collateralPoolId,
                     tokens[i],
-                    imMultiplier,
-                    mmrMultiplier,
-                    dutchMultiplier,
-                    adlMultiplier
+                    riskMultipliers
                 );
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
@@ -169,10 +153,7 @@ library AccountExposure {
     function getMarginInfoByCollateralType(
         Account.Data storage self, 
         address collateralType,
-        UD60x18 imMultiplier,
-        UD60x18 mmrMultiplier,
-        UD60x18 dutchMultiplier,
-        UD60x18 adlMultiplier
+        CollateralPool.RiskMultipliers memory riskMultipliers
     )
         internal
         view
@@ -226,16 +207,16 @@ library AccountExposure {
         }
 
         // Get the initial margin requirement
-        vars.initialMarginRequirement = mulUDxUint(imMultiplier, vars.liquidationMarginRequirement);
+        vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
 
         // Get the maintenance margin requirement
-        vars.maintenanceMarginRequirement  = mulUDxUint(mmrMultiplier, vars.liquidationMarginRequirement);
+        vars.maintenanceMarginRequirement  = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
 
         // Get the dutch margin requirement
-        vars.dutchMarginRequirement  = mulUDxUint(dutchMultiplier, vars.liquidationMarginRequirement);
+        vars.dutchMarginRequirement  = mulUDxUint(riskMultipliers.dutchMultiplier, vars.liquidationMarginRequirement);
 
         // Get the adl margin requirement
-        vars.adlMarginRequirement  = mulUDxUint(adlMultiplier, vars.liquidationMarginRequirement);
+        vars.adlMarginRequirement  = mulUDxUint(riskMultipliers.adlMultiplier, vars.liquidationMarginRequirement);
 
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);

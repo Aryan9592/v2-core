@@ -231,9 +231,9 @@ library AccountLiquidation {
             revert LiquidationBidMarketIdsAndInputsLengthMismatch(marketIdsLength, inputsLength);
         }
 
-        if (marketIdsLength > collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid) {
+        if (marketIdsLength > collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid) {
             revert LiquidationBidOrdersOverflow(marketIdsLength,
-                collateralPool.riskConfig.maxNumberOfOrdersInLiquidationBid);
+                collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid);
         }
 
         for (uint256 i = 0; i < marketIdsLength; i++) {
@@ -285,10 +285,10 @@ library AccountLiquidation {
         ) {
             // this is the first liquidation bid ever to be submitted against this account id
             // or the latest queue has expired, so we need to push the bid into a new queue
-            uint256 liquidationBidPriorityQueueDurationInSeconds = collateralPool.riskConfig
-            .liquidationBidPriorityQueueDurationInSeconds;
+            uint256 queueDurationInSeconds = collateralPool.riskConfig
+            .liquidationConfiguration.queueDurationInSeconds;
             liquidationBidPriorityQueues.latestQueueEndTimestamp = block.timestamp
-            + liquidationBidPriorityQueueDurationInSeconds;
+            + queueDurationInSeconds;
             liquidationBidPriorityQueues.latestQueueId += 1;
         }
 
@@ -299,7 +299,7 @@ library AccountLiquidation {
 
         if (liquidationBidPriorityQueues.priorityQueues
         [liquidationBidPriorityQueues.latestQueueId].ranks.length >
-            collateralPool.riskConfig.maxNumberOfBidsInLiquidationBidPriorityQueue) {
+            collateralPool.riskConfig.liquidationConfiguration.maxBidsInQueue) {
             revert LiquidationBidPriorityQueueOverflow(
                 liquidationBidPriorityQueues.latestQueueId,
                 liquidationBidPriorityQueues.latestQueueEndTimestamp,
@@ -345,7 +345,7 @@ library AccountLiquidation {
             }
 
             uint256 liquidationPenalty = mulUDxUint(
-                collateralPool.riskConfig.unfilledOrderLiquidationPenaltyParameter,
+                collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
                 lmDeltaChange.toUint()
             );
 
@@ -401,7 +401,7 @@ library AccountLiquidation {
 
         if (bidSubmissionKeeperId != 0) {
             keeperReward = mulUDxUint(
-                collateralPool.riskConfig.bidSubmissionKeeperFee,
+                collateralPool.riskConfig.liquidationConfiguration.bidKeeperFee,
                 liquidationPenalty
             );
         }
