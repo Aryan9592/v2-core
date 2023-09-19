@@ -18,9 +18,11 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -245,6 +247,34 @@ library Portfolio {
         }
 
         return exposures;
+    }
+
+    function getAccountAbsoluteExposure(
+        Data storage self
+    )
+        internal
+        view
+        returns (uint256 totalMarketExposure)
+    {
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        uint256 activeMaturitiesCount = self.activeMaturities.length();
+
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+            Account.MakerMarketExposure memory exposure = self.getAccountExposuresPerMaturity(
+                poolAddress,
+                maturityTimestamp
+            );
+
+            totalMarketExposure += SignedMath.abs(exposure.lower.annualizedNotional);
+            totalMarketExposure += SignedMath.abs(exposure.upper.annualizedNotional);
+            // subrtact taker exposure because it is double counted above
+            UD60x18 annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(self.marketId, maturityTimestamp);
+            totalMarketExposure -= SignedMath.abs(
+                mulUDxInt(annualizedExposureFactor, self.positions[maturityTimestamp].baseBalance)
+            );
+        }
     }
 
     /**

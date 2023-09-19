@@ -7,7 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../interfaces/external/IMarketManager.sol";
+import {IMarketManager} from "../../interfaces/external/IMarketManager.sol";
+import {Account} from "../../storage/Account.sol";
+import {AccountExposure} from "../account/AccountExposure.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /**
  * @title Library for matched orders logic.
@@ -15,6 +18,7 @@ import "../../interfaces/external/IMarketManager.sol";
 library MatchedOrders {
     using Account for Account.Data;
     using AccountExposure for Account.Data;
+    using SafeCastU256 for uint256;
 
     function matchedOrder(
         uint128 accountId,
@@ -22,9 +26,10 @@ library MatchedOrders {
         IMarketManager marketManager,
         bytes calldata inputs
     ) internal returns (
-        bytes memory matchResult,
+        bytes memory result,
+        bytes memory counterPartyResult,
         uint128 counterPartyAccountId,
-        uint256 initialCounterPartyMarketExposure
+        int256 counterpartyAnnualizedNotionalDelta
     ) {
         bytes[] memory orderInputs;
         assembly {
@@ -33,19 +38,18 @@ library MatchedOrders {
         }
 
         // verify counterparty account & access
-        Account.Data storage counterPartyAccount = 
-            Account.loadAccountAndValidatePermission(counterPartyAccountId, Account.ADMIN_PERMISSION, msg.sender);
-        counterPartyAccount.ensureEnabledCollateralPool();
+        Account.loadAccountAndValidatePermission(counterPartyAccountId, Account.ADMIN_PERMISSION, msg.sender);
         
         // execute orders
-        initialCounterPartyMarketExposure = counterPartyAccount.getTotalAbsoluteMarketExposure(marketId);
+        uint256 initialCounterPartyMarketExposure = marketManager.getAccountAbsoluteMarketExposure(marketId, counterPartyAccountId);
 
-        (bytes memory result,) = 
+        (result,) = 
             marketManager.executeTakerOrder(accountId, marketId, orderInputs[0]);
 
-        (bytes memory counterPartyResult,) = 
+        (counterPartyResult,) = 
                 marketManager.executeTakerOrder(counterPartyAccountId, marketId, orderInputs[1]);
-
-        matchResult = abi.encode(result, counterPartyResult);
+        
+        counterpartyAnnualizedNotionalDelta = initialCounterPartyMarketExposure.toInt() - 
+                marketManager.getAccountAbsoluteMarketExposure(marketId, counterPartyAccountId).toInt();
     }
 }

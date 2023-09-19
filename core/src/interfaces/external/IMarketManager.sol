@@ -29,6 +29,12 @@ interface IMarketManager is IERC165 {
         view
         returns (Account.MakerMarketExposure[] memory exposures);
 
+    /// @notice returns absolute value of the account total exposures in the given market
+    function getAccountAbsoluteMarketExposure(uint128 marketId, uint128 accountId)
+        external
+        view
+        returns (uint256 totalMarketExposure);
+
     //// STATE CHANGING FUNCTIONS ////
 
     /// @notice attempts to close all the unfilled orders of a given account in the market
