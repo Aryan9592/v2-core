@@ -23,17 +23,13 @@ library Twap {
     /// Must not be zero if either of the boolean params is true because it used to indicate the direction 
     /// of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` 
     /// overflows when cast to a `U60x18`. Must have wad precision.
-    /// @param adjustForPriceImpact Whether or not to adjust the returned price by the VAMM's configured spread.
-    /// @param adjustForSpread Whether or not to adjust the returned price by the VAMM's configured spread.
     /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
     /// May return zero if adjustments would take the price to or below zero 
     /// - e.g. when anticipated price impact is large because the order size is large.
     function twap(
         DatedIrsVamm.Data storage self, 
         uint32 secondsAgo, 
-        int256 orderSizeWad, 
-        bool adjustForPriceImpact,  
-        bool adjustForSpread
+        int256 orderSizeWad
     )
         internal
         view
@@ -47,18 +43,11 @@ library Twap {
         UD60x18 spreadImpactDelta = ZERO;
         UD60x18 priceImpactAsFraction = ZERO;
 
-        if (adjustForSpread) {
-            if (orderSizeWad == 0) {
-                revert VammCustomErrors.TwapNotAdjustable();
-            }
+        if (orderSizeWad != 0) {
             spreadImpactDelta = self.mutableConfig.spread;
         }
 
-        if (adjustForPriceImpact) {
-            if (orderSizeWad == 0) {
-                revert VammCustomErrors.TwapNotAdjustable();
-            }
-            
+        if (orderSizeWad != 0) {
             // note: the beta value is 1/2. if the value is set to something else and the 
             // `pow` function must be used, the order size must be limited to 192 bits
             priceImpactAsFraction = self.mutableConfig.priceImpactPhi.mul(
