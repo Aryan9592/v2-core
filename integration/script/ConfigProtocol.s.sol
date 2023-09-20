@@ -55,7 +55,11 @@ contract ConfigProtocol is SetupProtocol {
     configureCollateralPool({
       collateralPoolId: 1,
       imMultiplier: ud60x18(2e18),
+      mmrMultiplier: ud60x18(1.5e18),
       liquidatorRewardParameter: ud60x18(5e16),
+      liquidationBidPriorityQueueDurationInSeconds: 3600,
+      maxNumberOfOrdersInLiquidationBid: 5,
+      maxNumberOfBidsInLiquidationBidPriorityQueue: 10,
       feeCollectorAccountId: 999
     });
     registerDatedIrsMarketManager(1);

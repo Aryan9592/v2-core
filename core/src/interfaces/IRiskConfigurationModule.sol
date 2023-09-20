@@ -16,7 +16,8 @@ import "../storage/Market.sol";
  */
 interface IRiskConfigurationModule {
     /**
-     * @notice Creates or updates the configuration for the given `marketId`
+     * @notice Creates or updates the risk configuration for the given `marketId`
+     * @param marketId Id of the market for which the risk parameters are configured
      * @param config The MarketConfiguration object describing the new configuration.
      *
      * Requirements:
@@ -27,7 +28,8 @@ interface IRiskConfigurationModule {
     function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) external;
 
     /**
-     * @notice Creates or updates the configuration on the collatera pool level
+     * @notice Creates or updates the configuration on the collateral pool level
+     * @param collateralPoolId Id of the collateral pool for which the risk parameters are configured
      * @param config It describes the new configuration.
      *
      * Requirements:

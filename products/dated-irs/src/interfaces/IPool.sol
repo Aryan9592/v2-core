@@ -127,4 +127,10 @@ interface IPool is IERC165 {
         external
         view
         returns (UD60x18 datedIRSTwap);
+
+    function hasUnfilledOrders(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    ) external view returns (bool);
 }

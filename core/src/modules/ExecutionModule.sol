@@ -10,26 +10,27 @@ pragma solidity >=0.8.19;
 import "./AccountModule.sol";
 import "../interfaces/external/IMarketManager.sol";
 import "../libraries/actions/EditCollateral.sol";
-import "../libraries/actions/Liquidation.sol";
-import "../libraries/actions/CloseAccount.sol";
 import "../libraries/actions/AutoExchange.sol";
 import "../libraries/Propagation.sol";
 
 /**
  * @title Executor Module
- * @dev Module for managing external protocol interaction.
+ * @dev Module for managing batched user actions with a given collateral pool & markets that belong
+ * to that collateral pool
  */
+// todo: need an IExecutionModule interface to inherit from + natspec that goes with it
 contract ExecutionModule {
     using Market for Market.Data;
     using Account for Account.Data;
     using SafeCastI256 for int256;
 
     /**
-     * @notice Thrown when specified command type is not recognized.
+     * @notice Thrown when a specified command type is not supported by the system.
      */
     error InvalidCommandType(uint256 commandType);
     /**
-     * @notice Thrown when trying to modify an account in a market that's not part of the same collateral pool.
+     * @notice Thrown when trying to modify an account in a market that’s not part of the collateral pool that
+     * the account belongs to.
      */
     error CollateralPoolMismatch(uint128 accountId, uint128 marketId);
 
@@ -40,7 +41,9 @@ contract ExecutionModule {
     uint256 constant V2_CORE_DEPOSIT = 0x01;
     uint256 constant V2_CORE_WITHDRAW = 0x02;
     uint256 constant V2_CORE_AUTO_EXCHANGE = 0x03;
+    // todo: adjust this command to be aligned with the new liquidation logic
     uint256 constant V2_CORE_LIQUIDATE = 0x04;
+    // todo: remove this command
     uint256 constant V2_CORE_CLOSE_ACCOUNT = 0x05;
     // core permission required when interacting with the market manager
     uint256 constant V2_CORE_GRANT_PERMISSION_TO_CORE = 0x06;
@@ -141,34 +144,12 @@ contract ExecutionModule {
                 collateralType := calldataload(add(inputs.offset, 0x40))
                 quoteType := calldataload(add(inputs.offset, 0x60))
             }
-            // todo: during liquidations implementation
-            // AutoExchange.triggerAutoExchange(
-            //     accountId,
-            //     liquidatorAccountId,
-            //     amountToAutoExchangeQuote,
-            //     collateralType,
-            //     quoteType
-            // );
-        } else if (command == V2_CORE_LIQUIDATE) {
-            uint128 liquidatorAccountId;
-            address collateralType;
-            assembly {
-                liquidatorAccountId := calldataload(inputs.offset)
-                collateralType := calldataload(add(inputs.offset, 0x20))
-            }
-            Liquidation.liquidate(
+            AutoExchange.triggerAutoExchange(
                 accountId,
                 liquidatorAccountId,
-                collateralType
-            );
-        } else if (command == V2_CORE_CLOSE_ACCOUNT) {
-            uint128 marketId;
-            assembly {
-                marketId := calldataload(inputs.offset)
-            }
-            CloseAccount.closeAccount(
-                marketId,
-                accountId
+                amountToAutoExchangeQuote,
+                collateralType,
+                quoteType
             );
         } else if (command == V2_CORE_GRANT_PERMISSION_TO_CORE) {
             Account.exists(accountId).grantPermission(Account.ADMIN_PERMISSION, address(this));

@@ -209,4 +209,22 @@ contract PoolModule is IPoolModule {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         datedIRSTwap = Twap.twap(vamm, lookbackWindow, orderSizeWad, adjustForPriceImpact, adjustForSpread);
     }
+
+    function hasUnfilledOrders(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    ) external view returns (bool) {
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
+        uint256[] memory positions = vamm.vars.accountPositions[accountId].values();
+
+        for (uint256 i = 0; i < positions.length; i++) {
+            LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
+            if (position.liquidity > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -9,6 +9,9 @@ pragma solidity >=0.8.19;
 
 import "../storage/Market.sol";
 
+
+// todo: consider pushing the insurance fund configuration logic into a separate module
+// todo: once the fee logic adjustments are configured, update, and consider removing collateral pool owner fees
 /**
  * @title Module for configuring (protocol and) market wide risk parameters
  * @notice Allows the owner to configure risk parameters at (protocol and) market wide level
@@ -16,8 +19,9 @@ import "../storage/Market.sol";
 interface IFeeConfigurationModule {
     /**
      * @notice Creates or updates the protocol fee configuration for the given `marketId`
+     * @param marketId The id of the market for which the fees are being configured
      * @param config The MarketFeeConfiguration object describing the new configuration.
-     * @param feeCollectorAccountId The account id ofthe protocol fee collector.
+     * @param feeCollectorAccountId The account id of the protocol fee collector account.
      *
      * Requirements:
      *

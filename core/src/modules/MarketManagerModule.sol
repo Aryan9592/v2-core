@@ -32,6 +32,9 @@ contract MarketManagerModule is IMarketManagerModule {
     using SafeCastU256 for uint256;
     using SetUtil for SetUtil.UintSet;
 
+    /**
+     * @inheritdoc IMarketManagerModule
+     */
     function getLastCreatedMarketId() external view override returns (uint128) {
         return MarketStore.getMarketStore().lastCreatedMarketId;
     }
@@ -51,13 +54,17 @@ contract MarketManagerModule is IMarketManagerModule {
     /**
      * @inheritdoc IMarketManagerModule
      */
-    function registerMarket(address marketManager, string memory name) external override returns (uint128 marketId) {
+    function registerMarket(
+        address marketManager, 
+        address quoteToken, 
+        string memory name
+    ) external override returns (uint128 marketId) {
         if (!ERC165Helper.safeSupportsInterface(marketManager, type(IMarketManager).interfaceId)) {
             revert IncorrectMarketInterface(marketManager);
         }
 
-        marketId = Market.create(marketManager, name, msg.sender).id;
+        marketId = Market.create(marketManager, quoteToken, name, msg.sender).id;
 
-        emit MarketRegistered(marketManager, marketId, name, msg.sender, block.timestamp);
+        emit MarketRegistered(marketManager, marketId, quoteToken, name, msg.sender, block.timestamp);
     }
 }

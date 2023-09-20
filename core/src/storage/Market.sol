@@ -41,13 +41,13 @@ library Market {
 
     struct FeeConfiguration {
         /**
-         * @dev Atomic Maker Fee is multiplied by the annualised notional traded
-         * @dev to derived the maker fee.
+         * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
+         * @dev to derive the maker fee charged by the protocol.
          */
         UD60x18 atomicMakerFee;
         /**
          * @dev Atomic Taker Fee is multiplied by the annualised notional traded
-         * @dev to derived the taker fee.
+         * @dev to derive the taker fee charged by the protocol.
          */
         UD60x18 atomicTakerFee;
     }
@@ -58,6 +58,13 @@ library Market {
          * @dev There cannot be a market with id zero (See MarketCreator.create()). Id zero is used as a null market reference.
          */
         uint128 id;
+
+        /**
+         * @dev Address of the market's quote token. Must match the quote token address in the external
+         * `IMarketManager` contract.
+         */
+        address quoteToken;
+
         /**
          * @dev Address for the external contract that implements the `IMarketManager` interface, 
          * which this Market objects connects to.
@@ -104,7 +111,7 @@ library Market {
      * tracks, resulting in multiple ids for the same address.
      * For example if a given Market works across maturities, each maturity internally will be represented as a unique Market id
      */
-    function create(address marketManagerAddress, string memory name, address owner)
+    function create(address marketManagerAddress, address quoteToken, string memory name, address owner)
         internal
         returns (Data storage market)
     {
@@ -112,6 +119,7 @@ library Market {
         market = load(id);
     
         market.id = id;
+        market.quoteToken = quoteToken;
         market.marketManagerAddress = marketManagerAddress;
         market.name = name;
 
@@ -214,9 +222,52 @@ library Market {
     }
 
     /**
-     * @dev The market at self.marketManagerAddress is expected to close filled and unfilled positions for all maturities and pools
+     * @dev The market at self.marketManagerAddress is expected to close all unfilled orders for all maturities and pools
      */
-    function closeAccount(Data storage self, uint128 accountId) internal {
-        IMarketManager(self.marketManagerAddress).closeAccount(self.id, accountId);
+    function closeAllUnfilledOrders(Data storage self, uint128 accountId) internal {
+        IMarketManager(self.marketManagerAddress).closeAllUnfilledOrders(self.id, accountId);
     }
+
+    function hasUnfilledOrders(Data storage self, uint128 accountId) internal view returns (bool) {
+        return IMarketManager(self.marketManagerAddress).hasUnfilledOrders(self.id, accountId);
+    }
+
+    function executeLiquidationOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        bytes memory inputs
+    ) internal {
+        IMarketManager(self.marketManagerAddress).executeLiquidationOrder(
+            liquidatableAccountId,
+            liquidatorAccountId,
+            self.id,
+            inputs
+        );
+    }
+
+    function validateLiquidationOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        bytes memory inputs
+    ) internal view {
+        IMarketManager(self.marketManagerAddress).validateLiquidationOrder(
+            liquidatableAccountId,
+            self.id,
+            inputs
+        );
+    }
+
+    function executeADLOrder(
+        Data storage self,
+        uint128 liquidatableAccountId,
+        uint256 shortfall
+    ) internal {
+        IMarketManager(self.marketManagerAddress).executeADLOrder(
+            liquidatableAccountId,
+            self.id,
+            shortfall
+        );
+    }
+
 }

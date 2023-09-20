@@ -31,10 +31,16 @@ interface IMarketManager is IERC165 {
 
     //// STATE CHANGING FUNCTIONS ////
 
-    /// @notice attempts to close all the unfilled and filled positions of a given account in the market
+    /// @notice attempts to close all the unfilled orders of a given account in the market
     // if there are multiple maturities in which the account has active positions, the market is expected to close
     // all of them
-    function closeAccount(uint128 marketId, uint128 accountId) external;
+    function closeAllUnfilledOrders(
+        uint128 marketId, 
+        uint128 accountId
+    ) external returns (int256 /* closedUnfilledBasePool */);
+
+    /// @notice returns true if the account has unfilled on-chain orders in the market
+    function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view returns (bool);
     
     /**
      * @notice Decoded inputs and execute taker order
@@ -69,6 +75,40 @@ interface IMarketManager is IERC165 {
         uint128 marketId,
         bytes calldata inputs
     ) external returns (bytes memory output, int256 annualizedNotional);
+
+    /**
+     * @notice Decoded inputs and execute liquidation order
+     * @param liquidatableAccountId Id of the account that is getting liquidated
+     * @param liquidatorAccountId Id of the account that performs the liquidation
+     * @param marketId Id of the market in which the liquidation is taking place
+     * @param inputs The extra inputs required by the liquidation order
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be Core.
+     *
+     */
+    function executeLiquidationOrder(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (bytes memory output);
+
+
+    // todo: add natspec
+    function validateLiquidationOrder(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external view;
+
+    // todo: add natspec
+    function executeADLOrder(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint256 shortfall
+    ) external;
 
     /**
      * @notice Decoded inputs and completes a position

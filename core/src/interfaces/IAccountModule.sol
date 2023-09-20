@@ -120,8 +120,8 @@ interface IAccountModule {
         returns (bool hasPermission);
 
     /**
-     * @notice Returns the address for the account token used by the manager.
-     * @return accountNftToken The address of the account token.
+     * @notice Returns the address for the account token NFT that represents ownership of a given Reya account.
+     * @return accountNftToken The address of the account token NFT contract.
      */
     function getAccountTokenAddress() external view returns (address accountNftToken);
 
@@ -137,7 +137,7 @@ interface IAccountModule {
      * @param accountId The id of the account whose permission is being queried.
      * @param permission The bytes32 identifier of the permission.
      * @param target The target address whose permission is being queried.
-     * @return isAuthorized A boolean with the response of the query.
+     * @return isAuthorized A boolean with the response of the query. If true, then the target is authorized.
      */
     function isAuthorized(uint128 accountId, bytes32 permission, address target)
         external

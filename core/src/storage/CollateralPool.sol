@@ -87,6 +87,7 @@ library CollateralPool {
         uint128 rootId,
         RiskConfiguration riskConfig,
         InsuranceFundConfig insuranceFundConfig,
+        BackstopLPConfig backstopLPConfig,
         uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
@@ -96,17 +97,71 @@ library CollateralPool {
      */
     event CollateralPoolBalanceUpdated(uint128 id, address collateralType, int256 tokenAmount, uint256 blockTimestamp);
 
-    struct RiskConfiguration {
+    struct RiskMultipliers {
+
         /**
          * @dev IM Multiplier is used to introduce a buffer between the liquidation (LM) and initial (IM) margin requirements
          * where IM = imMultiplier * LM
          */
         UD60x18 imMultiplier;
+
         /**
-         * @dev Liquidator reward parameters are multiplied by the im delta caused by the liquidation to get the liquidator reward
-         * amount
+         * @dev MMR Multiplier (maintenance margin requirement multiplier)
+         * is used to introduce a buffer before liquidations occur to allow for liquidation bid submissions
+         * where MMR = mmrMultiplier * LM
          */
-        UD60x18 liquidatorRewardParameter;
+        UD60x18 mmrMultiplier;
+
+
+        /**
+         * @dev Dutch Multiplier (dutch margin requirement multiplier)
+         * is used to determine when dutch liquidations can kick off (if liquidation bids take too long to execute)
+         * where dutch margin requirement = dutchMultiplier * LM
+         */
+        UD60x18 dutchMultiplier;
+
+
+        /**
+         * @dev ADL Multiplier (auto-deleveraging margin requirement multiplier)
+         * is used to determine when adl & backstop lps can jump in to remove risk from the system
+         * where adl margin requirement = adlMultiplier * LM
+         */
+        UD60x18 adlMultiplier;
+
+    }
+
+    struct LiquidationConfiguration {
+        /**
+       * @dev Parameter that's multiplied by the change in LM caused by triggering closure of unfilled orders
+         */
+        UD60x18 unfilledPenaltyParameter;
+
+        /**
+         * @dev Fee percentage charged by the keepers that execute liquidation bids
+         */
+        UD60x18 bidKeeperFee;
+
+        /**
+         * @dev Liquidation Bid Priority Queue Duration In Seconds
+         */
+        uint256 queueDurationInSeconds;
+
+        /**
+         * @dev Maximum number of orders that a liquidation bid can contain
+         */
+        uint256 maxOrdersInBid;
+
+        /**
+         * @dev Maximum number of liquidations bids that can be submitted to a single liquidation bid priority queue
+         */
+        uint256 maxBidsInQueue;
+    }
+
+    struct RiskConfiguration {
+
+        RiskMultipliers riskMultipliers;
+
+        LiquidationConfiguration liquidationConfiguration;
     }
 
     struct InsuranceFundConfig {
@@ -119,6 +174,26 @@ library CollateralPool {
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
         UD60x18 autoExchangeFee;
+        /**
+         * @dev Percentage of liquidation penalty that goes towards the insurance fund
+         */
+        UD60x18 liquidationFee;
+    }
+
+    struct BackstopLPConfig {
+
+        /**
+         * @dev Backstop LP Account Id
+         */
+        uint128 accountId;
+
+        /**
+         * @dev Percentage of liquidation penalty that goes towards backstop lp
+         */
+        UD60x18 liquidationFee;
+
+        // todo: do we want to allocate a share of auto-exchange rewards to backstop lp as well?
+
     }
 
     struct Data {
@@ -155,11 +230,29 @@ library CollateralPool {
          * @dev Collateral pool wide insurance fund configuration 
          */
         InsuranceFundConfig insuranceFundConfig;
+
+        // todo: expose these amounts via a view function and an external interface
+        /**
+         * @dev Funds underwritten by the insurance fund in terms of a given quote token
+         */
+        mapping(address => uint256) insuranceFundUnderwritings;
+
+        /**
+         * @dev Collateral pool wide backstop lp configuration
+         */
+        BackstopLPConfig backstopLPConfig;
         /**
          * @dev Account id for the collector of protocol fees
          */
         uint128 feeCollectorAccountId;
     }
+
+    function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
+        // todo: make sure doesn't overflow insurance fund balance (import account.sol)
+        self.insuranceFundUnderwritings[collateralType] += amount;
+        // todo: emit event
+    }
+
 
     /**
      * @dev Creates an collateral pool for the given id
@@ -184,6 +277,7 @@ library CollateralPool {
             id,
             collateralPool.riskConfig,
             collateralPool.insuranceFundConfig,
+            collateralPool.backstopLPConfig,
             collateralPool.feeCollectorAccountId,
             block.timestamp
         );
@@ -245,6 +339,7 @@ library CollateralPool {
             child.rootId,
             child.riskConfig,
             child.insuranceFundConfig,
+            child.backstopLPConfig,
             child.feeCollectorAccountId,
             block.timestamp
         );
@@ -364,14 +459,20 @@ library CollateralPool {
     function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
         self.checkRoot();
 
-        self.riskConfig.imMultiplier = config.imMultiplier;
-        self.riskConfig.liquidatorRewardParameter = config.liquidatorRewardParameter;
+        self.riskConfig.riskMultipliers.imMultiplier = config.riskMultipliers.imMultiplier;
+        self.riskConfig.riskMultipliers.mmrMultiplier = config.riskMultipliers.mmrMultiplier;
+        self.riskConfig.liquidationConfiguration.unfilledPenaltyParameter = config.liquidationConfiguration.unfilledPenaltyParameter;
+        self.riskConfig.liquidationConfiguration.bidKeeperFee = config.liquidationConfiguration.bidKeeperFee;
+        self.riskConfig.liquidationConfiguration.queueDurationInSeconds = config.liquidationConfiguration.queueDurationInSeconds;
+        self.riskConfig.liquidationConfiguration.maxOrdersInBid = config.liquidationConfiguration.maxOrdersInBid;
+        self.riskConfig.liquidationConfiguration.maxBidsInQueue = config.liquidationConfiguration.maxBidsInQueue;
 
         emit CollateralPoolUpdated(
             self.id, 
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );
@@ -379,7 +480,7 @@ library CollateralPool {
 
     /**
      * @dev Set the collateral pool wide insurance fund configuration
-     * @param config The InsuranceFundConfig object with the account id and fee config
+     * @param config The InsuranceFundConfig object with the account id and fee configs
      */
     function setInsuranceFundConfig(Data storage self, InsuranceFundConfig memory config) internal {
         self.checkRoot();
@@ -389,12 +490,39 @@ library CollateralPool {
 
         self.insuranceFundConfig.accountId = config.accountId;
         self.insuranceFundConfig.autoExchangeFee = config.autoExchangeFee;
+        self.insuranceFundConfig.liquidationFee = config.liquidationFee;
 
         emit CollateralPoolUpdated(
             self.id,
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
+            self.feeCollectorAccountId,
+            block.timestamp
+        );
+    }
+
+    // todo: expose in the collateral pool config module
+    /**
+     * @dev Set the collateral pool wide backstop lp configuration
+     * @param config The BackstopLPConfig object with the account id and fee config
+     */
+    function setBackstopLPConfig(Data storage self, BackstopLPConfig memory config) internal {
+        self.checkRoot();
+
+        // ensure the given account exists
+        Account.exists(config.accountId);
+
+        self.backstopLPConfig.accountId = config.accountId;
+        self.backstopLPConfig.liquidationFee = config.liquidationFee;
+
+        emit CollateralPoolUpdated(
+            self.id,
+            self.rootId,
+            self.riskConfig,
+            self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );
@@ -413,6 +541,7 @@ library CollateralPool {
             self.rootId,
             self.riskConfig,
             self.insuranceFundConfig,
+            self.backstopLPConfig,
             self.feeCollectorAccountId,
             block.timestamp
         );

@@ -19,18 +19,28 @@ import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
 import {AccountExposure} from "../libraries/account/AccountExposure.sol";
 import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
 
-import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
+/*
+TODOs
+    - why have auto-exchange specific functions referenced in here?
+    - do we mark active quote tokens when an unfilled order is created?
+    - consider introducing empty slots for future use (also applies to other storage objects)
+*/
+
 
 /**
  * @title Object for tracking accounts with access control and collateral tracking.
  */
 library Account {
     using Account for Account.Data;
-    using Market for Market.Data;
     using CollateralPool for CollateralPool.Data;
+    using Market for Market.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
@@ -51,7 +61,7 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given single-token account's account's total value is below the initial margin requirement
+     * @dev Thrown when a given account's account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
     error AccountBelowIM(uint128 accountId, MarginInfo marginInfo);
@@ -96,8 +106,14 @@ library Account {
         int256 realBalance;
         /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
+        /// Difference between margin balance and maintenance margin requirement
+        int256 maintenanceDelta;
         /// Difference between margin balance and liquidation margin requirement
         int256 liquidationDelta;
+        /// Difference between margin balance and dutch margin requirement
+        int256 dutchDelta;
+        /// Difference between margin balance and adl margin requirement
+        int256 adlDelta;
     }
 
     /**
@@ -135,6 +151,25 @@ library Account {
         SetUtil.AddressSet permissionAddresses;
     }
 
+    struct LiquidationBidPriorityQueues {
+
+        /**
+         * @dev Id of the latest queue
+         */
+        uint256 latestQueueId;
+
+        /**
+         * @dev Block timestamp at which the latest queue stops being live
+         */
+        uint256 latestQueueEndTimestamp;
+
+        /**
+         * @dev Map of liquidation bid priority queues associated with the account
+         */
+        mapping(uint256 => LiquidationBidPriorityQueue.Heap) priorityQueues;
+
+    }
+
     struct Data {
         /**
          * @dev Numeric identifier for the account. Must be unique.
@@ -163,7 +198,7 @@ library Account {
         mapping(address => SetUtil.UintSet) activeMarketsPerQuoteToken;
 
         /**
-         * @dev Addresses of all collateral types in which the account has a non-zero balance
+         * @dev Addresses of all collateral types in which the account has a non-zero balance or active positions
          */
         SetUtil.AddressSet activeQuoteTokens;
 
@@ -171,10 +206,13 @@ library Account {
          * @dev First market id that this account is active on
          */
         uint128 firstMarketId;
+        /**
+         * @dev Liquidation Bid Priority Queues associated with the account alongside latest timestamp & id per
+         * collateral bubble
+         * collateralBubbleQuoteTokenAddress -> LiquidationBidPriorityQueues
+         */
+        mapping(address => LiquidationBidPriorityQueues) liquidationBidPriorityQueuesPerBubble;
 
-        // todo: consider introducing empty slots for future use (also applies to other storage objects) (CR)
-        // ref: https://github.com/Synthetixio/synthetix-v3/blob/08ea86daa550870ec07c47651394dbb0212eeca0/protocol/
-        // synthetix/contracts/storage/Account.sol#L58
     }
 
     /**
@@ -346,12 +384,20 @@ library Account {
         return AccountExposure.getMarginInfoByBubble(self, collateralType);
     }
 
-    function getMarginInfoByCollateralType(Account.Data storage self, address collateralType, UD60x18 imMultiplier)
+    function getMarginInfoByCollateralType(
+        Account.Data storage self, 
+        address collateralType, 
+        CollateralPool.RiskMultipliers memory riskMultipliers
+    )
         internal
         view
         returns (Account.MarginInfo memory)
     {
-        return AccountExposure.getMarginInfoByCollateralType(self, collateralType, imMultiplier);
+        return AccountExposure.getMarginInfoByCollateralType(
+            self, 
+            collateralType, 
+            riskMultipliers
+        );
     }
 
     /**
@@ -370,41 +416,29 @@ library Account {
         }
     }
 
-    // todo: during liquidations implementation
-    // function isEligibleForAutoExchange(
-    //     Account.Data storage self,
-    //     address collateralType
-    // )
-    //     internal
-    //     view
-    //     returns (bool)
-    // {
-    //     return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
-    // }
-
-    // todo: during liquidations implementation
-    // function getMaxAmountToExchangeQuote(
-    //     Account.Data storage self,
-    //     address coveringToken,
-    //     address autoExchangedToken
-    // )
-    //     internal
-    //     view
-    //     returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
-    // {
-    //     return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
-    // }
-
-    /**
-     * @dev Closes all account filled (i.e. attempts to fully unwind) and unfilled orders in all the markets in which the account
-     * is active
-     */
-    function closeAccount(Data storage self, address collateralType) internal {
-        SetUtil.UintSet storage markets = self.activeMarketsPerQuoteToken[collateralType];
-            
-        for (uint256 i = 1; i <= markets.length(); i++) {
-            uint128 marketId = markets.valueAt(i).to128();
-            Market.exists(marketId).closeAccount(self.id);
-        }
+    function isEligibleForAutoExchange(
+        Account.Data storage self,
+        address collateralType
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
     }
+
+    function getMaxAmountToExchangeQuote(
+        Account.Data storage self,
+        address coveringToken,
+        address autoExchangedToken
+    )
+        internal
+        view
+        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
+    {
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
+    }
+
+
+
 }
