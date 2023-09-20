@@ -71,11 +71,6 @@ library InitiateMakerOrder {
         internal
         returns (int256 annualizedNotionalAmount)
     {
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
-
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);

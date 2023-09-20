@@ -73,11 +73,6 @@ library InitiateTakerOrder {
             int256 annualizedNotionalAmount
         )
     {
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
-
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
