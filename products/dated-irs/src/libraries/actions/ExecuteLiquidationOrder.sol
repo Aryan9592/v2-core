@@ -28,6 +28,21 @@ library ExecuteLiquidationOrder {
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
 
+    /**
+     * @dev Thrown if liquidation order is in the wrong direction
+     */
+    error WrongLiquidationDirection(int256 baseAmountLiquidatableAccount, LiquidationOrderParams liqOrderParams);
+
+    /**
+     * @dev Thrown if liquidation order size is zero
+     */
+    error LiquidationOrderZero(LiquidationOrderParams liqOrderParams);
+
+    /**
+     * @dev Thrown if filled balance of liquidatable account is zero
+     */
+    error FilledBalanceZero(LiquidationOrderParams liqOrderParams);
+
     struct LiquidationOrderParams {
         uint128 liquidatableAccountId;
         uint128 liquidatorAccountId;
@@ -40,12 +55,18 @@ library ExecuteLiquidationOrder {
 
     function validateLiquidationOrder(
         LiquidationOrderParams memory params
-    ) internal {
+    ) internal view {
+
+        // revert if liquidation order size is 0
+        if (params.baseAmountToBeLiquidated == 0) {
+            revert LiquidationOrderZero(params);
+        }
 
         Market.Data storage market = Market.exists(params.marketId);
         Portfolio.Data storage portfolio = Portfolio.exists(params.liquidatableAccountId, params.marketId);
 
-        // compute base amount filled
+        // retrieve base amount filled by the liquidatable account
+
         (int256 baseBalancePool,,) = IPool(market.marketConfig.poolAddress).getAccountFilledBalances(
             params.marketId,
             params.maturityTimestamp,
@@ -54,6 +75,19 @@ library ExecuteLiquidationOrder {
 
         int256 baseAmountLiquidatableAccount = portfolio.positions[params.maturityTimestamp].baseBalance
         + baseBalancePool;
+
+        // revert if base amount filled is zero
+        if (baseAmountLiquidatableAccount == 0) {
+            revert FilledBalanceZero(params);
+        }
+
+        // revert if liquidation order direction is wrong
+        //  if baseAmountToBeLiquidated*baseAmountLiquidatableAccount>0
+        if ( (params.baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
+            || (params.baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
+            revert WrongLiquidationDirection(baseAmountLiquidatableAccount, params);
+        }
+
     }
 
     function executeLiquidationOrder(
