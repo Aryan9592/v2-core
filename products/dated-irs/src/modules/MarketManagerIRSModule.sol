@@ -103,12 +103,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         executionPreCheck(marketId);
 
         uint32 maturityTimestamp;
-        int256 baseAmount;
+        int256 baseAmountToBeLiquidated;
         uint160 priceLimit;
 
         assembly {
             maturityTimestamp := calldataload(inputs.offset)
-            baseAmount := calldataload(add(inputs.offset, 0x20))
+            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
             priceLimit := calldataload(add(inputs.offset, 0x40))
         }
 
@@ -118,7 +118,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
                 liquidatorAccountId: liquidatorAccountId,
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
-                baseAmount: baseAmount,
+                baseAmountToBeLiquidated: baseAmountToBeLiquidated,
                 priceLimit: priceLimit
             })
         );
