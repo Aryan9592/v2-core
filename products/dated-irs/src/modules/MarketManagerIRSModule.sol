@@ -132,7 +132,20 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override view {
-        // todo: needs implementation
+        uint32 maturityTimestamp;
+        int256 baseAmountToBeLiquidated;
+
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
+        }
+
+        ExecuteLiquidationOrder.validateLiquidationOrder(
+            liquidatableAccountId,
+            marketId,
+            maturityTimestamp,
+            baseAmountToBeLiquidated
+        );
     }
 
     /**
