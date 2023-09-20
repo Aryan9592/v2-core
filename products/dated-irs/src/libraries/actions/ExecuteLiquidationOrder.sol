@@ -35,17 +35,21 @@ library ExecuteLiquidationOrder {
     /**
      * @dev Thrown if liquidation order is in the wrong direction
      */
-    error WrongLiquidationDirection(int256 baseAmountLiquidatableAccount, LiquidationOrderParams liqOrderParams);
+    error WrongLiquidationDirection(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseAmountLiquidatableAccount);
 
     /**
      * @dev Thrown if liquidation order size is zero
      */
-    error LiquidationOrderZero(LiquidationOrderParams liqOrderParams);
+    error LiquidationOrderZero(uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp);
 
     /**
      * @dev Thrown if filled balance of liquidatable account is zero
      */
-    error FilledBalanceZero(LiquidationOrderParams liqOrderParams);
+    error FilledBalanceZero(uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp);
 
     struct LiquidationOrderParams {
         uint128 liquidatableAccountId;
@@ -58,38 +62,46 @@ library ExecuteLiquidationOrder {
 
 
     function validateLiquidationOrder(
-        LiquidationOrderParams memory params
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseAmountToBeLiquidated
     ) internal view returns (int256 baseAmountLiquidatableAccount) {
 
         // revert if liquidation order size is 0
-        if (params.baseAmountToBeLiquidated == 0) {
-            revert LiquidationOrderZero(params);
+        if (baseAmountToBeLiquidated == 0) {
+            revert LiquidationOrderZero(liquidatableAccountId, marketId, maturityTimestamp);
         }
 
-        Market.Data storage market = Market.exists(params.marketId);
-        Portfolio.Data storage portfolio = Portfolio.exists(params.liquidatableAccountId, params.marketId);
+        Market.Data storage market = Market.exists(marketId);
+        Portfolio.Data storage portfolio = Portfolio.exists(liquidatableAccountId, marketId);
 
         // retrieve base amount filled by the liquidatable account
 
         (int256 baseBalancePool,,) = IPool(market.marketConfig.poolAddress).getAccountFilledBalances(
-            params.marketId,
-            params.maturityTimestamp,
-            params.liquidatableAccountId
+            marketId,
+            maturityTimestamp,
+            liquidatableAccountId
         );
 
-        baseAmountLiquidatableAccount = portfolio.positions[params.maturityTimestamp].baseBalance
+        baseAmountLiquidatableAccount = portfolio.positions[maturityTimestamp].baseBalance
         + baseBalancePool;
 
         // revert if base amount filled is zero
         if (baseAmountLiquidatableAccount == 0) {
-            revert FilledBalanceZero(params);
+            revert FilledBalanceZero(liquidatableAccountId, marketId, maturityTimestamp);
         }
 
         // revert if liquidation order direction is wrong
         //  if baseAmountToBeLiquidated*baseAmountLiquidatableAccount>0
-        if ( (params.baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
-            || (params.baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
-            revert WrongLiquidationDirection(baseAmountLiquidatableAccount, params);
+        if ( (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
+            || (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
+            revert WrongLiquidationDirection(
+                liquidatableAccountId,
+                marketId,
+                maturityTimestamp,
+                baseAmountLiquidatableAccount
+            );
         }
 
     }
@@ -104,7 +116,12 @@ library ExecuteLiquidationOrder {
     function executeLiquidationOrder(
         LiquidationOrderParams memory params
     ) internal {
-        int256 baseAmountLiquidatable = validateLiquidationOrder(params);
+        int256 baseAmountLiquidatable = validateLiquidationOrder(
+            params.liquidatableAccountId,
+            params.marketId,
+            params.maturityTimestamp,
+            params.baseAmountToBeLiquidated
+        );
 
         int256 maxBaseAmountLiquidatable = computeMaxLiquidatableBase(baseAmountLiquidatable);
 
