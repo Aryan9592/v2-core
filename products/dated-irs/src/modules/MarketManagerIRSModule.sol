@@ -26,7 +26,7 @@ import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol
 import {Settlement} from "../libraries/actions/Settlement.sol";
 import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
 import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
-
+import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
@@ -100,7 +100,28 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override returns (bytes memory output) {
-        // todo: needs implementation
+        executionPreCheck(marketId);
+
+        uint32 maturityTimestamp;
+        int256 baseAmount;
+        uint160 priceLimit;
+
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            baseAmount := calldataload(add(inputs.offset, 0x20))
+            priceLimit := calldataload(add(inputs.offset, 0x40))
+        }
+
+        ExecuteLiquidationOrder.executeLiquidationOrder(
+            ExecuteLiquidationOrder.LiquidationOrderParams({
+                liquidatableAccountId: liquidatableAccountId,
+                liquidatorAccountId: liquidatorAccountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseAmount: baseAmount,
+                priceLimit: priceLimit
+            })
+        );
     }
 
     /**
