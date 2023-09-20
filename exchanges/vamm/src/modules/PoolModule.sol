@@ -136,6 +136,8 @@ contract PoolModule is IPoolModule {
                 position.tickUpper,
                 -position.liquidity.toInt()
             );
+
+            // todo: shouldn't we convert liquidity to base here?
             closedUnfilledBasePool += position.liquidity.toInt();
         }
     }
