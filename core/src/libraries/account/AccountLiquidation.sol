@@ -543,7 +543,6 @@ library AccountLiquidation {
 
         } else {
             Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
-            // todo: sort out the int/uint
             int256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
             - collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
 

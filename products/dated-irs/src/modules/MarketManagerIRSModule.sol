@@ -29,6 +29,11 @@ import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
 import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
+/*
+TODOs
+    - rename executeADLOrder to executeADLOrders
+*/
+
 /**
  * @title Dated Interest Rate Swap Market Manager
  * @dev See IMarketManagerIRSModule
@@ -156,7 +161,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint256 shortfall
     ) external override {
-        // todo: needs implementation
+        Portfolio.exists(liquidatableAccountId, marketId).executeADLOrder(shortfall);
     }
 
     /**

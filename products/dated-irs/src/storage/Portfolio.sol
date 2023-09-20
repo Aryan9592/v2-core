@@ -477,4 +477,17 @@ library Portfolio {
             );
         }
     }
+
+    function executeADLOrder(Data storage self, uint256 shortfall) internal {
+        Market.Data storage market = Market.exists(self.marketId);
+
+        uint256[] memory activeMaturities = self.activeMaturities.values();
+
+        for (uint256 i = 1; i <= activeMaturities.length; i++) {
+            uint32 maturityTimestamp = activeMaturities[i].to32();
+
+            // todo: execute adl order in a given maturity
+        }
+
+    }
 }
