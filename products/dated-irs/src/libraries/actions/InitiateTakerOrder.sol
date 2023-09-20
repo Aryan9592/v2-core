@@ -104,7 +104,7 @@ library InitiateTakerOrder {
             params.maturityTimestamp, executedBaseAmount, executedQuoteAmount
         );
 
-        annualizedNotionalAmount = InitiateMakerOrder.getSingleAnnualizedExposure(
+        annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
             executedBaseAmount, params.marketId, params.maturityTimestamp
         );
 
