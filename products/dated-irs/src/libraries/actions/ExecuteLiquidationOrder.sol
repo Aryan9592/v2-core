@@ -114,6 +114,9 @@ library ExecuteLiquidationOrder {
             baseAmountToBeLiquidated = -maxBaseAmountLiquidatable;
         }
 
+        // todo base to quote conversion based on market price
+        int256 quoteDeltaFromLiquidation = 0;
+
         Portfolio.Data storage portfolioLiquidatable = Portfolio.exists(
             params.liquidatableAccountId,
             params.marketId
@@ -122,6 +125,14 @@ library ExecuteLiquidationOrder {
         Portfolio.Data storage portfolioLiquidator = Portfolio.loadOrCreate(
             params.liquidatorAccountId,
             params.marketId
+        );
+
+        portfolioLiquidatable.updatePosition(
+            params.maturityTimestamp, baseAmountToBeLiquidated, quoteDeltaFromLiquidation
+        );
+
+        portfolioLiquidator.updatePosition(
+            params.maturityTimestamp, -baseAmountToBeLiquidated, -quoteDeltaFromLiquidation
         );
     }
 
