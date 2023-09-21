@@ -27,7 +27,9 @@ import {Settlement} from "../libraries/actions/Settlement.sol";
 import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
 import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
 import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
+import {PropagateADLOrder} from "../libraries/actions/PropagateADLOrder.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 
 /*
 TODOs
@@ -290,7 +292,30 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
     }
 
+    /**
+     * @inheritdoc IMarketManager
+     */
     function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view override returns (bool) {
         return Portfolio.exists(accountId, marketId).hasUnfilledOrders();
     }
+
+    /**
+     * @inheritdoc IMarketManagerIRSModule
+     */
+    function propagateADLOrder(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        bool isLong
+    ) external override {
+
+        PropagateADLOrder.propagateADLOrder(
+            accountId,
+            marketId,
+            maturityTimestamp,
+            isLong
+        );
+
+    }
+
 }
