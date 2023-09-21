@@ -510,6 +510,7 @@ library Portfolio {
             int256 baseDelta = poolState.baseBalance + poolState.baseBalancePool;
             // todo: continue the loop if base delta is zero
             // todo: calculate quote delta with market price if no shortfall and with bankruptcy price if shortfall
+            // todo: kick off the adl timer
             int256 quoteDelta = 0;
 
             updatePosition(self, maturityTimestamp, -baseDelta, -quoteDelta);
