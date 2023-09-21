@@ -26,6 +26,7 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 /*
 TODOs
     - make sure long and short blended adl portfolio account ids cannot be created in the core
+    - turn blended adl account ids into constants
 */
 
 /**
@@ -174,7 +175,7 @@ library Portfolio {
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) private view returns (ExposureHelpers.PoolExposureState memory poolState) {
+    ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
         (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
             poolState.marketId, 
             poolState.maturityTimestamp, 
