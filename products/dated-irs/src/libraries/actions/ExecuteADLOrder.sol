@@ -11,6 +11,8 @@ import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
+import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UNIT, UD60x18 } from "@prb/math/UD60x18.sol";
 
 /*
 TODOs
@@ -31,9 +33,18 @@ library ExecuteADLOrder {
 
     function computeQuoteDelta(
         int256 baseDelta,
-        uint256 totalUnrealizedLossQuote,
-        int256 realBalanceAndIF
-    ) private {
+        UD60x18 markPrice,
+        uint128 marketId
+    ) private returns (int256) {
+
+        int256[] memory baseAmounts = new int256[](1);
+        baseAmounts[0] = baseDelta;
+        int256[] memory exposures = ExposureHelpers.baseToExposure(
+            baseAmounts,
+            marketId
+        );
+
+        return mulUDxInt(UNIT.add(markPrice), -exposures[0]);
 
     }
 
@@ -54,6 +65,10 @@ library ExecuteADLOrder {
         );
 
         int256 baseDelta = poolState.baseBalance + poolState.baseBalancePool;
+
+        // compute price (either bankruptcy or just market)
+        // compute quote delta
+
         int256 quoteDelta = 0;
 
         Portfolio.Data storage adlPortfolio = baseDelta > 0 ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
