@@ -562,7 +562,8 @@ library AccountLiquidation {
             uint128 marketId = markets[j].to128();
             Market.exists(marketId).executeADLOrder(
                 self.id,
-                shortfall
+                100, // todo: replace
+                10 // todo: replace
             );
         }
 
