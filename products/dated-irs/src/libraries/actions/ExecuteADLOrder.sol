@@ -16,6 +16,8 @@ import { UNIT, UD60x18 } from "@prb/math/UD60x18.sol";
 
 /*
 TODOs
+    - consider removing spread and slippage from upnl calc -> can really mess up some of the calcs below
+    -- margin requirements are support to take care of that
     - make sure long and short blended adl portfolio account ids cannot be created in the core
     - turn blended adl account ids into constants
     - return if base delta is zero
@@ -49,8 +51,12 @@ library ExecuteADLOrder {
     }
 
     function computeBankruptcyPrice(
-
+        int256 baseDelta,
+        uint256 positionUnrealizedLoss,
+        uint256 totalUnrealizedLoss,
+        int256 realBalanceAndIF
     ) private returns (UD60x18 bankruptcyPrice) {
+
         return bankruptcyPrice;
     }
 
@@ -64,7 +70,6 @@ library ExecuteADLOrder {
         Market.Data storage market = Market.exists(accountPortfolio.marketId);
         address poolAddress = market.marketConfig.poolAddress;
 
-        // extract filled base balance of the portfolio
         ExposureHelpers.PoolExposureState memory poolState = accountPortfolio.getPoolExposureState(
             maturityTimestamp,
             poolAddress
@@ -74,7 +79,19 @@ library ExecuteADLOrder {
 
         UD60x18 markPrice;
         if (totalUnrealizedLossQuote > 0) {
-            markPrice = computeBankruptcyPrice();
+            uint256 positionUnrealizedLoss = ExposureHelpers.computeUnrealizedLoss(
+                accountPortfolio.marketId,
+                maturityTimestamp,
+                poolAddress,
+                baseDelta,
+                poolState.quoteBalance + poolState.quoteBalancePool
+            );
+            markPrice = computeBankruptcyPrice(
+                baseDelta,
+                positionUnrealizedLoss,
+                totalUnrealizedLossQuote,
+                realBalanceAndIF
+            );
         } else {
             markPrice = IPool(poolAddress).getAdjustedDatedIRSTwap(
                 accountPortfolio.marketId,
