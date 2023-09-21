@@ -48,6 +48,12 @@ library ExecuteADLOrder {
 
     }
 
+    function computeBankruptcyPrice(
+
+    ) private returns (UD60x18 bankruptcyPrice) {
+        return bankruptcyPrice;
+    }
+
     function executeADLOrder(
         Portfolio.Data storage accountPortfolio,
         uint32 maturityTimestamp,
@@ -66,10 +72,19 @@ library ExecuteADLOrder {
 
         int256 baseDelta = poolState.baseBalance + poolState.baseBalancePool;
 
-        // compute price (either bankruptcy or just market)
-        // compute quote delta
+        UD60x18 markPrice;
+        if (totalUnrealizedLossQuote > 0) {
+            markPrice = computeBankruptcyPrice();
+        } else {
+            markPrice = IPool(poolAddress).getAdjustedDatedIRSTwap(
+                accountPortfolio.marketId,
+                maturityTimestamp,
+                0,
+                market.marketConfig.twapLookbackWindow
+            );
+        }
 
-        int256 quoteDelta = 0;
+        int256 quoteDelta = computeQuoteDelta(baseDelta, markPrice, accountPortfolio.marketId);
 
         Portfolio.Data storage adlPortfolio = baseDelta > 0 ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
             : Portfolio.loadOrCreate(type(uint128).max - 2, market.id);

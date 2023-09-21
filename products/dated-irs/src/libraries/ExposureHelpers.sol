@@ -84,6 +84,10 @@ library ExposureHelpers {
         view
         returns (int256 unwindQuote)
     {
+
+        // todo: consider using ExposureHelpers.baseToExposure to convert base to exposure instead of redoing same
+        // calc
+
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
 
         Market.Data storage market = Market.exists(marketId);
