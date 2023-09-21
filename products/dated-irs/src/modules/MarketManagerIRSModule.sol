@@ -32,6 +32,7 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 /*
 TODOs
     - rename executeADLOrder to executeADLOrders
+    - pause maturity or the whole market if just a single maturity is getting adl'd? should market = maturity?
 */
 
 /**

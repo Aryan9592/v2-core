@@ -22,6 +22,12 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
+
+/*
+TODOs
+    - make sure long and short blended adl portfolio account ids cannot be created in the core
+*/
+
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
  */
@@ -481,12 +487,39 @@ library Portfolio {
     function executeADLOrder(Data storage self, uint256 shortfall) internal {
         Market.Data storage market = Market.exists(self.marketId);
 
+        // extract blended adl portfolios
+        Portfolio.Data storage longADLPortfolio = loadOrCreate(type(uint128).max - 1, market.id);
+        Portfolio.Data storage shortADLPortfolio = loadOrCreate(type(uint128).max - 2, market.id);
+
+        address poolAddress = market.marketConfig.poolAddress;
+
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
         for (uint256 i = 1; i <= activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
-            // todo: execute adl order in a given maturity
+            // execute adl order in a given maturity
+
+            // extract filled base balance of the portfolio
+            ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
+                self,
+                maturityTimestamp,
+                poolAddress
+            );
+
+            int256 baseDelta = poolState.baseBalance + poolState.baseBalancePool;
+            // todo: continue the loop if base delta is zero
+            // todo: calculate quote delta with market price if no shortfall and with bankruptcy price if shortfall
+            int256 quoteDelta = 0;
+
+            updatePosition(self, maturityTimestamp, -baseDelta, -quoteDelta);
+
+            if (baseDelta > 0) {
+                updatePosition(longADLPortfolio, maturityTimestamp, baseDelta, quoteDelta);
+            } else {
+                updatePosition(shortADLPortfolio, maturityTimestamp, baseDelta, quoteDelta);
+            }
+
         }
 
     }
