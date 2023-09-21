@@ -13,6 +13,7 @@ import {IPool} from "../../interfaces/IPool.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UNIT, UD60x18 } from "@prb/math/UD60x18.sol";
+import {mulDiv} from "@prb/math/UD60x18.sol";
 
 /*
 TODOs
@@ -23,6 +24,7 @@ TODOs
     - return if base delta is zero
     - calculate quote delta with market price if no shortfall and with bankruptcy price if shortfall
     - kick off the adl timer
+    - make sure bankruptcy calc is reverted if cover is sufficient (shouldn't happen in practice)
 */
 
 /**
@@ -56,6 +58,9 @@ library ExecuteADLOrder {
         uint256 totalUnrealizedLoss,
         int256 realBalanceAndIF
     ) private returns (UD60x18 bankruptcyPrice) {
+
+        uint256 cover = mulDiv(positionUnrealizedLoss, realBalanceAndIF, totalUnrealizedLoss);
+        // todo: compute unrealized loss here (make sure the calc in exposure helpers is correct)
 
         return bankruptcyPrice;
     }
