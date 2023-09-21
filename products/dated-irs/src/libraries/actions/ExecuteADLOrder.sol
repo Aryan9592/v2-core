@@ -31,7 +31,8 @@ library ExecuteADLOrder {
 
     function computeQuoteDelta(
         int256 baseDelta,
-        uint256 shortfall
+        uint256 totalUnrealizedLossQuote,
+        int256 realBalanceAndIF
     ) private {
 
     }
@@ -39,7 +40,8 @@ library ExecuteADLOrder {
     function executeADLOrder(
         Portfolio.Data storage accountPortfolio,
         uint32 maturityTimestamp,
-        uint256 shortfall
+        uint256 totalUnrealizedLossQuote,
+        int256 realBalanceAndIF
     ) internal {
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);

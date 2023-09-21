@@ -162,9 +162,10 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeADLOrder(
         uint128 liquidatableAccountId,
         uint128 marketId,
-        uint256 shortfall
+        uint256 totalUnrealizedLossQuote,
+        int256 realBalanceAndIF
     ) external override {
-        Portfolio.exists(liquidatableAccountId, marketId).executeADLOrder(shortfall);
+        Portfolio.exists(liquidatableAccountId, marketId).executeADLOrder(totalUnrealizedLossQuote, realBalanceAndIF);
     }
 
     /**

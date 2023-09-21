@@ -480,7 +480,7 @@ library Portfolio {
         }
     }
 
-    function executeADLOrder(Data storage self, uint256 shortfall) internal {
+    function executeADLOrder(Data storage self, uint256 totalUnrealizedLossQuote, int256 realBalanceAndIF) internal {
 
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
@@ -490,7 +490,8 @@ library Portfolio {
             ExecuteADLOrder.executeADLOrder(
                 self,
                 maturityTimestamp,
-                shortfall
+                totalUnrealizedLossQuote,
+                realBalanceAndIF
             );
 
         }
