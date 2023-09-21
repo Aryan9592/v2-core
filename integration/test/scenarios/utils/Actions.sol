@@ -30,7 +30,7 @@ abstract contract Actions is Test {
             liquidityDelta
         );
         (, int256 annualizedNotional) = 
-            datedIrsProxy().executeMakerOrder(accountId, marketId, inputs);
+            getDatedIrsProxy().executeMakerOrder(accountId, marketId, inputs);
 
         vm.stopPrank();
 
@@ -56,7 +56,7 @@ abstract contract Actions is Test {
             priceLimit
         );
         (bytes memory output, int256 annualizedNotional) = 
-            datedIrsProxy().executeTakerOrder(accountId, marketId, inputs);
+            getDatedIrsProxy().executeTakerOrder(accountId, marketId, inputs);
 
         (
             int256 executedBaseAmount,
@@ -88,5 +88,5 @@ abstract contract Actions is Test {
         }
     }
 
-    function datedIrsProxy() internal virtual returns(DatedIrsProxy);
+    function getDatedIrsProxy() internal virtual returns(DatedIrsProxy);
 }

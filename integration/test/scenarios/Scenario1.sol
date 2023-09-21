@@ -12,6 +12,7 @@ import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol"
 import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
+import {DatedIrsProxy} from "../../src/proxies/DatedIrs.sol";
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { IERC20 } from "oz/interfaces/IERC20.sol";
 import {Actions} from "./utils/Actions.sol";
@@ -141,7 +142,7 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
     }
 
-    function datedIrsProxy() internal returns (DatedIrsProxy) {
+    function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;
     }
 }
