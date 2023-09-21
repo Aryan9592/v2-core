@@ -29,9 +29,17 @@ library ExecuteADLOrder {
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
 
+    function computeQuoteDelta(
+        int256 baseDelta,
+        uint256 shortfall
+    ) private {
+
+    }
+
     function executeADLOrder(
         Portfolio.Data storage accountPortfolio,
-        uint32 maturityTimestamp
+        uint32 maturityTimestamp,
+        uint256 shortfall
     ) internal {
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);

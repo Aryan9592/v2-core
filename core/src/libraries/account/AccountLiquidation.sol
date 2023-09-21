@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 /*
 TODOs
+    - adl positons that are in profit at current prices
     - lots of margin requirement check functions, is it even worth having the one-off ones as helpers?
     - collateralPoolsCheck, is this function a duplicate of an existing one?
     - add reference to quote token of the queue when throwing queue errors
