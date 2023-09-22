@@ -19,7 +19,7 @@ import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { UD60x18, ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
 
 library Swap {
     using TickBitmap for mapping(int16 => uint256);
@@ -70,14 +70,16 @@ library Swap {
                     params.sqrtPriceLimitX96 > swapFixedValues.tickLimits.maxSqrtRatio,
             "SPL"
         );
-
+        
         self.vars.trackerAccruedInterestGrowthGlobalX128 = 
-            VammHelpers.getMTMAccruedInterestTrackers(
+            MTMAccruedInterest.getMTMAccruedInterestTrackers(
                 self.vars.trackerAccruedInterestGrowthGlobalX128,
+                VammHelpers.getNewMTMTimestampAndRateIndex(
+                    self.immutableConfig.marketId, 
+                    self.immutableConfig.maturityTimestamp
+                ),
                 self.vars.trackerBaseTokenGrowthGlobalX128,
-                self.vars.trackerQuoteTokenGrowthGlobalX128,
-                self.immutableConfig.marketId,
-                self.immutableConfig.maturityTimestamp
+                self.vars.trackerQuoteTokenGrowthGlobalX128
             );
 
         VammHelpers.SwapState memory state = VammHelpers.SwapState({

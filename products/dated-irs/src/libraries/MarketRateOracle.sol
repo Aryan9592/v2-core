@@ -11,12 +11,14 @@ import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
 
 import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 library MarketRateOracle {
+    using Market for Market.Data;
     using { unwrap } for UD60x18;
     /**
      * @dev Thrown if the index-at-maturity is requested before maturity.
@@ -128,6 +130,21 @@ library MarketRateOracle {
             IRateOracle(self.rateOracleConfig.oracleAddress).earliestStateUpdate() <= block.timestamp
         ) {
             IRateOracle(self.rateOracleConfig.oracleAddress).updateState();
+        }
+    }
+
+    function getNewMTMTimestampAndRateIndex(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (MTMAccruedInterest.MTMObservation memory observation) {
+        Market.Data storage market = Market.exists(marketId);
+
+        if (block.timestamp < maturityTimestamp) {
+            observation.timestamp = block.timestamp;
+            observation.rateIndex = market.getRateIndexCurrent();
+        } else {
+            observation.timestamp = maturityTimestamp;
+            observation.rateIndex = market.getRateIndexMaturity(maturityTimestamp);
         }
     }
 }
