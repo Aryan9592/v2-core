@@ -13,7 +13,7 @@ import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -80,7 +80,7 @@ library DatedIrsVamm {
         /// @dev total amount of base tokens in vamm
         int256 trackerBaseTokenGrowthGlobalX128;
 
-        VammHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
+        MTMAccruedInterest.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
         
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;

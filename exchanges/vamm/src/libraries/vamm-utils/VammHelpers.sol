@@ -9,14 +9,15 @@ import {TickBitmap} from "../ticks/TickBitmap.sol";
 import {FullMath} from "../math/FullMath.sol";
 import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import {Time} from "../time/Time.sol";
-
 import { UD60x18, ZERO, UNIT } from "@prb/math/UD60x18.sol";
+import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
-import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {PoolConfiguration} from "../../storage/PoolConfiguration.sol";
 
 library VammHelpers {
     using SafeCastU256 for uint256;
@@ -94,13 +95,6 @@ library VammHelpers {
         int256 quoteTokenDelta; // for LP
         /// @dev ...
         int256 baseTokenDelta; // for LP
-    }
-
-
-    struct AccruedInterestTrackers {
-        int256 accruedInterest;
-        uint256 lastMTMTimestamp;
-        UD60x18 lastMTMRateIndex;
     }
 
     /// @notice Computes the amount of notional coresponding to an amount of liquidity and price range
@@ -205,43 +199,18 @@ library VammHelpers {
     function getNewMTMTimestampAndRateIndex(
         uint128 marketId,
         uint32 maturityTimestamp
-    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
+    ) internal view returns (MTMAccruedInterest.MTMObservation memory observation) {
         IRateOracleModule marketManager = 
             IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
 
         if (block.timestamp < maturityTimestamp) {
-            newMTMTimestamp = block.timestamp;
-            newMTMRateIndex = marketManager.getRateIndexCurrent(marketId);
+            observation.timestamp = block.timestamp;
+            observation.rateIndex = marketManager.getRateIndexCurrent(marketId);
         } else {
-            newMTMTimestamp = maturityTimestamp;
-            newMTMRateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
+            observation.timestamp = maturityTimestamp;
+            observation.rateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
         }
     }
 
-    function getMTMAccruedInterestTrackers(
-        AccruedInterestTrackers memory accruedInterestTrackers,
-        int256 baseBalance,
-        int256 quoteBalance,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
-        mtmAccruedInterestTrackers = accruedInterestTrackers;
-
-        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
-            getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
-
-        if (accruedInterestTrackers.lastMTMTimestamp < newMTMTimestamp) {
-            UD60x18 annualizedTime = 
-                Time.timeDeltaAnnualized(uint32(accruedInterestTrackers.lastMTMTimestamp), uint32(newMTMTimestamp));
-            int256 accruedInterestDelta = 
-                mulUDxInt(newMTMRateIndex.sub(accruedInterestTrackers.lastMTMRateIndex), baseBalance) +
-                mulUDxInt(annualizedTime, quoteBalance);
-
-            mtmAccruedInterestTrackers = AccruedInterestTrackers({
-                accruedInterest: accruedInterestTrackers.accruedInterest + accruedInterestDelta,
-                lastMTMTimestamp: newMTMTimestamp,
-                lastMTMRateIndex: newMTMRateIndex
-            });
-        }
-    }
+    
 }
