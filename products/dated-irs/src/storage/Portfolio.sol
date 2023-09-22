@@ -172,15 +172,15 @@ library Portfolio {
         address poolAddress
     ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
         (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
-            poolState.marketId, 
-            poolState.maturityTimestamp, 
+            self.marketId, 
+            maturityTimestamp, 
             self.accountId
         );
 
         (uint256 unfilledBaseLong, uint256 unfilledBaseShort, uint256 unfilledQuoteLong, uint256 unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
-                poolState.marketId, 
-                poolState.maturityTimestamp, 
+                self.marketId, 
+                maturityTimestamp, 
                 self.accountId
             );
 
@@ -190,8 +190,8 @@ library Portfolio {
 
             annualizedExposureFactor: 
                 ExposureHelpers.annualizedExposureFactor(
-                    poolState.marketId,
-                    poolState.maturityTimestamp
+                    self.marketId,
+                    maturityTimestamp
                 ),
 
             baseBalance: self.positions[poolState.maturityTimestamp].baseBalance,

@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
+// import "forge-std/console2.sol";
+
 import {IMarketManagerIRSModule, IMarketManager} from "../interfaces/IMarketManagerIRSModule.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {Portfolio} from "../storage/Portfolio.sol";

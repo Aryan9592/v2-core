@@ -4,7 +4,7 @@ pragma solidity >=0.8.13;
 
 import {LiquidityMath} from "../math/LiquidityMath.sol";
 import {VammHelpers} from "../vamm-utils/VammHelpers.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations

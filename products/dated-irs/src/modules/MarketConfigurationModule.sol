@@ -40,4 +40,9 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
         Market.Data storage market = Market.exists(marketId);
         return market.marketConfig;
     }
+
+    function getMarketType(uint128 marketId) external view override returns (bytes32 marketType) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.marketType;
+    }
 }

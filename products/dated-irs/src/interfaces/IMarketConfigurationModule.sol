@@ -49,4 +49,10 @@ interface IMarketConfigurationModule {
      * @return config The market configuration
      */
     function getMarketConfiguration(uint128 marketId) external view returns (Market.MarketConfiguration memory);
+
+    /**
+     * @notice Returns the market type
+     * @return marketType The market type
+     */
+    function getMarketType(uint128 marketId) external view returns (bytes32);
 }

@@ -1,10 +1,11 @@
 //SPDX-License-Identifier: MIT
+// todo: do we need reya license?
 
 pragma solidity >=0.8.19;
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import { mulUDxInt } from "./PrbMathHelper.sol";
-import {Time} from "./Time.sol";
+import { mulUDxInt } from "../helpers/PrbMathHelper.sol";
+import {Time} from "../helpers/Time.sol";
 
 library MTMAccruedInterest {
 
