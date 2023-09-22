@@ -1,7 +1,7 @@
 pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {FullMath} from "@voltz-protocol/v2-vamm/src/libraries/math/FullMath.sol";

@@ -11,7 +11,7 @@ import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
 

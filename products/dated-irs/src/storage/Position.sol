@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import {MarketRateOracle} from "../libraries/MarketRateOracle.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 /**
  * @title Object for tracking a dated irs position

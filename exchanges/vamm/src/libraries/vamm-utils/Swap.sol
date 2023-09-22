@@ -19,7 +19,7 @@ import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { UD60x18, ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/helpers/MTMAccruedInterest.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 library Swap {
     using TickBitmap for mapping(int16 => uint256);

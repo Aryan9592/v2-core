@@ -22,6 +22,8 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, UNIT, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
+// import "forge-std/console2.sol";
+
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
  */
@@ -138,18 +140,6 @@ library ExposureHelpers {
     {
         UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
         annualizedExposure = mulUDxInt(factor, baseAmount);
-    }
-
-    function baseToExposure(
-        int256 baseAmount,
-        uint128 marketId
-    )
-        internal
-        view
-        returns (int256 exposure)
-    {
-        UD60x18 factor = exposureFactor(marketId);
-        exposure = mulUDxInt(factor, baseAmount);
     }
 
     function getUnfilledExposureLowerInPool(

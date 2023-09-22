@@ -24,7 +24,7 @@ contract ScenarioSetup is Test {
   address owner;
 
   function datedIrsSetup() public {
-    vm.warp(1687525420); // time has to be > lookbackwindow for twap to avoid underflow
+    vm.warp(86400 * 365); // time has to be > lookbackwindow for twap to avoid underflow
 
     owner = vm.addr(55555);
 

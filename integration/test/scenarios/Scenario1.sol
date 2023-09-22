@@ -16,11 +16,11 @@ import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-util
 import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
 import {DatedIrsProxy} from "../../src/proxies/DatedIrs.sol";
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
-import { IERC20 } from "oz/interfaces/IERC20.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {Actions} from "./utils/Actions.sol";
 import {Checks} from "./utils/Checks.sol";
 
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 import { ud60x18, div, SD59x18, UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -100,10 +100,10 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maxTickAllowed: TickMath.DEFAULT_MAX_TICK
         });
 
-        // ensure the current time > 1st day
+        // ensure the current time > 7 days
         uint32[] memory times = new uint32[](2);
-        times[0] = uint32(block.timestamp - 86400);
-        times[1] = uint32(block.timestamp - 43200);
+        times[0] = uint32(block.timestamp - 86400 * 8);
+        times[1] = uint32(block.timestamp - 86400 * 4);
         int24[] memory observedTicks = new int24[](2);
         observedTicks[0] = -13860;
         observedTicks[1] = -13860;
@@ -142,6 +142,12 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
             abi.encode()
         );
 
+        vm.mockCall(
+            mockToken,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(18)
+        );
+
         // action 
         executeDatedIrsMakerOrder({
             marketId: marketId,
@@ -156,10 +162,10 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
         checkUnfilledBalances(
             address(vammProxy),
             PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-            CheckedValueU256({value: 100, toCheck: true}),
-            CheckedValueU256({value: 0, toCheck: false}),
-            CheckedValueU256({value: 100, toCheck: true}),
-            CheckedValueU256({value: 0, toCheck: false})
+            CheckedValueU256({value: 0, toCheck: true}),
+            CheckedValueU256({value: 99, toCheck: true}),
+            CheckedValueU256({value: 0, toCheck: true}),
+            CheckedValueU256({value: 196, toCheck: true})
         );
 
 
