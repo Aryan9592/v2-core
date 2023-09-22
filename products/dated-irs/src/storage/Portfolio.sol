@@ -484,7 +484,7 @@ library Portfolio {
 
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
-        for (uint256 i = 1; i <= activeMaturities.length; i++) {
+        for (uint256 i = 0; i <= activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
             ExecuteADLOrder.executeADLOrder(
