@@ -7,13 +7,14 @@ import {VammRouter, VammProxy} from "../../../src/proxies/Vamm.sol";
 
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
 import {MockAaveLendingPool} from "@voltz-protocol/products-dated-irs/test/mocks/MockAaveLendingPool.sol";
+import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
 contract ScenarioSetup is Test {
   DatedIrsProxy datedIrsProxy;
   VammProxy vammProxy;
-  address mockCorePoxy;
+  address mockCoreProxy;
 
   address mockToken;
 
@@ -35,7 +36,11 @@ contract ScenarioSetup is Test {
     VammRouter vammRouter = new VammRouter();
     vammProxy = new VammProxy(address(vammRouter), owner);
 
-    mockCorePoxy = address(65458);
+    mockCoreProxy = address(827448);
+    datedIrsProxy.configureMarketManager(MarketManagerConfiguration.Data({
+      coreProxy: mockCoreProxy
+    }));
+
     mockToken = address(6447488);
 
     aaveLendingPool = new MockAaveLendingPool();

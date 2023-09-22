@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 import {LiquidityMath} from "../math/LiquidityMath.sol";
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
+import {VammHelpers} from "../vamm-utils/VammHelpers.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -20,7 +20,7 @@ library Tick {
         /// @dev only has relative meaning, not absolute — the value depends on when the tick is initialized
         int256 trackerQuoteTokenGrowthOutsideX128;
         int256 trackerBaseTokenGrowthOutsideX128;
-        ExposureHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthOutsideX128;
+        VammHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthOutsideX128;
         /// @dev true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
         /// @dev these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
         bool initialized;
@@ -104,7 +104,7 @@ library Tick {
         int24 tickCurrent;
         int256 trackerBaseTokenGrowthGlobalX128;
         int256 trackerQuoteTokenGrowthGlobalX128;
-        ExposureHelpers.AccruedInterestTrackers accruedInterestGrowthGlobalX128;
+        VammHelpers.AccruedInterestTrackers accruedInterestGrowthGlobalX128;
         uint128 marketId;
         uint32 maturityTimestamp;
     }
@@ -116,8 +116,8 @@ library Tick {
         Info storage lower = self[params.tickLower];
         Info storage upper = self[params.tickUpper];
 
-        ExposureHelpers.AccruedInterestTrackers memory latestLowerAccruedInterestTrackers = 
-            ExposureHelpers.getMTMAccruedInterestTrackers(
+        VammHelpers.AccruedInterestTrackers memory latestLowerAccruedInterestTrackers = 
+            VammHelpers.getMTMAccruedInterestTrackers(
                 lower.trackerAccruedInterestGrowthOutsideX128,
                 lower.trackerBaseTokenGrowthOutsideX128,
                 lower.trackerQuoteTokenGrowthOutsideX128,
@@ -125,8 +125,8 @@ library Tick {
                 params.maturityTimestamp
             );
 
-        ExposureHelpers.AccruedInterestTrackers memory latestUpperAccruedInterestTrackers = 
-            ExposureHelpers.getMTMAccruedInterestTrackers(
+        VammHelpers.AccruedInterestTrackers memory latestUpperAccruedInterestTrackers = 
+            VammHelpers.getMTMAccruedInterestTrackers(
                 upper.trackerAccruedInterestGrowthOutsideX128,
                 upper.trackerBaseTokenGrowthOutsideX128,
                 upper.trackerQuoteTokenGrowthOutsideX128,
@@ -134,8 +134,8 @@ library Tick {
                 params.maturityTimestamp
             );
 
-        ExposureHelpers.AccruedInterestTrackers memory latestGlobalAccruedInterestTrackers = 
-            ExposureHelpers.getMTMAccruedInterestTrackers(
+        VammHelpers.AccruedInterestTrackers memory latestGlobalAccruedInterestTrackers = 
+            VammHelpers.getMTMAccruedInterestTrackers(
                 params.accruedInterestGrowthGlobalX128,
                 params.trackerBaseTokenGrowthGlobalX128,
                 params.trackerQuoteTokenGrowthGlobalX128,
@@ -249,7 +249,7 @@ library Tick {
             info.trackerBaseTokenGrowthOutsideX128;
 
         info.trackerAccruedInterestGrowthOutsideX128 = 
-            ExposureHelpers.getMTMAccruedInterestTrackers(
+            VammHelpers.getMTMAccruedInterestTrackers(
                 info.trackerAccruedInterestGrowthOutsideX128,
                 info.trackerBaseTokenGrowthOutsideX128,
                 info.trackerQuoteTokenGrowthOutsideX128,

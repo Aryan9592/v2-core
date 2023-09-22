@@ -6,12 +6,14 @@ import "@voltz-protocol/products-dated-irs/src/modules/MarketConfigurationModule
 import "@voltz-protocol/products-dated-irs/src/modules/OwnerUpgradeModule.sol";
 import "@voltz-protocol/products-dated-irs/src/modules/MarketManagerIRSModule.sol";
 import "@voltz-protocol/products-dated-irs/src/modules/RateOracleModule.sol";
+import "@voltz-protocol/core/src/modules/FeatureFlagModule.sol"; // todo: create one for product
 
 contract DatedIrsRouter is
   MarketConfigurationModule, 
   OwnerUpgradeModule,
   MarketManagerIRSModule,
-  RateOracleModule
+  RateOracleModule,
+  FeatureFlagModule
 {}
 
 contract DatedIrsProxy is

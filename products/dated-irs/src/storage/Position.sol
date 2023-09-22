@@ -16,7 +16,7 @@ library Position {
     struct Data {
         int256 baseBalance;
         int256 quoteBalance;
-        ExposureHelpers.AccruedInterestTrackers accruedInterestTrackers;
+        VammHelpers.AccruedInterestTrackers accruedInterestTrackers;
     }
 
     function update(
@@ -26,7 +26,7 @@ library Position {
         uint128 marketId,
         uint32 maturityTimestamp
     ) internal {
-        self.accruedInterestTrackers = ExposureHelpers.getMTMAccruedInterestTrackers(
+        self.accruedInterestTrackers = VammHelpers.getMTMAccruedInterestTrackers(
             self.accruedInterestTrackers,
             self.baseBalance,
             self.quoteBalance,

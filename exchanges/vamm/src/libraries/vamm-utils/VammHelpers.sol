@@ -96,6 +96,13 @@ library VammHelpers {
         int256 baseTokenDelta; // for LP
     }
 
+
+    struct AccruedInterestTrackers {
+        int256 accruedInterest;
+        uint256 lastMTMTimestamp;
+        UD60x18 lastMTMRateIndex;
+    }
+
     /// @notice Computes the amount of notional coresponding to an amount of liquidity and price range
     /// @dev Calculates amount1 * (sqrt(upper) - sqrt(lower)).
     /// @param liquidity Liquidity per tick
@@ -193,5 +200,48 @@ library VammHelpers {
         uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
 
         return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
+    }
+
+    function getNewMTMTimestampAndRateIndex(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
+        IRateOracleModule marketManager = 
+            IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
+
+        if (block.timestamp < maturityTimestamp) {
+            newMTMTimestamp = block.timestamp;
+            newMTMRateIndex = marketManager.getRateIndexCurrent(marketId);
+        } else {
+            newMTMTimestamp = maturityTimestamp;
+            newMTMRateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
+        }
+    }
+
+    function getMTMAccruedInterestTrackers(
+        AccruedInterestTrackers memory accruedInterestTrackers,
+        int256 baseBalance,
+        int256 quoteBalance,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
+        mtmAccruedInterestTrackers = accruedInterestTrackers;
+
+        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
+            getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
+
+        if (accruedInterestTrackers.lastMTMTimestamp < newMTMTimestamp) {
+            UD60x18 annualizedTime = 
+                Time.timeDeltaAnnualized(uint32(accruedInterestTrackers.lastMTMTimestamp), uint32(newMTMTimestamp));
+            int256 accruedInterestDelta = 
+                mulUDxInt(newMTMRateIndex.sub(accruedInterestTrackers.lastMTMRateIndex), baseBalance) +
+                mulUDxInt(annualizedTime, quoteBalance);
+
+            mtmAccruedInterestTrackers = AccruedInterestTrackers({
+                accruedInterest: accruedInterestTrackers.accruedInterest + accruedInterestDelta,
+                lastMTMTimestamp: newMTMTimestamp,
+                lastMTMRateIndex: newMTMRateIndex
+            });
+        }
     }
 }
