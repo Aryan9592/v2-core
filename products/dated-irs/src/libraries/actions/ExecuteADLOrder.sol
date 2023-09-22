@@ -59,7 +59,9 @@ library ExecuteADLOrder {
         int256 realBalanceAndIF
     ) private returns (UD60x18 bankruptcyPrice) {
 
-        uint256 cover = mulDiv(positionUnrealizedLoss, realBalanceAndIF, totalUnrealizedLoss);
+        // todo: finish implementation once pnl calc is fixed
+
+        //  uint256 cover = mulDiv(positionUnrealizedLoss, realBalanceAndIF, totalUnrealizedLoss);
         // todo: compute unrealized loss here (make sure the calc in exposure helpers is correct)
 
         return bankruptcyPrice;
