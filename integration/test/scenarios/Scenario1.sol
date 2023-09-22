@@ -9,6 +9,8 @@ import {AssertionHelpers} from "./utils/AssertionHelpers.sol";
 import {Constants} from "./utils/Constants.sol";
 import {PoolConfiguration} from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
 import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
+import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
+import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
 import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
 import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
@@ -17,6 +19,8 @@ import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol
 import { IERC20 } from "oz/interfaces/IERC20.sol";
 import {Actions} from "./utils/Actions.sol";
 import {Checks} from "./utils/Checks.sol";
+
+import "forge-std/console2.sol";
 
 import { ud60x18, div, SD59x18, UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -112,12 +116,31 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
         });
         vammProxy.increaseObservationCardinalityNext(marketId, maturityTimestamp, 16);
 
+        // FEATURE FLAGS
+        datedIrsProxy.addToFeatureFlagAllowlist(
+            keccak256(abi.encode(Constants._MARKET_ENABLED_FEATURE_FLAG, marketId)), mockCoreProxy
+        );
+        vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
+
+
         vm.stopPrank();
 
         aaveLendingPool.setReserveNormalizedIncome(IERC20(mockToken), ud60x18(1e18));
     }
 
     function test_MINT() public {
+        setConfigs();
+
+        // mocks
+        vm.mockCall(
+            mockCoreProxy,
+            abi.encodeWithSelector(IAccountModule.onlyAuthorized.selector,
+                1, // accountId
+                Constants.ADMIN_PERMISSION,
+                mockCoreProxy
+            ),
+            abi.encode()
+        );
 
         // action 
         executeDatedIrsMakerOrder({
@@ -144,5 +167,9 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
     function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;
+    }
+
+    function getCoreProxyAddress() internal view override returns (address) {
+        return mockCoreProxy;
     }
 }

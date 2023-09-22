@@ -53,12 +53,6 @@ library ExposureHelpers {
         uint256 unfilledQuoteShort;
     }
 
-    struct AccruedInterestTrackers {
-        int256 accruedInterest;
-        uint256 lastMTMTimestamp;
-        UD60x18 lastMTMRateIndex;
-    }
-
     function computeUnrealizedLoss(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -262,48 +256,6 @@ library ExposureHelpers {
             if (currentOpenInterest > upperLimit) {
                 revert OpenInterestLimitExceeded(upperLimit, currentOpenInterest);
             }
-        }
-    }
-
-    function getNewMTMTimestampAndRateIndex(
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) {
-        Market.Data storage market = Market.exists(marketId);
-
-        if (block.timestamp < maturityTimestamp) {
-            newMTMTimestamp = block.timestamp;
-            newMTMRateIndex = market.getRateIndexCurrent();
-        } else {
-            newMTMTimestamp = maturityTimestamp;
-            newMTMRateIndex = market.getRateIndexMaturity(maturityTimestamp);
-        }
-    }
-
-    function getMTMAccruedInterestTrackers(
-        AccruedInterestTrackers memory accruedInterestTrackers,
-        int256 baseBalance,
-        int256 quoteBalance,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
-        mtmAccruedInterestTrackers = accruedInterestTrackers;
-
-        (uint256 newMTMTimestamp, UD60x18 newMTMRateIndex) = 
-            getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
-
-        if (accruedInterestTrackers.lastMTMTimestamp < newMTMTimestamp) {
-            UD60x18 annualizedTime = 
-                Time.timeDeltaAnnualized(uint32(accruedInterestTrackers.lastMTMTimestamp), uint32(newMTMTimestamp));
-            int256 accruedInterestDelta = 
-                mulUDxInt(newMTMRateIndex.sub(accruedInterestTrackers.lastMTMRateIndex), baseBalance) +
-                mulUDxInt(annualizedTime, quoteBalance);
-
-            mtmAccruedInterestTrackers = AccruedInterestTrackers({
-                accruedInterest: accruedInterestTrackers.accruedInterest + accruedInterestDelta,
-                lastMTMTimestamp: newMTMTimestamp,
-                lastMTMRateIndex: newMTMRateIndex
-            });
         }
     }
 }

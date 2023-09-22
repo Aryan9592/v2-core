@@ -80,7 +80,7 @@ library DatedIrsVamm {
         /// @dev total amount of base tokens in vamm
         int256 trackerBaseTokenGrowthGlobalX128;
 
-        ExposureHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
+        VammHelpers.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
         
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;

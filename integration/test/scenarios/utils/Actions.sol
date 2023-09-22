@@ -18,7 +18,7 @@ abstract contract Actions is Test {
         int24 tickLower,
         int24 tickUpper
     ) internal returns (int256) {
-        vm.startPrank(user);
+        vm.startPrank(getCoreProxyAddress());
 
         int128 liquidityDelta = 
             Utils.getLiquidityForBase(tickLower, tickUpper, baseAmount);
@@ -45,7 +45,7 @@ abstract contract Actions is Test {
         int256 baseAmount,
         int24 tickLimit
     ) internal returns (int256, int256, int256) {
-        vm.startPrank(user);
+        vm.startPrank(getCoreProxyAddress());
 
         uint160 priceLimit = 
             TickMath.getSqrtRatioAtTick(tickLimit);
@@ -89,4 +89,5 @@ abstract contract Actions is Test {
     }
 
     function getDatedIrsProxy() internal virtual returns(DatedIrsProxy);
+    function getCoreProxyAddress() internal virtual returns(address);
 }

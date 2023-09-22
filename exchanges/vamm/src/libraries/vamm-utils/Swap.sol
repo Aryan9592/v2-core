@@ -72,7 +72,7 @@ library Swap {
         );
 
         self.vars.trackerAccruedInterestGrowthGlobalX128 = 
-            ExposureHelpers.getMTMAccruedInterestTrackers(
+            VammHelpers.getMTMAccruedInterestTrackers(
                 self.vars.trackerAccruedInterestGrowthGlobalX128,
                 self.vars.trackerBaseTokenGrowthGlobalX128,
                 self.vars.trackerQuoteTokenGrowthGlobalX128,
