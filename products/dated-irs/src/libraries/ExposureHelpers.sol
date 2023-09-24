@@ -20,7 +20,8 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT, convert as convert_ud } from "@prb/math/UD60x18.sol";
+import { ud, UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
+import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -53,45 +54,30 @@ library ExposureHelpers {
         uint256 unfilledQuoteShort;
     }
 
-    function computeUnrealizedLoss(
+    struct AccruedInterestTrackers {
+        int256 accruedInterest;
+        uint256 lastMTMTimestamp;
+        UD60x18 lastMTMRateIndex;
+    }
+
+    function computeUnrealizedPnL(
         uint128 marketId,
         uint32 maturityTimestamp,
         address poolAddress,
         int256 baseBalance,
         int256 quoteBalance
-    ) internal view returns (uint256 unrealizedLoss) {
-        int256 unwindQuote = computeUnwindQuote(marketId, maturityTimestamp, poolAddress, baseBalance);
-        int256 unrealizedPnL = quoteBalance + unwindQuote;
-
-        if (unrealizedPnL < 0) {
-            unrealizedLoss = uint256(-unrealizedPnL);
-        }
-    }
-
-    function computeUnwindQuote(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        address poolAddress,
-        int256 baseAmount
-    )
-        internal
-        view
-        returns (int256 unwindQuote)
-    {
-
-        // todo: consider using ExposureHelpers.baseToExposure to convert base to exposure instead of redoing same
-        // calc
-
+    ) internal view returns (int256 unrealizedPnL) {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
 
         Market.Data storage market = Market.exists(marketId);
         UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
 
         int256 orderSizeWad = DecimalMath.changeDecimals(
-            -baseAmount, 
+            -baseBalance, 
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
+
         UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(
             marketId, 
             maturityTimestamp, 
@@ -99,13 +85,33 @@ library ExposureHelpers {
             market.marketConfig.twapLookbackWindow
         );
 
-        unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT), mulUDxInt(currentLiquidityIndex, baseAmount));
+        int256 unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT_ud), mulUDxInt(currentLiquidityIndex, baseBalance));
+
+        return quoteBalance + unwindQuote;
+    }
+
+    function computeUnwindPriceForGivenUPnL(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseBalance,
+        int256 quoteBalance,
+        int256 uPnL
+    ) internal view returns (SD59x18 unwindPrice) {
+        SD59x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp).intoSD59x18();
+
+        Market.Data storage market = Market.exists(marketId);
+        UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
+
+        int256 notional = mulUDxInt(currentLiquidityIndex, baseBalance);
+        SD59x18 price = sd(uPnL - quoteBalance).div(sd(notional)).sub(UNIT_sd).div(timeDeltaAnnualized); 
+
+        return price;
     }
 
     function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
         bytes32 marketType = Market.exists(marketId).marketType;
         if (marketType == Market.LINEAR_MARKET) {
-            return UNIT;
+            return UNIT_ud;
         } else if (marketType == Market.COMPOUNDING_MARKET) {
             UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
             return currentLiquidityIndex;
@@ -156,7 +162,7 @@ library ExposureHelpers {
         PoolExposureState memory poolState,
         address poolAddress
     ) internal view returns (Account.MarketExposure memory) {
-        uint256 unrealizedLossLower = computeUnrealizedLoss(
+        int256 uPnL = computeUnrealizedPnL(
             poolState.marketId,
             poolState.maturityTimestamp,
             poolAddress,
@@ -172,7 +178,7 @@ library ExposureHelpers {
             pnlComponents: Account.PnLComponents({
                 accruedCashflows: 0,     // todo: during tokenization implementation
                 lockedPnL: 0,            // todo: during tokenization implementation
-                unrealizedPnL: -unrealizedLossLower.toInt()
+                unrealizedPnL: uPnL
             })
         });
     }
@@ -181,7 +187,7 @@ library ExposureHelpers {
         PoolExposureState memory poolState,
         address poolAddress
     ) internal view returns (Account.MarketExposure memory) {
-        uint256 unrealizedLossUpper = computeUnrealizedLoss(
+        int256 uPnL = computeUnrealizedPnL(
             poolState.marketId,
             poolState.maturityTimestamp,
             poolAddress,
@@ -197,7 +203,7 @@ library ExposureHelpers {
             pnlComponents: Account.PnLComponents({
                 accruedCashflows: 0,     // todo: during tokenization implementation
                 lockedPnL: 0,            // todo: during tokenization implementation
-                unrealizedPnL: -unrealizedLossUpper.toInt()
+                unrealizedPnL: uPnL
             })
         });
     }

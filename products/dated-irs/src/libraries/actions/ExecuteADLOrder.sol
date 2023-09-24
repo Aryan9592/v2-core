@@ -84,13 +84,9 @@ library ExecuteADLOrder {
 
         UD60x18 markPrice;
         if (totalUnrealizedLossQuote > 0) {
-            uint256 positionUnrealizedLoss = ExposureHelpers.computeUnrealizedLoss(
-                accountPortfolio.marketId,
-                maturityTimestamp,
-                poolAddress,
-                baseDelta,
-                poolState.quoteBalance + poolState.quoteBalancePool
-            );
+            // todo: (AB) link this to uPnL functions
+            uint256 positionUnrealizedLoss = 0;
+            
             markPrice = computeBankruptcyPrice(
                 baseDelta,
                 positionUnrealizedLoss,
