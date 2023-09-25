@@ -39,7 +39,7 @@ library ExecuteADLOrder {
         int256 baseDelta,
         UD60x18 markPrice,
         uint128 marketId
-    ) private returns (int256) {
+    ) private view returns (int256) {
 
         int256[] memory baseAmounts = new int256[](1);
         baseAmounts[0] = baseDelta;
@@ -57,7 +57,7 @@ library ExecuteADLOrder {
         uint256 positionUnrealizedLoss,
         uint256 totalUnrealizedLoss,
         int256 realBalanceAndIF
-    ) private returns (UD60x18 bankruptcyPrice) {
+    ) private view returns (UD60x18 bankruptcyPrice) {
 
         // todo: finish implementation once pnl calc is fixed
 

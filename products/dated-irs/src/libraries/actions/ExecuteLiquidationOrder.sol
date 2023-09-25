@@ -108,7 +108,7 @@ library ExecuteLiquidationOrder {
 
     function computeMaxLiquidatableBase(
         int256 baseAmountLiquidatable
-    ) private returns (int256) {
+    ) private view returns (int256) {
         // todo: needs implementation
         return baseAmountLiquidatable;
     }
