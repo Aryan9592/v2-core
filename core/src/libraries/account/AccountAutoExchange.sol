@@ -24,6 +24,8 @@ TODOs
     bubble? -> in any case for yield-bearing assets this condition should not in theory be breached
     - consider introducing a separate getCollateralInfoByCollateralType to avoid extra gas cost for eligibility calc
     where that's not necessary
+    - get rid of auto-exchange ratio to keep complexity lower
+    - consider ways to avoid nested if blocks
 */
 
 
@@ -139,15 +141,26 @@ library AccountAutoExchange {
                 collateralPool.riskConfig.riskMultipliers
             );
 
-        if (marginInfo.initialDelta > 0) {
-            return (0, 0);
-        }
+        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+        uint256 amountToAutoExchange;
 
-        // todo: double check if we want to look at the im delta or just the collateral balance for auto-exchange
-        uint256 amountToAutoExchange = mulUDxUint(
-            AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-marginInfo.initialDelta).toUint()
-        );
+        if (overallMarginInfo.maintenanceDelta < 0 ) {
+
+            if (marginInfo.liquidationDelta > 0) {
+                return (0, 0);
+            }
+
+            amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
+
+        } else {
+
+            if (marginInfo.collateralInfo.marginBalance > 0) {
+                return (0, 0);
+            }
+
+            amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
+
+        }
 
         // todo: do we consider that we can use the entire collateral balance of covering token?
         // todo @arturbeg is toUint() here fine?
