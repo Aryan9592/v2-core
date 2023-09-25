@@ -21,7 +21,9 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 TODOs
     - consider splitting isEligibleForAutoExchange into smaller helpers
     - make sure the parent of the collateral type in eligibility check is dollar -> means it's a centroid of a
-    bubble?
+    bubble? -> in any case for yield-bearing assets this condition should not in theory be breached
+    - consider introducing a separate getCollateralInfoByCollateralType to avoid extra gas cost for eligibility calc
+    where that's not necessary
 */
 
 
@@ -53,19 +55,17 @@ library AccountAutoExchange {
                     collateralPool.riskConfig.riskMultipliers
                 );
 
-            if (marginInfo.initialDelta > 0) {
+            if (marginInfo.collateralInfo.marginBalance > 0) {
                 return false;
             }
 
             UD60x18 price = 
                 CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0)).price;
 
-            // todo: check if we want to include the IM in the account value calculation below
+            int256 marginBalanceOfCollateralInUSD =
+                mulUDxInt(price, marginInfo.collateralInfo.marginBalance);
 
-            int256 accountValueOfCollateralInUSD = 
-                mulUDxInt(price, marginInfo.initialDelta);
-
-            if ((-accountValueOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
+            if ((-marginBalanceOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
                 return true;
             }
         }
