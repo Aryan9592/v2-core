@@ -47,13 +47,22 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
 
-        // Single auto-exchange threshold check
         {
             Account.MarginInfo memory marginInfo =
                 self.getMarginInfoByCollateralType(
                     collateralType,
                     collateralPool.riskConfig.riskMultipliers
                 );
+
+            // mismatched margin coverage check
+
+            Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+
+            if ( (overallMarginInfo.maintenanceDelta < 0) && (marginInfo.liquidationDelta < 0) ) {
+                return true;
+            }
+
+            // Single auto-exchange threshold check
 
             if (marginInfo.collateralInfo.marginBalance > 0) {
                 return false;
@@ -68,6 +77,7 @@ library AccountAutoExchange {
             if ((-marginBalanceOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
                 return true;
             }
+
         }
 
         // Get total negative account value in USD
