@@ -41,14 +41,12 @@ library ExecuteADLOrder {
         uint128 marketId
     ) private view returns (int256) {
 
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = baseDelta;
-        int256[] memory exposures = ExposureHelpers.baseToExposure(
-            baseAmounts,
+        int256 exposure = ExposureHelpers.baseToExposure(
+            baseDelta,
             marketId
         );
 
-        return mulUDxInt(markPrice, -exposures[0]);
+        return mulUDxInt(markPrice, exposure);
 
     }
 
