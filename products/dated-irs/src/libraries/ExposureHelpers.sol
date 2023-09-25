@@ -20,7 +20,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { ud, UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 
 /**
@@ -70,7 +70,6 @@ library ExposureHelpers {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
 
         Market.Data storage market = Market.exists(marketId);
-        UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
 
         int256 orderSizeWad = DecimalMath.changeDecimals(
             -baseBalance, 
@@ -85,7 +84,8 @@ library ExposureHelpers {
             market.marketConfig.twapLookbackWindow
         );
 
-        int256 unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT_ud), mulUDxInt(currentLiquidityIndex, baseBalance));
+        int256 exposure = baseToExposure(baseBalance, marketId);
+        int256 unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
 
         return quoteBalance + unwindQuote;
     }
@@ -99,11 +99,8 @@ library ExposureHelpers {
     ) internal view returns (SD59x18 unwindPrice) {
         SD59x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp).intoSD59x18();
 
-        Market.Data storage market = Market.exists(marketId);
-        UD60x18 currentLiquidityIndex = market.getRateIndexCurrent();
-
-        int256 notional = mulUDxInt(currentLiquidityIndex, baseBalance);
-        SD59x18 price = sd(uPnL - quoteBalance).div(sd(notional)).sub(UNIT_sd).div(timeDeltaAnnualized); 
+        int256 exposure = baseToExposure(baseBalance, marketId);
+        SD59x18 price = sd(uPnL - quoteBalance).div(sd(exposure)).sub(UNIT_sd).div(timeDeltaAnnualized); 
 
         return price;
     }
