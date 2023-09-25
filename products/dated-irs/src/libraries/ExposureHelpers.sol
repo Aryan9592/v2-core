@@ -140,6 +140,18 @@ library ExposureHelpers {
         annualizedExposure = mulUDxInt(factor, baseAmount);
     }
 
+    function baseToExposure(
+        int256 baseAmount,
+        uint128 marketId
+    )
+        internal
+        view
+        returns (int256 exposure)
+    {
+        UD60x18 factor = exposureFactor(marketId);
+        exposure = mulUDxInt(factor, baseAmount);
+    }
+
     function getUnfilledExposureLowerInPool(
         PoolExposureState memory poolState,
         address poolAddress
