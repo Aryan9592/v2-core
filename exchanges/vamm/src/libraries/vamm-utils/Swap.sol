@@ -65,9 +65,9 @@ library Swap {
         require(
             params.amountSpecified > 0
                 ? params.sqrtPriceLimitX96 > self.vars.sqrtPriceX96 &&
-                    params.sqrtPriceLimitX96 < swapFixedValues.tickLimits.minSqrtRatio
+                    params.sqrtPriceLimitX96 < swapFixedValues.tickLimits.maxSqrtRatio
                 : params.sqrtPriceLimitX96 < self.vars.sqrtPriceX96 &&
-                    params.sqrtPriceLimitX96 > swapFixedValues.tickLimits.maxSqrtRatio,
+                    params.sqrtPriceLimitX96 > swapFixedValues.tickLimits.minSqrtRatio,
             "SPL"
         );
         

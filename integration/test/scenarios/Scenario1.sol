@@ -35,6 +35,14 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint32 maturityTimestamp;
     int24 initTick;
 
+    function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
+        return datedIrsProxy;
+    }
+
+    function getCoreProxyAddress() internal view override returns (address) {
+        return mockCoreProxy;
+    }
+
     function setUp() public {
         super.datedIrsSetup();
         user1 = vm.addr(1);
@@ -59,7 +67,7 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
             Market.MarketConfiguration({
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: 7 * 86400, // 7 days
-                markPriceBand: ud60x18(1e17), // 10%
+                markPriceBand: ud60x18(0.01e18), // 10
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -139,29 +147,49 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 1,
-            baseAmount: 100,
-            tickLower: 0,
-            tickUpper: 60
+            baseAmount: 10e16,
+            tickLower: -13920,
+            tickUpper: -13800
         }); 
 
         checkUnfilledBalances({
             poolAddress: address(vammProxy),
             positionInfo: 
                 PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-            expectedUnfilledBaseLong: 0, 
-            expectedUnfilledBaseShort: 99, 
-            expectedUnfilledQuoteLong: 0, 
-            expectedUnfilledQuoteShort: 196
+            expectedUnfilledBaseLong: 49925003805991531, 
+            expectedUnfilledBaseShort: 50074996194008468, 
+            expectedUnfilledQuoteLong: 250152161433399791, 
+            expectedUnfilledQuoteShort: 249702402412509544
         });
 
 
     }
 
-    function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
-        return datedIrsProxy;
-    }
+    function test_MINT_VT() public {
+        test_MINT();
 
-    function getCoreProxyAddress() internal view override returns (address) {
-        return mockCoreProxy;
+        vm.mockCall(
+            mockToken,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(18)
+        );
+
+        // action 
+        (int256 executedBase, int256 executedQuote, int256 annualizedNotional) = 
+            executeDatedIrsTakerOrder_noPriceLimit({
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                accountId: 2,
+                baseAmount: 10e15
+            }); 
+
+        checkUnfilledBalances({
+            poolAddress: address(vammProxy),
+            positionInfo: PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+            expectedUnfilledBaseLong: 0,
+            expectedUnfilledBaseShort: 0,
+            expectedUnfilledQuoteLong: 0,
+            expectedUnfilledQuoteShort: 0
+    });
     }
 }
