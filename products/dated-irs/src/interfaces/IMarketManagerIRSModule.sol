@@ -26,4 +26,7 @@ interface IMarketManagerIRSModule is IMarketManager {
      *
      */
     function configureMarketManager(MarketManagerConfiguration.Data memory config) external;
+
+    // todo: add natspec
+    function propagateADLOrder(uint128 accountId, uint128 marketId, uint32 maturityTimestamp, bool isLong) external;
 }

@@ -26,8 +26,16 @@ import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol
 import {Settlement} from "../libraries/actions/Settlement.sol";
 import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
 import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
-
+import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
+import {PropagateADLOrder} from "../libraries/actions/PropagateADLOrder.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+
+
+/*
+TODOs
+    - rename executeADLOrder to executeADLOrders
+    - pause maturity or the whole market if just a single maturity is getting adl'd? should market = maturity?
+*/
 
 /**
  * @title Dated Interest Rate Swap Market Manager
@@ -100,7 +108,28 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override returns (bytes memory output) {
-        // todo: needs implementation
+        executionPreCheck(marketId);
+
+        uint32 maturityTimestamp;
+        int256 baseAmountToBeLiquidated;
+        uint160 priceLimit;
+
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
+            priceLimit := calldataload(add(inputs.offset, 0x40))
+        }
+
+        ExecuteLiquidationOrder.executeLiquidationOrder(
+            ExecuteLiquidationOrder.LiquidationOrderParams({
+                liquidatableAccountId: liquidatableAccountId,
+                liquidatorAccountId: liquidatorAccountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseAmountToBeLiquidated: baseAmountToBeLiquidated,
+                priceLimit: priceLimit
+            })
+        );
     }
 
     /**
@@ -111,7 +140,20 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override view {
-        // todo: needs implementation
+        uint32 maturityTimestamp;
+        int256 baseAmountToBeLiquidated;
+
+        assembly {
+            maturityTimestamp := calldataload(inputs.offset)
+            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
+        }
+
+        ExecuteLiquidationOrder.validateLiquidationOrder(
+            liquidatableAccountId,
+            marketId,
+            maturityTimestamp,
+            baseAmountToBeLiquidated
+        );
     }
 
     /**
@@ -120,9 +162,10 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeADLOrder(
         uint128 liquidatableAccountId,
         uint128 marketId,
-        uint256 shortfall
+        uint256 totalUnrealizedLossQuote,
+        int256 realBalanceAndIF
     ) external override {
-        // todo: needs implementation
+        Portfolio.exists(liquidatableAccountId, marketId).executeADLOrder(totalUnrealizedLossQuote, realBalanceAndIF);
     }
 
     /**
@@ -250,7 +293,30 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         FeatureFlagSupport.ensureEnabledMarket(marketId);
     }
 
+    /**
+     * @inheritdoc IMarketManager
+     */
     function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view override returns (bool) {
         return Portfolio.exists(accountId, marketId).hasUnfilledOrders();
     }
+
+    /**
+     * @inheritdoc IMarketManagerIRSModule
+     */
+    function propagateADLOrder(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        bool isLong
+    ) external override {
+
+        PropagateADLOrder.propagateADLOrder(
+            accountId,
+            marketId,
+            maturityTimestamp,
+            isLong
+        );
+
+    }
+
 }

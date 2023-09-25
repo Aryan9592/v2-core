@@ -11,6 +11,7 @@ import {Position} from "./Position.sol";
 import {Market} from "./Market.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+import {ExecuteADLOrder} from "../libraries/actions/ExecuteADLOrder.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
@@ -21,6 +22,7 @@ import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMat
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -168,7 +170,7 @@ library Portfolio {
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) private view returns (ExposureHelpers.PoolExposureState memory poolState) {
+    ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
         (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
             poolState.marketId, 
             poolState.maturityTimestamp, 
@@ -402,5 +404,23 @@ library Portfolio {
                 self.accountId
             );
         }
+    }
+
+    function executeADLOrder(Data storage self, uint256 totalUnrealizedLossQuote, int256 realBalanceAndIF) internal {
+
+        uint256[] memory activeMaturities = self.activeMaturities.values();
+
+        for (uint256 i = 0; i < activeMaturities.length; i++) {
+            uint32 maturityTimestamp = activeMaturities[i].to32();
+
+            ExecuteADLOrder.executeADLOrder(
+                self,
+                maturityTimestamp,
+                totalUnrealizedLossQuote,
+                realBalanceAndIF
+            );
+
+        }
+
     }
 }
