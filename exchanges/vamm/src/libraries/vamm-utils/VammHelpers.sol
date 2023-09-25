@@ -140,14 +140,12 @@ library VammHelpers {
             averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
         }
 
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = baseTokenDelta;
-        int256[] memory exposures = ExposureHelpers.baseToExposure(
-            baseAmounts,
+        int256 exposure = ExposureHelpers.baseToExposure(
+            baseTokenDelta,
             marketId
         );
 
-        quoteTokenDelta = mulUDxInt(UNIT.add(averagePriceWithSpread), -exposures[0]);
+        quoteTokenDelta = mulUDxInt(UNIT.add(averagePriceWithSpread), -exposure);
     }
 
     function calculateGlobalTrackerValues(

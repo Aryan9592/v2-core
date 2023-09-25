@@ -250,80 +250,6 @@ library Portfolio {
     }
 
     /**
-     * @dev Fully Close all the positions owned by the account within the dated irs portfolio
-     * poolAddress in which to close the account, note in the beginning we'll only have a single pool
-     */
-    function closeAccount(Data storage self) internal {
-        Market.Data storage market = Market.exists(self.marketId);
-
-        for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
-            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-            Position.Data storage position = self.positions[maturityTimestamp];
-            int256[] memory baseAmounts = new int256[](2);
-
-            baseAmounts[0] = IPool(
-                market.marketConfig.poolAddress
-            ).closeUnfilledBase(self.marketId, maturityTimestamp, self.accountId);
-
-            // left-over exposure in pool
-            (int256 filledBasePool,,) = IPool(
-                market.marketConfig.poolAddress
-            ).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
-
-            int256 unwindBase = -(position.baseBalance + filledBasePool);
-
-            UD60x18 markPrice = IPool(market.marketConfig.poolAddress).getAdjustedDatedIRSTwap(
-                self.marketId, 
-                maturityTimestamp, 
-                DecimalMath.changeDecimals(
-                    unwindBase,
-                    IERC20(market.quoteToken).decimals(),
-                    DecimalMath.WAD_DECIMALS
-                ), 
-                market.marketConfig.twapLookbackWindow
-            );
-
-            int256 executedQuoteAmount;
-            (baseAmounts[1], executedQuoteAmount) =
-                IPool(market.marketConfig.poolAddress).executeDatedTakerOrder(
-                    self.marketId, 
-                    maturityTimestamp, 
-                    unwindBase, 
-                    0, 
-                    markPrice, 
-                    market.marketConfig.markPriceBand
-                );
-
-            position.update(baseAmounts[1], executedQuoteAmount, self.marketId, maturityTimestamp);
-
-            // position size check
-            ExposureHelpers.checkPositionSizeLimit(
-                self.accountId, self.marketId, maturityTimestamp
-            );
-
-            // update open interest
-            int256[] memory exposures = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, self.marketId, maturityTimestamp);
-            ExposureHelpers.checkOpenInterestLimit(
-                self.marketId,
-                maturityTimestamp,
-                (exposures[0] > 0 ? -exposures[0] : exposures[0]) + 
-                (exposures[1] > 0 ? -exposures[1] : exposures[1]) // negative
-            );
-
-            market.updateOracleStateIfNeeded();
-
-            emit PositionUpdated(
-                self.accountId, 
-                self.marketId, 
-                maturityTimestamp, 
-                baseAmounts[1], 
-                executedQuoteAmount, 
-                block.timestamp
-            );
-        }
-    }
-
-    /**
      * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st Dec 2023)
      */
     function updatePosition(
@@ -447,7 +373,7 @@ library Portfolio {
 
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
-        for (uint256 i = 1; i <= activeMaturities.length; i++) {
+        for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
             if (
@@ -469,7 +395,7 @@ library Portfolio {
 
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
-        for (uint256 i = 1; i <= activeMaturities.length; i++) {
+        for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
             closedUnfilledBasePool += IPool(market.marketConfig.poolAddress).closeUnfilledBase(

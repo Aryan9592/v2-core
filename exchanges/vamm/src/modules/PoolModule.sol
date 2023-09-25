@@ -19,7 +19,6 @@ import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
@@ -137,6 +136,8 @@ contract PoolModule is IPoolModule {
                 position.tickUpper,
                 -position.liquidity.toInt()
             );
+
+            // todo: shouldn't we convert liquidity to base here?
             closedUnfilledBasePool += position.liquidity.toInt();
         }
     }
@@ -192,22 +193,8 @@ contract PoolModule is IPoolModule {
     function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSizeWad, uint32 lookbackWindow) 
         external view override returns (UD60x18 datedIRSTwap) 
     {   
-        bool nonZeroOrderSize = orderSizeWad != 0;
-        return getDatedIRSTwap(marketId, maturityTimestamp, orderSizeWad, lookbackWindow, nonZeroOrderSize, nonZeroOrderSize);
-    }
-
-    function getDatedIRSTwap(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 orderSizeWad,
-        uint32 lookbackWindow,
-        bool adjustForPriceImpact,
-        bool adjustForSpread
-    ) 
-        public view override returns (UD60x18 datedIRSTwap) 
-    {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = Twap.twap(vamm, lookbackWindow, orderSizeWad, adjustForPriceImpact, adjustForSpread);
+        datedIRSTwap = Twap.twap(vamm, lookbackWindow, orderSizeWad);
     }
 
     function hasUnfilledOrders(

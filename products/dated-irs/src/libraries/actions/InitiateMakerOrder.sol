@@ -71,11 +71,6 @@ library InitiateMakerOrder {
         internal
         returns (int256 annualizedNotionalAmount)
     {
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(params.accountId, Account.ADMIN_PERMISSION, msg.sender);
-
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
@@ -94,7 +89,7 @@ library InitiateMakerOrder {
         market.updateOracleStateIfNeeded();
 
         annualizedNotionalAmount = 
-            getSingleAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
+            ExposureHelpers.baseToAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
         
         ExposureHelpers.checkPositionSizeLimit(
             params.accountId,
@@ -118,16 +113,6 @@ library InitiateMakerOrder {
             params.liquidityDelta,
             block.timestamp
         );
-    }
-
-    function getSingleAnnualizedExposure(
-        int256 executedBaseAmount,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (int256 annualizedNotionalAmount) {
-        int256[] memory baseAmounts = new int256[](1);
-        baseAmounts[0] = executedBaseAmount;
-        annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(baseAmounts, marketId, maturityTimestamp)[0];
     }
 
 }

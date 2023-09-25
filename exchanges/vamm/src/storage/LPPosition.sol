@@ -152,6 +152,7 @@ library LPPosition {
         self.trackers.quoteTokenUpdatedGrowth = quoteTokenGrowthInsideX128;
         self.trackers.baseTokenUpdatedGrowth = baseTokenGrowthInsideX128;
         self.trackers.accruedInterestUpdatedGrowth = accruedInterestGrowthInsideX128;
+        
         self.trackers.quoteTokenAccumulated += quoteTokenDelta;
         self.trackers.baseTokenAccumulated += baseTokenDelta;
         self.trackers.accruedInterestAccumulated += accruedInterestDelta;
