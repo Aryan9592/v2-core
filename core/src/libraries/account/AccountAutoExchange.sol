@@ -70,30 +70,25 @@ library AccountAutoExchange {
             }
         }
 
-        // Get total account value in USD
-        int256 totalAccountValueInUSD = 0;
-        {
-            Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
-            totalAccountValueInUSD = marginInfo.initialDelta;
-        }
-
         // Get total negative account value in USD
         uint256 sumOfNegativeAccountValuesInUSD = 0;
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            Account.MarginInfo memory deltas = 
+            // todo: rename deltas to smth more meaningful
+            Account.MarginInfo memory deltas =
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],
                     collateralPool.riskConfig.riskMultipliers
                 );
             
-            if (deltas.initialDelta < 0) {
+            if (deltas.collateralInfo.marginBalance < 0) {
+                // todo: layer in the haircut in here (via a helper?)
                 UD60x18 price = 
                     CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0)).price;
 
                 sumOfNegativeAccountValuesInUSD += 
-                    mulUDxUint(price, (-deltas.initialDelta).toUint());
+                    mulUDxUint(price, (-deltas.collateralInfo.marginBalance).toUint());
             }
         }
         
@@ -101,8 +96,12 @@ library AccountAutoExchange {
             return true;
         }
 
-        if (totalAccountValueInUSD < 0) {
-            // todo: decide on what to do when the account is liquidatable
+
+        // Get total account value in USD
+        int256 totalAccountValueInUSD = 0;
+        {
+            Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+            totalAccountValueInUSD = marginInfo.collateralInfo.marginBalance;
         }
 
         if (
