@@ -175,8 +175,6 @@ contract ExecutionModule {
         address collateralType = marketManager.getMarketQuoteToken(command.marketId);
         account.markActiveMarket(collateralType, command.marketId);
 
-        uint256 initialAccountMarketExposure = marketManager.getAccountAbsoluteMarketExposure(command.marketId, accountId);
-
         uint256 commandName = uint8(command.commandType & COMMAND_TYPE_MASK);
         if (commandName == V2_MARKET_MANAGER_TAKER_ORDER) {
             (bytes memory result,) = 
@@ -185,7 +183,7 @@ contract ExecutionModule {
                 accountId,
                 command.marketId,
                 collateralType, 
-                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager)
+                getAnnualizedNotionalDelta(accountId, command.marketId, marketManager)
             );
             return abi.encode(result, fee);
         } else if (commandName == V2_MARKET_MANAGER_MAKER_ORDER) {
@@ -195,7 +193,7 @@ contract ExecutionModule {
                 accountId,
                 command.marketId,
                 collateralType, // of the market
-                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager)
+                getAnnualizedNotionalDelta(accountId, command.marketId, marketManager)
             );
             return abi.encode(result, fee);
         } else if (commandName == V2_MARKET_MANAGER_COMPLETE_POSITION) {
@@ -209,8 +207,7 @@ contract ExecutionModule {
             (
                 bytes memory result,
                 bytes memory counterPartyResult,
-                uint128 counterPartyAccountId,
-                int256 counterpartyAnnualizedNotionalDelta
+                uint128 counterPartyAccountId
             ) = MatchedOrders.matchedOrder(
                 accountId,
                 command.marketId,
@@ -220,13 +217,15 @@ contract ExecutionModule {
 
             // charge fees
             int256 annualizedNotionalDelta = 
-                getAnnualizedNotionalDelta(accountId, command.marketId, initialAccountMarketExposure, marketManager);
+                getAnnualizedNotionalDelta(accountId, command.marketId, marketManager);
             uint256 fee = Propagation.propagateTakerOrder(
                 accountId,
                 command.marketId,
                 collateralType, 
                 annualizedNotionalDelta
             );
+            int256 counterpartyAnnualizedNotionalDelta = 
+                getAnnualizedNotionalDelta(counterPartyAccountId, command.marketId, marketManager);
             uint256 counterPartyFee = Propagation.propagateMakerOrder(
                 counterPartyAccountId,
                 command.marketId,
@@ -247,11 +246,10 @@ contract ExecutionModule {
     function getAnnualizedNotionalDelta(
         uint128 accountId,
         uint128 marketId,
-        uint256 initialExposure,
         IMarketManager marketManager
     ) private view returns (int256 delta) {
-        delta = initialExposure.toInt() - 
-                marketManager.getAccountAbsoluteMarketExposure(marketId, accountId).toInt();
+        // todo: complete implementation (e.g. using absolute notional)
+        return 0;
     }
 
 }

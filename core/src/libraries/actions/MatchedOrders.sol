@@ -28,8 +28,7 @@ library MatchedOrders {
     ) internal returns (
         bytes memory result,
         bytes memory counterPartyResult,
-        uint128 counterPartyAccountId,
-        int256 counterpartyAnnualizedNotionalDelta
+        uint128 counterPartyAccountId
     ) {
         bytes[] memory orderInputs;
         assembly {
@@ -39,17 +38,11 @@ library MatchedOrders {
 
         // verify counterparty account & access
         Account.loadAccountAndValidatePermission(counterPartyAccountId, Account.ADMIN_PERMISSION, msg.sender);
-        
-        // execute orders
-        uint256 initialCounterPartyMarketExposure = marketManager.getAccountAbsoluteMarketExposure(marketId, counterPartyAccountId);
 
         (result,) = 
             marketManager.executeTakerOrder(accountId, marketId, orderInputs[0]);
 
         (counterPartyResult,) = 
                 marketManager.executeTakerOrder(counterPartyAccountId, marketId, orderInputs[1]);
-        
-        counterpartyAnnualizedNotionalDelta = initialCounterPartyMarketExposure.toInt() - 
-                marketManager.getAccountAbsoluteMarketExposure(marketId, counterPartyAccountId).toInt();
     }
 }
