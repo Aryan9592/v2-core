@@ -130,36 +130,28 @@ library ExposureHelpers {
     }
 
     function baseToAnnualizedExposure(
-        int256[] memory baseAmounts,
+        int256 baseAmount,
         uint128 marketId,
         uint32 maturityTimestamp
     )
         internal
         view
-        returns (int256[] memory annualizedExposures)
+        returns (int256 annualizedExposure)
     {
-        annualizedExposures = new int256[](baseAmounts.length);
         UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
-
-        for (uint256 i = 0; i < baseAmounts.length; i++) {
-            annualizedExposures[i] = mulUDxInt(factor, baseAmounts[i]);
-        }
+        annualizedExposure = mulUDxInt(factor, baseAmount);
     }
 
     function baseToExposure(
-        int256[] memory baseAmounts,
+        int256 baseAmount,
         uint128 marketId
     )
         internal
         view
-        returns (int256[] memory exposures)
+        returns (int256 exposure)
     {
-        exposures = new int256[](baseAmounts.length);
         UD60x18 factor = exposureFactor(marketId);
-
-        for (uint256 i = 0; i < baseAmounts.length; i++) {
-            exposures[i] = mulUDxInt(factor, baseAmounts[i]);
-        }
+        exposure = mulUDxInt(factor, baseAmount);
     }
 
     function getUnfilledExposureLowerInPool(

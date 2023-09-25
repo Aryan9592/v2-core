@@ -63,7 +63,7 @@ library AccountBalances {
                     position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
                     position.liquidity.toInt(),
                     self.mutableConfig.spread,
-                    true
+                    false
                 );
 
                 unfilled.baseShort += unfilledBase;

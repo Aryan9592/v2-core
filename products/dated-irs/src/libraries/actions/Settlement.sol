@@ -52,11 +52,6 @@ library Settlement {
         Market.Data storage market = Market.exists(marketId);
         market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-
-        // check account access permissions
-        IAccountModule(coreProxy).onlyAuthorized(accountId, Account.ADMIN_PERMISSION, msg.sender);
-
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
 
