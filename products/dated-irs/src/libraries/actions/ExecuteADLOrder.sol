@@ -48,7 +48,7 @@ library ExecuteADLOrder {
             marketId
         );
 
-        return mulUDxInt(UNIT.add(markPrice), -exposures[0]);
+        return mulUDxInt(markPrice, -exposures[0]);
 
     }
 
