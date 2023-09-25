@@ -24,7 +24,7 @@ library MTMAccruedInterest {
         MTMObservation memory newObservation,
         int256 baseBalance,
         int256 quoteBalance
-    ) internal view returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
+    ) internal pure returns (AccruedInterestTrackers memory mtmAccruedInterestTrackers) {
         mtmAccruedInterestTrackers = accruedInterestTrackers;
 
         if (accruedInterestTrackers.lastObservation.timestamp < newObservation.timestamp) {

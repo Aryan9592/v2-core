@@ -27,23 +27,13 @@ contract Checks is AssertionHelpers {
         uint128 marketId;
         uint32 maturityTimestamp;
     }
-
-    struct CheckedValueI256 {
-        int256 value;
-        bool toCheck;
-    }
-
-    struct CheckedValueU256 {
-        uint256 value;
-        bool toCheck;
-    }
     
     function checkFilledBalances(
         address poolAddress,
         PositionInfo memory positionInfo,
-        CheckedValueI256 memory expectedBaseBalancePool,
-        CheckedValueI256 memory expectedQuoteBalancePool,
-        CheckedValueI256 memory expectedAccruedInterestPool
+        int256 expectedBaseBalancePool,
+        int256 expectedQuoteBalancePool,
+        int256 expectedAccruedInterestPool
     ) internal {
         (
             int256 baseBalancePool,
@@ -52,26 +42,18 @@ contract Checks is AssertionHelpers {
         ) = IPool(poolAddress)
             .getAccountFilledBalances(positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId);
 
-        if (expectedBaseBalancePool.toCheck) {
-            assertEq(expectedBaseBalancePool.value, baseBalancePool, "baseBalancePool");
-        } 
-
-        if (expectedQuoteBalancePool.toCheck) {
-            assertEq(expectedQuoteBalancePool.value, quoteBalancePool, "quoteBalancePool");
-        } 
-
-        if (expectedAccruedInterestPool.toCheck) {
-            assertEq(expectedAccruedInterestPool.value, accruedInterestPool, "accruedInterestPool");
-        } 
+        assertEq(expectedBaseBalancePool, baseBalancePool, "baseBalancePool");
+        assertEq(expectedQuoteBalancePool, quoteBalancePool, "quoteBalancePool");
+        assertEq(expectedAccruedInterestPool, accruedInterestPool, "accruedInterestPool");
     }
 
     function checkUnfilledBalances(
         address poolAddress,
         PositionInfo memory positionInfo,
-        CheckedValueU256 memory expectedUnfilledBaseLong,
-        CheckedValueU256 memory expectedUnfilledBaseShort,
-        CheckedValueU256 memory expectedUnfilledQuoteLong,
-        CheckedValueU256 memory expectedUnfilledQuoteShort
+        uint256 expectedUnfilledBaseLong,
+        uint256 expectedUnfilledBaseShort,
+        uint256 expectedUnfilledQuoteLong,
+        uint256 expectedUnfilledQuoteShort
     ) internal {
 
         (
@@ -85,33 +67,10 @@ contract Checks is AssertionHelpers {
             positionInfo.accountId
         );
 
-        if (expectedUnfilledBaseLong.toCheck) {
-            assertEq(expectedUnfilledBaseLong.value, unfilledBaseLong, "unfilledBaseLong");
-        } 
-
-        if (expectedUnfilledBaseShort.toCheck) {
-            assertEq(expectedUnfilledBaseShort.value, unfilledBaseShort, "unfilledBaseShort");
-        } 
-
-        if (expectedUnfilledQuoteLong.toCheck) {
-            assertEq(expectedUnfilledQuoteLong.value, unfilledQuoteLong, "unfilledQuoteLong");
-        } 
-
-        if (expectedUnfilledQuoteShort.toCheck) {
-            assertEq(expectedUnfilledQuoteShort.value, unfilledQuoteShort, "unfilledQuoteShort");
-        } 
-    }
-
-    function checkAccountMarginRequirement(
-        uint128 accountId,
-        StructsTransformer.MarginInfo memory expectedMarginInfo
-    ) internal {}
-
-    function expectInsolventAccount(
-        uint128 accountId,
-        StructsTransformer.MarginInfo memory expectedMarginInfo
-    ) public {
-        //vm.expectRevert(Account.exists(accountId).imCheck(address(0)), "ERROR");
+        assertEq(expectedUnfilledBaseLong, unfilledBaseLong, "unfilledBaseLong");
+        assertEq(expectedUnfilledBaseShort, unfilledBaseShort, "unfilledBaseShort");
+        assertEq(expectedUnfilledQuoteLong, unfilledQuoteLong, "unfilledQuoteLong");
+        assertEq(expectedUnfilledQuoteShort, unfilledQuoteShort, "unfilledQuoteShort");
     }
 }
 
@@ -137,7 +96,7 @@ library StructsTransformer {
         int256 adlDelta;
     }
 
-    function marginInfo(Account.MarginInfo memory margin) internal returns (MarginInfo memory) {
+    function marginInfo(Account.MarginInfo memory margin) internal pure returns (MarginInfo memory) {
         return MarginInfo({
             collateralType: margin.collateralType,
             netDeposits: margin.netDeposits,

@@ -20,8 +20,6 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {Actions} from "./utils/Actions.sol";
 import {Checks} from "./utils/Checks.sol";
 
-// import "forge-std/console2.sol";
-
 import { ud60x18, div, SD59x18, UD60x18 } from "@prb/math/UD60x18.sol";
 
 contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
@@ -36,8 +34,6 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 marketId;
     uint32 maturityTimestamp;
     int24 initTick;
-
-    using SetUtil for SetUtil.Bytes32Set;
 
     function setUp() public {
         super.datedIrsSetup();
@@ -133,16 +129,6 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // mocks
         vm.mockCall(
-            mockCoreProxy,
-            abi.encodeWithSelector(IAccountModule.onlyAuthorized.selector,
-                1, // accountId
-                Constants.ADMIN_PERMISSION,
-                mockCoreProxy
-            ),
-            abi.encode()
-        );
-
-        vm.mockCall(
             mockToken,
             abi.encodeWithSelector(IERC20.decimals.selector),
             abi.encode(18)
@@ -153,20 +139,20 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 1,
-            user: user1,
             baseAmount: 100,
             tickLower: 0,
             tickUpper: 60
         }); 
 
-        checkUnfilledBalances(
-            address(vammProxy),
-            PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-            CheckedValueU256({value: 0, toCheck: true}),
-            CheckedValueU256({value: 99, toCheck: true}),
-            CheckedValueU256({value: 0, toCheck: true}),
-            CheckedValueU256({value: 196, toCheck: true})
-        );
+        checkUnfilledBalances({
+            poolAddress: address(vammProxy),
+            positionInfo: 
+                PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+            expectedUnfilledBaseLong: 0, 
+            expectedUnfilledBaseShort: 99, 
+            expectedUnfilledQuoteLong: 0, 
+            expectedUnfilledQuoteShort: 196
+        });
 
 
     }

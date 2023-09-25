@@ -22,8 +22,6 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, UNIT, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
-// import "forge-std/console2.sol";
-
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
  */

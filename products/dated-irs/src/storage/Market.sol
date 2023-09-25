@@ -14,7 +14,6 @@ import {MarketRateOracle} from "../libraries/MarketRateOracle.sol";
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
-// import "forge-std/console2.sol";
 
 /**
  * @title Tracks configurations and metadata for dated irs markets

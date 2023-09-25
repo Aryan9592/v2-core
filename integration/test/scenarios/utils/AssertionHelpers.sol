@@ -1,7 +1,6 @@
 pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
-// import "forge-std/console2.sol";
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {FullMath} from "@voltz-protocol/v2-vamm/src/libraries/math/FullMath.sol";
@@ -39,22 +38,11 @@ contract AssertionHelpers is Test {
         assertLe(a, b + eps, string.concat(message,"_Le"));
     }
 
-    function absUtil(int256 a) public returns (uint256){
+    function absUtil(int256 a) public pure returns (uint256){
         return a > 0 ? uint256(a) : uint256(-a);
     }
 
-    function absOrZero(int256 a) public returns (uint256){
+    function absOrZero(int256 a) public pure  returns (uint256){
         return a < 0 ? uint256(-a) : 0;
     }
-
-    function timeFactor(uint32 maturityTimestamp) public returns (uint256) {
-        return (uint256(maturityTimestamp) - block.timestamp) * 1e18 / (365 * 24 * 60 * 60);
-    } 
-
-    function priceFromTick(int24 _tick) public returns (uint256) {
-        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(_tick);
-        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-        return FullMath.mulDiv(1e18, FixedPoint96.Q96, priceX96);
-    } 
-
 }

@@ -13,7 +13,6 @@ abstract contract Actions is Test {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId,
-        address user,
         int256 baseAmount,
         int24 tickLower,
         int24 tickUpper
@@ -41,7 +40,6 @@ abstract contract Actions is Test {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId,
-        address user,
         int256 baseAmount,
         int24 tickLimit
     ) internal returns (int256, int256, int256) {
@@ -72,17 +70,16 @@ abstract contract Actions is Test {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId,
-        address user,
         int256 baseAmount
     ) internal {
         if (baseAmount > 0){
             executeDatedIrsTakerOrder(
-                marketId, maturityTimestamp, accountId, user, baseAmount,
+                marketId, maturityTimestamp, accountId, baseAmount,
                 TickMath.DEFAULT_MIN_TICK
             );
         } else {
             executeDatedIrsTakerOrder(
-                marketId, maturityTimestamp, accountId, user, baseAmount,
+                marketId, maturityTimestamp, accountId, baseAmount,
                 TickMath.DEFAULT_MAX_TICK
             );
         }

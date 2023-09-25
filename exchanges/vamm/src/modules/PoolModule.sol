@@ -2,7 +2,6 @@
 pragma solidity >=0.8.13;
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-// import "forge-std/console2.sol";
 
 import {IPoolModule} from "../interfaces/IPoolModule.sol";
 
