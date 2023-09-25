@@ -60,9 +60,11 @@ library AccountExposure {
         // doesn't seem to be present here, is that intentional?
         return Account.MarginInfo({
             collateralType: token,
-            netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.haircut),
-            marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.haircut),
-            realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.haircut),
+            collateralInfo: Account.CollateralInfo({
+                netDeposits: getExchangedQuantity(marginInfo.collateralInfo.netDeposits, exchange.price, exchange.haircut),
+                marginBalance: getExchangedQuantity(marginInfo.collateralInfo.marginBalance, exchange.price, exchange.haircut),
+                realBalance: getExchangedQuantity(marginInfo.collateralInfo.realBalance, exchange.price, exchange.haircut)
+            }),
             initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
             maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.haircut),
             liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut),
@@ -107,13 +109,14 @@ library AccountExposure {
 
             marginInfo = Account.MarginInfo({
                 collateralType: marginInfo.collateralType,
-                netDeposits: marginInfo.netDeposits,
-                marginBalance: 
-                    marginInfo.marginBalance + 
-                    getExchangedQuantity(subMarginInfo.marginBalance, price, haircut),
-                realBalance: 
-                    marginInfo.realBalance + 
-                    getExchangedQuantity(subMarginInfo.realBalance, price, haircut),
+                collateralInfo: Account.CollateralInfo({
+                    netDeposits: marginInfo.collateralInfo.netDeposits,
+                    marginBalance:  marginInfo.collateralInfo.marginBalance +
+                    getExchangedQuantity(subMarginInfo.collateralInfo.marginBalance, price, haircut),
+                    realBalance:
+                    marginInfo.collateralInfo.realBalance +
+                    getExchangedQuantity(subMarginInfo.collateralInfo.realBalance, price, haircut)
+                }),
                 initialDelta: 
                     marginInfo.initialDelta + 
                     getExchangedQuantity(subMarginInfo.initialDelta, price, haircut),
@@ -230,9 +233,11 @@ library AccountExposure {
         // filled orders should be taken care of in the balance calculations
         return Account.MarginInfo({
             collateralType: collateralType,
-            netDeposits: netDeposits,
-            marginBalance: marginBalance,
-            realBalance: realBalance,
+            collateralInfo: Account.CollateralInfo({
+                netDeposits: netDeposits,
+                marginBalance: marginBalance,
+                realBalance: realBalance
+            }),
             initialDelta: marginBalance - vars.initialMarginRequirement.toInt(),
             maintenanceDelta: marginBalance - vars.maintenanceMarginRequirement.toInt(),
             liquidationDelta: marginBalance - vars.liquidationMarginRequirement.toInt(),

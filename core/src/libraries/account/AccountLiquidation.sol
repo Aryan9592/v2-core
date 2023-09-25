@@ -144,7 +144,7 @@ library AccountLiquidation {
         // consider baking this function into the backstop lp function if it's not used anywhere else
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return (marginInfo.marginBalance < 0, marginInfo.marginBalance);
+        return (marginInfo.collateralInfo.marginBalance < 0, marginInfo.collateralInfo.marginBalance);
     }
 
 

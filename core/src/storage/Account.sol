@@ -98,12 +98,7 @@ library Account {
 
     struct MarginInfo {
         address collateralType;
-        int256 netDeposits;
-        /// These are all amounts that are available to contribute to cover margin requirements. 
-        int256 marginBalance;
-        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement 
-        /// token and not as value of an instrument which settles in that token
-        int256 realBalance;
+        CollateralInfo collateralInfo;
         /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
         /// Difference between margin balance and maintenance margin requirement
@@ -114,6 +109,15 @@ library Account {
         int256 dutchDelta;
         /// Difference between margin balance and adl margin requirement
         int256 adlDelta;
+    }
+
+    struct CollateralInfo {
+        int256 netDeposits;
+        /// These are all amounts that are available to contribute to cover margin requirements.
+        int256 marginBalance;
+        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement
+        /// token and not as value of an instrument which settles in that token
+        int256 realBalance;
     }
 
     /**

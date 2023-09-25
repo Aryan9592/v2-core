@@ -17,6 +17,14 @@ import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
+/*
+TODOs
+    - consider splitting isEligibleForAutoExchange into smaller helpers
+    - make sure the parent of the collateral type in eligibility check is dollar -> means it's a centroid of a
+    bubble?
+*/
+
+
 /**
  * @title Object for managing account auto-echange utilities.
  */
@@ -40,7 +48,8 @@ library AccountAutoExchange {
         // Single auto-exchange threshold check
         {
             Account.MarginInfo memory marginInfo =
-                self.getMarginInfoByCollateralType(collateralType,
+                self.getMarginInfoByCollateralType(
+                    collateralType,
                     collateralPool.riskConfig.riskMultipliers
                 );
 
