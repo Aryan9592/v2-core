@@ -84,21 +84,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function getAccountAbsoluteMarketExposure(
-        uint128 accountId,
-        uint128 marketId
-    )
-        external
-        view
-        override
-        returns (uint256 totalMarketExposure)
-    {
-       return Portfolio.exists(accountId, marketId).getAccountAbsoluteExposure();
-    }
-
-    /**
-     * @inheritdoc IMarketManager
-     */
     function closeAllUnfilledOrders(
         uint128 marketId, 
         uint128 accountId
