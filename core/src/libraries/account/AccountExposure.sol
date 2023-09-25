@@ -12,7 +12,6 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {Market} from "../../storage/Market.sol";
 
-import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
