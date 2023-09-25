@@ -160,7 +160,7 @@ library VammHelpers {
         returns (int256 exposure)
     {
         UD60x18 factor = exposureFactor(marketId);
-        exposures = mulUDxInt(factor, baseAmount);
+        exposure = mulUDxInt(factor, baseAmount);
     }
 
     function exposureFactor(uint128 marketId) private view returns (UD60x18 factor) {
