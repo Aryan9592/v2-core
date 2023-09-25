@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "../../src/interfaces/external/IAaveV3LendingPool.sol";
-import "oz/interfaces/IERC20.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { UD60x18, ud, unwrap } from "@prb/math/UD60x18.sol";
 
 /// @notice This Mock Aave pool can be used in 3 ways

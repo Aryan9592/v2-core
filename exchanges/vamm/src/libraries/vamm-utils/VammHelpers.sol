@@ -9,14 +9,17 @@ import {TickBitmap} from "../ticks/TickBitmap.sol";
 import {FullMath} from "../math/FullMath.sol";
 import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import {Time} from "../time/Time.sol";
-
 import { UD60x18, ZERO, UNIT } from "@prb/math/UD60x18.sol";
+import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
-import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
+import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
+import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
+import {PoolConfiguration} from "../../storage/PoolConfiguration.sol";
 
 library VammHelpers {
     using SafeCastU256 for uint256;
@@ -140,12 +143,39 @@ library VammHelpers {
             averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
         }
 
-        int256 exposure = ExposureHelpers.baseToExposure(
+        int256 exposure = baseToExposure(
             baseTokenDelta,
             marketId
         );
 
         quoteTokenDelta = mulUDxInt(UNIT.add(averagePriceWithSpread), -exposure);
+    }
+
+    function baseToExposure(
+        int256 baseAmount,
+        uint128 marketId
+    )
+        private
+        view
+        returns (int256 exposure)
+    {
+        UD60x18 factor = exposureFactor(marketId);
+        exposure = mulUDxInt(factor, baseAmount);
+    }
+
+    function exposureFactor(uint128 marketId) private view returns (UD60x18 factor) {
+        address marketManagerAddress = PoolConfiguration.load().marketManagerAddress;
+        bytes32 marketType = IMarketConfigurationModule(marketManagerAddress)
+            .getMarketType(marketId);
+        if (marketType == Market.LINEAR_MARKET) {
+            return UNIT;
+        } else if (marketType == Market.COMPOUNDING_MARKET) {
+            UD60x18 currentLiquidityIndex = IRateOracleModule(marketManagerAddress)
+                .getRateIndexCurrent(marketId);
+            return currentLiquidityIndex;
+        }
+
+        revert Market.UnsupportedMarketType(marketType);
     }
 
     function calculateGlobalTrackerValues(
@@ -194,4 +224,22 @@ library VammHelpers {
 
         return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
     }
+
+    function getNewMTMTimestampAndRateIndex(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    ) internal view returns (MTMAccruedInterest.MTMObservation memory observation) {
+        IRateOracleModule marketManager = 
+            IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
+
+        if (block.timestamp < maturityTimestamp) {
+            observation.timestamp = block.timestamp;
+            observation.rateIndex = marketManager.getRateIndexCurrent(marketId);
+        } else {
+            observation.timestamp = maturityTimestamp;
+            observation.rateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
+        }
+    }
+
+    
 }

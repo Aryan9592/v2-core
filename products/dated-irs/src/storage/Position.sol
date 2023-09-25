@@ -7,7 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
+import {MarketRateOracle} from "../libraries/MarketRateOracle.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 /**
  * @title Object for tracking a dated irs position
@@ -16,7 +17,7 @@ library Position {
     struct Data {
         int256 baseBalance;
         int256 quoteBalance;
-        ExposureHelpers.AccruedInterestTrackers accruedInterestTrackers;
+        MTMAccruedInterest.AccruedInterestTrackers accruedInterestTrackers;
     }
 
     function update(
@@ -26,12 +27,13 @@ library Position {
         uint128 marketId,
         uint32 maturityTimestamp
     ) internal {
-        self.accruedInterestTrackers = ExposureHelpers.getMTMAccruedInterestTrackers(
+        MTMAccruedInterest.MTMObservation memory newObservation = 
+            MarketRateOracle.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
+        self.accruedInterestTrackers = MTMAccruedInterest.getMTMAccruedInterestTrackers(
             self.accruedInterestTrackers,
+            newObservation,
             self.baseBalance,
-            self.quoteBalance,
-            marketId,
-            maturityTimestamp
+            self.quoteBalance
         );
         
         self.baseBalance += baseDelta;
