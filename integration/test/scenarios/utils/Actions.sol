@@ -111,6 +111,24 @@ abstract contract Actions is Test {
         }
     }
 
+    function settle(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    ) internal returns (int256) {
+        vm.startPrank(getCoreProxyAddress());
+
+        bytes memory inputs = abi.encode(
+            maturityTimestamp
+        );
+        (, int256 settlementCashflowInQuote) = 
+            getDatedIrsProxy().completeOrder(accountId, marketId, inputs);
+
+        vm.stopPrank();
+
+        return settlementCashflowInQuote;
+    }
+
     function getDatedIrsProxy() internal virtual returns(DatedIrsProxy);
     function getCoreProxyAddress() internal virtual returns(address);
 }

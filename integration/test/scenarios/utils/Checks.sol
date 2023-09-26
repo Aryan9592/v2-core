@@ -1,26 +1,17 @@
-/**
-  conditions check: 
-    - protocol is correctly setup (i.e. vamm, pool, market manager storage)
-    - checking balances of a trader:
-        - pool balance (storage)
-        - instrument balance (storage)
-        - exposure
-        - can add any other storage checks to this contract
-        --- pass expected values and position info to these functions
-    - actions
-    - post conditions
-        - protocol solvency
-            - check account margin requirement 
-*/
-
 pragma solidity >=0.8.19;
 
 import {AssertionHelpers} from "./AssertionHelpers.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+import {VammProxy} from "../../../src/proxies/Vamm.sol";
+import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
+
+import { UD60x18, ud, unwrap, convert } from "@prb/math/UD60x18.sol";
+
+import "forge-std/console2.sol";
 
 /// @title Storage checks 
-contract Checks is AssertionHelpers {
+abstract contract Checks is AssertionHelpers {
 
     struct PositionInfo {
         uint128 accountId;
@@ -72,6 +63,31 @@ contract Checks is AssertionHelpers {
         assertEq(expectedUnfilledQuoteLong, unfilledQuoteLong, "unfilledQuoteLong");
         assertEq(expectedUnfilledQuoteShort, unfilledQuoteShort, "unfilledQuoteShort");
     }
+
+    function checkNonAdjustedTwap(uint128 marketId, uint32 maturityTimestamp) internal returns (uint256 twap) {
+        VammProxy vammProxy = getVammProxy();
+        int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+        UD60x18 price = VammTicks.getPriceFromTick(currentTick).div(convert(100));
+
+        UD60x18 datedIRSTwap = vammProxy.getAdjustedDatedIRSTwap(marketId, maturityTimestamp, 0, 0);
+        console2.log("TICK", currentTick);
+        
+        twap = unwrap(price);
+    }
+
+    function getAdjustedTwap(
+        uint128 marketId, uint32 maturityTimestamp, int256 orderSize
+    ) internal returns (uint256 twap) {
+        uint32 twapLookbackWindow = twapLookbackWindow(marketId,maturityTimestamp);
+        VammProxy vammProxy = getVammProxy();
+
+        twap = unwrap(
+            vammProxy.getAdjustedDatedIRSTwap(marketId, maturityTimestamp, orderSize, twapLookbackWindow)
+        );
+    }
+
+    function getVammProxy() internal virtual view returns(VammProxy);
+    function twapLookbackWindow(uint128 marketId, uint32 maturityTimestamp) internal view virtual returns(uint32);
 }
 
 library StructsTransformer {

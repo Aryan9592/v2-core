@@ -19,6 +19,7 @@ import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {Actions} from "./utils/Actions.sol";
 import {Checks} from "./utils/Checks.sol";
+import {VammProxy} from "../../src/proxies/Vamm.sol";
 
 import { ud60x18, div, SD59x18, UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -43,12 +44,19 @@ contract Scenario1 is ScenarioSetup, AssertionHelpers, Actions, Checks {
         return mockCoreProxy;
     }
 
+    function getVammProxy() internal view override returns (VammProxy) {
+        return vammProxy;
+    }
+    function twapLookbackWindow(uint128 marketId, uint32 maturityTimestamp) internal view override returns(uint32) {
+        return 7 * 86400;
+    }
+
     function setUp() public {
         super.datedIrsSetup();
         user1 = vm.addr(1);
         user2 = vm.addr(2);
         marketId = 1;
-        maturityTimestamp = uint32(block.timestamp) + 365 * 86400; // in 4 days
+        maturityTimestamp = uint32(block.timestamp) + 365 * 86400; // in 1 year
         initTick = -13860; // 4%
     }
 
