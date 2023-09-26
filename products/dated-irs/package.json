@@ -5,7 +5,6 @@
   "dependencies": {
     "@openzeppelin/contracts": "4.9.2",
     "@prb/math": "3.3.0",
-    "@prb/test": "^0.6.0",
     "@voltz-protocol/core": "workspace:^",
     "@voltz-protocol/util-contracts": "workspace:^",
     "@voltz-protocol/util-modules": "workspace:^"
