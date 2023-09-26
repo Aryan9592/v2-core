@@ -10,6 +10,12 @@ pragma solidity >=0.8.19;
 import {Account} from "../../storage/Account.sol";
 import {AccountAutoExchange} from "../account/AccountAutoExchange.sol";
 
+/*
+TODOs
+    - consider introducing min amount of collateral to get in return (works similar to a limit price)
+*/
+
+
 /**
  * @title Library to trigger auto-exchange
  */
@@ -18,6 +24,8 @@ library AutoExchange {
     using AccountAutoExchange for Account.Data;
 
     error AccountNotEligibleForAutoExchange(uint128 accountId, address quoteType);
+
+    error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address quoteType);
 
     function triggerAutoExchange(
         uint128 accountId,
@@ -33,7 +41,6 @@ library AutoExchange {
         if (!account.isEligibleForAutoExchange(quoteType)) {
             revert AccountNotEligibleForAutoExchange(accountId, quoteType);
         }
-
 
 
 

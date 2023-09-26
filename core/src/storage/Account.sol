@@ -431,16 +431,23 @@ library Account {
         return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
     }
 
+    // todo: do we need to expose this function?
     function getMaxAmountToExchangeQuote(
         Account.Data storage self,
         address coveringToken,
-        address autoExchangedToken
+        address autoExchangedToken,
+        uint256 amountToAutoExchangeQuote
     )
         internal
         view
         returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
     {
-        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
+        return AccountAutoExchange.getMaxAmountToExchangeQuote(
+            self,
+            coveringToken,
+            autoExchangedToken,
+            amountToAutoExchangeQuote
+        );
     }
 
 

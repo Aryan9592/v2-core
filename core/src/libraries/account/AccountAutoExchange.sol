@@ -27,6 +27,10 @@ TODOs
     - get rid of auto-exchange ratio to keep complexity lower
     - consider ways to avoid nested if blocks
     - bring auto-exchange discounts
+    - check token decimals in max amount calc!
+    - consider splitting getMaxAmountToExchangeQuote into smaller helpers similar to aave v3
+    ref: https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/logic/LiquidationLogic.sol
+    - getExchangeInfo shouldn't use haircuts...
 */
 
 
@@ -130,7 +134,8 @@ library AccountAutoExchange {
     function getMaxAmountToExchangeQuote(
         Account.Data storage self,
         address coveringToken,
-        address autoExchangedToken
+        address quoteToken,
+        uint256 amountToAutoExchangeQuote
     ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
@@ -138,7 +143,7 @@ library AccountAutoExchange {
 
         Account.MarginInfo memory marginInfo = 
             self.getMarginInfoByCollateralType(
-                autoExchangedToken,
+                quoteToken,
                 collateralPool.riskConfig.riskMultipliers
             );
 
@@ -163,29 +168,39 @@ library AccountAutoExchange {
 
         }
 
+        if (amountToAutoExchangeQuote < amountToAutoExchange) {
+            amountToAutoExchange = amountToAutoExchangeQuote;
+        }
+
         Account.MarginInfo memory marginInfoCoveringToken = self.getMarginInfoByCollateralType(
             coveringToken,
             collateralPool.riskConfig.riskMultipliers
         );
 
-        uint256 coveringTokenAmount = marginInfoCoveringToken.collateralInfo.realBalance.toUint();
-
+        uint256 maxCoveringTokenAmount = marginInfoCoveringToken.collateralInfo.realBalance.toUint();
         UD60x18 autoExchangeDiscount = UNIT;
-        
-        UD60x18 price = 
-            CollateralConfiguration.getExchangeInfo(collateralPoolId, coveringToken, autoExchangedToken).price;
+        UD60x18 priceCoveringToQuote =
+            CollateralConfiguration.getExchangeInfo(collateralPoolId, coveringToken, quoteToken).price;
+        uint256 maxCoveringTokenAmountInQuote = mulUDxUint(
+            priceCoveringToQuote.mul(autoExchangeDiscount), maxCoveringTokenAmount
+        );
 
-        uint256 availableToAutoExchange = 
-            mulUDxUint(price.mul(autoExchangeDiscount), coveringTokenAmount);
-        
-        if (availableToAutoExchange <= amountToAutoExchange) {
-            return (coveringTokenAmount, availableToAutoExchange);
+        if (maxCoveringTokenAmountInQuote <= amountToAutoExchange) {
+            UD60x18 priceQuoteToCovering =
+            CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, coveringToken).price;
+            return (
+                // todo: check if division by ae discount works here
+                mulUDxUint(
+                    priceCoveringToQuote.div(autoExchangeDiscount), amountToAutoExchange
+                ),
+                amountToAutoExchange
+            );
         }
-        else {
-            // IR: why do we run this transformation? don't we want to return the amount represented in covering tokens?
-            // maybe coveringTokenAmount should be amountToAutoExchange here
-            uint256 correspondingTokenCoveringAmount = divUintUD(coveringTokenAmount, price.mul(autoExchangeDiscount));
-            return (correspondingTokenCoveringAmount, amountToAutoExchange);
-        }
+
+        return (
+            maxCoveringTokenAmount,
+            maxCoveringTokenAmountInQuote
+        );
+
     }
 }
