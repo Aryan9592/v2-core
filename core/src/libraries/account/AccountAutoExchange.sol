@@ -26,6 +26,7 @@ TODOs
     where that's not necessary
     - get rid of auto-exchange ratio to keep complexity lower
     - consider ways to avoid nested if blocks
+    - bring auto-exchange discounts
 */
 
 
@@ -158,15 +159,17 @@ library AccountAutoExchange {
                 return (0, 0);
             }
 
-            amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
+            amountToAutoExchange = (-marginInfo.collateralInfo.marginBalance).toUint();
 
         }
 
-        // todo: do we consider that we can use the entire collateral balance of covering token?
-        // todo @arturbeg is toUint() here fine?
-        uint256 coveringTokenAmount = self.getAccountNetCollateralDeposits(coveringToken).toUint();
+        Account.MarginInfo memory marginInfoCoveringToken = self.getMarginInfoByCollateralType(
+            coveringToken,
+            collateralPool.riskConfig.riskMultipliers
+        );
 
-        // todo: replace auto-exchange discount with the liquidation logic
+        uint256 coveringTokenAmount = marginInfoCoveringToken.collateralInfo.realBalance.toUint();
+
         UD60x18 autoExchangeDiscount = UNIT;
         
         UD60x18 price = 

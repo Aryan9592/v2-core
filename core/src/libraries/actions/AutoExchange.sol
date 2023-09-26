@@ -8,10 +8,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 /**
- * @title Library for executing liquidation logic.
+ * @title Library for trigger auto-exchange
  */
 library AutoExchange {
-    // todo: implement during liquidations
     function triggerAutoExchange(
         uint128 accountId,
         uint128 liquidatorAccountId,
@@ -19,6 +18,6 @@ library AutoExchange {
         address collateralType,
         address quoteType
     ) internal {
-        // todo
+
     }
 }
