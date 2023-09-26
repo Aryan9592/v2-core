@@ -17,6 +17,7 @@ library LiquidationBidPriorityQueue {
 
     struct LiquidationBid {
         uint128 liquidatorAccountId;
+        address hookAddress;
         UD60x18 liquidatorRewardParameter;
         address quoteToken;
         uint128[] marketIds;

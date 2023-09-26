@@ -7,6 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {ILiquidationHook} from "../interfaces/external/ILiquidationHook.sol";
 import {Account} from "../storage/Account.sol";
 import {AccountLiquidation} from "../libraries/account/AccountLiquidation.sol";
 import {Market} from "../storage/Market.sol";
@@ -70,6 +71,13 @@ contract LiquidationModule is ILiquidationModule {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
+        if (liquidationBid.hookAddress != address(0)) {
+            ILiquidationHook(liquidationBid.hookAddress).preLiquidationHook(
+                liquidatableAccountId,
+                liquidationBid
+            );
+        }
+
         int256 lmDeltaBeforeLiquidation = account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta;
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
@@ -104,6 +112,13 @@ contract LiquidationModule is ILiquidationModule {
         // can't cover the insolvency after the liquidation (socialized losses via adl
         // should kick in here
 
+        
+        if (liquidationBid.hookAddress != address(0)) {
+            ILiquidationHook(liquidationBid.hookAddress).postLiquidationHook(
+                liquidatableAccountId,
+                liquidationBid
+            );
+        }
     }
 
     /**
