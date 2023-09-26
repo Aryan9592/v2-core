@@ -12,16 +12,15 @@ import {Market} from "./Market.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 import {ExecuteADLOrder} from "../libraries/actions/ExecuteADLOrder.sol";
+import {MarketRateOracle} from "../libraries/MarketRateOracle.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
 
 /**
@@ -166,22 +165,44 @@ library Portfolio {
         }
     }
 
+    struct GetPoolExposureStateVars {
+        int256 baseBalancePool;
+        int256 quoteBalancePool;
+        int256 accruedInterestPool;
+        uint256 unfilledBaseLong;
+        uint256 unfilledBaseShort;
+        uint256 unfilledQuoteLong;
+        uint256 unfilledQuoteShort;
+    }
+
     function getPoolExposureState(
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) internal view returns (ExposureHelpers.PoolExposureState memory poolState) {
-        (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
+    ) internal view returns (ExposureHelpers.PoolExposureState memory) {
+        GetPoolExposureStateVars memory vars;
+        (vars.baseBalancePool, vars.quoteBalancePool, vars.accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
             self.marketId, 
             maturityTimestamp, 
             self.accountId
         );
 
-        (uint256 unfilledBaseLong, uint256 unfilledBaseShort, uint256 unfilledQuoteLong, uint256 unfilledQuoteShort) =
+        (vars.unfilledBaseLong, vars.unfilledBaseShort, vars.unfilledQuoteLong, vars.unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
                 self.marketId, 
                 maturityTimestamp, 
                 self.accountId
+            );
+
+        MTMAccruedInterest.AccruedInterestTrackers memory latestAccruedInterestTrackers = 
+            MTMAccruedInterest.getMTMAccruedInterestTrackers(
+                self.positions[maturityTimestamp].accruedInterestTrackers,
+                MarketRateOracle.getNewMTMTimestampAndRateIndex(
+                    self.marketId, 
+                    maturityTimestamp
+                ),
+                self.positions[maturityTimestamp].baseBalance,
+                self.positions[maturityTimestamp].quoteBalance
             );
 
         return ExposureHelpers.PoolExposureState({
@@ -194,18 +215,18 @@ library Portfolio {
                     maturityTimestamp
                 ),
 
-            baseBalance: self.positions[poolState.maturityTimestamp].baseBalance,
-            quoteBalance: self.positions[poolState.maturityTimestamp].quoteBalance,
-            accruedInterest: self.positions[poolState.maturityTimestamp].accruedInterestTrackers.accruedInterest,
+            baseBalance: self.positions[maturityTimestamp].baseBalance,
+            quoteBalance: self.positions[maturityTimestamp].quoteBalance,
+            accruedInterest: latestAccruedInterestTrackers.accruedInterest,
 
-            baseBalancePool: baseBalancePool,
-            quoteBalancePool: quoteBalancePool,
-            accruedInterestPool: accruedInterestPool,
+            baseBalancePool: vars.baseBalancePool,
+            quoteBalancePool: vars.quoteBalancePool,
+            accruedInterestPool: vars.accruedInterestPool,
 
-            unfilledBaseLong: unfilledBaseLong,
-            unfilledQuoteLong: unfilledQuoteLong,
-            unfilledBaseShort: unfilledBaseShort,
-            unfilledQuoteShort: unfilledQuoteShort
+            unfilledBaseLong: vars.unfilledBaseLong,
+            unfilledQuoteLong: vars.unfilledQuoteLong,
+            unfilledBaseShort: vars.unfilledBaseShort,
+            unfilledQuoteShort: vars.unfilledQuoteShort
         });
     }
 

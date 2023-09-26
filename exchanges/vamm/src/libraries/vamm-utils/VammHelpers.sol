@@ -14,7 +14,6 @@ import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelpe
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
 import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";

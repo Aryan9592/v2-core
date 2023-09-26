@@ -30,6 +30,10 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
+    // todo: @avniculae @0xZenus think about why/whether we still need the 
+    // token parameter here, since single account mode was removed. However,
+    // parts of code (such as liquidations and withdrawable balance) currently
+    // pass the collateralType in the token parameter. 
     function getMarginInfoByBubble(Account.Data storage account, address token) 
         internal 
         view

@@ -173,8 +173,8 @@ library ExposureHelpers {
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
             ),
             pnlComponents: Account.PnLComponents({
-                accruedCashflows: 0,     // todo: during tokenization implementation
-                lockedPnL: 0,            // todo: during tokenization implementation
+                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
+                lockedPnL: 0,
                 unrealizedPnL: uPnL
             })
         });
@@ -198,8 +198,8 @@ library ExposureHelpers {
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
             ),
             pnlComponents: Account.PnLComponents({
-                accruedCashflows: 0,     // todo: during tokenization implementation
-                lockedPnL: 0,            // todo: during tokenization implementation
+                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
+                lockedPnL: 0,
                 unrealizedPnL: uPnL
             })
         });
