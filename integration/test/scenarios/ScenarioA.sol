@@ -226,7 +226,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             }
             // twap checks
             {
-                // todo: check tick is about 5%
                 uint256 price = checkNonAdjustedTwap(marketId, maturityTimestamp);
                 // with non-zero lookback window
                 uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0); 
@@ -375,7 +374,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             accountId: 2
         });
         {
-            // todo: complete
             assertEq(settlementCashflowInQuote_2, 14175197, "settlementCashflowInQuote_2");
             
             PositionInfo memory positionInfo = PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp});

@@ -50,7 +50,6 @@ abstract contract Checks is AssertionHelpers {
         
         assertAlmostEq(sumFilledBase, int(0), 1, "sumFilledBase");
         assertAlmostEq(sumFilledQuote, int(0), 1, "sumFilledQuote");
-        // todo: complete
         assertAlmostEq(sumAccruedInterest, int(0), 1, "sumAccruedInterest");
     }
     
