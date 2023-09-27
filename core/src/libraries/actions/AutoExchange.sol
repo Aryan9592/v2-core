@@ -74,6 +74,12 @@ library AutoExchange {
             -quoteAmount.toInt()
         );
 
+
+        insuranceFundAccount.updateNetCollateralDeposits(
+            collateralType,
+            collateralAmountToIF.toInt()
+        );
+
         liquidatorAccount.updateNetCollateralDeposits(
             collateralType,
             collateralAmountToLiquidator.toInt()
