@@ -9,10 +9,12 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../../storage/Account.sol";
 import {AccountAutoExchange} from "../account/AccountAutoExchange.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /*
 TODOs
     - consider introducing min amount of collateral to get in return (works similar to a limit price)
+    - make sure re-entrancy is not possible with collateral transfers
 */
 
 
@@ -22,6 +24,8 @@ TODOs
 library AutoExchange {
 
     using AccountAutoExchange for Account.Data;
+    using Account for Account.Data;
+    using SafeCastU256 for uint256;
 
     error AccountNotEligibleForAutoExchange(uint128 accountId, address quoteType);
 
@@ -35,8 +39,9 @@ library AutoExchange {
         address quoteType
     ) internal {
 
-        // grab the account and check its existance
+        // grab the accounts and check their existance
         Account.Data storage account = Account.exists(accountId);
+        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
         if (!account.isEligibleForAutoExchange(quoteType)) {
             revert AccountNotEligibleForAutoExchange(accountId, quoteType);
@@ -48,9 +53,25 @@ library AutoExchange {
             amountToAutoExchangeQuote
         );
 
+        account.updateNetCollateralDeposits(
+            quoteType,
+            quoteAmount.toInt()
+        );
 
+        account.updateNetCollateralDeposits(
+            collateralType,
+            -collateralAmount.toInt()
+        );
 
+        liquidatorAccount.updateNetCollateralDeposits(
+            quoteType,
+            -quoteAmount.toInt()
+        );
 
+        liquidatorAccount.updateNetCollateralDeposits(
+            collateralType,
+            collateralAmount.toInt()
+        );
 
     }
 }
