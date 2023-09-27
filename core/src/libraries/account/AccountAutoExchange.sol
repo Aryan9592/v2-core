@@ -14,7 +14,7 @@ import {CollateralPool} from "../../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, fromUD60x18 } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /*
@@ -31,6 +31,7 @@ TODOs
     - consider splitting getMaxAmountToExchangeQuote into smaller helpers similar to aave v3
     ref: https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/logic/LiquidationLogic.sol
     - getExchangeInfo shouldn't use haircuts...
+    - check if division by ae discount works
 */
 
 
@@ -131,29 +132,25 @@ library AccountAutoExchange {
         return false;
     }
 
-    function calculateAvailableCollateralToAutoExchange(
+    function calculateQuoteToCover(
         Account.Data storage self,
-        address coveringToken,
+        CollateralPool.Data storage collateralPool,
         address quoteToken,
         uint256 amountToAutoExchangeQuote
-    ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
+    ) private view returns (uint256 amountToAutoExchange) {
 
-        CollateralPool.Data storage collateralPool = self.getCollateralPool();
-        uint128 collateralPoolId = collateralPool.id;
-
-        Account.MarginInfo memory marginInfo = 
-            self.getMarginInfoByCollateralType(
-                quoteToken,
-                collateralPool.riskConfig.riskMultipliers
-            );
+        Account.MarginInfo memory marginInfo =
+        self.getMarginInfoByCollateralType(
+            quoteToken,
+            collateralPool.riskConfig.riskMultipliers
+        );
 
         Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
-        uint256 amountToAutoExchange;
 
         if (overallMarginInfo.maintenanceDelta < 0 ) {
 
             if (marginInfo.liquidationDelta > 0) {
-                return (0, 0);
+                return 0;
             }
 
             amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
@@ -161,7 +158,7 @@ library AccountAutoExchange {
         } else {
 
             if (marginInfo.collateralInfo.marginBalance > 0) {
-                return (0, 0);
+                return 0;
             }
 
             amountToAutoExchange = (-marginInfo.collateralInfo.marginBalance).toUint();
@@ -172,34 +169,93 @@ library AccountAutoExchange {
             amountToAutoExchange = amountToAutoExchangeQuote;
         }
 
-        Account.MarginInfo memory marginInfoCoveringToken = self.getMarginInfoByCollateralType(
-            coveringToken,
+
+        return amountToAutoExchange;
+    }
+
+    function calculateAvailableCollateral(
+        Account.Data storage self,
+        CollateralPool.Data storage collateralPool,
+        address collateralToken
+    ) private view returns (uint256) {
+
+        // note, don't need risk multipliers to get real balance
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByCollateralType(
+            collateralToken,
             collateralPool.riskConfig.riskMultipliers
         );
 
-        uint256 maxCoveringTokenAmount = marginInfoCoveringToken.collateralInfo.realBalance.toUint();
-        UD60x18 autoExchangeDiscount = UNIT;
-        UD60x18 priceCoveringToQuote =
-            CollateralConfiguration.getExchangeInfo(collateralPoolId, coveringToken, quoteToken).price;
-        uint256 maxCoveringTokenAmountInQuote = mulUDxUint(
-            priceCoveringToQuote.mul(autoExchangeDiscount), maxCoveringTokenAmount
-        );
+        return marginInfo.collateralInfo.realBalance.toUint();
 
-        if (maxCoveringTokenAmountInQuote <= amountToAutoExchange) {
-            UD60x18 priceQuoteToCovering =
-            CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, coveringToken).price;
+    }
+
+    function calculateAvailableCollateralToAutoExchange(
+        Account.Data storage self,
+        address collateralToken,
+        address quoteToken,
+        uint256 amountToAutoExchangeQuote
+    ) internal view returns (
+        uint256 /* collateralAmountToLiquidator */, uint256 /* collateralAmountToIF */, uint256 /* quoteAmount */
+    ) {
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        uint128 collateralPoolId = collateralPool.id;
+
+        uint256 quoteToCover = calculateQuoteToCover(self, collateralPool, quoteToken, amountToAutoExchangeQuote);
+
+        if (quoteToCover == 0) {
+            return (0, 0, 0);
+        }
+
+        UD60x18 autoExchangeBonus = UNIT;
+
+        UD60x18 priceQuoteToCollateral = CollateralConfiguration.getExchangeInfo(
+            collateralPoolId,
+            quoteToken,
+            collateralToken
+        ).price;
+
+        // This is the base collateral to liquidate based on the given quote to cover
+        uint256 baseCollateral = mulUDxUint(priceQuoteToCollateral, quoteToCover);
+
+        uint256 collateralToLiquidate = mulUDxUint(autoExchangeBonus, baseCollateral);
+
+        uint256 availableCollateral = calculateAvailableCollateral(self, collateralPool, collateralToken);
+
+        if (collateralToLiquidate > availableCollateral) {
+
+            collateralToLiquidate = availableCollateral;
+            UD60x18 priceCollateralToQuote = CollateralConfiguration.getExchangeInfo(
+                collateralPoolId,
+                collateralToken,
+                quoteToken
+            ).price;
+            quoteToCover = divUintUD(mulUDxUint(priceCollateralToQuote, collateralToLiquidate), autoExchangeBonus);
+        }
+
+        UD60x18 autoExchangeInsuranceFee = CollateralConfiguration.load(
+            collateralPoolId,
+            quoteToken
+        ).baseConfig.autoExchangeInsuranceFee;
+
+
+        if (fromUD60x18(autoExchangeInsuranceFee) != 0) {
+
+            uint256 bonusCollateral = collateralToLiquidate - divUintUD(collateralToLiquidate, autoExchangeBonus);
+            uint256 insuranceFundFee = mulUDxUint(autoExchangeInsuranceFee, bonusCollateral);
+
             return (
-                // todo: check if division by ae discount works here
-                mulUDxUint(
-                    priceCoveringToQuote.div(autoExchangeDiscount), amountToAutoExchange
-                ),
-                amountToAutoExchange
+                collateralToLiquidate - insuranceFundFee,
+                insuranceFundFee,
+                quoteToCover
             );
+
         }
 
         return (
-            maxCoveringTokenAmount,
-            maxCoveringTokenAmountInQuote
+            collateralToLiquidate,
+            0,
+            quoteToCover
         );
 
     }

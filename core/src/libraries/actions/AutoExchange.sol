@@ -10,7 +10,7 @@ pragma solidity >=0.8.19;
 import {Account} from "../../storage/Account.sol";
 import {AccountAutoExchange} from "../account/AccountAutoExchange.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
+import {CollateralPool} from "../../storage/CollateralPool.sol";
 /*
 TODOs
     - consider introducing min amount of collateral to get in return (works similar to a limit price)
@@ -42,11 +42,18 @@ library AutoExchange {
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
+        CollateralPool.Data storage collateralPool = account.getCollateralPool();
+        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
+
         if (!account.isEligibleForAutoExchange(quoteType)) {
             revert AccountNotEligibleForAutoExchange(accountId, quoteType);
         }
 
-        (uint256 collateralAmount, uint256 quoteAmount) = account.calculateAvailableCollateralToAutoExchange(
+        (
+            uint256 collateralAmountToLiquidator,
+            uint256 collateralAmountToIF,
+            uint256 quoteAmount
+        ) = account.calculateAvailableCollateralToAutoExchange(
             collateralType,
             quoteType,
             amountToAutoExchangeQuote
@@ -59,7 +66,7 @@ library AutoExchange {
 
         account.updateNetCollateralDeposits(
             collateralType,
-            -collateralAmount.toInt()
+            -(collateralAmountToLiquidator + collateralAmountToIF).toInt()
         );
 
         liquidatorAccount.updateNetCollateralDeposits(
@@ -69,7 +76,7 @@ library AutoExchange {
 
         liquidatorAccount.updateNetCollateralDeposits(
             collateralType,
-            collateralAmount.toInt()
+            collateralAmountToLiquidator.toInt()
         );
 
     }

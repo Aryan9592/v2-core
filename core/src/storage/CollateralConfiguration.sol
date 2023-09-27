@@ -174,7 +174,7 @@ library CollateralConfiguration {
      * @param token The address of the collateral type.
      * @return collateralConfiguration The Configuration object.
      */
-    function load(uint128 collateralPoolId, address token) private pure returns (Data storage collateralConfiguration) {
+    function load(uint128 collateralPoolId, address token) internal pure returns (Data storage collateralConfiguration) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Configuration", collateralPoolId, token));
         assembly {
             collateralConfiguration.slot := s
