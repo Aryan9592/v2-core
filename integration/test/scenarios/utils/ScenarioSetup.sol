@@ -1,13 +1,12 @@
 pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
-import "forge-std/console2.sol";
 
 import {DatedIrsRouter, DatedIrsProxy} from "../../../src/proxies/DatedIrs.sol";
 import {VammRouter, VammProxy} from "../../../src/proxies/Vamm.sol";
 
 import {AaveV3RateOracle} from "@voltz-protocol/products-dated-irs/src/oracles/AaveV3RateOracle.sol";
-import {MockAaveLendingPool} from "@voltz-protocol/products-dated-irs/test/mocks/MockAaveLendingPool.sol";
+import {MockConstantAaveLendingPool} from "@voltz-protocol/products-dated-irs/test/mocks/MockConstantAaveLendingPool.sol";
 import {MarketManagerConfiguration} from "@voltz-protocol/products-dated-irs/src/storage/MarketManagerConfiguration.sol";
 
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
@@ -22,7 +21,7 @@ contract ScenarioSetup is Test {
 
   address mockToken;
 
-  MockAaveLendingPool aaveLendingPool;
+  MockConstantAaveLendingPool aaveLendingPool;
   AaveV3RateOracle aaveV3RateOracle;
 
   address owner;
@@ -47,21 +46,9 @@ contract ScenarioSetup is Test {
 
     mockToken = address(6447488);
 
-    aaveLendingPool = new MockAaveLendingPool();
+    aaveLendingPool = new MockConstantAaveLendingPool();
     aaveV3RateOracle = new AaveV3RateOracle(aaveLendingPool, mockToken);
 
     vm.stopPrank();
-  }
-
-  /// @dev This should be called after the time has elapsed
-  /// @param apyWad Value of the APY we want to set (e.g. 4e16 for 4% apy)
-  /// @param lastUpdateTimestamp Last time the mock pool's index was updated
-  function refreshAaveApy(uint256 apyWad, uint32 lastUpdateTimestamp) public {
-    UD60x18 lastIndex = aaveV3RateOracle.getCurrentIndex();
-    UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(lastUpdateTimestamp, Time.blockTimestampTruncated());
-    aaveLendingPool.setReserveNormalizedIncome(
-        IERC20(mockToken),
-        lastIndex.mul(timeDeltaAnnualized.mul(ud60x18(apyWad)).add(UNIT))
-    );
   }
 }

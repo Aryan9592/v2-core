@@ -16,8 +16,6 @@ import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-c
 
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
-import "forge-std/console2.sol";
-
 library AccountBalances {
     using LPPosition for LPPosition.Data;
     using SafeCastU256 for uint256;

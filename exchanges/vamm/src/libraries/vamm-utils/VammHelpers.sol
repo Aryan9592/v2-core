@@ -20,8 +20,6 @@ import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src
 import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 import {PoolConfiguration} from "../../storage/PoolConfiguration.sol";
 
-import "forge-std/console2.sol";
-
 library VammHelpers {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
@@ -148,7 +146,7 @@ library VammHelpers {
             baseTokenDelta,
             marketId
         );
-        
+
         quoteTokenDelta = mulUDxInt(averagePriceWithSpread, -exposure);
     }
 

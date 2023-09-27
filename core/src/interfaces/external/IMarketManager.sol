@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import "../../storage/Account.sol";
-import "@voltz-protocol/products-dated-irs/src/storage/Position.sol"; // todo: remove with getTakerPositionInfo
 
 /// @title Interface a Market Manager needs to adhere.
 interface IMarketManager is IERC165 {
@@ -29,15 +28,6 @@ interface IMarketManager is IERC165 {
         external
         view
         returns (Account.MakerMarketExposure[] memory exposures);
-
-    function getTakerPositionInfo(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp
-    )
-        external
-        view
-        returns (Position.Data memory);
 
     //// STATE CHANGING FUNCTIONS ////
 

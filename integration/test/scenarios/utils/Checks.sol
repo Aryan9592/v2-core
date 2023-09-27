@@ -10,7 +10,7 @@ import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTi
 
 import { UD60x18, ud, unwrap, convert } from "@prb/math/UD60x18.sol";
 
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 /// @title Storage checks 
 abstract contract Checks is AssertionHelpers {
@@ -44,13 +44,14 @@ abstract contract Checks is AssertionHelpers {
 
             sumFilledBase += (baseBalancePool + position.baseBalance);
             sumFilledQuote += (quoteBalancePool + position.quoteBalance);
+
             sumAccruedInterest += (accruedInterestPool + position.accruedInterestTrackers.accruedInterest);
         }
         
         assertAlmostEq(sumFilledBase, int(0), 1, "sumFilledBase");
         assertAlmostEq(sumFilledQuote, int(0), 1, "sumFilledQuote");
         // todo: complete
-        // assertAlmostEq(sumAccruedInterest, int(0), 1, "sumAccruedInterest");
+        assertAlmostEq(sumAccruedInterest, int(0), 1, "sumAccruedInterest");
     }
     
     function checkPoolFilledBalances(
@@ -84,15 +85,19 @@ abstract contract Checks is AssertionHelpers {
 
         assertEq(expectedBaseBalancePool, position.baseBalance, "baseBalance");
         assertEq(expectedQuoteBalancePool, position.quoteBalance, "quoteBalance");
-        // todo: complete
-        // assertEq(expectedAccruedInterestPool, position.accruedInterestTrackers.accruedInterest, "accruedInterest");
+        assertEq(expectedAccruedInterestPool, position.accruedInterestTrackers.accruedInterest, "accruedInterest");
     }
 
     function checkZeroTakerFilledBalances(
         DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo
     ) internal {
-        checkTakerFilledBalances(datedIrsProxy, positionInfo, 0, 0, 0);
+        Position.Data memory position = datedIrsProxy
+            .getTakerPositionInfo(positionInfo.accountId, positionInfo.marketId, positionInfo.maturityTimestamp);
+
+        assertEq(0, position.baseBalance, "baseBalance");
+        assertEq(0, position.quoteBalance, "quoteBalance");
+        // note: currently, accruedInterest is not reset to 0 at settlement
     }
 
     function checkZeroPoolFilledBalances(
@@ -154,7 +159,6 @@ abstract contract Checks is AssertionHelpers {
         UD60x18 price = VammTicks.getPriceFromTick(currentTick).div(convert(100));
 
         UD60x18 datedIRSTwap = vammProxy.getAdjustedDatedIRSTwap(marketId, maturityTimestamp, 0, 0);
-        console2.log("TICK", currentTick);
         
         twap = unwrap(price);
     }

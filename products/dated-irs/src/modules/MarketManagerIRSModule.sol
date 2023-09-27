@@ -91,20 +91,17 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     // todo: rm after reimplemenation of exposures (used for testing)
-    /**
-     * @inheritdoc IMarketManager
-     */
     function getTakerPositionInfo(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp
     )
         external
-        view
-        override
         returns (Position.Data memory)
     {
-        return Portfolio.exists(accountId, marketId).positions[maturityTimestamp];
+        Portfolio.Data storage p = Portfolio.exists(accountId, marketId);
+        p.updatePosition(maturityTimestamp, 0, 0);
+        return p.positions[maturityTimestamp];
     }
 
     /**
