@@ -7,7 +7,7 @@ import { LPPosition } from "../../storage/LPPosition.sol";
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { UD60x18, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud,  convert, unwrap } from "@prb/math/UD60x18.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -15,6 +15,8 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
+
+import "forge-std/console2.sol";
 
 library AccountBalances {
     using LPPosition for LPPosition.Data;
@@ -140,7 +142,7 @@ library AccountBalances {
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
         int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
-            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)),
+            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)).div(convert(100)),
             spread,
             marketId
         );
