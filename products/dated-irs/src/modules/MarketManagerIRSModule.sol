@@ -107,7 +107,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override returns (bytes memory output) {
+    ) external override returns (bytes memory output) { /// todo: @arturbeg populate output?
         executionPreCheck(marketId);
 
         uint32 maturityTimestamp;
