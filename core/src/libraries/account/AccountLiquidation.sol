@@ -357,13 +357,21 @@ library AccountLiquidation {
             collateralPool.insuranceFundConfig.liquidationFee,
             liquidationPenalty
         );
-        uint256 backstopLPReward = mulUDxUint(
-            collateralPool.backstopLPConfig.liquidationFee,
-            liquidationPenalty
-        );
+
+        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).netDeposits;
+
+        uint256 backstopLPReward = 0;
+        if (
+            backstopLpNetDepositsInUSD > 0 && 
+            backstopLpNetDepositsInUSD.toUint() > collateralPool.backstopLPConfig.minNetDepositThresholdInUSD
+        ) {
+            backstopLPReward = mulUDxUint(
+                collateralPool.backstopLPConfig.liquidationFee,
+                liquidationPenalty
+            );
+        }
 
         uint256 keeperReward = 0;
-
         if (bidSubmissionKeeperId != 0) {
             keeperReward = mulUDxUint(
                 collateralPool.riskConfig.liquidationConfiguration.bidKeeperFee,
