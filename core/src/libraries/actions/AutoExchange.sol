@@ -42,6 +42,14 @@ library AutoExchange {
             revert AccountNotEligibleForAutoExchange(accountId, quoteType);
         }
 
+        (uint256 collateralAmount, uint256 quoteAmount) = account.calculateAvailableCollateralToAutoExchange(
+            collateralType,
+            quoteType,
+            amountToAutoExchangeQuote
+        );
+
+
+
 
 
     }

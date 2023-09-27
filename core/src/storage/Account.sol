@@ -432,7 +432,7 @@ library Account {
     }
 
     // todo: do we need to expose this function?
-    function getMaxAmountToExchangeQuote(
+    function calculateAvailableCollateralToAutoExchange(
         Account.Data storage self,
         address coveringToken,
         address autoExchangedToken,
@@ -442,7 +442,7 @@ library Account {
         view
         returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
     {
-        return AccountAutoExchange.getMaxAmountToExchangeQuote(
+        return AccountAutoExchange.calculateAvailableCollateralToAutoExchange(
             self,
             coveringToken,
             autoExchangedToken,

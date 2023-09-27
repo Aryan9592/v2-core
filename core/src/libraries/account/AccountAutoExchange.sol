@@ -131,7 +131,7 @@ library AccountAutoExchange {
         return false;
     }
 
-    function getMaxAmountToExchangeQuote(
+    function calculateAvailableCollateralToAutoExchange(
         Account.Data storage self,
         address coveringToken,
         address quoteToken,
