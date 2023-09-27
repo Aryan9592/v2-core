@@ -515,7 +515,6 @@ library AccountLiquidation {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
 
-        // todo: validate backstop lp liquidation orders
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 

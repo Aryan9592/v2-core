@@ -23,7 +23,6 @@ library AutoExchangeConfiguration {
          * @dev Auto-exchange occurs when an account has a negative balance for one collateral asset in USD terms
          * is below the singleAutoExchangeThresholdInUSD (e.g. 5,000 USD)
          */
-        // todo: consider having the single auto-exchange threshold configurable separately for each collateral asset
         uint256 singleAutoExchangeThresholdInUSD;
 
         /**
@@ -38,11 +37,6 @@ library AutoExchangeConfiguration {
          * value in USD terms
          */
         UD60x18 negativeCollateralBalancesMultiplier;
-
-        /**
-         * @dev Maximum ratio of debt that can be repaid by auto-exchange
-         */
-        UD60x18 autoExchangeRatio;
     }
 
     /**
@@ -65,7 +59,6 @@ library AutoExchangeConfiguration {
         storedConfig.singleAutoExchangeThresholdInUSD = config.singleAutoExchangeThresholdInUSD;
         storedConfig.totalAutoExchangeThresholdInUSD = config.totalAutoExchangeThresholdInUSD;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
-        storedConfig.autoExchangeRatio = config.autoExchangeRatio;
 
         emit AutoExchangeConfigurationUpdated(storedConfig, block.timestamp);
     }

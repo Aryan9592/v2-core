@@ -39,7 +39,6 @@ library AutoExchange {
         address quoteType
     ) internal {
 
-        // grab the accounts and check their existance
         Account.Data storage account = Account.exists(accountId);
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
