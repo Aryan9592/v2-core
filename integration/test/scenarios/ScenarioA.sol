@@ -170,7 +170,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         vm.warp(block.timestamp + 86400 * 365 / 2);
 
-        // liquidity index 1_010_000_000_000_000_000
+        // liquidity index 1.010
         refreshAaveApy(0.02e18, uint32(block.timestamp - 86400 * 365 / 2));
 
         // short FT
@@ -231,8 +231,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // 2/3 of time till maturity
         vm.warp(block.timestamp + 86400 * 365 / 4);
+        // liquidity index 1.01505
         refreshAaveApy(0.02e18, uint32(block.timestamp - 86400 * 365 / 4));
-        console2.log("LI", unwrap(aaveV3RateOracle.getCurrentIndex()));
 
         // check balances LP
         {
@@ -275,30 +275,56 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }   
 
         vm.warp(block.timestamp + 86400 * 365 / 2 + 1);
+        refreshAaveApy(0.02e18, uint32(block.timestamp - 86400 * 365 / 4));
 
+        // settle account 1
         (int256 settlementCashflowInQuote_1) = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 1
         });
-        // todo: complete
-        assertEq(settlementCashflowInQuote_1, 526336096, "settlementCashflowInQuote_1");
+        {   
+            // todo: complete
+            assertEq(settlementCashflowInQuote_1, 521260846, "settlementCashflowInQuote_1");
+            // todo: check balances = 0
 
+            // check settlement twice does not work
+            vm.expectRevert(SetUtil.ValueNotInSet.selector);
+            settle({
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                accountId: 1
+            });
+            // check maturity index was cached
+            assertEq(1020125250000000000, unwrap(datedIrsProxy.getRateIndexMaturity(marketId, maturityTimestamp)));
+        }
+
+        
+        
+        // settle account 1
         (int256 settlementCashflowInQuote_2) = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 2
         });
-        // todo: complete
-        assertEq(settlementCashflowInQuote_2, 524087374, "settlementCashflowInQuote_2");
-
+        {
+            // todo: complete
+            assertEq(settlementCashflowInQuote_2, 519012124, "settlementCashflowInQuote_2");
+            // todo: check balances = 0
+        }
+        
+        // settle account 1
         (int256 settlementCashflowInQuote_3) = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 3
         });
-        // todo: complete
-        assertEq(settlementCashflowInQuote_3, -1050423470, "settlementCashflowInQuote_3");
+        {
+            // todo: complete
+            assertEq(settlementCashflowInQuote_3, -1040272970, "settlementCashflowInQuote_3");
+            // todo: check balances = 0
+        }
+        
 
     }
 }
