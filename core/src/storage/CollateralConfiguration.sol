@@ -100,6 +100,12 @@ library CollateralConfiguration {
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
          */
         UD60x18 autoExchangeInsuranceFee;
+
+        /**
+         * @dev When performing within bubble exhaustion checks, this value acts as a threshold that considers the
+         * amount dust
+         */
+        uint256 autoExchangeDustThreshold;
     }
 
     struct CachedConfiguration {

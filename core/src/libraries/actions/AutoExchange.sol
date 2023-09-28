@@ -33,6 +33,12 @@ library AutoExchange {
 
     error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address quoteType);
 
+    error WithinBubbleCoverageNotExhausted(uint128 accountId, address quoteType, address collateralType);
+
+    error SameQuoteAndCollateralType(uint128 accountId, address quoteType);
+
+    error ZeroAddressToken(uint128 accountId);
+
     function triggerAutoExchange(
         uint128 accountId,
         uint128 liquidatorAccountId,
@@ -42,14 +48,26 @@ library AutoExchange {
     ) internal {
 
         Account.Data storage account = Account.exists(accountId);
-        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
-
-        CollateralPool.Data storage collateralPool = account.getCollateralPool();
-        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
 
         if (!account.isEligibleForAutoExchange(quoteType)) {
             revert AccountNotEligibleForAutoExchange(accountId, quoteType);
         }
+
+        if (!account.isWithinBubbleCoverageExhausted(quoteType, collateralType)) {
+            revert WithinBubbleCoverageNotExhausted(accountId, quoteType, collateralType);
+        }
+
+        if (quoteType == collateralType) {
+            revert SameQuoteAndCollateralType(accountId, quoteType);
+        }
+
+        if (quoteType == address(0) || collateralType == address(0)) {
+            revert ZeroAddressToken(accountId);
+        }
+
+        Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
+        CollateralPool.Data storage collateralPool = account.getCollateralPool();
+        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
 
         (
             uint256 collateralAmountToLiquidator,

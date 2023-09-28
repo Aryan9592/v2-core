@@ -17,13 +17,6 @@ import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts
 import { UD60x18, UNIT, fromUD60x18 } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-/*
-TODOs
-    - consider splitting isEligibleForAutoExchange into smaller helpers
-    - bring auto-exchange discounts
-    - check token decimals in max amount calc!
-*/
-
 
 /**
  * @title Object for managing account auto-echange utilities.
@@ -35,6 +28,41 @@ library AccountAutoExchange {
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
+
+    // todo: consider renaming
+    function isWithinBubbleCoverageExhausted(
+        Account.Data storage self,
+        address quoteType,
+        address collateralType
+    ) internal view returns (bool) {
+
+        bool childrenBalanceExhausted = true;
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        uint128 collateralPoolId = collateralPool.id;
+        address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteType).childTokens.values();
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+
+            if (collateralType == tokens[i]) {
+                return true;
+            }
+
+            uint256 autoExchangeDustThreshold = CollateralConfiguration.load(
+                collateralPoolId,
+                tokens[i]
+            ).baseConfig.autoExchangeDustThreshold;
+
+            int256 netDeposits = self.getAccountNetCollateralDeposits(tokens[i]);
+
+            if (netDeposits > autoExchangeDustThreshold.toInt()) {
+                childrenBalanceExhausted = false;
+            }
+
+        }
+
+        return childrenBalanceExhausted;
+    }
 
     function isEligibleForAutoExchange(
         Account.Data storage self,
@@ -72,11 +100,13 @@ library AccountAutoExchange {
             int256 marginBalanceOfCollateralInUSD =
                 mulUDxInt(price, marginInfo.collateralInfo.marginBalance);
 
-            if ((-marginInfo.collateralInfo.marginBalance).toUint() >
+            if (
+                (-marginInfo.collateralInfo.marginBalance).toUint() >
                 CollateralConfiguration.load(
-                collateralPoolId,
-                collateralType
-            ).baseConfig.autoExchangeThreshold) {
+                    collateralPoolId,
+                    collateralType
+                ).baseConfig.autoExchangeThreshold
+            ) {
                 return true;
             }
 
