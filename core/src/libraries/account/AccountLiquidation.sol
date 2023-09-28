@@ -29,6 +29,8 @@ import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {UD60x18, UNIT, ud} from "@prb/math/UD60x18.sol";
+
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
@@ -408,9 +410,30 @@ library AccountLiquidation {
         }
     }
 
+    function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        // adl health info values are in USD (and therefore represented with 18 decimals)
+        UD60x18 health = ud(marginInfo.adlHealthInfo.rawMarginBalance.toUint()).div(
+            ud(marginInfo.adlHealthInfo.rawLiquidationMarginRequirement)
+        );
+        if (health.gt(UNIT)) {
+            health = UNIT;
+        }
+        return health;
+    }
+
     function computeDutchLiquidationPenaltyParameter(Account.Data storage self) internal view returns (UD60x18) {
-        // todo: implement
-        return UD60x18.wrap(10e17);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        UD60x18 dMin = collateralPool.riskConfig.dutchConfiguration.dMin;
+        UD60x18 dSlope = collateralPool.riskConfig.dutchConfiguration.dSlope;
+        UD60x18 health = self.computeDutchHealth();
+
+        UD60x18 dDutch = dMin.add(UNIT.sub(health).mul(dSlope));
+        if (dDutch.gt(UNIT)) {
+            dDutch = UNIT;
+        }
+
+        return dDutch;
     }
 
     function executeTopRankedLiquidationBid(
