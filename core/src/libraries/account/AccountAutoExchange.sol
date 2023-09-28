@@ -158,6 +158,11 @@ library AccountAutoExchange {
 
         }
 
+        AutoExchangeConfiguration.Data memory autoExchangeConfig = AutoExchangeConfiguration.load();
+
+        amountToAutoExchange = mulUDxUint(autoExchangeConfig.quoteBufferMultiplier, amountToAutoExchange);
+
+
         if (amountToAutoExchangeQuote < amountToAutoExchange) {
             amountToAutoExchange = amountToAutoExchangeQuote;
         }
