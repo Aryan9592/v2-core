@@ -4,7 +4,7 @@ pragma solidity >=0.8.13;
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 
-import { UD60x18, ZERO, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ZERO, ud, UNIT, convert } from "@prb/math/UD60x18.sol";
 
 import {TickMath} from "../ticks/TickMath.sol";
 import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
@@ -33,7 +33,7 @@ library VammTicks {
     }
 
     function getTickFromPrice(UD60x18 price) internal pure returns (int24 tick) {
-        UD60x18 sqrtPrice = price.sqrt();
+        UD60x18 sqrtPrice = UNIT.div(price.mul(convert(100)).sqrt()); // 1 / sqrt(1.0001 ^ -tick)
         uint160 sqrtPriceX96 = uint160(sqrtPrice.mul(ud(FixedPoint96.Q96)).unwrap());
         return TickMath.getTickAtSqrtRatio(sqrtPriceX96);
     }

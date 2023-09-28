@@ -42,7 +42,7 @@ contract AssertionHelpers is Test {
         return a > 0 ? uint256(a) : uint256(-a);
     }
 
-    function absOrZero(int256 a) public pure  returns (uint256){
+    function absOrZero(int256 a) public pure returns (uint256){
         return a < 0 ? uint256(-a) : 0;
     }
 }
