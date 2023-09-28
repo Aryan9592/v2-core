@@ -31,6 +31,16 @@ contract LiquidationModule is ILiquidationModule {
     using SafeCastI256 for int256;
 
     /**
+     * Thrown when the pre liquidation hook returns an invalid response
+     */
+    error InvalidPreLiquidationHookResponse();
+
+    /**
+     * Thrown when the post liquidation hook returns an invalid response
+     */
+    error InvalidPostLiquidationHookResponse();
+
+    /**
      * @inheritdoc ILiquidationModule
      */
     function getMarginInfoByBubble(uint128 accountId, address collateralType) 
@@ -72,10 +82,14 @@ contract LiquidationModule is ILiquidationModule {
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
         if (liquidationBid.hookAddress != address(0)) {
-            ILiquidationHook(liquidationBid.hookAddress).preLiquidationHook(
-                liquidatableAccountId,
-                liquidationBid
-            );
+            if (
+                ILiquidationHook(liquidationBid.hookAddress).preLiquidationHook(
+                    liquidatableAccountId,
+                    liquidationBid
+                ) != ILiquidationHook.preLiquidationHook.selector
+            ) {
+                revert InvalidPreLiquidationHookResponse();
+            }
         }
 
         int256 lmDeltaBeforeLiquidation = account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta;
@@ -114,10 +128,14 @@ contract LiquidationModule is ILiquidationModule {
 
         
         if (liquidationBid.hookAddress != address(0)) {
-            ILiquidationHook(liquidationBid.hookAddress).postLiquidationHook(
-                liquidatableAccountId,
-                liquidationBid
-            );
+            if (
+                ILiquidationHook(liquidationBid.hookAddress).postLiquidationHook(
+                    liquidatableAccountId,
+                    liquidationBid
+                ) != ILiquidationHook.postLiquidationHook.selector
+            ) {
+                revert InvalidPostLiquidationHookResponse();
+            }
         }
     }
 

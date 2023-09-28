@@ -8,8 +8,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {LiquidationBidPriorityQueue} from "../../libraries/LiquidationBidPriorityQueue.sol";
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
-interface ILiquidationHook {
+interface ILiquidationHook is IERC165 {
   /**
    * @notice Liquidator-owned hook called before a liquidation bid is executed. 
    * Liquidator must register a non-zero address hook in the liquidation bid.
@@ -17,11 +18,12 @@ interface ILiquidationHook {
    * @param liquidatableAccountId The account to be liquidated
    * @param liquidationBid The liquidation bid submitted by the liquidator
    *  which is about to be executed
+   * @return bytes4 The function selector for the hook
    */
   function preLiquidationHook(
     uint128 liquidatableAccountId,
     LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-  ) external;
+  ) external returns (bytes4);
 
   /**
    * @notice Liquidator-owned hook called after a liquidation bid is executed. 
@@ -30,9 +32,10 @@ interface ILiquidationHook {
    * @param liquidatedAccountId The account that was liquidated
    * @param liquidationBid The liquidation bid submitted by the liquidator
    *  which was just executed
+   * @return bytes4 The function selector for the hook
    */
   function postLiquidationHook(
     uint128 liquidatedAccountId,
     LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-  ) external;
+  ) external returns (bytes4);
 }

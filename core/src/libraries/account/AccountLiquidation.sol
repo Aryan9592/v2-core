@@ -25,10 +25,12 @@ import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
+import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import "../../interfaces/external/IMarketManager.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 /**
  * @title Object for managing account liquidation utilities
@@ -113,6 +115,12 @@ library AccountLiquidation {
     */
     error LiquidationBidQuoteTokenMismatch(address liquidationBidQuoteToken, address marketQuoteToken);
 
+    /**
+     * @dev Thrown when an incorrect hook address is used within a liquidation bid
+     * @param liquidationBid Submitted liquidation bid
+     */
+    error IncorrectLiquidationBidHookAddress(LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
+
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
@@ -188,6 +196,13 @@ library AccountLiquidation {
         if (marketIdsLength > collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid) {
             revert LiquidationBidOrdersOverflow(marketIdsLength,
                 collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid);
+        }
+
+        if (
+            liquidationBid.hookAddress != address(0) && 
+            !IERC165(liquidationBid.hookAddress).supportsInterface(type(ILiquidationHook).interfaceId)
+        ) {
+            revert IncorrectLiquidationBidHookAddress(liquidationBid);
         }
 
         for (uint256 i = 0; i < marketIdsLength; i++) {
