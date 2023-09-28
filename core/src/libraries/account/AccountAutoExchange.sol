@@ -205,13 +205,15 @@ library AccountAutoExchange {
             return (0, 0, 0);
         }
 
-        UD60x18 autoExchangeBonus = UNIT;
-
-        UD60x18 priceQuoteToCollateral = CollateralConfiguration.getExchangeInfo(
+        CollateralConfiguration.ExchangeInfo memory quoteToCollateralExchangeInfo = CollateralConfiguration.getExchangeInfo(
             collateralPoolId,
             quoteToken,
             collateralToken
-        ).price;
+        );
+
+        UD60x18 autoExchangeBonus = UNIT.add(quoteToCollateralExchangeInfo.autoExchangeDiscount);
+
+        UD60x18 priceQuoteToCollateral = quoteToCollateralExchangeInfo.price;
 
         // This is the base collateral to liquidate based on the given quote to cover
         uint256 baseCollateral = mulUDxUint(priceQuoteToCollateral, quoteToCover);
