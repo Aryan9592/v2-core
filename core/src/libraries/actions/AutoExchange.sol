@@ -13,7 +13,7 @@ import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCas
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 /*
 TODOs
-    - make sure re-entrancy is not possible with collateral transfers
+   - make sure re-entrancy is not possible with collateral transfers
 */
 
 

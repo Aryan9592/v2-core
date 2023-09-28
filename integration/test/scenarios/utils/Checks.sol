@@ -202,9 +202,9 @@ library StructsTransformer {
     function marginInfo(Account.MarginInfo memory margin) internal pure returns (MarginInfo memory) {
         return MarginInfo({
             collateralType: margin.collateralType,
-            netDeposits: margin.netDeposits,
-            marginBalance: margin.marginBalance,
-            realBalance: margin.realBalance,
+            netDeposits: margin.collateralInfo.netDeposits,
+            marginBalance: margin.collateralInfo.marginBalance,
+            realBalance: margin.collateralInfo.realBalance,
             initialDelta: margin.initialDelta,
             maintenanceDelta: margin.maintenanceDelta,
             liquidationDelta: margin.liquidationDelta,
