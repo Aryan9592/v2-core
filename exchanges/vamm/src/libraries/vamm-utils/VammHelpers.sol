@@ -9,12 +9,11 @@ import {TickBitmap} from "../ticks/TickBitmap.sol";
 import {FullMath} from "../math/FullMath.sol";
 import {FixedPoint128} from "../math/FixedPoint128.sol";
 
-import { UD60x18, ZERO, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, ZERO, UNIT, unwrap } from "@prb/math/UD60x18.sol";
 import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import {ExposureHelpers} from "@voltz-protocol/products-dated-irs/src/libraries/ExposureHelpers.sol";
 import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
 import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
@@ -148,7 +147,7 @@ library VammHelpers {
             marketId
         );
 
-        quoteTokenDelta = mulUDxInt(UNIT.add(averagePriceWithSpread), -exposure);
+        quoteTokenDelta = mulUDxInt(averagePriceWithSpread, -exposure);
     }
 
     function baseToExposure(

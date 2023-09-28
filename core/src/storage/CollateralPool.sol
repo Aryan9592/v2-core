@@ -454,13 +454,7 @@ library CollateralPool {
     function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
         self.checkRoot();
 
-        self.riskConfig.riskMultipliers.imMultiplier = config.riskMultipliers.imMultiplier;
-        self.riskConfig.riskMultipliers.mmrMultiplier = config.riskMultipliers.mmrMultiplier;
-        self.riskConfig.liquidationConfiguration.unfilledPenaltyParameter = config.liquidationConfiguration.unfilledPenaltyParameter;
-        self.riskConfig.liquidationConfiguration.bidKeeperFee = config.liquidationConfiguration.bidKeeperFee;
-        self.riskConfig.liquidationConfiguration.queueDurationInSeconds = config.liquidationConfiguration.queueDurationInSeconds;
-        self.riskConfig.liquidationConfiguration.maxOrdersInBid = config.liquidationConfiguration.maxOrdersInBid;
-        self.riskConfig.liquidationConfiguration.maxBidsInQueue = config.liquidationConfiguration.maxBidsInQueue;
+        self.riskConfig = config;
 
         emit CollateralPoolUpdated(
             self.id, 
@@ -482,9 +476,7 @@ library CollateralPool {
 
         // ensure the given account exists
         Account.exists(config.accountId);
-
-        self.insuranceFundConfig.accountId = config.accountId;
-        self.insuranceFundConfig.liquidationFee = config.liquidationFee;
+        self.insuranceFundConfig = config;
 
         emit CollateralPoolUpdated(
             self.id,
@@ -508,8 +500,7 @@ library CollateralPool {
         // ensure the given account exists
         Account.exists(config.accountId);
 
-        self.backstopLPConfig.accountId = config.accountId;
-        self.backstopLPConfig.liquidationFee = config.liquidationFee;
+        self.backstopLPConfig = config;
 
         emit CollateralPoolUpdated(
             self.id,

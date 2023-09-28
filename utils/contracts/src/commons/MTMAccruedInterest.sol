@@ -8,7 +8,6 @@ import { mulUDxInt } from "../helpers/PrbMathHelper.sol";
 import {Time} from "../helpers/Time.sol";
 
 library MTMAccruedInterest {
-
     struct AccruedInterestTrackers {
         int256 accruedInterest;
         MTMObservation lastObservation;
@@ -43,5 +42,4 @@ library MTMAccruedInterest {
             });
         }
     }
-
 }

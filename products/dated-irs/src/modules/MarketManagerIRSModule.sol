@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {IMarketManagerIRSModule, IMarketManager} from "../interfaces/IMarketManagerIRSModule.sol";
 import {IPool} from "../interfaces/IPool.sol";
 import {Portfolio} from "../storage/Portfolio.sol";
+import {Position} from "../storage/Position.sol";
 import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
@@ -87,6 +88,20 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         returns (Account.MakerMarketExposure[] memory exposures)
     {
         return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures();
+    }
+
+    // todo: rm after reimplemenation of exposures (used for testing)
+    function getTakerPositionInfo(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    )
+        external
+        returns (Position.Data memory)
+    {
+        Portfolio.Data storage p = Portfolio.exists(accountId, marketId);
+        p.updatePosition(maturityTimestamp, 0, 0);
+        return p.positions[maturityTimestamp];
     }
 
     /**

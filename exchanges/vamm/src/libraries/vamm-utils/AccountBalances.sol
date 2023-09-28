@@ -7,7 +7,7 @@ import { LPPosition } from "../../storage/LPPosition.sol";
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { UD60x18, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud,  convert, unwrap } from "@prb/math/UD60x18.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -140,7 +140,7 @@ library AccountBalances {
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
         int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
-            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)),
+            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)).div(convert(100)),
             spread,
             marketId
         );

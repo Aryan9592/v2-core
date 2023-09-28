@@ -30,6 +30,10 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
+    // todo: @avniculae @0xZenus think about why/whether we still need the 
+    // token parameter here, since single account mode was removed. However,
+    // parts of code (such as liquidations and withdrawable balance) currently
+    // pass the collateralType in the token parameter. 
     function getMarginInfoByBubble(Account.Data storage account, address token) 
         internal 
         view
@@ -61,15 +65,15 @@ library AccountExposure {
         return Account.MarginInfo({
             collateralType: token,
             collateralInfo: Account.CollateralInfo({
-                netDeposits: getExchangedQuantity(marginInfo.collateralInfo.netDeposits, exchange.price, exchange.haircut),
-                marginBalance: getExchangedQuantity(marginInfo.collateralInfo.marginBalance, exchange.price, exchange.haircut),
-                realBalance: getExchangedQuantity(marginInfo.collateralInfo.realBalance, exchange.price, exchange.haircut)
+                netDeposits: getExchangedQuantity(marginInfo.collateralInfo.netDeposits, exchange.price, exchange.priceHaircut),
+                marginBalance: getExchangedQuantity(marginInfo.collateralInfo.marginBalance, exchange.price, exchange.priceHaircut),
+                realBalance: getExchangedQuantity(marginInfo.collateralInfo.realBalance, exchange.price, exchange.priceHaircut)
             }),
-            initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
-            maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.haircut),
-            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut),
-            dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.haircut),
-            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.haircut)
+            initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.priceHaircut),
+            maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.priceHaircut),
+            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.priceHaircut),
+            dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
+            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut)
         });
     }
 
@@ -105,7 +109,7 @@ library AccountExposure {
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
-            UD60x18 haircut = collateral.parentConfig.exchangeHaircut;
+            UD60x18 haircut = collateral.parentConfig.priceHaircut;
 
             marginInfo = Account.MarginInfo({
                 collateralType: marginInfo.collateralType,
