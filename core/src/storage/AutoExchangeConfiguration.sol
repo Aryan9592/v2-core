@@ -31,6 +31,14 @@ library AutoExchangeConfiguration {
          * value in USD terms
          */
         UD60x18 negativeCollateralBalancesMultiplier;
+
+
+        /**
+         * Buffer Value by which the max amount of quote that can be auto-exchanged is multiplied (e.g. 1.01) implies a
+         * 1% buffer
+         */
+        UD60x18 quoteBufferMultiplier;
+
     }
 
     /**
@@ -52,6 +60,7 @@ library AutoExchangeConfiguration {
         Data storage storedConfig = load();
         storedConfig.totalAutoExchangeThresholdInUSD = config.totalAutoExchangeThresholdInUSD;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
+        storedConfig.quoteBufferMultiplier = config.quoteBufferMultiplier;
 
         emit AutoExchangeConfigurationUpdated(storedConfig, block.timestamp);
     }

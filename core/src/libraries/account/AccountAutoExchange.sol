@@ -20,18 +20,8 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 /*
 TODOs
     - consider splitting isEligibleForAutoExchange into smaller helpers
-    - make sure the parent of the collateral type in eligibility check is dollar -> means it's a centroid of a
-    bubble? -> in any case for yield-bearing assets this condition should not in theory be breached
-    - consider introducing a separate getCollateralInfoByCollateralType to avoid extra gas cost for eligibility calc
-    where that's not necessary
-    - get rid of auto-exchange ratio to keep complexity lower
-    - consider ways to avoid nested if blocks
     - bring auto-exchange discounts
     - check token decimals in max amount calc!
-    - consider splitting getMaxAmountToExchangeQuote into smaller helpers similar to aave v3
-    ref: https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/logic/LiquidationLogic.sol
-    - getExchangeInfo shouldn't use haircuts...
-    - check if division by ae discount works
 */
 
 
@@ -97,7 +87,6 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            // todo: rename deltas to smth more meaningful
             Account.MarginInfo memory deltas =
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],
