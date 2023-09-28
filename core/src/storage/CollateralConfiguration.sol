@@ -19,7 +19,7 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, ZERO, UNIT } from "@prb/math/UD60x18.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 library CollateralConfiguration {
@@ -133,7 +133,12 @@ library CollateralConfiguration {
          * @dev Collateral haircut factor (in wad) used in margin requirement calculations 
          * when determining the collateral value wrt the parent token.
          */
-        UD60x18 exchangeHaircut;
+        UD60x18 priceHaircut;
+
+        /**
+         * @dev Auto-exchange discount (in wad)
+         */
+        UD60x18 autoExchangeDiscount;
 
         /**
          * @dev The oracle manager node id which reports the current price of this collateral in its parent colalteral.
@@ -152,7 +157,8 @@ library CollateralConfiguration {
 
     struct ExchangeInfo {
         UD60x18 price;
-        UD60x18 haircut;
+        UD60x18 priceHaircut;
+        UD60x18 autoExchangeDiscount;
     }
 
     /**
@@ -286,6 +292,10 @@ library CollateralConfiguration {
         revert UnlinkedTokens(collateralPoolId, tokenA, tokenB);
     }
 
+    function combineDiscounts(UD60x18 a, UD60x18 b) private pure returns (UD60x18) {
+        return UNIT.sub((UNIT.sub(a)).mul(UNIT.sub(b)));
+    }
+
     function computeExchangeUpwards(uint128 collateralPoolId, address node, address ancestor) 
         private
         view 
@@ -293,7 +303,8 @@ library CollateralConfiguration {
     {
         address current = node;
         exchange.price = UNIT;
-        exchange.haircut = UNIT;
+        exchange.priceHaircut = ZERO;
+        exchange.autoExchangeDiscount = ZERO;
     
         while (true) {
             if (current == ancestor) {
@@ -306,7 +317,10 @@ library CollateralConfiguration {
                 revert UnlinkedTokens(collateralPoolId, node, ancestor);
             }
 
-            exchange.haircut = exchange.haircut.mul(currentConfig.parentConfig.exchangeHaircut);
+            exchange.priceHaircut = combineDiscounts(exchange.priceHaircut, currentConfig.parentConfig.priceHaircut);
+            exchange.autoExchangeDiscount = 
+                combineDiscounts(exchange.autoExchangeDiscount, currentConfig.parentConfig.autoExchangeDiscount);
+            
             exchange.price = exchange.price.mul(getParentPrice(currentConfig));
 
             current = currentConfig.parentConfig.tokenAddress;
@@ -335,7 +349,8 @@ library CollateralConfiguration {
 
         return ExchangeInfo({
             price: exchangeA.price.div(exchangeB.price),
-            haircut: exchangeA.haircut.mul(exchangeB.haircut)
+            priceHaircut: combineDiscounts(exchangeA.priceHaircut, exchangeB.priceHaircut),
+            autoExchangeDiscount: combineDiscounts(exchangeA.autoExchangeDiscount, exchangeB.autoExchangeDiscount)
         });
     }
 
