@@ -10,7 +10,8 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "../../src/interfaces/external/IAaveV3LendingPool.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
-import { UD60x18, ud, unwrap } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud, unwrap, UNIT, ud60x18 } from "@prb/math/UD60x18.sol";
+import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 /// @notice This Mock Aave pool can be used in 3 ways
 /// - change the rate to a fixed value (`setReserveNormalizedIncome`)
@@ -60,5 +61,17 @@ contract MockAaveLendingPool is IAaveV3LendingPool {
 
     function setFactorPerSecond(IERC20 _underlyingAsset, UD60x18 _factorPerSecond) public {
         factorPerSecond[address(_underlyingAsset)] = _factorPerSecond;
+    }
+
+    /// @dev This should be called after the time has elapsed
+    /// @param apyWad Value of the APY we want to set (e.g. 4e16 for 4% apy)
+    /// @param lastUpdateTimestamp Last time the mock pool's index was updated
+    function refreshAaveApy(IERC20 _underlyingAsset, uint256 apyWad, uint32 lastUpdateTimestamp) public {
+      UD60x18 lastIndex = reserveNormalizedIncome[address(_underlyingAsset)];
+      UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(lastUpdateTimestamp, Time.blockTimestampTruncated());
+      setReserveNormalizedIncome(
+          _underlyingAsset,
+          lastIndex.mul(timeDeltaAnnualized.mul(ud60x18(apyWad)).add(UNIT))
+      );
     }
 }

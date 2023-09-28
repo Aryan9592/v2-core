@@ -66,6 +66,32 @@ abstract contract Actions is Test {
         return (executedBaseAmount, executedQuoteAmount, annualizedNotional);
     }
 
+    function executeDatedIrsTakerOrder_noPriceLimit(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId,
+        int256 baseAmount
+    ) internal returns (int256, int256, int256) {
+        vm.startPrank(getCoreProxyAddress());
+
+        bytes memory inputs = abi.encode(
+            maturityTimestamp,
+            baseAmount, 
+            0
+        );
+        (bytes memory output, int256 annualizedNotional) = 
+            getDatedIrsProxy().executeTakerOrder(accountId, marketId, inputs);
+
+        (
+            int256 executedBaseAmount,
+            int256 executedQuoteAmount
+        ) = abi.decode(output, (int256, int256));
+
+        vm.stopPrank();
+
+        return (executedBaseAmount, executedQuoteAmount, annualizedNotional);
+    }
+
     function executeDatedIrsTakerOrder(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -75,14 +101,32 @@ abstract contract Actions is Test {
         if (baseAmount > 0){
             executeDatedIrsTakerOrder(
                 marketId, maturityTimestamp, accountId, baseAmount,
-                TickMath.DEFAULT_MIN_TICK
+                TickMath.DEFAULT_MAX_TICK  - 1
             );
         } else {
             executeDatedIrsTakerOrder(
                 marketId, maturityTimestamp, accountId, baseAmount,
-                TickMath.DEFAULT_MAX_TICK
+                TickMath.DEFAULT_MIN_TICK + 1
             );
         }
+    }
+
+    function settle(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    ) internal returns (int256) {
+        vm.startPrank(getCoreProxyAddress());
+
+        bytes memory inputs = abi.encode(
+            maturityTimestamp
+        );
+        (, int256 settlementCashflowInQuote) = 
+            getDatedIrsProxy().completeOrder(accountId, marketId, inputs);
+
+        vm.stopPrank();
+
+        return settlementCashflowInQuote;
     }
 
     function getDatedIrsProxy() internal virtual returns(DatedIrsProxy);
