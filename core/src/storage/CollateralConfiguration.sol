@@ -95,7 +95,6 @@ library CollateralConfiguration {
          */
         uint256 autoExchangeThreshold;
 
-        // todo: quote or collateral token?
         /**
          * @dev Percentage of quote tokens paid to the insurance fund
          * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)

@@ -20,12 +20,6 @@ library AutoExchangeConfiguration {
 
     struct Data {
         /**
-         * @dev Auto-exchange occurs when an account has a negative balance for one collateral asset in USD terms
-         * is below the singleAutoExchangeThresholdInUSD (e.g. 5,000 USD)
-         */
-        uint256 singleAutoExchangeThresholdInUSD;
-
-        /**
          * @dev Auto-exchange can also occur when the sum of all negative balances for an account in USD terms is
          * below the totalAutoExchangeThresholdInUSD (e.g. 10,000 USD)
          */
@@ -56,7 +50,6 @@ library AutoExchangeConfiguration {
      */
     function set(Data memory config) internal {
         Data storage storedConfig = load();
-        storedConfig.singleAutoExchangeThresholdInUSD = config.singleAutoExchangeThresholdInUSD;
         storedConfig.totalAutoExchangeThresholdInUSD = config.totalAutoExchangeThresholdInUSD;
         storedConfig.negativeCollateralBalancesMultiplier = config.negativeCollateralBalancesMultiplier;
 

@@ -82,7 +82,11 @@ library AccountAutoExchange {
             int256 marginBalanceOfCollateralInUSD =
                 mulUDxInt(price, marginInfo.collateralInfo.marginBalance);
 
-            if ((-marginBalanceOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
+            if ((-marginInfo.collateralInfo.marginBalance).toUint() >
+                CollateralConfiguration.load(
+                collateralPoolId,
+                collateralType
+            ).baseConfig.autoExchangeThreshold) {
                 return true;
             }
 
