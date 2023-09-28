@@ -52,11 +52,12 @@ contract ExecutionModule {
     // core permission required when interacting with the market manager
     uint256 constant V2_CORE_GRANT_PERMISSION_TO_CORE = 0x06;
     uint256 constant V2_CORE_REVOKE_PERMISSION_FROM_CORE = 0x07;
+    uint256 constant V2_CORE_BACKSTOP_LP_ANNOUNCE_WITHDRAW = 0x08;
     // marker manager commands
-    uint256 constant V2_MARKET_MANAGER_TAKER_ORDER = 0x08;
-    uint256 constant V2_MARKET_MANAGER_MAKER_ORDER = 0x09;
-    uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0x0a;
-    uint256 constant V2_MATCHED_ORDER = 0x0b;
+    uint256 constant V2_MARKET_MANAGER_TAKER_ORDER = 0x09;
+    uint256 constant V2_MARKET_MANAGER_MAKER_ORDER = 0x0a;
+    uint256 constant V2_MARKET_MANAGER_COMPLETE_POSITION = 0x0b;
+    uint256 constant V2_MATCHED_ORDER = 0x0c;
 
     struct Command {
         /**
@@ -157,6 +158,8 @@ contract ExecutionModule {
             Account.exists(accountId).grantPermission(Account.ADMIN_PERMISSION, address(this));
         } else if (command == V2_CORE_REVOKE_PERMISSION_FROM_CORE) {
             Account.exists(accountId).revokePermission(Account.ADMIN_PERMISSION, address(this));
+        } else if (command == V2_CORE_BACKSTOP_LP_ANNOUNCE_WITHDRAW) {
+            EditCollateral.announceBackstopLpWithdraw(accountId);
         } else {
             revert InvalidCommandType(command);
         }
