@@ -41,6 +41,7 @@ library PropagateADLOrder {
         uint32 maturityTimestamp,
         bool isLong
     ) internal {
+        // todo: this suffers from double propagations, we need to guard it
 
         Market.Data storage market = Market.exists(marketId);
         address poolAddress = market.marketConfig.poolAddress;
@@ -54,10 +55,12 @@ library PropagateADLOrder {
 
         int256 accountBaseFilled = accountPoolState.baseBalance + accountPoolState.baseBalancePool;
 
+        // todo: why do we need to pass isLong if we can infer it from the sign of accountBaseFilled?
         if ( (isLong && accountBaseFilled > 0) || (!isLong && accountBaseFilled < 0)) {
             revert WrongADLPropagationDirection();
         }
 
+        // todo: please highlight that these two portfolios are special (by using constants and also blocking their creation)
         Portfolio.Data storage adlPortfolio = isLong ? Portfolio.exists(type(uint128).max - 1, market.id)
             : Portfolio.exists(type(uint128).max - 2, market.id);
 
