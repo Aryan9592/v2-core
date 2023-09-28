@@ -358,6 +358,7 @@ library AccountLiquidation {
             liquidationPenalty
         );
 
+        // todo: check whether we should use net deposits or free collateral (ie initialDelta)
         int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).netDeposits;
 
         uint256 backstopLPReward = 0;
