@@ -227,7 +227,6 @@ library AccountAutoExchange {
     ) {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
-        uint128 collateralPoolId = collateralPool.id;
 
         uint256 quoteToCover = calculateQuoteToCover(self, collateralPool, quoteToken, amountToAutoExchangeQuote);
 
@@ -236,7 +235,7 @@ library AccountAutoExchange {
         }
 
         CollateralConfiguration.ExchangeInfo memory quoteToCollateralExchangeInfo = CollateralConfiguration.getExchangeInfo(
-            collateralPoolId,
+            collateralPool.id,
             quoteToken,
             collateralToken
         );
@@ -246,9 +245,7 @@ library AccountAutoExchange {
         UD60x18 priceQuoteToCollateral = quoteToCollateralExchangeInfo.price;
 
         // This is the base collateral to liquidate based on the given quote to cover
-        uint256 baseCollateral = mulUDxUint(priceQuoteToCollateral, quoteToCover);
-
-        uint256 collateralToLiquidate = mulUDxUint(autoExchangeBonus, baseCollateral);
+        uint256 collateralToLiquidate = mulUDxUint(autoExchangeBonus, mulUDxUint(priceQuoteToCollateral, quoteToCover));
 
         uint256 availableCollateral = calculateAvailableCollateral(self, collateralPool, collateralToken);
 
@@ -256,7 +253,7 @@ library AccountAutoExchange {
 
             collateralToLiquidate = availableCollateral;
             UD60x18 priceCollateralToQuote = CollateralConfiguration.getExchangeInfo(
-                collateralPoolId,
+                collateralPool.id,
                 collateralToken,
                 quoteToken
             ).price;
@@ -264,7 +261,7 @@ library AccountAutoExchange {
         }
 
         UD60x18 autoExchangeInsuranceFee = CollateralConfiguration.load(
-            collateralPoolId,
+            collateralPool.id,
             quoteToken
         ).baseConfig.autoExchangeInsuranceFee;
 
