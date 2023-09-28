@@ -176,7 +176,6 @@ library CollateralPool {
     }
 
     struct BackstopLPConfig {
-
         /**
          * @dev Backstop LP Account Id
          */
@@ -187,8 +186,22 @@ library CollateralPool {
          */
         UD60x18 liquidationFee;
 
-        // todo: do we want to allocate a share of auto-exchange rewards to backstop lp as well?
+        /**
+         * Lower bound threshold enforced on the total net deposits of the backstop lp
+         * (in USD) in order to earn backstop rewards.
+         */
+        uint256 minNetDepositThresholdInUSD;
 
+        /**
+         * Duration in seconds of the period between withdrawal announcement
+         * and the start of the withdrawal period (for backstop lp).
+         */
+        uint256 withdrawCooldownDurationInSeconds;
+
+        /**
+         * @notice Duration in seconds of the withdrawal period for the backstop lp
+         */
+        uint256 withdrawDurationInSeconds; 
     }
 
     struct Data {
