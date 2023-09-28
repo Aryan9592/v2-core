@@ -13,7 +13,6 @@ import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCas
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 /*
 TODOs
-    - consider introducing min amount of collateral to get in return (works similar to a limit price)
     - make sure re-entrancy is not possible with collateral transfers
 */
 
