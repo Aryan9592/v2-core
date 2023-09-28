@@ -29,6 +29,8 @@ library AutoExchange {
 
     error AccountNotEligibleForAutoExchange(uint128 accountId, address quoteType);
 
+    error CollateralAutoExchangeBreached(uint128 accountId, address collateralType);
+
     error ExceedsAutoExchangeLimit(uint256 maxAmountQuote, address quoteType);
 
     function triggerAutoExchange(
@@ -84,6 +86,12 @@ library AutoExchange {
             collateralType,
             collateralAmountToLiquidator.toInt()
         );
+
+        if (account.isEligibleForAutoExchange(collateralType)) {
+            revert AccountNotEligibleForAutoExchange(accountId, collateralType);
+        }
+
+        liquidatorAccount.imCheck(address(0));
 
     }
 }
