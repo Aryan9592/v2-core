@@ -64,14 +64,14 @@ library AccountExposure {
         // doesn't seem to be present here, is that intentional?
         return Account.MarginInfo({
             collateralType: token,
-            netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.haircut),
-            marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.haircut),
-            realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.haircut),
-            initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.haircut),
-            maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.haircut),
-            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.haircut),
-            dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.haircut),
-            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.haircut)
+            netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.priceHaircut),
+            marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.priceHaircut),
+            realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.priceHaircut),
+            initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.priceHaircut),
+            maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.priceHaircut),
+            liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.priceHaircut),
+            dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
+            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut)
         });
     }
 
@@ -107,7 +107,7 @@ library AccountExposure {
 
             CollateralConfiguration.Data storage collateral = CollateralConfiguration.exists(collateralPoolId, tokens[i]);
             UD60x18 price = collateral.getParentPrice();
-            UD60x18 haircut = collateral.parentConfig.exchangeHaircut;
+            UD60x18 haircut = collateral.parentConfig.priceHaircut;
 
             marginInfo = Account.MarginInfo({
                 collateralType: marginInfo.collateralType,
