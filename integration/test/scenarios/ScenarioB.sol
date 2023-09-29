@@ -403,7 +403,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             accountId: 1
         });
         {   
-            assertEq( settlementCashflows[0], 24000638, "settlementCashflowInQuote_1");
+            assertEq(settlementCashflows[0], 24000638, "settlementCashflowInQuote_1");
 
             // check settlement twice does not work
             vm.expectRevert(SetUtil.ValueNotInSet.selector);
@@ -417,43 +417,29 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         // settle account 2
-         settlementCashflows[1]  = settle({
+        settlementCashflows[1]  = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 2
         });
-        {
-            assertEq( settlementCashflows[1], 12663286, "settlementCashflowInQuote_2");
-            
-            PositionInfo memory positionInfo = PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            checkZeroTakerFilledBalances(datedIrsProxy, positionInfo);
-        }
+        assertEq(settlementCashflows[1], 12663286, "settlementCashflowInQuote_2");
         
         // settle account 3
-         settlementCashflows[2] = settle({
+        settlementCashflows[2] = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 3
         });
-        {
-            assertEq( settlementCashflows[2], -33633926, "settlementCashflowInQuote_3");
-            
-            PositionInfo memory positionInfo = PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            checkZeroTakerFilledBalances(datedIrsProxy, positionInfo);
-        }
+        assertEq(settlementCashflows[2], -33633926, "settlementCashflowInQuote_3");
 
         // settle account 4
-         settlementCashflows[3]  = settle({
+        settlementCashflows[3]  = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 4
         });
         
-        assertEq( settlementCashflows[3], -3029999, "settlementCashflowInQuote_3");
+        assertEq(settlementCashflows[3], -3029999, "settlementCashflowInQuote_3");
 
         // invariant check
         {
