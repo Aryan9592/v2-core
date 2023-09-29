@@ -12,6 +12,7 @@ import "../../storage/Account.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
 /**
  * @title Library for depositing and withdrawing logic.
@@ -20,6 +21,43 @@ library EditCollateral {
     using Account for Account.Data;
     using ERC20Helper for address;
     using SafeCastU256 for uint256;
+    using Timer for Timer.Data;
+
+    /**
+     * Thrown when backstop lp is attempting to withdraw, but
+     * the withdraw period is not active.
+     * @param backstopLpAccountId The account id of the backstop lp
+     * @param blockTimestamp The current block's timestamp
+     */
+    error BackstopLpWithdrawPeriodInactive(uint128 backstopLpAccountId, uint256 blockTimestamp);
+
+    /**
+     * Thrown when a withdrawal for backstop lp is announced for
+     * a different account.
+     * @param accountId The account id for which the withdrawal was announced
+     * @param backstopLpAccountId The account id of the backstop lp
+     * @param blockTimestamp The current block's timestamp
+     */
+    error AccountIsNotBackstopLp(uint128 accountId, uint128 backstopLpAccountId, uint256 blockTimestamp);
+
+    /**
+     * Thrown when backstop lp withdraw cooldown period is already active
+     * @param backstopLpAccountId The account id of the backstop lp
+     * @param withdrawPeriodStartTimestamp The start timestamp of the withdraw period
+     * @param blockTimestamp The current block's timestamp
+     */
+    error BackstopLpCooldownPeriodAlreadyActive(
+        uint256 backstopLpAccountId, 
+        uint256 withdrawPeriodStartTimestamp,
+        uint256 blockTimestamp
+    );
+     
+    /**
+     * Thrown when backstop lp withdraw period is already active
+     * @param backstopLpAccountId The account id of the backstop lp
+     * @param blockTimestamp The current block's timestamp
+     */
+    error BackstopLpWithdrawPeriodAlreadyActive(uint256 backstopLpAccountId, uint256 blockTimestamp);
 
     /**
      * @notice Emitted when `tokenAmount` of collateral of type `collateralType` is deposited to account `accountId` by `sender`.
@@ -105,11 +143,60 @@ library EditCollateral {
      */
     function withdraw(uint128 accountId, address collateralType, uint256 tokenAmount) internal {
         Account.Data storage account = Account.exists(accountId);
+        
+        /// Check if account if backstop lp. If it is, make sure that 
+        /// withdraw period is active.
+        CollateralPool.Data storage collateralPool = account.getCollateralPool();
+        uint128 backstopLpAccountId = collateralPool.backstopLPConfig.accountId;
+        if (backstopLpAccountId == accountId) {
+            if (!Timer.loadOrCreate(backstopLpTimerId(backstopLpAccountId)).isActive()) {
+                revert BackstopLpWithdrawPeriodInactive(backstopLpAccountId, block.timestamp);
+            }
+        }
 
         account.updateNetCollateralDeposits(collateralType, -tokenAmount.toInt());
 
         collateralType.safeTransfer(msg.sender, tokenAmount);
 
         emit Withdrawn(accountId, collateralType, tokenAmount, msg.sender, block.timestamp);
+    }
+
+    /**
+     * @notice Backstop lp announces intention of withdrawal.
+     */
+    function announceBackstopLpWithdraw(uint128 accountId) internal {
+        Account.Data storage account = Account.exists(accountId);
+
+        CollateralPool.Data storage collateralPool = account.getCollateralPool();
+        uint128 backstopLpAccountId = collateralPool.backstopLPConfig.accountId;
+
+        if (backstopLpAccountId != accountId) {
+            revert AccountIsNotBackstopLp(accountId, backstopLpAccountId, block.timestamp);
+        }
+
+        Timer.Data storage backstopLpWithdrawTimer = Timer.loadOrCreate(backstopLpTimerId(backstopLpAccountId));
+        if (block.timestamp < backstopLpWithdrawTimer.startTimestamp) {
+            revert BackstopLpCooldownPeriodAlreadyActive(
+                backstopLpAccountId, 
+                backstopLpWithdrawTimer.startTimestamp, 
+                block.timestamp
+            );
+        }
+        if (backstopLpWithdrawTimer.isActive()) {
+            revert BackstopLpWithdrawPeriodAlreadyActive(backstopLpAccountId, block.timestamp);
+        }
+
+        backstopLpWithdrawTimer.schedule(
+            block.timestamp + collateralPool.backstopLPConfig.withdrawCooldownDurationInSeconds,
+            collateralPool.backstopLPConfig.withdrawDurationInSeconds
+        );
+    }
+
+    /**
+     * @notice Computes the timer id used to track the withdrawal
+     * period of the backstop lp
+     */
+    function backstopLpTimerId(uint128 accountId) internal pure returns(bytes32) {
+        return keccak256(abi.encode("backstopLpWithdrawTimer", accountId));
     }
 }

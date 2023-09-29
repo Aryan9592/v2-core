@@ -127,7 +127,7 @@ library ExecuteLiquidationOrder {
 
         int256 baseAmountToBeLiquidated = params.baseAmountToBeLiquidated;
 
-        if (maxBaseAmountLiquidatable.abs() > params.baseAmountToBeLiquidated.abs()) {
+        if (maxBaseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
             baseAmountToBeLiquidated = -maxBaseAmountLiquidatable;
         }
 
