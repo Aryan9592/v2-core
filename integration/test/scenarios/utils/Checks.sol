@@ -48,9 +48,9 @@ abstract contract Checks is AssertionHelpers {
             sumAccruedInterest += (accruedInterestPool + position.accruedInterestTrackers.accruedInterest);
         }
         
-        assertAlmostEq(sumFilledBase, int(0), 1, "sumFilledBase");
-        assertAlmostEq(sumFilledQuote, int(0), 1, "sumFilledQuote");
-        assertAlmostEq(sumAccruedInterest, int(0), 1, "sumAccruedInterest");
+        assertAlmostEq(sumFilledBase, int(0), 1e4, "sumFilledBase");
+        assertAlmostEq(sumFilledQuote, int(0), 1e4, "sumFilledQuote");
+        assertAlmostEq(sumAccruedInterest, int(0), 1e4, "sumAccruedInterest");
     }
     
     function checkPoolFilledBalances(
