@@ -94,7 +94,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             Market.MarketConfiguration({
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
-                markPriceBand: ud60x18(0.01e18), // 0.1%
+                markPriceBand: ud60x18(0.01e18), // 1%
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,

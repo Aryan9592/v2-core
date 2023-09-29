@@ -91,6 +91,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     // todo: rm after reimplemenation of exposures (used for testing)
+    // todo: remember to propagate (updatePosition) when implementing exposures
     function getTakerPositionInfo(
         uint128 accountId,
         uint128 marketId,

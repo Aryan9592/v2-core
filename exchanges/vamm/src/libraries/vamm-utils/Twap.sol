@@ -59,6 +59,7 @@ library Twap {
         if (orderSizeWad > 0) {
             geometricMeanPrice = geometricMeanPrice.mul(UNIT.add(priceImpactAsFraction)).add(spreadImpactDelta);
         } else {
+            // todo: consider reverting instead of returning price 0
             if (spreadImpactDelta.gte(geometricMeanPrice)) {
                 // The spread is higher than the price
                 return ZERO;
