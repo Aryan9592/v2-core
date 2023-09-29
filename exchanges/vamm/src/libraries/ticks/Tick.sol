@@ -244,14 +244,6 @@ library Tick {
         MTMAccruedInterest.MTMObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
 
-        info.trackerQuoteTokenGrowthOutsideX128 =
-            quoteTokenGrowthGlobalX128 -
-            info.trackerQuoteTokenGrowthOutsideX128;
-
-        info.trackerBaseTokenGrowthOutsideX128 =
-            baseTokenGrowthGlobalX128 -
-            info.trackerBaseTokenGrowthOutsideX128;
-
         info.trackerAccruedInterestGrowthOutsideX128 = 
             MTMAccruedInterest.getMTMAccruedInterestTrackers(
                 info.trackerAccruedInterestGrowthOutsideX128,
@@ -259,6 +251,14 @@ library Tick {
                 info.trackerBaseTokenGrowthOutsideX128,
                 info.trackerQuoteTokenGrowthOutsideX128
             );
+
+        info.trackerQuoteTokenGrowthOutsideX128 =
+            quoteTokenGrowthGlobalX128 -
+            info.trackerQuoteTokenGrowthOutsideX128;
+
+        info.trackerBaseTokenGrowthOutsideX128 =
+            baseTokenGrowthGlobalX128 -
+            info.trackerBaseTokenGrowthOutsideX128;
 
         info.trackerAccruedInterestGrowthOutsideX128.accruedInterest = 
             accruedInterestGrowthGlobalX128 -

@@ -313,12 +313,10 @@ library Portfolio {
         /// @dev reverts if not active
         self.deactivateMarketMaturity(maturityTimestamp);
 
-        (int256 marketBase, int256 marketQuote) = (position.baseBalance, position.quoteBalance);
-
         /// @dev update position's accrued interest
         position.update(
-            -marketBase,
-            -marketQuote,
+            0,
+            0,
             marketId,
             maturityTimestamp
         );
@@ -334,8 +332,8 @@ library Portfolio {
             self.accountId, 
             marketId, 
             maturityTimestamp, 
-            -marketBase, 
-            -marketQuote, 
+            0, 
+            0, 
             block.timestamp
         );
     }

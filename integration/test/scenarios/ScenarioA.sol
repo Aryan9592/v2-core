@@ -344,7 +344,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         vm.warp(block.timestamp + 2);
 
-        // console2.log("settle account 1");
         // settle account 1
         (int256 settlementCashflowInQuote_1) = settle({
             marketId: marketId,
@@ -366,37 +365,23 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             assertEq(1020000000634195839, unwrap(datedIrsProxy.getRateIndexMaturity(marketId, maturityTimestamp)));
         }
 
-        // console2.log("settle account 2");
         // settle account 2
         (int256 settlementCashflowInQuote_2) = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 2
         });
-        {
-            assertEq(settlementCashflowInQuote_2, 14175197, "settlementCashflowInQuote_2");
             
-            PositionInfo memory positionInfo = PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            checkZeroTakerFilledBalances(datedIrsProxy, positionInfo);
-        }
-        
-        // console2.log("settle account 3");
+        assertEq(settlementCashflowInQuote_2, 14175197, "settlementCashflowInQuote_2");
+            
         // settle account 3
         (int256 settlementCashflowInQuote_3) = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 3
         });
-        {
-            assertEq(settlementCashflowInQuote_3, -30604528, "settlementCashflowInQuote_3");
-            
-            PositionInfo memory positionInfo = PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            checkZeroTakerFilledBalances(datedIrsProxy, positionInfo);
-        }
+
+        assertEq(settlementCashflowInQuote_3, -30604528, "settlementCashflowInQuote_3");
 
         // invariant check
         {
@@ -408,5 +393,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             );
         }
 
+        invariantCheck();
     }
 }
