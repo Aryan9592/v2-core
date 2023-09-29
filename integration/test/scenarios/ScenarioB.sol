@@ -220,8 +220,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // executed amounts checks
             {
                 assertEq(executedBase, -1_000 * 1e6, "executedBase1");
-                // executedQuote = 1 + avgPrice[0.04788] * -executedBase * liquidityindex
-                // = 0.04788 * 1000000000 * 1.01
+                // executedQuote = avgPrice * -executedBase * liquidityindex
                 assertAlmostEq(executedQuote, int256(45301730), 1e6, "executedQuote1"); // 0.1% error
                 // annualizedNotional = executedBase * liquidityindex * %timeTillMaturity
                 // = 1000000000 * 1.01 * 0.5
@@ -241,7 +240,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         // console2.log("TICK", currentTick);
-        // current tick -15210 // 4.5764%
+        // current tick -15225 // 4.58%
 
         // long VT
         int256 executedBase2; int256 executedQuote2;
@@ -260,8 +259,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // executed amounts checks
             {
                 assertEq(executedBase, 2_000 * 1e6, "executedBase2");
-                // executedQuote = 1 + avgPrice[0.04788] * -executedBase * liquidityindex
-                // = 0.04788 * 1000000000 * 1.01
+                // executedQuote = avgPrice * -executedBase * liquidityindex
                 assertAlmostEq(executedQuote, int256(-107100205), 1e6, "executedQuote2"); // 0.1% error
                 // annualizedNotional = executedBase * liquidityindex * %timeTillMaturity
                 // = 2000000000 * 1.01 * 0.5
@@ -271,7 +269,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         // console2.log("TICK", currentTick);
-        // current tick -15210 // 4.5764%
+        // current tick -17008 // 5.476%
 
         // long VT - account 4
         int256 executedBase4; int256 executedQuote4;
@@ -290,9 +288,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // executed amounts checks
             {
                 assertEq(executedBase, 1_000 * 1e6, "executedBase3");
-                // executedQuote = 1 + avgPrice[0.04788] * -executedBase * liquidityindex
-                // = 0.04788 * 1000000000 * 1.01
-                assertAlmostEq(executedQuote, int256(-61019748), 1e6, "executedQuote3"); // 0.1% error
+                // executedQuote = avgPrice * -executedBase * liquidityindex
+                assertAlmostEq(executedQuote, int256(-61019748), 1e6, "executedQuote3");
                 // annualizedNotional = executedBase * liquidityindex * %timeTillMaturity
                 // = 1000000000 * 1.01 * 0.5
                 assertEq(annualizedNotional, 505000000, "annualizedNotional3"); // todo: complete
@@ -301,9 +298,9 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             }
         }
 
-        // currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
-        // console2.log("TICK", currentTick);
-        // current tick -15210 // 4.5764%
+        currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+        console2.log("TICK", currentTick);
+        // current tick -17963 // 6.02%
 
         // short FT - account 4
         int256 executedBase3; int256 executedQuote3;
@@ -322,25 +319,30 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // executed amounts checks
             {
                 assertEq(executedBase, -1_000 * 1e6, "executedBase4");
-                // executedQuote = 1 + avgPrice[0.04788] * -executedBase * liquidityindex
-                // = 0.04788 * 1000000000 * 1.01
+                // executedQuote = avgPrice * -executedBase * liquidityindex
                 assertAlmostEq(executedQuote, int256(54998289), 1e6, "executedQuote4"); // 0.1% error
                 // annualizedNotional = executedBase * liquidityindex * %timeTillMaturity
                 // = 1000000000 * 1.01 * 0.5
                 assertEq(annualizedNotional, -505000000, "annualizedNotional4");
+
+
+                // quoteTokens = 2 * base * li * spread = 0.003 * 1000 * 1.01 * 2 = 6.06
+                checkTakerFilledBalances(
+                    datedIrsProxy,
+                    PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                    0,
+                    -6060000,
+                    0
+                );
             }
             
         }
 
         // currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         // console2.log("TICK", currentTick);
-        // current tick -15210 // 4.5764%
+        // current tick -17008 // 5.476%
 
         invariantCheck();
-
-        // currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
-        // console2.log("TICK", currentTick);
-        // current tick -16991 // 5.4685%
 
         // 3/4 of time till maturity
         vm.warp(block.timestamp + 86400 * 365 / 4);
@@ -495,7 +497,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             accountId: 4
         });
         {
-            assertEq(settlementCashflowInQuote_3, -33634528, "settlementCashflowInQuote_3");
+            assertEq(settlementCashflowInQuote_4, -3029999, "settlementCashflowInQuote_3");
             
             PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp});
             checkZeroUnfilledBalances(address(vammProxy), positionInfo);
