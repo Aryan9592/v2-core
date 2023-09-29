@@ -48,6 +48,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
     function getVammProxy() internal view override returns (VammProxy) {
         return vammProxy;
     }
+
     function twapLookbackWindow(uint128 marketId, uint32 maturityTimestamp) internal pure override returns(uint32) {
         return 7 * 86400;
     }
@@ -86,6 +87,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
             quoteToken: address(mockToken),
             marketType: "compounding"
         });
+
         datedIrsProxy.setMarketConfiguration(
             marketId,
             Market.MarketConfiguration({
@@ -98,6 +100,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 openInterestUpperLimit: 1e27 // 1B
             })
         );
+
         datedIrsProxy.setRateOracleConfiguration(
             marketId,
             Market.RateOracleConfiguration({
@@ -142,14 +145,15 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
             config: immutableConfig,
             mutableConfig: mutableConfig
         });
+
         vammProxy.increaseObservationCardinalityNext(marketId, maturityTimestamp, 16);
 
         // FEATURE FLAGS
         datedIrsProxy.addToFeatureFlagAllowlist(
             keccak256(abi.encode(Constants._MARKET_ENABLED_FEATURE_FLAG, marketId)), mockCoreProxy
         );
-        vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
 
+        vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
 
         vm.stopPrank();
         
@@ -192,19 +196,18 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 1
         {   
+            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp});
+
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
-                positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                positionInfo: positionInfo,
                 expectedUnfilledBaseLong: 3523858284,
                 expectedUnfilledBaseShort: 6476141715,
                 expectedUnfilledQuoteLong: 208899359,
                 expectedUnfilledQuoteShort: 251499795
             });
-            checkZeroPoolFilledBalances(
-                address(vammProxy), 
-                PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp})
-            );
+
+            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
         }
 
         // check account 2
@@ -435,10 +438,14 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 4
         {
+            PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp});
+            
+            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
+            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+            
             checkTakerFilledBalances({
                 datedIrsProxy: datedIrsProxy,
-                positionInfo: 
-                    PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                positionInfo: positionInfo,
                 expectedBaseBalancePool: -18000000000, 
                 expectedQuoteBalancePool: 745587342,
                 expectedAccruedInterestPool: 96396835
@@ -447,10 +454,14 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 5
         {
+            PositionInfo memory positionInfo = PositionInfo({accountId: 5, marketId: marketId, maturityTimestamp: maturityTimestamp});
+            
+            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
+            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+
             checkTakerFilledBalances({
                 datedIrsProxy: datedIrsProxy,
-                positionInfo: 
-                    PositionInfo({accountId: 5, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                positionInfo: positionInfo,
                 expectedBaseBalancePool: 38000000000, 
                 expectedQuoteBalancePool: -2088697274,
                 expectedAccruedInterestPool: -332174318
@@ -465,71 +476,63 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         vm.warp(start + 86400 * 365);
 
+        int256[] memory settlementCashflows = new int256[](5);
+
         // settle account 1
-        {
-            (int256 settlementCashflowInQuote) = settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 1
-            });
-
-            assertEq(settlementCashflowInQuote, 140511187, "settlement cashflow");
-
-            vm.expectRevert(SetUtil.ValueNotInSet.selector);
-            settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 1
-            });
-            
-            // check maturity index was cached
-            assertEq(1020000000000000000, unwrap(datedIrsProxy.getRateIndexMaturity(marketId, maturityTimestamp)));
-        }
+        settlementCashflows[0] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 1
+        });
+        assertEq(settlementCashflows[0], 140511187, "settlement cashflow 1");
 
         // settle account 2
-        {
-            (int256 settlementCashflowInQuote) = settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 2
-            });
-
-            assertEq(settlementCashflowInQuote, 76750803, "settlement cashflow");
-        }
+        settlementCashflows[1] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 2
+        });
+        assertEq(settlementCashflows[1], 76750803, "settlement cashflow 2");
 
         // settle account 3
-        {
-            (int256 settlementCashflowInQuote) = settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 3
-            });
-
-            assertEq(settlementCashflowInQuote, 254292975, "settlement cashflow");
-        }
+        settlementCashflows[2] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 3
+        });
+        assertEq(settlementCashflows[2], 254292975, "settlement cashflow 3");
 
         // settle account 4
-        {
-            (int256 settlementCashflowInQuote) = settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 4
-            });
-
-            assertEq(settlementCashflowInQuote, 192793669, "settlement cashflow");
-        }
+        settlementCashflows[3] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 4
+        });
+        assertEq(settlementCashflows[3], 192793669, "settlement cashflow 4");
 
         // settle account 5
-        {
-            (int256 settlementCashflowInQuote) = settle({
-                marketId: marketId,
-                maturityTimestamp: maturityTimestamp,
-                accountId: 5
-            });
+        settlementCashflows[4] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 5
+        });
+        assertEq(settlementCashflows[4], -664348636, "settlement cashflow 5");
 
-            assertEq(settlementCashflowInQuote, -664348636, "settlement cashflow");
+        // invariant check
+        {
+            int256 netSettlementCashflow = 0;
+            for (uint256 i = 0; i < settlementCashflows.length; i++) {
+                netSettlementCashflow += settlementCashflows[i];
+            }
+
+            assertAlmostEq(
+                netSettlementCashflow,
+                int(0),
+                5,
+                "net settlement cashflow"
+            );
         }
-        
+
         invariantCheck();
     }
 }
