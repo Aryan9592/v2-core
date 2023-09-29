@@ -10,6 +10,12 @@ pragma solidity >=0.8.19;
 import {LiquidationBidPriorityQueue} from "../../libraries/LiquidationBidPriorityQueue.sol";
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
+/**
+ * @notice Hooks must implement this interface in order to
+ * allow liquidators to run custom code before and after the 
+ * liquidation execution. Liquidators must give ADMIN permissions
+ * to the hook address if the hook will deposit / withdraw funds.
+ */
 interface ILiquidationHook is IERC165 {
   /**
    * @notice Liquidator-owned hook called before a liquidation bid is executed. 
