@@ -14,8 +14,9 @@ import {CollateralPool} from "../../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
 
 /**
  * @title Object for managing account auto-echange utilities.
@@ -28,6 +29,41 @@ library AccountAutoExchange {
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
 
+    // todo: consider renaming
+    function isWithinBubbleCoverageExhausted(
+        Account.Data storage self,
+        address quoteType,
+        address collateralType
+    ) internal view returns (bool) {
+
+        bool childrenBalanceExhausted = true;
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        uint128 collateralPoolId = collateralPool.id;
+        address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteType).childTokens.values();
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+
+            if (collateralType == tokens[i]) {
+                return true;
+            }
+
+            uint256 autoExchangeDustThreshold = CollateralConfiguration.load(
+                collateralPoolId,
+                tokens[i]
+            ).baseConfig.autoExchangeDustThreshold;
+
+            int256 netDeposits = self.getAccountNetCollateralDeposits(tokens[i]);
+
+            if (netDeposits > autoExchangeDustThreshold.toInt()) {
+                childrenBalanceExhausted = false;
+            }
+
+        }
+
+        return childrenBalanceExhausted;
+    }
+
     function isEligibleForAutoExchange(
         Account.Data storage self,
         address collateralType
@@ -37,35 +73,43 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
 
-        // Single auto-exchange threshold check
+        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+
         {
             Account.MarginInfo memory marginInfo =
-                self.getMarginInfoByCollateralType(collateralType,
+                self.getMarginInfoByCollateralType(
+                    collateralType,
                     collateralPool.riskConfig.riskMultipliers
                 );
 
-            if (marginInfo.initialDelta > 0) {
+            // mismatched margin coverage check
+
+            if ( (overallMarginInfo.maintenanceDelta < 0) && (marginInfo.liquidationDelta < 0) ) {
+                return true;
+            }
+
+            // Single auto-exchange threshold check
+
+            if (marginInfo.collateralInfo.marginBalance > 0) {
                 return false;
             }
 
             UD60x18 price = 
                 CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0)).price;
 
-            // todo: check if we want to include the IM in the account value calculation below
+            int256 marginBalanceOfCollateralInUSD =
+                mulUDxInt(price, marginInfo.collateralInfo.marginBalance);
 
-            int256 accountValueOfCollateralInUSD = 
-                mulUDxInt(price, marginInfo.initialDelta);
-
-            if ((-accountValueOfCollateralInUSD).toUint() > autoExchangeConfig.singleAutoExchangeThresholdInUSD) {
+            if (
+                (-marginInfo.collateralInfo.marginBalance).toUint() >
+                CollateralConfiguration.load(
+                    collateralPoolId,
+                    collateralType
+                ).baseConfig.autoExchangeThreshold
+            ) {
                 return true;
             }
-        }
 
-        // Get total account value in USD
-        int256 totalAccountValueInUSD = 0;
-        {
-            Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
-            totalAccountValueInUSD = marginInfo.initialDelta;
         }
 
         // Get total negative account value in USD
@@ -73,18 +117,19 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            Account.MarginInfo memory deltas = 
+            Account.MarginInfo memory deltas =
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],
                     collateralPool.riskConfig.riskMultipliers
                 );
             
-            if (deltas.initialDelta < 0) {
+            if (deltas.collateralInfo.marginBalance < 0) {
+                // todo: layer in the haircut in here (via a helper?)
                 UD60x18 price = 
                     CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0)).price;
 
                 sumOfNegativeAccountValuesInUSD += 
-                    mulUDxUint(price, (-deltas.initialDelta).toUint());
+                    mulUDxUint(price, (-deltas.collateralInfo.marginBalance).toUint());
             }
         }
         
@@ -92,9 +137,9 @@ library AccountAutoExchange {
             return true;
         }
 
-        if (totalAccountValueInUSD < 0) {
-            // todo: decide on what to do when the account is liquidatable
-        }
+
+        // Get total account value in USD
+        int256 totalAccountValueInUSD = overallMarginInfo.collateralInfo.marginBalance;
 
         if (
             sumOfNegativeAccountValuesInUSD > 
@@ -106,52 +151,136 @@ library AccountAutoExchange {
         return false;
     }
 
-    function getMaxAmountToExchangeQuote(
+    function calculateQuoteToCover(
         Account.Data storage self,
-        address coveringToken,
-        address autoExchangedToken
-    ) internal view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
+        CollateralPool.Data storage collateralPool,
+        address quoteToken,
+        uint256 amountToAutoExchangeQuote
+    ) private view returns (uint256 amountToAutoExchange) {
 
-        CollateralPool.Data storage collateralPool = self.getCollateralPool();
-        uint128 collateralPoolId = collateralPool.id;
-
-        Account.MarginInfo memory marginInfo = 
-            self.getMarginInfoByCollateralType(
-                autoExchangedToken,
-                collateralPool.riskConfig.riskMultipliers
-            );
-
-        if (marginInfo.initialDelta > 0) {
-            return (0, 0);
-        }
-
-        // todo: double check if we want to look at the im delta or just the collateral balance for auto-exchange
-        uint256 amountToAutoExchange = mulUDxUint(
-            AutoExchangeConfiguration.load().autoExchangeRatio,
-            (-marginInfo.initialDelta).toUint()
+        // todo: consider introducing getCollateralInfoByCollateral type and avoid the need for risk calculations
+        Account.MarginInfo memory marginInfo =
+        self.getMarginInfoByCollateralType(
+            quoteToken,
+            collateralPool.riskConfig.riskMultipliers
         );
 
-        // todo: do we consider that we can use the entire collateral balance of covering token?
-        // todo @arturbeg is toUint() here fine?
-        uint256 coveringTokenAmount = self.getAccountNetCollateralDeposits(coveringToken).toUint();
+        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
 
-        // todo: replace auto-exchange discount with the liquidation logic
-        UD60x18 autoExchangeDiscount = UNIT;
-        
-        UD60x18 price = 
-            CollateralConfiguration.getExchangeInfo(collateralPoolId, coveringToken, autoExchangedToken).price;
+        if (overallMarginInfo.maintenanceDelta < 0 ) {
 
-        uint256 availableToAutoExchange = 
-            mulUDxUint(price.mul(autoExchangeDiscount), coveringTokenAmount);
-        
-        if (availableToAutoExchange <= amountToAutoExchange) {
-            return (coveringTokenAmount, availableToAutoExchange);
+            if (marginInfo.liquidationDelta > 0) {
+                return 0;
+            }
+
+            amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
+
+        } else {
+
+            if (marginInfo.collateralInfo.marginBalance > 0) {
+                return 0;
+            }
+
+            amountToAutoExchange = (-marginInfo.collateralInfo.marginBalance).toUint();
+
         }
-        else {
-            // IR: why do we run this transformation? don't we want to return the amount represented in covering tokens?
-            // maybe coveringTokenAmount should be amountToAutoExchange here
-            uint256 correspondingTokenCoveringAmount = divUintUD(coveringTokenAmount, price.mul(autoExchangeDiscount));
-            return (correspondingTokenCoveringAmount, amountToAutoExchange);
+
+        AutoExchangeConfiguration.Data memory autoExchangeConfig = AutoExchangeConfiguration.load();
+
+        amountToAutoExchange = mulUDxUint(autoExchangeConfig.quoteBufferMultiplier, amountToAutoExchange);
+
+
+        if (amountToAutoExchangeQuote < amountToAutoExchange) {
+            amountToAutoExchange = amountToAutoExchangeQuote;
         }
+
+
+        return amountToAutoExchange;
+    }
+
+    function calculateAvailableCollateral(
+        Account.Data storage self,
+        CollateralPool.Data storage collateralPool,
+        address collateralToken
+    ) private view returns (uint256) {
+
+        // note, don't need risk multipliers to get real balance
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByCollateralType(
+            collateralToken,
+            collateralPool.riskConfig.riskMultipliers
+        );
+
+        return marginInfo.collateralInfo.realBalance.toUint();
+
+    }
+
+    function calculateAvailableCollateralToAutoExchange(
+        Account.Data storage self,
+        address collateralToken,
+        address quoteToken,
+        uint256 amountToAutoExchangeQuote
+    ) internal view returns (
+        uint256 /* collateralAmountToLiquidator */, uint256 /* collateralAmountToIF */, uint256 /* quoteAmount */
+    ) {
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        uint256 quoteToCover = calculateQuoteToCover(self, collateralPool, quoteToken, amountToAutoExchangeQuote);
+
+        if (quoteToCover == 0) {
+            return (0, 0, 0);
+        }
+
+        CollateralConfiguration.ExchangeInfo memory quoteToCollateralExchangeInfo = CollateralConfiguration.getExchangeInfo(
+            collateralPool.id,
+            quoteToken,
+            collateralToken
+        );
+
+        UD60x18 autoExchangeBonus = UNIT.add(quoteToCollateralExchangeInfo.autoExchangeDiscount);
+
+        UD60x18 priceQuoteToCollateral = quoteToCollateralExchangeInfo.price;
+
+        // This is the base collateral to liquidate based on the given quote to cover
+        uint256 collateralToLiquidate = mulUDxUint(autoExchangeBonus, mulUDxUint(priceQuoteToCollateral, quoteToCover));
+
+        uint256 availableCollateral = calculateAvailableCollateral(self, collateralPool, collateralToken);
+
+        if (collateralToLiquidate > availableCollateral) {
+
+            collateralToLiquidate = availableCollateral;
+            UD60x18 priceCollateralToQuote = CollateralConfiguration.getExchangeInfo(
+                collateralPool.id,
+                collateralToken,
+                quoteToken
+            ).price;
+            quoteToCover = divUintUD(mulUDxUint(priceCollateralToQuote, collateralToLiquidate), autoExchangeBonus);
+        }
+
+        UD60x18 autoExchangeInsuranceFee = CollateralConfiguration.load(
+            collateralPool.id,
+            quoteToken
+        ).baseConfig.autoExchangeInsuranceFee;
+
+
+        if (unwrap(autoExchangeInsuranceFee) != 0) {
+
+            uint256 bonusCollateral = collateralToLiquidate - divUintUD(collateralToLiquidate, autoExchangeBonus);
+            uint256 insuranceFundFee = mulUDxUint(autoExchangeInsuranceFee, bonusCollateral);
+
+            return (
+                collateralToLiquidate - insuranceFundFee,
+                insuranceFundFee,
+                quoteToCover
+            );
+
+        }
+
+        return (
+            collateralToLiquidate,
+            0,
+            quoteToCover
+        );
+
     }
 }

@@ -154,7 +154,7 @@ library AccountLiquidation {
         // consider baking this function into the backstop lp function if it's not used anywhere else
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return (marginInfo.marginBalance < 0, marginInfo.marginBalance);
+        return (marginInfo.collateralInfo.marginBalance < 0, marginInfo.collateralInfo.marginBalance);
     }
 
 
@@ -376,7 +376,7 @@ library AccountLiquidation {
         );
 
         // todo: check whether we should use net deposits or free collateral (ie initialDelta)
-        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).netDeposits;
+        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).collateralInfo.netDeposits;
 
         uint256 backstopLPReward = 0;
         if (
@@ -562,7 +562,6 @@ library AccountLiquidation {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
 
-        // todo: validate backstop lp liquidation orders
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 

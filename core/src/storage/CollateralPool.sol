@@ -181,11 +181,6 @@ library CollateralPool {
          */
         uint128 accountId;
         /**
-         * @dev Percentage of quote tokens paid to the insurance fund 
-         * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
-         */
-        UD60x18 autoExchangeFee;
-        /**
          * @dev Percentage of liquidation penalty that goes towards the insurance fund
          */
         UD60x18 liquidationFee;
@@ -505,7 +500,6 @@ library CollateralPool {
 
         // ensure the given account exists
         Account.exists(config.accountId);
-
         self.insuranceFundConfig = config;
 
         emit CollateralPoolUpdated(
