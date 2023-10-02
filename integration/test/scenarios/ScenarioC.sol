@@ -27,18 +27,15 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import { ud60x18, div, SD59x18, UD60x18, convert, unwrap, wrap } from "@prb/math/UD60x18.sol";
 
-contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
+contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using SafeCastU128 for uint128;
 
-    address internal user1;
-    address internal user2;
-
-    uint128 productId;
-    uint128 marketId;
-    uint32 maturityTimestamp;
-    int24 initTick;
+    uint128 public productId;
+    uint128 public marketId;
+    uint32 public maturityTimestamp;
+    int24 public initTick;
 
     function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;
@@ -57,10 +54,12 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
     }
 
     function invariantCheck() internal {
-        uint128[] memory accountIds = new uint128[](3);
+        uint128[] memory accountIds = new uint128[](5);
         accountIds[0] = 1;
         accountIds[1] = 2;
         accountIds[2] = 3;
+        accountIds[3] = 4;
+        accountIds[4] = 5;
 
         checkTotalFilledBalances(
             address(vammProxy),
@@ -94,7 +93,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             Market.MarketConfiguration({
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
-                markPriceBand: ud60x18(0.01e18), // 1%
+                markPriceBand: ud60x18(0.045e18), // 4.5%
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -162,7 +161,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         aaveLendingPool.setStartTime(Time.blockTimestampTruncated());
     }
 
-    function test_scenario_A() public {
+    function test_scenario_C() public {
         setConfigs();
         uint256 start = block.timestamp;
 
@@ -182,13 +181,23 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             accountId: 1,
             baseAmount: 10_000 * 1e6,
             tickLower: -19500, // 7%
-            tickUpper: -11040 // 3%
-        }); 
+            tickUpper: -11040 // 3% 
+        });
+
+        // t = 0: account 2 (LP)
+        executeDatedIrsMakerOrder({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 2,
+            baseAmount: 10_000 * 1e6,
+            tickLower: -17940, // 6%
+            tickUpper: -13920 // 4% 
+        });
 
         // check account 1
         {   
             PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            
+
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: positionInfo,
@@ -201,131 +210,273 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
         }
 
-        vm.warp(start + 86400 * 365 / 2);
-        // liquidity index 1.010
+        // check account 2
+        {   
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 4338438696,
+                expectedUnfilledBaseShort: 5661561303,
+                expectedUnfilledQuoteLong: 237891466,
+                expectedUnfilledQuoteShort: 253917588
+            });
+            checkZeroPoolFilledBalances(
+                address(vammProxy), 
+                PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp})
+            );
+        }
 
-        // t = 0.5: account 2 (FT)
+        // advance time (t = 0.25)
+        vm.warp(start + 86400 * 365 / 4);
+
+        // t = 0.25: account 1 (LP)
+        executeDatedIrsMakerOrder({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 1,
+            baseAmount: 10_000 * 1e6,
+            tickLower: -19500, // 7%
+            tickUpper: -11040 // 3% 
+        });
+
+        // t = 0.25: account 3 (LP)
+        executeDatedIrsMakerOrder({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 3,
+            baseAmount: 10_000 * 1e6,
+            tickLower: -22020, // 9%
+            tickUpper: -19500 // 7% 
+        });
+
+        // check account 1
+        {
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 7047716568,
+                expectedUnfilledBaseShort: 12952283431,
+                expectedUnfilledQuoteLong: 419887712,
+                expectedUnfilledQuoteShort: 505514588
+            });
+            checkZeroPoolFilledBalances(
+                address(vammProxy),
+                PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp})
+            );
+        }
+
+        // check account 3
+        {
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 9999999999,
+                expectedUnfilledBaseShort: 0,
+                expectedUnfilledQuoteLong: 801154597,
+                expectedUnfilledQuoteShort: 0
+            });
+            checkZeroPoolFilledBalances(
+                address(vammProxy), 
+                PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp})
+            );
+        }
+
+        // advance time
+        vm.warp(start + 86400 * 365 / 2);
+
+        // t = 0.5: account 4 (FT)
         {
             // action 
             (int256 executedBase, int256 executedQuote, int256 annualizedNotional) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
                     marketId: marketId,
                     maturityTimestamp: maturityTimestamp,
-                    accountId: 2,
-                    baseAmount: -1_000 * 1e6
+                    accountId: 4,
+                    baseAmount: -18_000 * 1e6
                 }); 
             
             // check outputs
             {
-                assertEq(executedBase, -1_000 * 1e6, "executedBase");
-                assertEq(executedQuote, int256(48356576), "executedQuote");
-                assertEq(annualizedNotional, -505000000, "annualizedNotional");
-            }
-
-            // check twap
-            {
-                uint256 price = checkNonAdjustedTwap(marketId, maturityTimestamp);
-                // with non-zero lookback window
-                uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0); 
-                assertGe(twap, price); // considers previous prices
-                assertLe(twap, unwrap(VammTicks.getPriceFromTick(initTick).div(convert(100))));
-                assertAlmostEq(twap, 0.05e18, 0.0001e18, "twap almost 5%");
-            }
+                assertEq(executedBase, -18_000 * 1e6, "executedBase");
+                assertEq(executedQuote, int256(745587342), "executedQuote");
+                assertEq(annualizedNotional, -9090000000, "annualizedNotional");
+            }            
         }
 
         currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
-        assertEq(currentTick, -15227, "current tick");
+        assertEq(currentTick, -11253, "current tick");
 
-        // long VT
+        // t = 0.5: account 5 (VT)
         {   
             // action 
             (int256 executedBase, int256 executedQuote, int256 annualizedNotional) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
                     marketId: marketId,
                     maturityTimestamp: maturityTimestamp,
-                    accountId: 3,
-                    baseAmount: 2_000 * 1e6
+                    accountId: 5,
+                    baseAmount: 38_000 * 1e6
                 }); 
 
-            // executed amounts checks
+            // check outputs
             {
-                assertEq(executedBase, 2_000 * 1e6, "executedBase");
-                assertEq(executedQuote, int256(-101207855), "executedQuote");
-                assertEq(annualizedNotional, 1010000000, "annualizedNotional");
+                assertEq(executedBase, 38_000 * 1e6, "executedBase");
+                assertAlmostEq(executedQuote, int256(-2088697274), 1e6, "executedQuote");
+                assertEq(annualizedNotional, 19190000000, "annualizedNotional");
             }
         }
 
-        invariantCheck();
-
         currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
-        assertEq(currentTick, -17005, "current tick");
-
-        vm.warp(start + 86400 * 365 * 3/ 4);
-        // liquidity index 1.01505
+        assertEq(currentTick, -21652, "current tick");
 
         // check account 1
         {
-            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp});
-
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
-                positionInfo: positionInfo,
-                expectedUnfilledBaseLong: 2523411734,
-                expectedUnfilledBaseShort: 7476588265,
-                expectedUnfilledQuoteLong: 158895109,
-                expectedUnfilledQuoteShort: 308410032
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 0,
+                expectedUnfilledBaseShort: 19999999999,
+                expectedUnfilledQuoteLong: 0,
+                expectedUnfilledQuoteShort: 930006292
             });
 
             checkPoolFilledBalances({
                 poolAddress: address(vammProxy),
-                positionInfo: positionInfo,
-                expectedBaseBalancePool: -1000000000, 
-                expectedQuoteBalancePool: 52851278,
-                expectedAccruedInterestPool: 8212819
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalancePool: -7047716566, 
+                expectedQuoteBalancePool: 421976705,
+                expectedAccruedInterestPool: 0
             });
-        }   
+        } 
 
-        // check account 2
+        // check account 4
         {
-            PositionInfo memory positionInfo = PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            
             checkTakerFilledBalances({
                 datedIrsProxy: datedIrsProxy,
-                positionInfo: positionInfo,
-                expectedBaseBalancePool: -1000000000, 
-                expectedQuoteBalancePool: 48356576,
-                expectedAccruedInterestPool: 7089144
+                positionInfo: 
+                    PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalancePool: -18000000000, 
+                expectedQuoteBalancePool: 745587342,
+                expectedAccruedInterestPool: 0
             });
-        }
-
-        // check account 3
-        {
-            PositionInfo memory positionInfo = PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp});
-            
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
-            
-            checkTakerFilledBalances({
-                datedIrsProxy: datedIrsProxy,
-                positionInfo: positionInfo,
-                expectedBaseBalancePool: 2000000000, 
-                expectedQuoteBalancePool: -101207855,
-                expectedAccruedInterestPool: -15301963
-            });
-        }
+        } 
 
         invariantCheck();
 
-        vm.warp(start + 86400 * 365 - 1);
+        vm.warp(start + 86400 * 365 * 3 / 4);
+        // liquidity index 1.015
+
+        // check account 1
+        {
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 0,
+                expectedUnfilledBaseShort: 19999999999,
+                expectedUnfilledQuoteLong: 0,
+                expectedUnfilledQuoteShort: 934610284
+            });
+
+            checkPoolFilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalancePool: -7047716566, 
+                expectedQuoteBalancePool: 421976705,
+                expectedAccruedInterestPool: 70255593
+            });
+        } 
+
+        // check account 2
+        {
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 0,
+                expectedUnfilledBaseShort: 9999999999,
+                expectedUnfilledQuoteLong: 0,
+                expectedUnfilledQuoteShort: 499186190
+            });
+
+            checkPoolFilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalancePool: -4338438695, 
+                expectedQuoteBalancePool: 240270381,
+                expectedAccruedInterestPool: 38375401
+            });
+        } 
+
+        // check account 3
+        {
+            checkUnfilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedUnfilledBaseLong: 1382936724,
+                expectedUnfilledBaseShort: 8617063275,
+                expectedUnfilledQuoteLong: 124608127,
+                expectedUnfilledQuoteShort: 684518157
+            });
+
+            checkPoolFilledBalances({
+                poolAddress: address(vammProxy),
+                positionInfo: 
+                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalancePool: -8613844737, 
+                expectedQuoteBalancePool: 680862844,
+                expectedAccruedInterestPool: 127146487
+            });
+        } 
+
+        // check account 4
+        {
+            PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp});
+            
+            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
+            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+            
+            checkTakerFilledBalances({
+                datedIrsProxy: datedIrsProxy,
+                positionInfo: positionInfo,
+                expectedBaseBalancePool: -18000000000, 
+                expectedQuoteBalancePool: 745587342,
+                expectedAccruedInterestPool: 96396835
+            });
+        } 
+
+        // check account 5
+        {
+            PositionInfo memory positionInfo = PositionInfo({accountId: 5, marketId: marketId, maturityTimestamp: maturityTimestamp});
+            
+            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
+            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+
+            checkTakerFilledBalances({
+                datedIrsProxy: datedIrsProxy,
+                positionInfo: positionInfo,
+                expectedBaseBalancePool: 38000000000, 
+                expectedQuoteBalancePool: -2088697274,
+                expectedAccruedInterestPool: -332174318
+            });
+        } 
+
+        invariantCheck();
+
+        vm.warp(start + 86400 * 365 * 7 / 8);
 
         invariantCheck();
 
         vm.warp(start + 86400 * 365);
 
-        int256[] memory settlementCashflows = new int256[](3);
+        int256[] memory settlementCashflows = new int256[](5);
 
         // settle account 1
         settlementCashflows[0] = settle({
@@ -333,18 +484,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 1
         });
-        assertEq(settlementCashflows[0], 16425639, "settlement cashflow 1");
-
-        // check settlement twice does not work
-        vm.expectRevert(SetUtil.ValueNotInSet.selector);
-        settle({
-            marketId: marketId,
-            maturityTimestamp: maturityTimestamp,
-            accountId: 1
-        });
-            
-        // check maturity index was cached
-        assertEq(1020000000000000000, unwrap(datedIrsProxy.getRateIndexMaturity(marketId, maturityTimestamp)));
+        assertEq(settlementCashflows[0], 140511187, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflows[1] = settle({
@@ -352,17 +492,31 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 2
         });
-            
-        assertEq(settlementCashflows[1], 14178288, "settlement cashflow 2");
-            
+        assertEq(settlementCashflows[1], 76750803, "settlement cashflow 2");
+
         // settle account 3
         settlementCashflows[2] = settle({
             marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             accountId: 3
         });
+        assertEq(settlementCashflows[2], 254292975, "settlement cashflow 3");
 
-        assertEq(settlementCashflows[2], -30603927, "settlement cashflow 3");
+        // settle account 4
+        settlementCashflows[3] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 4
+        });
+        assertEq(settlementCashflows[3], 192793669, "settlement cashflow 4");
+
+        // settle account 5
+        settlementCashflows[4] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 5
+        });
+        assertEq(settlementCashflows[4], -664348636, "settlement cashflow 5");
 
         // invariant check
         {
@@ -374,7 +528,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             assertAlmostEq(
                 netSettlementCashflow,
                 int(0),
-                3,
+                5,
                 "net settlement cashflow"
             );
         }
