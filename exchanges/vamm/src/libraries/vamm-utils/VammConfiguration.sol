@@ -6,6 +6,7 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
+import { VammTicks } from "./VammTicks.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { UNIT } from "@prb/math/UD60x18.sol";
@@ -97,7 +98,7 @@ library VammConfiguration {
         // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
         // does not have unwanted consequences
         if(
-            minTickAllowed < TickMath.MIN_TICK_LIMIT || maxTickAllowed > TickMath.MAX_TICK_LIMIT ||
+            minTickAllowed < VammTicks.DEFAULT_MIN_TICK || maxTickAllowed > VammTicks.DEFAULT_MAX_TICK ||
             self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
         ) {
             revert VammCustomErrors.ExceededTickLimits(minTickAllowed, maxTickAllowed);

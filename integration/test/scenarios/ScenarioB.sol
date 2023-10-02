@@ -27,7 +27,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import { ud60x18, div, SD59x18, UD60x18, convert, unwrap, wrap } from "@prb/math/UD60x18.sol";
 
-contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
+contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using SafeCastU128 for uint128;
@@ -126,8 +126,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             priceImpactPhi: ud60x18(0.0001e18), // vol / volume = 0.01
             spread: ud60x18(0.003e18), // 0.3%
             minSecondsBetweenOracleObservations: 10,
-            minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-            maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+            minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
         });
 
         // ensure the current time > 7 days

@@ -19,6 +19,12 @@ library VammTicks {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using VammTicks for DatedIrsVamm.Data;
 
+    /// @dev The default minimum tick of a vamm representing 1000%
+    int24 internal constant DEFAULT_MIN_TICK = -69100;
+
+    /// @dev The default minimum tick of a vamm repersenting 0.001%
+    int24 internal constant DEFAULT_MAX_TICK = -DEFAULT_MIN_TICK;
+
     struct TickLimits {
         int24 minTick;
         int24 maxTick;
@@ -28,8 +34,7 @@ library VammTicks {
 
     function getPriceFromTick(int24 tick) internal pure returns (UD60x18 price) {
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
-        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-        return UD60x18.wrap(FullMath.mulDiv(1e18, FixedPoint96.Q96, priceX96));
+        return UD60x18.wrap(FullMath.mulDiv(1e18, FixedPoint96.Q96, sqrtPriceX96)).powu(2);
     }
 
     function getTickFromPrice(UD60x18 price) internal pure returns (int24 tick) {
@@ -75,8 +80,8 @@ library VammTicks {
     /// @dev Common checks for valid tick inputs inside the tick limits
     function checkTicksLimits(int24 tickLower, int24 tickUpper) internal pure {
         require(tickLower < tickUpper, "TLUL");
-        require(tickLower >= TickMath.MIN_TICK_LIMIT, "TLML");
-        require(tickUpper <= TickMath.MAX_TICK_LIMIT, "TUML");
+        require(tickLower >= DEFAULT_MIN_TICK, "TLML");
+        require(tickUpper <= DEFAULT_MAX_TICK, "TUML");
     }
 
     function dynamicTickLimits(
@@ -84,9 +89,16 @@ library VammTicks {
     ) internal pure returns (int24 dynamicMinTick, int24 dynamicMaxTick) {
         UD60x18 minPrice = (markPrice.gt(markPriceBand)) ? markPrice.sub(markPriceBand) : ZERO;
         UD60x18 maxPrice = markPrice.add(markPriceBand);
+
+        dynamicMinTick = 
+            getPriceFromTick(DEFAULT_MIN_TICK).gt(maxPrice) 
+                ? getTickFromPrice(maxPrice) 
+                : DEFAULT_MIN_TICK;
         
-        dynamicMinTick = getTickFromPrice(maxPrice);
-        dynamicMaxTick = getTickFromPrice(minPrice);
+        dynamicMaxTick = 
+            getPriceFromTick(DEFAULT_MAX_TICK).lt(minPrice)
+                ? getTickFromPrice(minPrice)
+                : DEFAULT_MAX_TICK;
     }
 
     function getSqrtRatioTargetX96(int256 amountSpecified, uint160 sqrtPriceNextX96, uint160 sqrtPriceLimitX96) 

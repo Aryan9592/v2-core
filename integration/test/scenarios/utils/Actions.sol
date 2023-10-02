@@ -4,6 +4,7 @@ import "forge-std/Test.sol";
 
 import {Utils} from "../../../src/utils/Utils.sol";
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
+import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 import {DatedIrsProxy} from "../../../src/proxies/DatedIrs.sol";
 
 /// @title Action helpers
@@ -101,12 +102,12 @@ abstract contract Actions is Test {
         if (baseAmount > 0){
             executeDatedIrsTakerOrder(
                 marketId, maturityTimestamp, accountId, baseAmount,
-                TickMath.DEFAULT_MAX_TICK  - 1
+                VammTicks.DEFAULT_MAX_TICK  - 1
             );
         } else {
             executeDatedIrsTakerOrder(
                 marketId, maturityTimestamp, accountId, baseAmount,
-                TickMath.DEFAULT_MIN_TICK + 1
+                VammTicks.DEFAULT_MIN_TICK + 1
             );
         }
     }
