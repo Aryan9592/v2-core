@@ -7,6 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {ILiquidationHook} from "../interfaces/external/ILiquidationHook.sol";
 import {Account} from "../storage/Account.sol";
 import {AccountLiquidation} from "../libraries/account/AccountLiquidation.sol";
 import {Market} from "../storage/Market.sol";
@@ -28,6 +29,16 @@ contract LiquidationModule is ILiquidationModule {
     using Market for Market.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
     using SafeCastI256 for int256;
+
+    /**
+     * Thrown when the pre liquidation hook returns an invalid response
+     */
+    error InvalidPreLiquidationHookResponse();
+
+    /**
+     * Thrown when the post liquidation hook returns an invalid response
+     */
+    error InvalidPostLiquidationHookResponse();
 
     /**
      * @inheritdoc ILiquidationModule
@@ -70,6 +81,17 @@ contract LiquidationModule is ILiquidationModule {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
 
+        if (liquidationBid.hookAddress != address(0)) {
+            if (
+                ILiquidationHook(liquidationBid.hookAddress).preLiquidationHook(
+                    liquidatableAccountId,
+                    liquidationBid
+                ) != ILiquidationHook.preLiquidationHook.selector
+            ) {
+                revert InvalidPreLiquidationHookResponse();
+            }
+        }
+
         int256 lmDeltaBeforeLiquidation = account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta;
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
@@ -104,6 +126,17 @@ contract LiquidationModule is ILiquidationModule {
         // can't cover the insolvency after the liquidation (socialized losses via adl
         // should kick in here
 
+        
+        if (liquidationBid.hookAddress != address(0)) {
+            if (
+                ILiquidationHook(liquidationBid.hookAddress).postLiquidationHook(
+                    liquidatableAccountId,
+                    liquidationBid
+                ) != ILiquidationHook.postLiquidationHook.selector
+            ) {
+                revert InvalidPostLiquidationHookResponse();
+            }
+        }
     }
 
     /**
