@@ -96,7 +96,7 @@ library Account {
         int256 unrealizedPnL;
     }
 
-    struct AdlHealthInformation {
+    struct DutchHealthInformation {
         /// The value of margin balance with no haircuts applied to exchange rates
         int256 rawMarginBalance;
         /// The value of the liquidation margin requirement with no haircuts applied
@@ -123,7 +123,7 @@ library Account {
         /// Difference between margin balance and adl margin requirement
         int256 adlDelta;
         /// Information required to compute health of position in the context of adl liquidations
-        AdlHealthInformation adlHealthInfo;
+        DutchHealthInformation dutchHealthInfo;
     }
 
     /**

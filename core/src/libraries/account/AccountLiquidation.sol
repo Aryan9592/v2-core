@@ -413,8 +413,8 @@ library AccountLiquidation {
     function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
         // adl health info values are in USD (and therefore represented with 18 decimals)
-        UD60x18 health = ud(marginInfo.adlHealthInfo.rawMarginBalance.toUint()).div(
-            ud(marginInfo.adlHealthInfo.rawLiquidationMarginRequirement)
+        UD60x18 health = ud(marginInfo.dutchHealthInfo.rawMarginBalance.toUint()).div(
+            ud(marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement)
         );
         if (health.gt(UNIT)) {
             health = UNIT;
