@@ -157,11 +157,22 @@ library CollateralPool {
         uint256 maxBidsInQueue;
     }
 
+    struct DutchConfiguration {
+        /**
+         * @dev Minimum reward parameter
+         */
+        UD60x18 dMin;
+        /**
+         * @dev The percentage point change of the liquidator reward following a percentage point 
+         * change in the health of the liquidatable account
+         */
+        UD60x18 dSlope;
+    }
+
     struct RiskConfiguration {
-
         RiskMultipliers riskMultipliers;
-
         LiquidationConfiguration liquidationConfiguration;
+        DutchConfiguration dutchConfiguration;
     }
 
     struct InsuranceFundConfig {
