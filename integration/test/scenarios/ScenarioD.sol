@@ -78,7 +78,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         initTick = -16096; // 5%
     }
 
-    function setConfigs() public {
+    function setConfigs(UD60x18 priceImpactPhi, UD60x18 spread) public {
         vm.startPrank(owner);
 
         //////// MARKET MANAGER CONFIGURATION ////////
@@ -125,8 +125,8 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         });
 
         DatedIrsVamm.Mutable memory mutableConfig = DatedIrsVamm.Mutable({
-            priceImpactPhi: ud60x18(0.0001e18), // vol / volume = 0.01
-            spread: ud60x18(0.003e18), // 0.3%
+            priceImpactPhi: priceImpactPhi,
+            spread: spread,
             minSecondsBetweenOracleObservations: 10,
             minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
             maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
@@ -161,8 +161,8 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         aaveLendingPool.setStartTime(Time.blockTimestampTruncated());
     }
 
-    function test_scenario_D() public {
-        setConfigs();
+    function test_scenario_D_no_slippage_no_price_impact() public {
+        setConfigs(ud60x18(0), ud60x18(0));
         uint256 start = block.timestamp;
 
         vm.mockCall(
@@ -185,8 +185,6 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
 
             // account 2 (FT)
-            
-            // action 
             (int256 executedBase,,) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
                     marketId: marketId,
@@ -201,12 +199,25 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             invariantCheck();
         }
 
-        for (uint256 i = 10; i < 30; i++) {
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -15227, "tick after 10 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 47446712689052953, "twap after 10 days when order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 47446712689052953, "twap after 10 days when order = 100");
+        }
+
+        for (uint256 i = 10; i < 20; i++) {
             vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
 
             // account 2 (VT)
-            
-            // action 
             (int256 executedBase,,) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
                     marketId: marketId,
@@ -221,5 +232,322 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             invariantCheck();
         }
 
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -16097, "tick after 20 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 48279467813104117, "twap after 20 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 48279467813104117, "twap after 20 days with order = 100");
+        }
+
+        for (uint256 i = 20; i < 30; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (VT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: 100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, 100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -17005, "tick after 30 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 52783672690232108, "twap after 30 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 52783672690232108, "twap after 30 days with order = 100");
+        }
+    }
+
+    function test_scenario_D_slippage_no_price_impact() public {
+        setConfigs(ud60x18(0), ud60x18(0.003e18));
+        uint256 start = block.timestamp;
+
+        vm.mockCall(
+            mockToken,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(6)
+        );
+
+        // t = 0: account 1 (LP)
+        executeDatedIrsMakerOrder({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 1,
+            baseAmount: 10_000 * 1e6,
+            tickLower: -19500, // 7%
+            tickUpper: -11040 // 3% 
+        });
+
+        for (uint256 i = 0; i < 10; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (FT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: -100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, -100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -15227, "tick after 10 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 47446712689052953, "twap after 10 days when order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 50446712689052953, "twap after 10 days when order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 44446712689052953, "twap after 10 days when order = -100");
+        }
+
+        for (uint256 i = 10; i < 20; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (VT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: 100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, 100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -16097, "tick after 20 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 48279467813104117, "twap after 20 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 51279467813104117, "twap after 20 days with order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 45279467813104117, "twap after 20 days with order = -100");
+        }
+
+        for (uint256 i = 20; i < 30; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (VT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: 100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, 100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -17005, "tick after 30 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 52783672690232108, "twap after 30 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 55783672690232108, "twap after 30 days with order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 49783672690232108, "twap after 30 days with order = -100");
+        }
+    }
+
+    function test_scenario_D_slippage_price_impact() public {
+        setConfigs(ud60x18(0.0001e18), ud60x18(0.003e18));
+        uint256 start = block.timestamp;
+
+        vm.mockCall(
+            mockToken,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(6)
+        );
+
+        // t = 0: account 1 (LP)
+        executeDatedIrsMakerOrder({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 1,
+            baseAmount: 10_000 * 1e6,
+            tickLower: -19500, // 7%
+            tickUpper: -11040 // 3% 
+        });
+
+        for (uint256 i = 0; i < 10; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (FT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: -100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, -100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -15227, "tick after 10 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 47446712689052953, "twap after 10 days when order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 50494159401742005, "twap after 10 days when order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 44399265976363900, "twap after 10 days when order = -100");
+        }
+
+        for (uint256 i = 10; i < 20; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (VT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: 100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, 100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -16097, "tick after 20 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 48279467813104117, "twap after 20 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 51327747280917221, "twap after 20 days with order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 45231188345291012, "twap after 20 days with order = -100");
+        }
+
+        for (uint256 i = 20; i < 30; i++) {
+            vm.warp(start + 86400 * 365 * 3 / 4 + 86400 * i);
+
+            // account 2 (VT)
+            (int256 executedBase,,) = 
+                executeDatedIrsTakerOrder_noPriceLimit({
+                    marketId: marketId,
+                    maturityTimestamp: maturityTimestamp,
+                    accountId: 2,
+                    baseAmount: 100 * 1e6
+                }); 
+
+            // check outputs
+            assertEq(executedBase, 100 * 1e6, "executedBase");
+
+            invariantCheck();
+        }
+
+        {
+            int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
+            assertEq(currentTick, -17005, "tick after 30 days");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            assertEq(twap, 52783672690232108, "twap after 30 days with order = 0");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            assertEq(twap, 55836456362922340, "twap after 30 days with order = 100");
+        }
+
+        {
+            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            assertEq(twap, 49730889017541875, "twap after 30 days with order = -100");
+        }
     }
 }

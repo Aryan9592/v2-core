@@ -214,16 +214,6 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 assertAlmostEq(executedQuote, int256(45326575), 1e6, "executedQuote1"); 
                 assertEq(annualizedNotional, -505000000, "annualizedNotional1");
             }
-            // twap checks
-            {
-                uint256 price = checkNonAdjustedTwap(marketId, maturityTimestamp);
-                // with non-zero lookback window
-                uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0); 
-                assertGe(twap, price); // considers previous prices
-                assertLe(twap, unwrap(VammTicks.getPriceFromTick(initTick).div(convert(100))));
-                assertAlmostEq(twap, 0.05e18, 0.0001e18, "twap almost 5%");
-            }
-            
         }
 
         // long VT - account 3
