@@ -14,7 +14,7 @@ import {CollateralPool} from "../../storage/CollateralPool.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UD60x18, UNIT, fromUD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 
@@ -158,6 +158,7 @@ library AccountAutoExchange {
         uint256 amountToAutoExchangeQuote
     ) private view returns (uint256 amountToAutoExchange) {
 
+        // todo: consider introducing getCollateralInfoByCollateral type and avoid the need for risk calculations
         Account.MarginInfo memory marginInfo =
         self.getMarginInfoByCollateralType(
             quoteToken,
@@ -262,7 +263,7 @@ library AccountAutoExchange {
         ).baseConfig.autoExchangeInsuranceFee;
 
 
-        if (fromUD60x18(autoExchangeInsuranceFee) != 0) {
+        if (unwrap(autoExchangeInsuranceFee) != 0) {
 
             uint256 bonusCollateral = collateralToLiquidate - divUintUD(collateralToLiquidate, autoExchangeBonus);
             uint256 insuranceFundFee = mulUDxUint(autoExchangeInsuranceFee, bonusCollateral);
