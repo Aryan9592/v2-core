@@ -148,13 +148,13 @@ library AccountLiquidation {
      * @dev Checks if an account is insolvent in a given bubble (assuming auto-exchange is exhausted!!!)
      * and returns the shortfall
      */
-    function isInsolvent(Account.Data storage self, address collateralType) private view returns (bool, int256) {
+    function isInsolvent(Account.Data storage self, address collateralType) private view returns (bool) {
         // todo: note, doing too many redundunt calculations, can be optimized
         // todo: consider reverting if address(0) is provided as collateralType
         // consider baking this function into the backstop lp function if it's not used anywhere else
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return (marginInfo.collateralInfo.marginBalance < 0, marginInfo.collateralInfo.marginBalance);
+        return marginInfo.collateralInfo.marginBalance < 0;
     }
 
 
@@ -557,7 +557,6 @@ library AccountLiquidation {
 
         // revert if account is not below adl margin requirement
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
-
         if (marginInfo.adlDelta > 0) {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
@@ -565,14 +564,11 @@ library AccountLiquidation {
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
-        (bool _isInsolvent, int256 marginBalance) = isInsolvent(self, quoteToken);
-
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
-
         uint256 shortfall = 0;
 
+        bool _isInsolvent = isInsolvent(self, quoteToken);
         if (!_isInsolvent) {
-
             Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
 
             // execute backstop lp liquidation orders
@@ -586,32 +582,35 @@ library AccountLiquidation {
                 );
             }
 
-            backstopLpAccount.imCheck(address(0));
-
-        } else {
-            Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
-            int256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
-            - collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
-
-            uint256 insuranceFundDebit = (-marginBalance).toUint();
-            if (insuranceFundCoverAvailable + marginBalance < 0) {
-                shortfall = (marginBalance-insuranceFundCoverAvailable).toUint();
-                insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
+            // todo: if account has left exposure execute block below
+            {
+                backstopLpAccount.imCheck(address(0));
+                backstopLpAccount.imBufferCheck(address(0));
             }
-            collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+        } else {
+            // Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
+            // int256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
+            // - collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
+
+            // uint256 insuranceFundDebit = (-marginBalance).toUint();
+            // if (insuranceFundCoverAvailable + marginBalance < 0) {
+            //     shortfall = (marginBalance-insuranceFundCoverAvailable).toUint();
+            //     insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
+            // }
+            // collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
         }
 
         // execute adl orders (bankruptcy price is calculated in the market manager)
 
-        uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
-        for (uint256 j = 0; j < markets.length; j++) {
-            uint128 marketId = markets[j].to128();
-            Market.exists(marketId).executeADLOrder(
-                self.id,
-                100, // todo: replace
-                10 // todo: replace
-            );
-        }
+        // uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+        // for (uint256 j = 0; j < markets.length; j++) {
+        //     uint128 marketId = markets[j].to128();
+        //     Market.exists(marketId).executeADLOrder(
+        //         self.id,
+        //         100, // todo: replace
+        //         10 // todo: replace
+        //     );
+        // }
     }
 }
 

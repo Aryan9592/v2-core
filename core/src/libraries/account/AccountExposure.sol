@@ -75,6 +75,7 @@ library AccountExposure {
             liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.priceHaircut),
             dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
             adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut),
+            initialBufferDelta: getExchangedQuantity(marginInfo.initialBufferDelta, exchange.price, exchange.priceHaircut),
             dutchHealthInfo: Account.DutchHealthInformation({
                 rawMarginBalance: 
                     getExchangedQuantity(marginInfo.dutchHealthInfo.rawMarginBalance, exchange.priceHaircut, ZERO),
@@ -147,6 +148,9 @@ library AccountExposure {
                 adlDelta: 
                     marginInfo.adlDelta + 
                     getExchangedQuantity(subMarginInfo.adlDelta, price, haircut),
+                initialBufferDelta:
+                    marginInfo.initialBufferDelta + 
+                    getExchangedQuantity(subMarginInfo.initialBufferDelta, price, haircut),
                 dutchHealthInfo: Account.DutchHealthInformation({
                     rawMarginBalance: 
                         marginInfo.dutchHealthInfo.rawMarginBalance + 
@@ -158,7 +162,7 @@ library AccountExposure {
                             price, 
                             ZERO
                         ).toUint()
-                })  
+                })
             });
         }
     }
@@ -174,6 +178,7 @@ library AccountExposure {
         uint256 maintenanceMarginRequirement;
         uint256 dutchMarginRequirement;
         uint256 adlMarginRequirement;
+        uint256 initialBufferMarginRequirement;
     }
 
     /**
@@ -240,13 +245,16 @@ library AccountExposure {
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
 
         // Get the maintenance margin requirement
-        vars.maintenanceMarginRequirement  = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
+        vars.maintenanceMarginRequirement = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
 
         // Get the dutch margin requirement
-        vars.dutchMarginRequirement  = mulUDxUint(riskMultipliers.dutchMultiplier, vars.liquidationMarginRequirement);
+        vars.dutchMarginRequirement = mulUDxUint(riskMultipliers.dutchMultiplier, vars.liquidationMarginRequirement);
 
         // Get the adl margin requirement
-        vars.adlMarginRequirement  = mulUDxUint(riskMultipliers.adlMultiplier, vars.liquidationMarginRequirement);
+        vars.adlMarginRequirement = mulUDxUint(riskMultipliers.adlMultiplier, vars.liquidationMarginRequirement);
+
+        // Get the initial buffer margin requirement
+        vars.initialBufferMarginRequirement = mulUDxUint(riskMultipliers.imBufferMultiplier, vars.liquidationMarginRequirement);
 
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
@@ -270,6 +278,7 @@ library AccountExposure {
             liquidationDelta: marginBalance - vars.liquidationMarginRequirement.toInt(),
             dutchDelta: marginBalance - vars.dutchMarginRequirement.toInt(),
             adlDelta: marginBalance - vars.adlMarginRequirement.toInt(),
+            initialBufferDelta: marginBalance - vars.initialBufferMarginRequirement.toInt(),
             dutchHealthInfo: Account.DutchHealthInformation({
                 rawMarginBalance: marginBalance,
                 rawLiquidationMarginRequirement: vars.liquidationMarginRequirement
