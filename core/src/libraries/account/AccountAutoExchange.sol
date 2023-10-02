@@ -73,6 +73,8 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
 
+        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+
         {
             Account.MarginInfo memory marginInfo =
                 self.getMarginInfoByCollateralType(
@@ -81,8 +83,6 @@ library AccountAutoExchange {
                 );
 
             // mismatched margin coverage check
-
-            Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
 
             if ( (overallMarginInfo.maintenanceDelta < 0) && (marginInfo.liquidationDelta < 0) ) {
                 return true;
@@ -139,11 +139,7 @@ library AccountAutoExchange {
 
 
         // Get total account value in USD
-        int256 totalAccountValueInUSD = 0;
-        {
-            Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
-            totalAccountValueInUSD = marginInfo.collateralInfo.marginBalance;
-        }
+        int256 totalAccountValueInUSD = overallMarginInfo.collateralInfo.marginBalance;
 
         if (
             sumOfNegativeAccountValuesInUSD > 
