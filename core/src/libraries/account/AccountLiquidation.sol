@@ -582,8 +582,20 @@ library AccountLiquidation {
                 );
             }
 
-            // todo: if account has left exposure execute block below
-            {
+            bool leftExposure = false;
+
+            uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+            for (uint256 i = 0; i < markets.length && !leftExposure; i++) {
+                uint128 marketId = markets[i].to128();
+                Market.Data storage market = Market.exists(marketId);
+                Account.MakerMarketExposure[] memory exposures = 
+                    market.getAccountTakerAndMakerExposures(self.id);
+                if (exposures.length > 0) {
+                    leftExposure = true;
+                }
+            }
+
+            if (leftExposure) {
                 backstopLpAccount.imCheck(address(0));
                 backstopLpAccount.imBufferCheck(address(0));
             }
