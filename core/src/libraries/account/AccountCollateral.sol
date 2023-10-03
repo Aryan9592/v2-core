@@ -110,7 +110,7 @@ library AccountCollateral {
             0,
             SignedMath.min(
                 marginInfoBubble.initialDelta, 
-                marginInfoBubble.realBalance
+                marginInfoBubble.collateralInfo.realBalance
             )
         );
 
@@ -127,8 +127,8 @@ library AccountCollateral {
         int256 withdrawableBalanceCollateral = SignedMath.max(
             0,
             SignedMath.min(
-                withdrawableBalanceBubble, 
-                marginInfoCollateral.realBalance
+                withdrawableBalanceBubble,
+                marginInfoCollateral.collateralInfo.realBalance
             )
         );
 

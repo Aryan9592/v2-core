@@ -88,6 +88,24 @@ library CollateralConfiguration {
          * @dev Percentage of tvl that is allowed to be withdrawn in one time window
          */
         UD60x18 withdrawalTvlPercentageLimit;
+
+        /**
+         * @dev Auto-exchange occurs when an account has a negative balance for one collateral asset in token terms
+         * is below the single autoExchangeThreshold of the token e.g. 5000 USDC
+         */
+        uint256 autoExchangeThreshold;
+
+        /**
+         * @dev Percentage of quote tokens paid to the insurance fund
+         * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
+         */
+        UD60x18 autoExchangeInsuranceFee;
+
+        /**
+         * @dev When performing within bubble exhaustion checks, this value acts as a threshold that considers the
+         * amount dust
+         */
+        uint256 autoExchangeDustThreshold;
     }
 
     struct CachedConfiguration {
@@ -167,7 +185,7 @@ library CollateralConfiguration {
      * @param token The address of the collateral type.
      * @return collateralConfiguration The Configuration object.
      */
-    function load(uint128 collateralPoolId, address token) private pure returns (Data storage collateralConfiguration) {
+    function load(uint128 collateralPoolId, address token) internal pure returns (Data storage collateralConfiguration) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.Configuration", collateralPoolId, token));
         assembly {
             collateralConfiguration.slot := s

@@ -157,11 +157,22 @@ library CollateralPool {
         uint256 maxBidsInQueue;
     }
 
+    struct DutchConfiguration {
+        /**
+         * @dev Minimum reward parameter
+         */
+        UD60x18 dMin;
+        /**
+         * @dev The percentage point change of the liquidator reward following a percentage point 
+         * change in the health of the liquidatable account
+         */
+        UD60x18 dSlope;
+    }
+
     struct RiskConfiguration {
-
         RiskMultipliers riskMultipliers;
-
         LiquidationConfiguration liquidationConfiguration;
+        DutchConfiguration dutchConfiguration;
     }
 
     struct InsuranceFundConfig {
@@ -169,11 +180,6 @@ library CollateralPool {
          * @dev Pool's insurance fund account ID
          */
         uint128 accountId;
-        /**
-         * @dev Percentage of quote tokens paid to the insurance fund 
-         * @dev at auto-exchange. (e.g. 0.1 * 1e18 = 10%)
-         */
-        UD60x18 autoExchangeFee;
         /**
          * @dev Percentage of liquidation penalty that goes towards the insurance fund
          */
@@ -494,7 +500,6 @@ library CollateralPool {
 
         // ensure the given account exists
         Account.exists(config.accountId);
-
         self.insuranceFundConfig = config;
 
         emit CollateralPoolUpdated(

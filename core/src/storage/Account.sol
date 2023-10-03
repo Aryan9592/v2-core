@@ -96,14 +96,17 @@ library Account {
         int256 unrealizedPnL;
     }
 
+    struct DutchHealthInformation {
+        /// The value of margin balance with no haircuts applied to exchange rates
+        int256 rawMarginBalance;
+        /// The value of the liquidation margin requirement with no haircuts applied
+        /// to exchange rates
+        uint256 rawLiquidationMarginRequirement;
+    }
+
     struct MarginInfo {
         address collateralType;
-        int256 netDeposits;
-        /// These are all amounts that are available to contribute to cover margin requirements. 
-        int256 marginBalance;
-        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement 
-        /// token and not as value of an instrument which settles in that token
-        int256 realBalance;
+        CollateralInfo collateralInfo;
         /// Difference between margin balance and initial margin requirement
         int256 initialDelta;
         /// Difference between margin balance and maintenance margin requirement
@@ -114,6 +117,17 @@ library Account {
         int256 dutchDelta;
         /// Difference between margin balance and adl margin requirement
         int256 adlDelta;
+        /// Information required to compute health of position in the context of adl liquidations
+        DutchHealthInformation dutchHealthInfo;
+    }
+
+    struct CollateralInfo {
+        int256 netDeposits;
+        /// These are all amounts that are available to contribute to cover margin requirements.
+        int256 marginBalance;
+        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement
+        /// token and not as value of an instrument which settles in that token
+        int256 realBalance;
     }
 
     /**
@@ -415,30 +429,5 @@ library Account {
             revert AccountBelowIM(self.id, marginInfo);
         }
     }
-
-    function isEligibleForAutoExchange(
-        Account.Data storage self,
-        address collateralType
-    )
-        internal
-        view
-        returns (bool)
-    {
-        return AccountAutoExchange.isEligibleForAutoExchange(self, collateralType);
-    }
-
-    function getMaxAmountToExchangeQuote(
-        Account.Data storage self,
-        address coveringToken,
-        address autoExchangedToken
-    )
-        internal
-        view
-        returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ )
-    {
-        return AccountAutoExchange.getMaxAmountToExchangeQuote(self, coveringToken, autoExchangedToken);
-    }
-
-
 
 }

@@ -12,12 +12,12 @@ import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {Market} from "../../storage/Market.sol";
 
-import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
-import {UNIT} from "@prb/math/UD60x18.sol";
+import {UNIT, ZERO} from "@prb/math/UD60x18.sol";
 
 /**
  * @title Object for tracking account margin requirements.
@@ -27,6 +27,7 @@ library AccountExposure {
     using CollateralConfiguration for CollateralConfiguration.Data;
     using Market for Market.Data;
     using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
@@ -64,14 +65,26 @@ library AccountExposure {
         // doesn't seem to be present here, is that intentional?
         return Account.MarginInfo({
             collateralType: token,
-            netDeposits: getExchangedQuantity(marginInfo.netDeposits, exchange.price, exchange.priceHaircut),
-            marginBalance: getExchangedQuantity(marginInfo.marginBalance, exchange.price, exchange.priceHaircut),
-            realBalance: getExchangedQuantity(marginInfo.realBalance, exchange.price, exchange.priceHaircut),
+            collateralInfo: Account.CollateralInfo({
+                netDeposits: getExchangedQuantity(marginInfo.collateralInfo.netDeposits, exchange.price, exchange.priceHaircut),
+                marginBalance: getExchangedQuantity(marginInfo.collateralInfo.marginBalance, exchange.price, exchange.priceHaircut),
+                realBalance: getExchangedQuantity(marginInfo.collateralInfo.realBalance, exchange.price, exchange.priceHaircut)
+            }),
             initialDelta: getExchangedQuantity(marginInfo.initialDelta, exchange.price, exchange.priceHaircut),
             maintenanceDelta: getExchangedQuantity(marginInfo.maintenanceDelta, exchange.price, exchange.priceHaircut),
             liquidationDelta: getExchangedQuantity(marginInfo.liquidationDelta, exchange.price, exchange.priceHaircut),
             dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
-            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut)
+            adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut),
+            dutchHealthInfo: Account.DutchHealthInformation({
+                rawMarginBalance: 
+                    getExchangedQuantity(marginInfo.dutchHealthInfo.rawMarginBalance, exchange.priceHaircut, ZERO),
+                rawLiquidationMarginRequirement:
+                    getExchangedQuantity(
+                        marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement.toInt(), 
+                        exchange.priceHaircut, 
+                        ZERO
+                    ).toUint()
+            })
         });
     }
 
@@ -111,13 +124,14 @@ library AccountExposure {
 
             marginInfo = Account.MarginInfo({
                 collateralType: marginInfo.collateralType,
-                netDeposits: marginInfo.netDeposits,
-                marginBalance: 
-                    marginInfo.marginBalance + 
-                    getExchangedQuantity(subMarginInfo.marginBalance, price, haircut),
-                realBalance: 
-                    marginInfo.realBalance + 
-                    getExchangedQuantity(subMarginInfo.realBalance, price, haircut),
+                collateralInfo: Account.CollateralInfo({
+                    netDeposits: marginInfo.collateralInfo.netDeposits,
+                    marginBalance:  marginInfo.collateralInfo.marginBalance +
+                    getExchangedQuantity(subMarginInfo.collateralInfo.marginBalance, price, haircut),
+                    realBalance:
+                    marginInfo.collateralInfo.realBalance +
+                    getExchangedQuantity(subMarginInfo.collateralInfo.realBalance, price, haircut)
+                }),
                 initialDelta: 
                     marginInfo.initialDelta + 
                     getExchangedQuantity(subMarginInfo.initialDelta, price, haircut),
@@ -132,7 +146,19 @@ library AccountExposure {
                     getExchangedQuantity(subMarginInfo.dutchDelta, price, haircut),
                 adlDelta: 
                     marginInfo.adlDelta + 
-                    getExchangedQuantity(subMarginInfo.adlDelta, price, haircut)
+                    getExchangedQuantity(subMarginInfo.adlDelta, price, haircut),
+                dutchHealthInfo: Account.DutchHealthInformation({
+                    rawMarginBalance: 
+                        marginInfo.dutchHealthInfo.rawMarginBalance + 
+                        getExchangedQuantity(subMarginInfo.dutchHealthInfo.rawMarginBalance, price, ZERO),
+                    rawLiquidationMarginRequirement: 
+                        marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement +
+                        getExchangedQuantity(
+                            subMarginInfo.dutchHealthInfo.rawLiquidationMarginRequirement.toInt(), 
+                            price, 
+                            ZERO
+                        ).toUint()
+                })  
             });
         }
     }
@@ -234,14 +260,20 @@ library AccountExposure {
         // filled orders should be taken care of in the balance calculations
         return Account.MarginInfo({
             collateralType: collateralType,
-            netDeposits: netDeposits,
-            marginBalance: marginBalance,
-            realBalance: realBalance,
+            collateralInfo: Account.CollateralInfo({
+                netDeposits: netDeposits,
+                marginBalance: marginBalance,
+                realBalance: realBalance
+            }),
             initialDelta: marginBalance - vars.initialMarginRequirement.toInt(),
             maintenanceDelta: marginBalance - vars.maintenanceMarginRequirement.toInt(),
             liquidationDelta: marginBalance - vars.liquidationMarginRequirement.toInt(),
             dutchDelta: marginBalance - vars.dutchMarginRequirement.toInt(),
-            adlDelta: marginBalance - vars.adlMarginRequirement.toInt()
+            adlDelta: marginBalance - vars.adlMarginRequirement.toInt(),
+            dutchHealthInfo: Account.DutchHealthInformation({
+                rawMarginBalance: marginBalance,
+                rawLiquidationMarginRequirement: vars.liquidationMarginRequirement
+            })
         });
     }
 

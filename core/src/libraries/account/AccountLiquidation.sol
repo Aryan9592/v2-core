@@ -25,10 +25,14 @@ import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
+import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import "../../interfaces/external/IMarketManager.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {UD60x18, UNIT, ud} from "@prb/math/UD60x18.sol";
+
+
+import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 /**
  * @title Object for managing account liquidation utilities
@@ -113,6 +117,12 @@ library AccountLiquidation {
     */
     error LiquidationBidQuoteTokenMismatch(address liquidationBidQuoteToken, address marketQuoteToken);
 
+    /**
+     * @dev Thrown when an incorrect hook address is used within a liquidation bid
+     * @param liquidationBid Submitted liquidation bid
+     */
+    error IncorrectLiquidationBidHookAddress(LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
+
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
@@ -144,7 +154,7 @@ library AccountLiquidation {
         // consider baking this function into the backstop lp function if it's not used anywhere else
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return (marginInfo.marginBalance < 0, marginInfo.marginBalance);
+        return (marginInfo.collateralInfo.marginBalance < 0, marginInfo.collateralInfo.marginBalance);
     }
 
 
@@ -188,6 +198,13 @@ library AccountLiquidation {
         if (marketIdsLength > collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid) {
             revert LiquidationBidOrdersOverflow(marketIdsLength,
                 collateralPool.riskConfig.liquidationConfiguration.maxOrdersInBid);
+        }
+
+        if (
+            liquidationBid.hookAddress != address(0) && 
+            !IERC165(liquidationBid.hookAddress).supportsInterface(type(ILiquidationHook).interfaceId)
+        ) {
+            revert IncorrectLiquidationBidHookAddress(liquidationBid);
         }
 
         for (uint256 i = 0; i < marketIdsLength; i++) {
@@ -359,7 +376,7 @@ library AccountLiquidation {
         );
 
         // todo: check whether we should use net deposits or free collateral (ie initialDelta)
-        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).netDeposits;
+        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).collateralInfo.netDeposits;
 
         uint256 backstopLPReward = 0;
         if (
@@ -393,9 +410,30 @@ library AccountLiquidation {
         }
     }
 
+    function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        // adl health info values are in USD (and therefore represented with 18 decimals)
+        UD60x18 health = ud(marginInfo.dutchHealthInfo.rawMarginBalance.toUint()).div(
+            ud(marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement)
+        );
+        if (health.gt(UNIT)) {
+            health = UNIT;
+        }
+        return health;
+    }
+
     function computeDutchLiquidationPenaltyParameter(Account.Data storage self) internal view returns (UD60x18) {
-        // todo: implement
-        return UD60x18.wrap(10e17);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        UD60x18 dMin = collateralPool.riskConfig.dutchConfiguration.dMin;
+        UD60x18 dSlope = collateralPool.riskConfig.dutchConfiguration.dSlope;
+        UD60x18 health = self.computeDutchHealth();
+
+        UD60x18 dDutch = dMin.add(UNIT.sub(health).mul(dSlope));
+        if (dDutch.gt(UNIT)) {
+            dDutch = UNIT;
+        }
+
+        return dDutch;
     }
 
     function executeTopRankedLiquidationBid(
@@ -524,7 +562,6 @@ library AccountLiquidation {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
 
-        // todo: validate backstop lp liquidation orders
         // todo: layer in backstop lp & keeper rewards
         // todo: make sure backstop lp capacity is exhausted before proceeding to adl
 
