@@ -8,17 +8,8 @@ pragma solidity >=0.8.13;
 /// @notice Computes sqrt price for ticks of size 1.0001, i.e. sqrt(1.0001^tick) as fixed point Q64.96 numbers. Supports
 /// prices between 2**-128 and 2**128
 library TickMath {
-    /// @dev The default minimum tick of a vamm representing 1000%
-    int24 internal constant DEFAULT_MIN_TICK = -69100;
-    /// @dev The default minimum tick of a vamm repersenting 0.001%
-    int24 internal constant DEFAULT_MAX_TICK = -DEFAULT_MIN_TICK;
-
-    /// @dev below values are taken from uniswap v3 
-    /// https://github.com/Uniswap/v3-core/blob/d8b1c635c275d2a9450bd6a78f3fa2484fef73eb/contracts/libraries/TickMath.sol#L9
-    /// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**-128
-    int24 internal constant MIN_TICK_LIMIT = -887272;
-    /// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
-    int24 internal constant MAX_TICK_LIMIT = -MIN_TICK_LIMIT;
+    /// @dev The maximum tick that this library supports
+    uint256 private constant MAX_TICK_LIMIT = 887272;
 
     /// @notice Calculates sqrt(1.0001^tick) * 2^96
     /// @dev Throws if |tick| > max tick
@@ -35,7 +26,8 @@ library TickMath {
         uint256 absTick = tick < 0
             ? uint256(-int256(tick))
             : uint256(int256(tick));
-        require(absTick <= uint256(uint24(MAX_TICK_LIMIT)), "T");
+    
+        require(absTick <= MAX_TICK_LIMIT, "T");
 
         uint256 ratio = absTick & 0x1 != 0
             ? 0xfffcb933bd6fad37aa2d162d1a594001

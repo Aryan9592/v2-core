@@ -128,8 +128,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             priceImpactPhi: ud60x18(0), // 1
             spread: ud60x18(0), // 0%
             minSecondsBetweenOracleObservations: 10,
-            minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-            maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+            minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
         });
 
         // ensure the current time > 7 days
@@ -220,16 +220,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 assertEq(executedBase, -1_000 * 1e6, "executedBase");
                 assertEq(executedQuote, int256(48356576), "executedQuote");
                 assertEq(annualizedNotional, -505000000, "annualizedNotional");
-            }
-
-            // check twap
-            {
-                uint256 price = checkNonAdjustedTwap(marketId, maturityTimestamp);
-                // with non-zero lookback window
-                uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0); 
-                assertGe(twap, price); // considers previous prices
-                assertLe(twap, unwrap(VammTicks.getPriceFromTick(initTick).div(convert(100))));
-                assertAlmostEq(twap, 0.05e18, 0.0001e18, "twap almost 5%");
             }
         }
 

@@ -10,8 +10,6 @@ import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTi
 
 import { UD60x18, ud, unwrap, convert } from "@prb/math/UD60x18.sol";
 
-// import "forge-std/console2.sol";
-
 /// @title Storage checks 
 abstract contract Checks is AssertionHelpers {
 
@@ -87,18 +85,6 @@ abstract contract Checks is AssertionHelpers {
         assertEq(expectedAccruedInterestPool, position.accruedInterestTrackers.accruedInterest, "accruedInterest");
     }
 
-    function checkZeroTakerFilledBalances(
-        DatedIrsProxy datedIrsProxy,
-        PositionInfo memory positionInfo
-    ) internal {
-        Position.Data memory position = datedIrsProxy
-            .getTakerPositionInfo(positionInfo.accountId, positionInfo.marketId, positionInfo.maturityTimestamp);
-
-        assertEq(0, position.baseBalance, "baseBalance");
-        assertEq(0, position.quoteBalance, "quoteBalance");
-        // note: currently, accruedInterest is not reset to 0 at settlement
-    }
-
     function checkZeroPoolFilledBalances(
         address poolAddress,
         PositionInfo memory positionInfo
@@ -152,64 +138,20 @@ abstract contract Checks is AssertionHelpers {
         });
     }
 
-    function checkNonAdjustedTwap(uint128 marketId, uint32 maturityTimestamp) internal returns (uint256 twap) {
-        VammProxy vammProxy = getVammProxy();
-        int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
-        UD60x18 price = VammTicks.getPriceFromTick(currentTick).div(convert(100));
-
-        UD60x18 datedIRSTwap = vammProxy.getAdjustedDatedIRSTwap(marketId, maturityTimestamp, 0, 0);
-        
-        twap = unwrap(price);
-    }
-
     function getAdjustedTwap(
         uint128 marketId, uint32 maturityTimestamp, int256 orderSize
-    ) internal returns (uint256 twap) {
-        uint32 twapLookbackWindow = twapLookbackWindow(marketId,maturityTimestamp);
-        VammProxy vammProxy = getVammProxy();
-
+    ) internal view returns (uint256 twap) {
         twap = unwrap(
-            vammProxy.getAdjustedDatedIRSTwap(marketId, maturityTimestamp, orderSize, twapLookbackWindow)
+            getVammProxy().getAdjustedDatedIRSTwap(
+                marketId, 
+                maturityTimestamp, 
+                orderSize, 
+                twapLookbackWindow(marketId, maturityTimestamp)
+            )
         );
     }
 
     function getVammProxy() internal virtual view returns(VammProxy);
+    
     function twapLookbackWindow(uint128 marketId, uint32 maturityTimestamp) internal view virtual returns(uint32);
-}
-
-library StructsTransformer {
-
-    struct MarginInfo {
-        address collateralType;
-        int256 netDeposits;
-        /// These are all amounts that are available to contribute to cover margin requirements. 
-        int256 marginBalance;
-        /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement 
-        /// token and not as value of an instrument which settles in that token
-        int256 realBalance;
-        /// Difference between margin balance and initial margin requirement
-        int256 initialDelta;
-        /// Difference between margin balance and maintenance margin requirement
-        int256 maintenanceDelta;
-        /// Difference between margin balance and liquidation margin requirement
-        int256 liquidationDelta;
-        /// Difference between margin balance and dutch margin requirement
-        int256 dutchDelta;
-        /// Difference between margin balance and adl margin requirement
-        int256 adlDelta;
-    }
-
-    function marginInfo(Account.MarginInfo memory margin) internal pure returns (MarginInfo memory) {
-        return MarginInfo({
-            collateralType: margin.collateralType,
-            netDeposits: margin.collateralInfo.netDeposits,
-            marginBalance: margin.collateralInfo.marginBalance,
-            realBalance: margin.collateralInfo.realBalance,
-            initialDelta: margin.initialDelta,
-            maintenanceDelta: margin.maintenanceDelta,
-            liquidationDelta: margin.liquidationDelta,
-            dutchDelta: margin.dutchDelta, 
-            adlDelta: margin.adlDelta
-        });
-    }
 }

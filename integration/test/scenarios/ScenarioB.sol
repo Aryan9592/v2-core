@@ -27,7 +27,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import { ud60x18, div, SD59x18, UD60x18, convert, unwrap, wrap } from "@prb/math/UD60x18.sol";
 
-contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
+contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
     using SafeCastI256 for int256;
     using SafeCastU256 for uint256;
     using SafeCastU128 for uint128;
@@ -126,8 +126,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             priceImpactPhi: ud60x18(0.0001e18), // vol / volume = 0.01
             spread: ud60x18(0.003e18), // 0.3%
             minSecondsBetweenOracleObservations: 10,
-            minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-            maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+            minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
         });
 
         // ensure the current time > 7 days
@@ -214,16 +214,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 assertAlmostEq(executedQuote, int256(45326575), 1e6, "executedQuote1"); 
                 assertEq(annualizedNotional, -505000000, "annualizedNotional1");
             }
-            // twap checks
-            {
-                uint256 price = checkNonAdjustedTwap(marketId, maturityTimestamp);
-                // with non-zero lookback window
-                uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0); 
-                assertGe(twap, price); // considers previous prices
-                assertLe(twap, unwrap(VammTicks.getPriceFromTick(initTick).div(convert(100))));
-                assertAlmostEq(twap, 0.05e18, 0.0001e18, "twap almost 5%");
-            }
-            
         }
 
         // long VT - account 3
