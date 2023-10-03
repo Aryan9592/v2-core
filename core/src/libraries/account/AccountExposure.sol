@@ -197,43 +197,6 @@ library AccountExposure {
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
-            // Get the risk parameter of the market
-            UD60x18 riskParameter = market.riskConfig.riskParameter;
-
-            // Get taker and maker exposure to the market
-            Account.MakerMarketExposure[] memory makerExposures = 
-                market.getAccountTakerAndMakerExposures(self.id);
-
-            // Aggregate LMR and unrealized loss for all exposures
-            for (uint256 j = 0; j < makerExposures.length; j++) {
-                Account.MarketExposure memory exposureLower = makerExposures[j].lower;
-                Account.MarketExposure memory exposureUpper = makerExposures[j].upper;
-
-                vars.accruedCashflows += exposureLower.pnlComponents.accruedCashflows;
-                vars.lockedPnL += exposureLower.pnlComponents.lockedPnL;
-
-                uint256 lowerLMR = 
-                    computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
-
-                if (equalExposures(exposureLower, exposureUpper)) {
-                    vars.liquidationMarginRequirement += lowerLMR;
-                    vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
-                } else {
-                    uint256 upperLMR = 
-                    computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-                    if (
-                        lowerLMR.toInt() + exposureLower.pnlComponents.unrealizedPnL >
-                        upperLMR.toInt() + exposureUpper.pnlComponents.unrealizedPnL
-                    ) {
-                        vars.liquidationMarginRequirement += lowerLMR;
-                        vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
-                    } else {
-                        vars.liquidationMarginRequirement += upperLMR;
-                        vars.highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
-                    }
-                }
-            }
         }
 
         // Get the initial margin requirement
@@ -304,20 +267,4 @@ library AccountExposure {
     }
 
 
-    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
-    private 
-    pure 
-    returns (bool) 
-    {
-        if (
-            a.annualizedNotional == b.annualizedNotional && 
-            a.pnlComponents.accruedCashflows == b.pnlComponents.accruedCashflows &&
-            a.pnlComponents.lockedPnL == b.pnlComponents.lockedPnL &&
-            a.pnlComponents.unrealizedPnL == b.pnlComponents.unrealizedPnL
-        ) {
-            return true;
-        }
-
-        return false;
-    }
 }

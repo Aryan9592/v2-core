@@ -72,6 +72,9 @@ library Account {
     error AccountNotFound(uint128 accountId);
 
     struct PnLComponents {
+        // todo: adjust to have realized, unrealized
+        // todo: consider pushing counterfactualUnrealizedLong, counterfactualUnrealizedShort to exposures since
+        // only used for margin requirement calculations
         /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
         /// result of having a positions open in a derivative instrument, as determined 
         /// by the derivative’s contractual obligations at certain timestamps.
@@ -94,6 +97,19 @@ library Account {
         /// this component changes with time, as market prices change. Strictly speaking, then, unrealized PnL 
         /// is actually a function of time: unrealizedPnL(t).
         int256 unrealizedPnL;
+    }
+
+    struct ExposureComponents {
+        int256 filledExposure;
+        uint256 unfilledLongExposure;
+        uint256 unfilledShortExposure;
+    }
+
+    struct MarketExposure {
+        uint256 riskBlockId;
+        uint256 riskMatrixRowId;
+        ExposureComponents exposureComponents;
+        PnLComponents pnlComponents;
     }
 
     struct DutchHealthInformation {
@@ -128,23 +144,6 @@ library Account {
         /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement
         /// token and not as value of an instrument which settles in that token
         int256 realBalance;
-    }
-
-    /**
-     * @dev Structure for tracking one-side market exposure.
-     */
-    struct MarketExposure {
-        /// @notice Annualized notional of the exposure
-        int256 annualizedNotional;
-        PnLComponents pnlComponents;
-    }
-
-    /**
-     * @dev Structure for tracking maker (two-side) market exposure.
-     */
-    struct MakerMarketExposure {
-        MarketExposure lower;
-        MarketExposure upper;
     }
 
     /**
