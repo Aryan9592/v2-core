@@ -31,10 +31,7 @@ library MatchedOrders {
         uint128 counterPartyAccountId
     ) {
         bytes[] memory orderInputs;
-        assembly {
-            counterPartyAccountId := calldataload(inputs.offset)
-            orderInputs := calldataload(add(inputs.offset, 0x20))
-        }
+        (counterPartyAccountId, orderInputs) = abi.decode(inputs, (uint128, bytes[]));
 
         // verify counterparty account & access
         Account.loadAccountAndValidatePermission(counterPartyAccountId, Account.ADMIN_PERMISSION, msg.sender);
