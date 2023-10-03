@@ -241,6 +241,9 @@ library CollateralPool {
          * @dev Collateral pool wide risk configuration 
          */
         RiskConfiguration riskConfig;
+
+        // block -> row -> column -> value
+        mapping(uint256 => mapping(uint256 => mapping(uint256 => int256))) riskMatrix;
         /**
          * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
          */
@@ -435,6 +438,17 @@ library CollateralPool {
 
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
         return globalConfig.convertToAssets(self.collateralShares[collateralType]);
+    }
+
+    // todo: expose this function as collateral pool owner only
+    function configureRiskMatrix(
+        Data storage self,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex,
+        int256 value
+    ) internal {
+        self.riskMatrix[blockIndex][rowIndex][columnIndex] = value;
     }
 
     function updateCollateralShares(
