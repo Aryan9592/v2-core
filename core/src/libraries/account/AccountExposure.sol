@@ -176,6 +176,50 @@ library AccountExposure {
         uint256 adlMarginRequirement;
     }
 
+    function getExposuresCount(
+        Account.Data storage self,
+        uint256[] memory markets
+    ) private view returns (uint256 exposuresCount) {
+
+        for (uint256 i = 0; i < markets.length; i++) {
+
+            uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
+            Account.MarketExposure[] memory marketExposures = market.getAccountTakerAndMakerExposures(self.id);
+            exposuresCount += marketExposures.length;
+
+        }
+
+        return exposuresCount;
+    }
+
+    function getAllExposures(
+        Account.Data storage self,
+        uint256[] memory markets,
+        uint256 exposuresCount
+    )  private view returns (Account.MarketExposure[] memory) {
+
+        Account.MarketExposure[] memory allExposures = new Account.MarketExposure[](exposuresCount);
+        uint256 exposuresCounter;
+
+        for (uint256 i = 0; i < markets.length; i++) {
+            uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
+
+            Account.MarketExposure[] memory marketExposures = market.getAccountTakerAndMakerExposures(self.id);
+
+            for (uint256 j = 0; j < marketExposures.length; j++) {
+
+                allExposures[exposuresCounter] = marketExposures[j];
+
+            }
+
+        }
+
+        return allExposures;
+
+    }
+
     /**
      * @dev Returns the initial (im) and liquidataion (lm) margin requirement deltas
      * @dev The amounts are in collateral type. 
@@ -193,11 +237,8 @@ library AccountExposure {
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
-        for (uint256 i = 0; i < markets.length; i++) {
-            uint128 marketId = markets[i].to128();
-            Market.Data storage market = Market.exists(marketId);
-
-        }
+        uint256 exposuresCount = getExposuresCount(self, markets);
+        Account.MarketExposure[] memory allExposures = getAllExposures(self, markets, exposuresCount);
 
         // Get the initial margin requirement
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
