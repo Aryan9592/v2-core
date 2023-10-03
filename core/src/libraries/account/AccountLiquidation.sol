@@ -549,7 +549,7 @@ library AccountLiquidation {
 
     function executeBackstopLiquidation(
         Account.Data storage self,
-        uint128 liquidatorAccountId,
+        uint128 liquidatorAccountId, // todo: why do we pass this here?
         address quoteToken,
         LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
@@ -562,67 +562,152 @@ library AccountLiquidation {
         }
 
         // todo: layer in backstop lp & keeper rewards
-        // todo: make sure backstop lp capacity is exhausted before proceeding to adl
-
-        CollateralPool.Data storage collateralPool = self.getCollateralPool();
-        uint256 shortfall = 0;
 
         bool _isInsolvent = isInsolvent(self, quoteToken);
         if (!_isInsolvent) {
-            Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
-
-            // execute backstop lp liquidation orders
-            for (uint256 i = 0; i < backstopLPLiquidationOrders.length; i++) {
-                LiquidationOrder memory liquidationOrder = backstopLPLiquidationOrders[i];
-                Market.Data storage market = Market.exists(liquidationOrder.marketId);
-                market.executeLiquidationOrder(
-                    self.id,
-                    collateralPool.backstopLPConfig.accountId,
-                    liquidationOrder.inputs
-                );
-            }
-
-            bool leftExposure = false;
-
-            uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
-            for (uint256 i = 0; i < markets.length && !leftExposure; i++) {
-                uint128 marketId = markets[i].to128();
-                Market.Data storage market = Market.exists(marketId);
-                Account.MakerMarketExposure[] memory exposures = 
-                    market.getAccountTakerAndMakerExposures(self.id);
-                if (exposures.length > 0) {
-                    leftExposure = true;
-                }
-            }
-
-            if (leftExposure) {
-                backstopLpAccount.imCheck(address(0));
-                backstopLpAccount.imBufferCheck(address(0));
-            }
+            executeSolventBackstopLiquidation(self, liquidatorAccountId, quoteToken, backstopLPLiquidationOrders);
         } else {
-            // Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
-            // int256 insuranceFundCoverAvailable = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken)
-            // - collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
+            executeInsolventADLLiquidation(self, liquidatorAccountId, quoteToken, marginInfo);
+        }
+    }
 
-            // uint256 insuranceFundDebit = (-marginBalance).toUint();
-            // if (insuranceFundCoverAvailable + marginBalance < 0) {
-            //     shortfall = (marginBalance-insuranceFundCoverAvailable).toUint();
-            //     insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
-            // }
-            // collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+    function executeSolventBackstopLiquidation(
+        Account.Data storage self,
+        uint128 liquidatorAccountId,
+        address quoteToken,
+        LiquidationOrder[] memory backstopLPLiquidationOrders
+    ) internal {
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
+
+        // execute backstop lp liquidation orders
+        for (uint256 i = 0; i < backstopLPLiquidationOrders.length; i++) {
+            LiquidationOrder memory liquidationOrder = backstopLPLiquidationOrders[i];
+            Market.Data storage market = Market.exists(liquidationOrder.marketId);
+            market.executeLiquidationOrder(
+                self.id,
+                collateralPool.backstopLPConfig.accountId,
+                liquidationOrder.inputs
+            );
         }
 
-        // execute adl orders (bankruptcy price is calculated in the market manager)
+        bool leftExposure = false;
 
-        // uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
-        // for (uint256 j = 0; j < markets.length; j++) {
-        //     uint128 marketId = markets[j].to128();
-        //     Market.exists(marketId).executeADLOrder(
-        //         self.id,
-        //         100, // todo: replace
-        //         10 // todo: replace
-        //     );
-        // }
+        uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+        for (uint256 i = 0; i < markets.length && !leftExposure; i++) {
+            uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
+
+            Account.MakerMarketExposure[] memory exposures = 
+                market.getAccountTakerAndMakerExposures(self.id);
+
+            if (exposures.length > 0) {
+                leftExposure = true;
+            }
+        }
+
+        if (leftExposure) {
+            backstopLpAccount.imCheck(address(0));
+            backstopLpAccount.imBufferCheck(address(0));
+
+            for (uint256 i = 0; i < markets.length; i++) {
+                uint128 marketId = markets[i].to128();
+                Market.exists(marketId).executeADLOrder({
+                    liquidatableAccountId: self.id,
+                    inLoss: true,
+                    totalUnrealizedLossQuote: 0,
+                    realBalanceAndIF: 0
+                });
+
+                // todo: shouldn't we update trackers here?
+            }
+        }
+    }
+
+
+    function executeInsolventADLLiquidation(
+        Account.Data storage self,
+        uint128 liquidatorAccountId,
+        address quoteToken,
+        Account.MarginInfo memory marginInfo
+    ) internal {
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        // adl maturities with positive upnl at market price
+        uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
+        for (uint256 i = 0; i < markets.length; i++) {
+            uint128 marketId = markets[i].to128();
+            Market.exists(marketId).executeADLOrder({
+                liquidatableAccountId: self.id,
+                inLoss: false,
+                totalUnrealizedLossQuote: 0,
+                realBalanceAndIF: 0
+            });
+
+            // todo: shouldn't we update trackers here?
+        }
+
+        Account.Data storage insuranceFundAccount = 
+            Account.exists(collateralPool.insuranceFundConfig.accountId);
+        int256 insuranceFundCoverAvailable = 
+            insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken) - 
+                collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
+
+        if (insuranceFundCoverAvailable + marginInfo.marginBalance > 0) {
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-marginInfo.marginBalance).toUint());
+            
+            // adl maturities with negative upnl at market price
+            for (uint256 i = 0; i < markets.length; i++) {
+                uint128 marketId = markets[i].to128();
+                Market.exists(marketId).executeADLOrder({
+                    liquidatableAccountId: self.id,
+                    inLoss: true,
+                    totalUnrealizedLossQuote: 0,
+                    realBalanceAndIF: 0
+                });
+
+                // todo: shouldn't we update trackers here?
+                // todo: shall we query active markets again before this loop?
+            }
+        } else {
+            // note: insuranceFundCoverAvailable should never be negative
+            uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+
+            // todo: handle if auto-exchange was not completed
+
+            // compute total unrealized loss
+            uint256 totalUnrealizedLossQuote = 0;
+            for (uint256 i = 0; i < markets.length; i++) {
+                    uint128 marketId = markets[i].to128();
+                Market.Data storage market = Market.exists(marketId);
+
+                Account.MakerMarketExposure[] memory exposures = market.getAccountTakerAndMakerExposures(self.id);
+
+                for (uint256 j = 0; j < exposures.length; j++) {
+                    // upnl here is negative since all positive upnl exposures were adl-ed at market price
+                    totalUnrealizedLossQuote += (-exposures[j].lower.pnlComponents.unrealizedPnL).toUint();
+                }
+
+                // todo: shouldn't we update trackers here?
+                // todo: shall we query active markets again before this loop?
+            }
+
+            // adl maturities with negative upnl at bankruptcy price
+            for (uint256 i = 0; i < markets.length; i++) {
+                uint128 marketId = markets[i].to128();
+                Market.exists(marketId).executeADLOrder({
+                    liquidatableAccountId: self.id,
+                    inLoss: true,
+                    totalUnrealizedLossQuote: totalUnrealizedLossQuote,
+                    realBalanceAndIF: marginInfo.realBalance + insuranceFundDebit.toInt()
+                });
+
+                // todo: shouldn't we update trackers here?
+                // todo: shall we query active markets again before this loop?
+            }
+        }
     }
 }
 

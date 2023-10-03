@@ -74,7 +74,7 @@ library LPPosition {
     }
 
     /**
-     * @dev Loads the LPPosition object for the given position Id
+     * @dev Loads the LPPosigettion object for the given position Id
      */
     function load(uint128 id) private pure returns (Data storage position) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.LPPosition", id));
