@@ -295,14 +295,22 @@ library AccountExposure {
         return (value >= 0) ? int256(1) : -1;
     }
 
+    function computeLMRFilled(Account.MarketExposure[] memory exposures) private view returns (uint256 lmrFilled) {
+        return lmrFilled;
+    }
+
     /**
      * @dev Returns the liquidation margin requirement given the exposures array
      */
-    function computeLiquidationMarginRequirement(Account.MarketExposure[] memory)
+    function computeLiquidationMarginRequirement(Account.MarketExposure[] memory exposures)
     private
     view
     returns (uint256 liquidationMarginRequirement)
     {
+        uint256 lmrFilled = computeLMRFilled(exposures);
+        // todo: for unfilled loop through all and then pick up the ones with unfilled exposures and trigger the
+        // relevant function
+        liquidationMarginRequirement = lmrFilled;
         return liquidationMarginRequirement;
     }
 
