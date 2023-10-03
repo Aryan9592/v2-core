@@ -239,6 +239,7 @@ library AccountExposure {
 
         uint256 exposuresCount = getExposuresCount(self, markets);
         Account.MarketExposure[] memory allExposures = getAllExposures(self, markets, exposuresCount);
+        vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(allExposures);
 
         // Get the initial margin requirement
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
@@ -295,15 +296,13 @@ library AccountExposure {
     }
 
     /**
-     * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter
+     * @dev Returns the liquidation margin requirement given the exposures array
      */
-    function computeLiquidationMarginRequirement(int256 annualizedNotional, UD60x18 riskParameter)
+    function computeLiquidationMarginRequirement(Account.MarketExposure[] memory)
     private
-    pure
+    view
     returns (uint256 liquidationMarginRequirement)
     {
-        uint256 absAnnualizedNotional = annualizedNotional < 0 ? uint256(-annualizedNotional) : uint256(annualizedNotional);
-        liquidationMarginRequirement = mulUDxUint(riskParameter, absAnnualizedNotional);
         return liquidationMarginRequirement;
     }
 
