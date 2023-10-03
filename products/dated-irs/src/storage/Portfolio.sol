@@ -440,7 +440,8 @@ library Portfolio {
             );
 
             // lower and upper exposures are the same, since no unfilled orders should be present at this poin
-            bool executeADL = (inLoss) ? exposure.lower.pnlComponents.unrealizedPnL < 0 : exposure.lower.pnlComponents.unrealizedPnL > 0;
+            bool executeADL = 
+                (inLoss) ? exposure.lower.pnlComponents.unrealizedPnL < 0 : exposure.lower.pnlComponents.unrealizedPnL > 0;
             if (executeADL) {
                 ExecuteADLOrder.executeADLOrder(
                     self,

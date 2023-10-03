@@ -654,8 +654,8 @@ library AccountLiquidation {
             insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken) - 
                 collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
 
-        if (insuranceFundCoverAvailable + marginInfo.marginBalance > 0) {
-            collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-marginInfo.marginBalance).toUint());
+        if (insuranceFundCoverAvailable + marginInfo.collateralInfo.marginBalance > 0) {
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-marginInfo.collateralInfo.marginBalance).toUint());
             
             // adl maturities with negative upnl at market price
             for (uint256 i = 0; i < markets.length; i++) {
@@ -701,7 +701,7 @@ library AccountLiquidation {
                     liquidatableAccountId: self.id,
                     inLoss: true,
                     totalUnrealizedLossQuote: totalUnrealizedLossQuote,
-                    realBalanceAndIF: marginInfo.realBalance + insuranceFundDebit.toInt()
+                    realBalanceAndIF: marginInfo.collateralInfo.realBalance + insuranceFundDebit.toInt()
                 });
 
                 // todo: shouldn't we update trackers here?
