@@ -84,6 +84,7 @@ contract GlpRateOracle is IRateOracle {
     state.earliestStateUpdate = block.timestamp + MIN_SECONDS_BETWEEN_STATE_UPDATES;
   }
 
+  // called after maker and taker oder execution
   function _updateState() internal {
     // average over min & max price of GLP price feeds
     // see https://github.com/gmx-io/gmx-contracts/blob/master/contracts/core/VaultPriceFeed.sol
