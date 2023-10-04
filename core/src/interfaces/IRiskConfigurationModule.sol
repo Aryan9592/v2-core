@@ -57,4 +57,22 @@ interface IRiskConfigurationModule {
         view 
         returns 
         (CollateralPool.RiskConfiguration memory config);
+
+    // todo: add natspec
+    function configureRiskMatrix(
+        uint128 collateralPoolId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex,
+        SD59x18 value
+    ) external;
+
+    // todo: add natspec
+
+    function getRiskMatrixParameter(
+        uint128 collateralPoolId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex
+    ) external view returns (SD59x18 parameter);
 }
