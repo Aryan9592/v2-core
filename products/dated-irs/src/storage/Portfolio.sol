@@ -242,12 +242,9 @@ library Portfolio {
         );
 
         exposure.pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
+        exposure.exposureComponents = ExposureHelpers.getExposureComponents(poolState);
 
-//        exposure.lower =
-//            ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
-//
-//        exposure.upper =
-//            ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
+        return exposure;
     }
 
     function getAccountTakerAndMakerExposures(

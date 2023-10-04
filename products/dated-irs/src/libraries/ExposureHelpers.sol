@@ -155,6 +155,8 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
+
+
     function getPnLComponents(
         PoolExposureState memory poolState,
         address poolAddress
@@ -171,6 +173,28 @@ library ExposureHelpers {
         pnlComponents.realizedPnL = poolState.accruedInterest + poolState.accruedInterestPool;
 
         return pnlComponents;
+    }
+
+    function getExposureComponents(
+        PoolExposureState memory poolState
+    ) internal view returns (Account.ExposureComponents memory exposureComponents) {
+
+        exposureComponents.filledExposure = mulUDxInt(
+            poolState.annualizedExposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool
+        );
+
+        exposureComponents.cfExposureLong = mulUDxInt(
+            poolState.annualizedExposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
+        );
+
+        exposureComponents.cfExposureShort = mulUDxInt(
+            poolState.annualizedExposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
+        );
+
+        return exposureComponents;
     }
 
 //    function getUnfilledExposureLowerInPool(
