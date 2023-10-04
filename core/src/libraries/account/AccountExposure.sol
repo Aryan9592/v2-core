@@ -314,16 +314,36 @@ library AccountExposure {
     }
 
 
+    function getExposure(
+        Account.MarketExposure memory exposure,
+        uint256 exposureIndex,
+        int256 unfilledIndex,
+        bool isLong
+    ) private view returns (int256) {
+
+        if ((unfilledIndex > 0) && (exposureIndex == unfilledIndex.toUint())) {
+            return isLong ? exposure.exposureComponents.cfExposureLong : exposure.exposureComponents.cfExposureShort;
+        }
+
+        return exposure.exposureComponents.filledExposure;
+    }
+
     function computeLMRFilled(
         CollateralPool.Data storage collateralPool,
-        Account.MarketExposure[] memory exposures
+        Account.MarketExposure[] memory exposures,
+        int256 unfilledIndex,
+        bool isLong
     ) private view returns (uint256) {
 
         SD59x18 lmrFilledSquared;
 
         for (uint256 i = 0; i < exposures.length; i++) {
 
+            int256 exposureA = getExposure(exposures[i], i, unfilledIndex, isLong);
+
             for (uint256 j = 0; i < exposures.length; j++) {
+
+                int256 exposureB = getExposure(exposures[j], j, unfilledIndex, isLong);
 
                 SD59x18 riskParam = getRiskParameter(
                     collateralPool,
@@ -332,11 +352,7 @@ library AccountExposure {
                 );
 
                 if (unwrap(riskParam) != 0) {
-                    lmrFilledSquared.add(
-                        sd(exposures[i].exposureComponents.filledExposure).mul(riskParam).mul(
-                            sd(exposures[j].exposureComponents.filledExposure)
-                        )
-                    );
+                    lmrFilledSquared.add(sd(exposureA).mul(sd(exposureB)).mul(riskParam));
                 }
 
             }
@@ -347,11 +363,15 @@ library AccountExposure {
     }
 
     function hasUnfilledExposure(
-        Account.MarketExposure memory exposure
+        Account.MarketExposure memory exposure,
+        bool isLong
     ) private view returns (bool hasUnfilled) {
 
-        hasUnfilled = (exposure.exposureComponents.cfExposureLong != exposure.exposureComponents.filledExposure) ||
-        (exposure.exposureComponents.cfExposureShort != exposure.exposureComponents.filledExposure);
+        if (isLong) {
+            hasUnfilled = exposure.exposureComponents.cfExposureLong != exposure.exposureComponents.filledExposure;
+        } else {
+            hasUnfilled = exposure.exposureComponents.cfExposureShort != exposure.exposureComponents.filledExposure;
+        }
 
         return hasUnfilled;
     }
@@ -364,7 +384,11 @@ library AccountExposure {
 
         for (uint256 i = 0; i < exposures.length; i++) {
 
-            for (uint256 j = 0; i < exposures.length; j++) {
+            uint256 lmrLong;
+            uint256 lmrShort;
+
+            if (hasUnfilledExposure(exposures[i], true)) {
+
 
 
 
@@ -386,9 +410,7 @@ library AccountExposure {
     view
     returns (uint256 liquidationMarginRequirement)
     {
-        uint256 lmrFilled = computeLMRFilled(collateralPool, exposures);
-        // todo: for unfilled loop through all and then pick up the ones with unfilled exposures and trigger the
-        // relevant function
+        uint256 lmrFilled = computeLMRFilled(collateralPool, exposures, -1, false);
         liquidationMarginRequirement = lmrFilled;
         return liquidationMarginRequirement;
     }
