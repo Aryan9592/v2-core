@@ -243,6 +243,7 @@ library Portfolio {
 
         exposure.pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
         exposure.exposureComponents = ExposureHelpers.getExposureComponents(poolState);
+        exposure.pvmrComponents = ExposureHelpers.getPVMRComponents(poolState, poolAddress);
 
         return exposure;
     }

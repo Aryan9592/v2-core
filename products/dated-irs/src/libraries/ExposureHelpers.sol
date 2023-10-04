@@ -197,6 +197,13 @@ library ExposureHelpers {
         return exposureComponents;
     }
 
+    function getPVMRComponents(
+        PoolExposureState memory poolState,
+        address poolAddress
+    ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
+        return pvmrComponents;
+    }
+
 //    function getUnfilledExposureLowerInPool(
 //        PoolExposureState memory poolState,
 //        address poolAddress
