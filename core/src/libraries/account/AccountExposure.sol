@@ -346,6 +346,35 @@ library AccountExposure {
         return lmrFilledSquared.sqrt().unwrap().toUint();
     }
 
+    function hasUnfilledExposure(
+        Account.MarketExposure memory exposure
+    ) private view returns (bool hasUnfilled) {
+
+        hasUnfilled = (exposure.exposureComponents.cfExposureLong != exposure.exposureComponents.filledExposure) ||
+        (exposure.exposureComponents.cfExposureShort != exposure.exposureComponents.filledExposure);
+
+        return hasUnfilled;
+    }
+
+    function computeLMRUnfilled(
+        CollateralPool.Data storage collateralPool,
+        Account.MarketExposure[] memory exposures,
+        uint256 lmrFilled
+    ) private view returns (uint256 lmrUnfilled) {
+
+        for (uint256 i = 0; i < exposures.length; i++) {
+
+            for (uint256 j = 0; i < exposures.length; j++) {
+
+
+
+            }
+
+        }
+
+        return 0;
+    }
+
     /**
      * @dev Returns the liquidation margin requirement given the exposures array
      */
