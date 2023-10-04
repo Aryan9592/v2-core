@@ -388,15 +388,22 @@ library AccountExposure {
             uint256 lmrShort;
 
             if (hasUnfilledExposure(exposures[i], true)) {
-
-
-
-
+                uint256 lmrLongCF = computeLMRFilled(collateralPool, exposures, i.toInt(), true);
+                lmrLong = lmrLongCF > lmrFilled ? lmrLongCF - lmrFilled : 0;
+                lmrLong += exposures[i].pvmrComponents.pvmrLong;
             }
+
+            if (hasUnfilledExposure(exposures[i], false)) {
+                uint256 lmShortCF = computeLMRFilled(collateralPool, exposures, i.toInt(), false);
+                lmrShort = lmShortCF > lmrFilled ? lmShortCF - lmrFilled : 0;
+                lmrShort += exposures[i].pvmrComponents.pvmrShort;
+            }
+
+            lmrUnfilled += lmrLong > lmrShort ? lmrLong : lmrShort;
 
         }
 
-        return 0;
+        return lmrUnfilled;
     }
 
     /**
@@ -411,7 +418,8 @@ library AccountExposure {
     returns (uint256 liquidationMarginRequirement)
     {
         uint256 lmrFilled = computeLMRFilled(collateralPool, exposures, -1, false);
-        liquidationMarginRequirement = lmrFilled;
+        uint256 lmrUnfilled = computeLMRUnfilled(collateralPool, exposures, lmrFilled);
+        liquidationMarginRequirement = lmrFilled + lmrUnfilled;
         return liquidationMarginRequirement;
     }
 
