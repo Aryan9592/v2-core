@@ -15,7 +15,7 @@ import {Market} from "../../storage/Market.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {mulUDxUint, mulUDxInt, mulSDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { sd, SD59x18 } from "@prb/math/SD59x18.sol";
+import { sd, unwrap, SD59x18 } from "@prb/math/SD59x18.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {UNIT, ZERO} from "@prb/math/UD60x18.sol";
 
@@ -304,7 +304,12 @@ library AccountExposure {
         Account.MarketExposure memory exposureA,
         Account.MarketExposure memory exposureB
     ) private view returns (SD59x18 riskParameter) {
-        // todo: implement
+
+        if (exposureA.riskBlockId == exposureB.riskBlockId) {
+            riskParameter = collateralPool.riskMatrix[exposureA.riskBlockId][exposureA.riskMatrixRowId]
+                [exposureB.riskMatrixRowId];
+        }
+
         return riskParameter;
     }
 
@@ -325,11 +330,15 @@ library AccountExposure {
                     exposures[i],
                     exposures[j]
                 );
-                lmrFilledSquared.add(
-                    sd(exposures[i].exposureComponents.filledExposure).mul(riskParam).mul(
-                        sd(exposures[j].exposureComponents.filledExposure)
-                    )
-                );
+
+                if (unwrap(riskParam) != 0) {
+                    lmrFilledSquared.add(
+                        sd(exposures[i].exposureComponents.filledExposure).mul(riskParam).mul(
+                            sd(exposures[j].exposureComponents.filledExposure)
+                        )
+                    );
+                }
+
             }
 
         }
