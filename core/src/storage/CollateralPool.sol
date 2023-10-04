@@ -14,6 +14,7 @@ import {GlobalCollateralConfiguration} from "./GlobalCollateralConfiguration.sol
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
+import {SD59x18} from "@prb/math/SD59x18.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
@@ -243,7 +244,7 @@ library CollateralPool {
         RiskConfiguration riskConfig;
 
         // block -> row -> column -> value
-        mapping(uint256 => mapping(uint256 => mapping(uint256 => int256))) riskMatrix;
+        mapping(uint256 => mapping(uint256 => mapping(uint256 => SD59x18))) riskMatrix;
         /**
          * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
          */
@@ -446,7 +447,7 @@ library CollateralPool {
         uint256 blockIndex,
         uint256 rowIndex,
         uint256 columnIndex,
-        int256 value
+        SD59x18 value
     ) internal {
         self.riskMatrix[blockIndex][rowIndex][columnIndex] = value;
     }
