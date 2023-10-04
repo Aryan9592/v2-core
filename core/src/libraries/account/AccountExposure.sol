@@ -211,6 +211,7 @@ library AccountExposure {
             for (uint256 j = 0; j < marketExposures.length; j++) {
 
                 allExposures[exposuresCounter] = marketExposures[j];
+                exposuresCounter += 1;
 
             }
 
