@@ -173,30 +173,11 @@ library AccountExposure {
         uint256 adlMarginRequirement;
     }
 
-    function getExposuresCount(
-        Account.Data storage self,
-        uint256[] memory markets
-    ) private view returns (uint256 exposuresCount) {
-
-        for (uint256 i = 0; i < markets.length; i++) {
-
-            uint128 marketId = markets[i].to128();
-            Market.Data storage market = Market.exists(marketId);
-            Account.MarketExposure[] memory marketExposures = market.getAccountTakerAndMakerExposures(self.id);
-            exposuresCount += marketExposures.length;
-
-        }
-
-        return exposuresCount;
-    }
-
     function getAllExposures(
         Account.Data storage self,
-        uint256[] memory markets,
-        uint256 exposuresCount
-    ) private view returns (Account.MarketExposure[] memory) {
+        uint256[] memory markets
+    ) private view returns (Account.MarketExposure[] memory allExposures) {
 
-        Account.MarketExposure[] memory allExposures = new Account.MarketExposure[](exposuresCount);
         uint256 exposuresCounter;
 
         for (uint256 i = 0; i < markets.length; i++) {
@@ -250,8 +231,7 @@ library AccountExposure {
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
-        uint256 exposuresCount = getExposuresCount(self, markets);
-        (Account.MarketExposure[] memory allExposures) = getAllExposures(self, markets, exposuresCount);
+        (Account.MarketExposure[] memory allExposures) = getAllExposures(self, markets);
         (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(allExposures);
 
         vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(

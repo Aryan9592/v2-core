@@ -155,71 +155,69 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function getUnfilledExposureLowerInPool(
+    function getPnLComponents(
         PoolExposureState memory poolState,
         address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
-        int256 uPnL = computeUnrealizedPnL(
+    ) internal view returns (Account.PnLComponents memory pnlComponents) {
+
+        pnlComponents.unrealizedPnL = computeUnrealizedPnL(
             poolState.marketId,
             poolState.maturityTimestamp,
             poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
-            poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
+            poolState.baseBalance + poolState.baseBalancePool,
+            poolState.quoteBalance + poolState.quoteBalancePool
         );
 
-        return Account.MarketExposure({
-            annualizedNotional: mulUDxInt(
-                poolState.annualizedExposureFactor, 
-                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
-            ),
-            pnlComponents: Account.PnLComponents({
-                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
-                lockedPnL: 0,
-                unrealizedPnL: uPnL
-            })
-        });
+        pnlComponents.realizedPnL = poolState.accruedInterest + poolState.accruedInterestPool;
+
+        return pnlComponents;
     }
 
-    function getUnfilledExposureUpperInPool(
-        PoolExposureState memory poolState,
-        address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
-        int256 uPnL = computeUnrealizedPnL(
-            poolState.marketId,
-            poolState.maturityTimestamp,
-            poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
-            poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt()
-        );
-
-        return Account.MarketExposure({
-            annualizedNotional: mulUDxInt(
-                poolState.annualizedExposureFactor,
-                poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
-            ),
-            pnlComponents: Account.PnLComponents({
-                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
-                lockedPnL: 0,
-                unrealizedPnL: uPnL
-            })
-        });
-    }
+//    function getUnfilledExposureLowerInPool(
+//        PoolExposureState memory poolState,
+//        address poolAddress
+//    ) internal view returns (Account.MarketExposure memory) {
+//        int256 uPnL = computeUnrealizedPnL(
+//            poolState.marketId,
+//            poolState.maturityTimestamp,
+//            poolAddress,
+//            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
+//            poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
+//        );
+//
+//        return Account.MarketExposure({
+//            annualizedNotional: mulUDxInt(
+//                poolState.annualizedExposureFactor,
+//                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
+//            ),
+//            pnlComponents: Account.PnLComponents({
+//                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
+//                lockedPnL: 0,
+//                unrealizedPnL: uPnL
+//            })
+//        });
+//    }
 
     function checkPositionSizeLimit(
         uint128 accountId,
         uint128 marketId,
         uint32 maturityTimestamp
     ) internal view {
+
+        // todo: consider separate limit check for makers and takers
+
         Market.Data storage market = Market.exists(marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        Account.MakerMarketExposure memory exposure = 
+
+        Account.MarketExposure memory exposure =
             portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
+
         uint256 positionSize = SignedMath.abs(
-            exposure.lower.annualizedNotional > exposure.upper.annualizedNotional ?
-                exposure.lower.annualizedNotional :
-                exposure.upper.annualizedNotional
+            exposure.exposureComponents.cfExposureShort > exposure.exposureComponents.cfExposureLong ?
+                exposure.exposureComponents.cfExposureShort  :
+                exposure.exposureComponents.cfExposureLong
         );
 
         uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;

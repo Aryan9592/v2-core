@@ -234,19 +234,20 @@ library Portfolio {
         Data storage self,
         address poolAddress,
         uint32 maturityTimestamp
-    ) internal view returns (Account.MakerMarketExposure memory exposure) {
+    ) internal view returns (Account.MarketExposure memory exposure) {
         ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
             self,
             maturityTimestamp,
             poolAddress
         );
 
-        // unfilled exposures => consider maker lower
-        exposure.lower = 
-            ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
+        exposure.pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
 
-        exposure.upper = 
-            ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
+//        exposure.lower =
+//            ExposureHelpers.getUnfilledExposureLowerInPool(poolState, poolAddress);
+//
+//        exposure.upper =
+//            ExposureHelpers.getUnfilledExposureUpperInPool(poolState, poolAddress);
     }
 
     function getAccountTakerAndMakerExposures(
@@ -254,8 +255,9 @@ library Portfolio {
     )
         internal
         view
-        returns (Account.MakerMarketExposure[] memory exposures)
+        returns (Account.MarketExposure[] memory exposures)
     {
+
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
