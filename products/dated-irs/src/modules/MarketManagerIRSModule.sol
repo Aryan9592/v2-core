@@ -126,15 +126,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     ) external override returns (bytes memory output) { /// todo: @arturbeg populate output?
         executionPreCheck(marketId);
 
-        uint32 maturityTimestamp;
-        int256 baseAmountToBeLiquidated;
-        uint160 priceLimit;
-
-        assembly {
-            maturityTimestamp := calldataload(inputs.offset)
-            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
-            priceLimit := calldataload(add(inputs.offset, 0x40))
-        }
+        ( 
+            uint32 maturityTimestamp,
+            int256 baseAmountToBeLiquidated,
+            uint160 priceLimit
+        ) = abi.decode(inputs, (uint32, int256, uint160));
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
             ExecuteLiquidationOrder.LiquidationOrderParams({
@@ -156,13 +152,10 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override view {
-        uint32 maturityTimestamp;
-        int256 baseAmountToBeLiquidated;
-
-        assembly {
-            maturityTimestamp := calldataload(inputs.offset)
-            baseAmountToBeLiquidated := calldataload(add(inputs.offset, 0x20))
-        }
+        ( 
+            uint32 maturityTimestamp,
+            int256 baseAmountToBeLiquidated
+        ) = abi.decode(inputs, (uint32, int256));
 
         ExecuteLiquidationOrder.validateLiquidationOrder(
             liquidatableAccountId,
@@ -213,16 +206,13 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         int256 annualizedNotional
     ) {
         executionPreCheck(marketId);
-        
-        uint32 maturityTimestamp;
-        int256 baseAmount;
-        uint160 priceLimit;
+    
+        ( 
+            uint32 maturityTimestamp,
+            int256 baseAmount,
+            uint160 priceLimit
+        ) = abi.decode(inputs, (uint32, int256, uint160));
 
-        assembly {
-            maturityTimestamp := calldataload(inputs.offset)
-            baseAmount := calldataload(add(inputs.offset, 0x20))
-            priceLimit := calldataload(add(inputs.offset, 0x40))
-        }
         (
             int256 executedBaseAmount,
             int256 executedQuoteAmount,
@@ -253,16 +243,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     ) {
         executionPreCheck(marketId);
 
-        uint32 maturityTimestamp;
-        int24 tickLower;
-        int24 tickUpper;
-        int128 liquidityDelta;
-        assembly {
-            maturityTimestamp := calldataload(inputs.offset)
-            tickLower := calldataload(add(inputs.offset, 0x20))
-            tickUpper := calldataload(add(inputs.offset, 0x40))
-            liquidityDelta := calldataload(add(inputs.offset, 0x60))
-        }
+        ( 
+            uint32 maturityTimestamp,
+            int24 tickLower,
+            int24 tickUpper,
+            int128 liquidityDelta
+        ) = abi.decode(inputs, (uint32, int24, int24, int128));
 
         output = abi.encode();
         annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
@@ -290,10 +276,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     ) {
         executionPreCheck(marketId);
 
-        uint32 maturityTimestamp;
-        assembly {
-            maturityTimestamp := calldataload(inputs.offset)
-        }
+        uint32 maturityTimestamp = abi.decode(inputs, (uint32));
 
         output = abi.encode();
         cashflowAmount = Settlement.settle(accountId, marketId, maturityTimestamp);

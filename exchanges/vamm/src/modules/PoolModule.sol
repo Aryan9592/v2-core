@@ -2,6 +2,7 @@
 pragma solidity >=0.8.13;
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { SD59x18 } from "@prb/math/SD59x18.sol";
 
 import {IPoolModule} from "../interfaces/IPoolModule.sol";
 
@@ -194,7 +195,7 @@ contract PoolModule is IPoolModule {
         external view override returns (UD60x18 datedIRSTwap) 
     {   
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = Twap.twap(vamm, lookbackWindow, orderSizeWad);
+        datedIRSTwap = Twap.twap(vamm, lookbackWindow, SD59x18.wrap(orderSizeWad));
     }
 
     function hasUnfilledOrders(

@@ -36,6 +36,7 @@ import {SD59x18, sd59x18} from "@prb/math/SD59x18.sol";
 
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
+import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
 import {Commands} from "@voltz-protocol/periphery/src/libraries/Commands.sol";
 import {IWETH9} from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";

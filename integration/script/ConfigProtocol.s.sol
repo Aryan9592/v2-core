@@ -101,8 +101,8 @@ contract ConfigProtocol is SetupProtocol {
         priceImpactPhi: ud60x18(1e17), // 0.1
         spread: ud60x18(3e15), // 0.3%
         minSecondsBetweenOracleObservations: 3600,
-        minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-        maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+        minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+        maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
       }),
       initTick: -13860, // price = 4%
       observationCardinalityNext: 16,

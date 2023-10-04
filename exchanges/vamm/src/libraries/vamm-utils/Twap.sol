@@ -10,26 +10,24 @@ import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { UD60x18, UNIT, wrap, sqrt, ZERO, convert } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
+import { SD59x18, ZERO as ZERO_sd } from "@prb/math/SD59x18.sol";
 
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65535];
     using SafeCastI256 for int256;
 
-    /// @notice Calculates time-weighted geometric mean price based on the past `orderSizeWad` seconds
+    /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderSizeWad The order size to use when adjusting the price for price impact or spread.
-    /// Must not be zero if either of the boolean params is true because it used to indicate the direction 
-    /// of the trade and therefore the direction of the adjustment. Function will revert if `abs(orderSize)` 
-    /// overflows when cast to a `U60x18`. Must have wad precision.
+    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
     /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
     /// May return zero if adjustments would take the price to or below zero 
     /// - e.g. when anticipated price impact is large because the order size is large.
     function twap(
         DatedIrsVamm.Data storage self, 
         uint32 secondsAgo, 
-        int256 orderSizeWad
+        SD59x18 orderSize
     )
         internal
         view
@@ -39,37 +37,66 @@ library Twap {
         int24 arithmeticMeanTick = observe(self, secondsAgo);
 
         // Not yet adjusted
-        geometricMeanPrice = VammTicks.getPriceFromTick(arithmeticMeanTick).div(convert(100));
-        UD60x18 spreadImpactDelta = ZERO;
-        UD60x18 priceImpactAsFraction = ZERO;
+        geometricMeanPrice = VammTicks.getPriceFromTick(arithmeticMeanTick).div(convert_ud(100));
 
-        if (orderSizeWad != 0) {
-            spreadImpactDelta = self.mutableConfig.spread;
+        // Apply slippage
+        geometricMeanPrice = applySlippage(
+            geometricMeanPrice, 
+            orderSize, 
+            self.mutableConfig.priceImpactPhi
+        );
+
+        // Apply spread
+        geometricMeanPrice = applySpread(
+            geometricMeanPrice,
+            orderSize,
+            self.mutableConfig.spread
+        );
+    }
+
+    function applySlippage(
+        UD60x18 price, 
+        SD59x18 orderSize, 
+        UD60x18 priceImpactPhi
+    ) private pure returns (UD60x18 /* slippedPrice */) {
+        if (orderSize.eq(ZERO_sd)) {
+            return price;
         }
 
-        if (orderSizeWad != 0) {
-            // note: the beta value is 1/2. if the value is set to something else and the 
-            // `pow` function must be used, the order size must be limited to 192 bits
-            priceImpactAsFraction = self.mutableConfig.priceImpactPhi.mul(
-                sqrt(wrap((orderSizeWad > 0 ? orderSizeWad : -orderSizeWad).toUint()))
-            );
+        // note: the beta value is 1/2. if the value is set to something else and the 
+        // `pow` function must be used, the order size must be limited to 192 bits
+        UD60x18 priceImpactAsFraction = priceImpactPhi.mul(orderSize.abs().intoUD60x18().sqrt());
+
+        if (orderSize.gt(ZERO_sd)) {
+            return price.mul(UNIT_ud.add(priceImpactAsFraction));
         }
 
-        // The projected price impact and spread of a trade will move the price up for buys, down for sells
-        if (orderSizeWad > 0) {
-            geometricMeanPrice = geometricMeanPrice.mul(UNIT.add(priceImpactAsFraction)).add(spreadImpactDelta);
-        } else {
-            // todo: consider reverting instead of returning price 0
-            if (spreadImpactDelta.gte(geometricMeanPrice)) {
-                // The spread is higher than the price
-                return ZERO;
-            }
-            if (priceImpactAsFraction.gte(UNIT)) {
-                // The model suggests that the price will drop below zero after price impact
-                return ZERO;
-            }
-            geometricMeanPrice = geometricMeanPrice.mul(UNIT.sub(priceImpactAsFraction)).sub(spreadImpactDelta);
+        if (priceImpactAsFraction.gte(UNIT_ud)) {
+            // The model suggests that the price will drop below zero after price impact
+            return ZERO_ud;
         }
+
+        return price.mul(UNIT_ud.sub(priceImpactAsFraction));
+    }
+
+    function applySpread(
+        UD60x18 price, 
+        SD59x18 orderSize, 
+        UD60x18 spread
+    ) private pure returns (UD60x18 /* spreadPrice */) {
+        if (orderSize.eq(ZERO_sd)) {
+            return price;
+        }
+
+        if (orderSize.gt(ZERO_sd)) {
+            return price.add(spread);
+        }
+
+        if (price.lte(spread)) {
+            return ZERO_ud;
+        }
+
+        return price.sub(spread);
     }
 
     /// @notice Calculates time-weighted arithmetic mean tick
@@ -91,9 +118,6 @@ library Twap {
 
             int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
             arithmeticMeanTick = int24(tickCumulativesDelta / int56(uint56(secondsAgo)));
-
-            // Always round to negative infinity
-            if (tickCumulativesDelta < 0 && (tickCumulativesDelta % int56(uint56(secondsAgo)) != 0)) arithmeticMeanTick--;
         }
     }
 
@@ -107,7 +131,8 @@ library Twap {
     /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
     function observe(
         DatedIrsVamm.Data storage self,
-        uint32[] memory secondsAgos)
+        uint32[] memory secondsAgos
+    )
         private
         view
         returns (int56[] memory tickCumulatives)
