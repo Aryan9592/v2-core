@@ -55,9 +55,38 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
      */
     function getCollateralPoolRiskConfiguration(uint128 collateralPoolId) 
         external 
-        view 
+        view
+        override
         returns (CollateralPool.RiskConfiguration memory) 
     {
         return CollateralPool.exists(collateralPoolId).riskConfig;
     }
+
+    /**
+     * @inheritdoc IRiskConfigurationModule
+     */
+    function configureRiskMatrix(
+        uint128 collateralPoolId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex,
+        SD59x18 value
+    ) external override {
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
+        collateralPool.onlyOwner();
+        collateralPool.configureRiskMatrix(blockIndex, rowIndex, columnIndex, value);
+    }
+
+    /**
+     * @inheritdoc IRiskConfigurationModule
+     */
+    function getRiskMatrixParameter(
+        uint128 collateralPoolId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex
+    ) external view returns (SD59x18 parameter) {
+        return CollateralPool.exists(collateralPoolId).getRiskMatrixParameter(blockIndex, rowIndex, columnIndex);
+    }
+
 }

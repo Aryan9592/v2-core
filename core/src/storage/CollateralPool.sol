@@ -441,7 +441,6 @@ library CollateralPool {
         return globalConfig.convertToAssets(self.collateralShares[collateralType]);
     }
 
-    // todo: expose this function as collateral pool owner only
     function configureRiskMatrix(
         Data storage self,
         uint256 blockIndex,
@@ -450,6 +449,15 @@ library CollateralPool {
         SD59x18 value
     ) internal {
         self.riskMatrix[blockIndex][rowIndex][columnIndex] = value;
+    }
+
+    function getRiskMatrixParameter(
+        Data storage self,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex
+    ) internal view returns (SD59x18) {
+        return self.riskMatrix[blockIndex][rowIndex][columnIndex];
     }
 
     function updateCollateralShares(
