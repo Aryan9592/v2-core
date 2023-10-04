@@ -72,26 +72,7 @@ library Account {
     error AccountNotFound(uint128 accountId);
 
     struct PnLComponents {
-        // todo: adjust to have realized, unrealized
-        // todo: consider pushing counterfactualUnrealizedLong, counterfactualUnrealizedShort to exposures since
-        // only used for margin requirement calculations
-        /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
-        /// result of having a positions open in a derivative instrument, as determined 
-        /// by the derivative’s contractual obligations at certain timestamps.
-        /// @dev e.g., perpetual futures require the interchange of a funding rate a regular intervals, 
-        /// which would be reported as accrued cashflows; interest rate swaps also determine the 
-        /// interchange of net accrued interest amounts, which are also accrued cashflows.
-        int256 accruedCashflows;
-        /// @notice Locked PnL are the component of PnL locked by unwinding exposure tokens. An 
-        /// exception to this is when transactions in that exposure token are not in the 
-        ////settlement token, but rather in a different token which would need to be burned 
-        /// to result in a balance in the settlement token.
-        /// @dev e.g., in the Voltz Protocol’s Interest rate swaps, exposure tokens are termed 
-        /// variable tokens, and the Protocol’s vAMM always interchanges these variable tokens 
-        /// against forward looking, fixed interest tokens as a way of pricing. Converting the 
-        /// PnL locked by unwinding a variable token balance into the settlement token would require 
-        /// burning the resulting fixed token balance.
-        int256 lockedPnL;
+        int256 realizedPnL;
         /// @notice Unrealized PnL is the valued accumulated in an open position when that position 
         /// is priced at market values (’mark to market’). As opposed to the previous components of PnL, 
         /// this component changes with time, as market prices change. Strictly speaking, then, unrealized PnL 
@@ -99,16 +80,22 @@ library Account {
         int256 unrealizedPnL;
     }
 
+    struct PVMRComponents {
+        uint256 pvmrLong;
+        uint256 pvmrShort;
+    }
+
     struct ExposureComponents {
         int256 filledExposure;
-        uint256 unfilledLongExposure;
-        uint256 unfilledShortExposure;
+        int256 cfExposureLong;
+        int256 cfExposureShort;
     }
 
     struct MarketExposure {
         uint256 riskBlockId;
         uint256 riskMatrixRowId;
         ExposureComponents exposureComponents;
+        PVMRComponents pvmrComponents;
         PnLComponents pnlComponents;
     }
 
