@@ -194,7 +194,7 @@ library AccountExposure {
         Account.Data storage self,
         uint256[] memory markets,
         uint256 exposuresCount
-    )  private view returns (Account.MarketExposure[] memory) {
+    ) private view returns (Account.MarketExposure[] memory) {
 
         Account.MarketExposure[] memory allExposures = new Account.MarketExposure[](exposuresCount);
         uint256 exposuresCounter;
@@ -218,6 +218,21 @@ library AccountExposure {
 
     }
 
+    function getAggregatePnLComponents(
+        Account.MarketExposure[] memory exposures
+    ) private view returns (int256 realizedPnL, int256 unrealizedPnL) {
+
+        for (uint256 i = 0; i < exposures.length; i++) {
+
+            realizedPnL += exposures[i].pnlComponents.realizedPnL;
+            unrealizedPnL += exposures[i].pnlComponents.unrealizedPnL;
+
+        }
+
+        return (realizedPnL, unrealizedPnL);
+
+    }
+
     /**
      * @dev Returns the margin info for a given account
      * @dev The amounts are in collateral type. 
@@ -236,12 +251,13 @@ library AccountExposure {
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
         uint256 exposuresCount = getExposuresCount(self, markets);
-        Account.MarketExposure[] memory allExposures = getAllExposures(self, markets, exposuresCount);
+        (Account.MarketExposure[] memory allExposures) = getAllExposures(self, markets, exposuresCount);
+        (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(allExposures);
+
         vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(
             self.getCollateralPool(),
             allExposures
         );
-
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
         vars.maintenanceMarginRequirement  = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
         vars.dutchMarginRequirement  = mulUDxUint(riskMultipliers.dutchMultiplier, vars.liquidationMarginRequirement);
