@@ -164,12 +164,9 @@ library AccountExposure {
     }
 
     struct MarginInfoVars {
+        int256 realizedPnL;
+        int256 unrealizedPnL;
         uint256 liquidationMarginRequirement;
-
-        int256 accruedCashflows;
-        int256 lockedPnL;
-        int256 highestUnrealizedLoss;
-
         uint256 initialMarginRequirement;
         uint256 maintenanceMarginRequirement;
         uint256 dutchMarginRequirement;
@@ -222,7 +219,7 @@ library AccountExposure {
     }
 
     /**
-     * @dev Returns the initial (im) and liquidataion (lm) margin requirement deltas
+     * @dev Returns the margin info for a given account
      * @dev The amounts are in collateral type. 
      */
     function getMarginInfoByCollateralType(
@@ -245,28 +242,14 @@ library AccountExposure {
             allExposures
         );
 
-        // Get the initial margin requirement
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
-
-        // Get the maintenance margin requirement
         vars.maintenanceMarginRequirement  = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
-
-        // Get the dutch margin requirement
         vars.dutchMarginRequirement  = mulUDxUint(riskMultipliers.dutchMultiplier, vars.liquidationMarginRequirement);
-
-        // Get the adl margin requirement
         vars.adlMarginRequirement  = mulUDxUint(riskMultipliers.adlMultiplier, vars.liquidationMarginRequirement);
-
-        // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
+        int256 marginBalance = netDeposits + vars.realizedPnL + vars.unrealizedPnL;
+        int256 realBalance = netDeposits + vars.realizedPnL;
 
-        // todo: margin balance should have the unrealized pnl from filled orders!
-        // otherwise we're being too restrictive
-        int256 marginBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL + vars.highestUnrealizedLoss;
-        int256 realBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL;
-        
-        // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
-        // filled orders should be taken care of in the balance calculations
         return Account.MarginInfo({
             collateralType: collateralType,
             collateralInfo: Account.CollateralInfo({
