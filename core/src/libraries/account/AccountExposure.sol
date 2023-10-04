@@ -312,9 +312,9 @@ library AccountExposure {
     function computeLMRFilled(
         CollateralPool.Data storage collateralPool,
         Account.MarketExposure[] memory exposures
-    ) private view returns (uint256 lmrFilled) {
+    ) private view returns (uint256) {
 
-        int256 lmrFilledSquared;
+        SD59x18 lmrFilledSquared;
 
         for (uint256 i = 0; i < exposures.length; i++) {
 
@@ -325,16 +325,16 @@ library AccountExposure {
                     exposures[i],
                     exposures[j]
                 );
-                lmrFilledSquared += mulSDxInt(
-                    sd(exposures[i].exposureComponents.filledExposure).mul(riskParam),
-                    exposures[j].exposureComponents.filledExposure
+                lmrFilledSquared.add(
+                    sd(exposures[i].exposureComponents.filledExposure).mul(riskParam).mul(
+                        sd(exposures[j].exposureComponents.filledExposure)
+                    )
                 );
-
             }
 
         }
 
-        return lmrFilled;
+        return lmrFilledSquared.sqrt().unwrap().toUint();
     }
 
     /**
