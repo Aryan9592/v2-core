@@ -285,9 +285,9 @@ library AccountExposure {
         Account.MarketExposure memory exposureB
     ) private view returns (SD59x18 riskParameter) {
 
-        if (exposureA.riskBlockId == exposureB.riskBlockId) {
-            riskParameter = collateralPool.riskMatrix[exposureA.riskBlockId][exposureA.riskMatrixRowId]
-                [exposureB.riskMatrixRowId];
+        if (exposureA.riskMatrixDim.riskBlockId == exposureB.riskMatrixDim.riskBlockId) {
+            riskParameter = collateralPool.riskMatrix[exposureA.riskMatrixDim.riskBlockId][exposureA.riskMatrixDim.riskMatrixRowId]
+                [exposureB.riskMatrixDim.riskMatrixRowId];
         }
 
         return riskParameter;

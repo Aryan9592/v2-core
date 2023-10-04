@@ -91,9 +91,13 @@ library Account {
         int256 cfExposureShort;
     }
 
-    struct MarketExposure {
+    struct RiskMatrixDimentions {
         uint256 riskBlockId;
         uint256 riskMatrixRowId;
+    }
+
+    struct MarketExposure {
+        RiskMatrixDimentions riskMatrixDim;
         ExposureComponents exposureComponents;
         PVMRComponents pvmrComponents;
         PnLComponents pnlComponents;

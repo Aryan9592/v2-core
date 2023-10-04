@@ -235,6 +235,11 @@ library Portfolio {
         address poolAddress,
         uint32 maturityTimestamp
     ) internal view returns (Account.MarketExposure memory exposure) {
+
+        // todo: implement block & row id assignment
+        exposure.riskMatrixDim.riskBlockId = 0;
+        exposure.riskMatrixDim.riskMatrixRowId = 0;
+
         ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
             self,
             maturityTimestamp,
@@ -243,7 +248,7 @@ library Portfolio {
 
         exposure.pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
         exposure.exposureComponents = ExposureHelpers.getExposureComponents(poolState);
-        exposure.pvmrComponents = ExposureHelpers.getPVMRComponents(poolState, poolAddress);
+        exposure.pvmrComponents = ExposureHelpers.getPVMRComponents(poolState, poolAddress, exposure.riskMatrixDim);
 
         return exposure;
     }

@@ -215,7 +215,8 @@ library ExposureHelpers {
 
     function getPVMRComponents(
         PoolExposureState memory poolState,
-        address poolAddress
+        address poolAddress,
+        Account.RiskMatrixDimentions memory riskMatrixDim
     ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
         return pvmrComponents;
     }
