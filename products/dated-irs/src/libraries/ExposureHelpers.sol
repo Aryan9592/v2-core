@@ -223,6 +223,13 @@ library ExposureHelpers {
         bool isLong
     ) private view returns (UD60x18 pvmrUnwindPrice) {
         // todo: note this doesn't take into account slippage & spread
+        // todo: make sure add & sub is used correctly for long/short
+        if (isLong) {
+            avgPrice.add(diagonalRiskParameter);
+        } else {
+            avgPrice.sub(diagonalRiskParameter);
+        }
+
         return pvmrUnwindPrice;
     }
 
@@ -236,7 +243,7 @@ library ExposureHelpers {
 
         if ((poolState.unfilledBaseShort != 0) || (poolState.unfilledBaseLong != 0)) {
             address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-            // todo: make sure the relevant collateral pool id is fetched, using zero below
+            // todo: make sure the relevant collateral pool id is fetched, using zero below as placeholder
             diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameter(
                 0,
                 riskMatrixDim.riskBlockId,
@@ -267,31 +274,6 @@ library ExposureHelpers {
 
         return pvmrComponents;
     }
-
-//    function getUnfilledExposureLowerInPool(
-//        PoolExposureState memory poolState,
-//        address poolAddress
-//    ) internal view returns (Account.MarketExposure memory) {
-//        int256 uPnL = computeUnrealizedPnL(
-//            poolState.marketId,
-//            poolState.maturityTimestamp,
-//            poolAddress,
-//            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
-//            poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
-//        );
-//
-//        return Account.MarketExposure({
-//            annualizedNotional: mulUDxInt(
-//                poolState.annualizedExposureFactor,
-//                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
-//            ),
-//            pnlComponents: Account.PnLComponents({
-//                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
-//                lockedPnL: 0,
-//                unrealizedPnL: uPnL
-//            })
-//        });
-//    }
 
     function checkPositionSizeLimit(
         uint128 accountId,
