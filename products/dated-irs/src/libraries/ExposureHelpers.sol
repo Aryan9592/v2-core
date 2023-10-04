@@ -60,32 +60,41 @@ library ExposureHelpers {
         UD60x18 lastMTMRateIndex;
     }
 
-    function computeUnrealizedPnL(
+    function computeTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
         address poolAddress,
-        int256 baseBalance,
-        int256 quoteBalance
-    ) internal view returns (int256 unrealizedPnL) {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        int256 baseBalance
+    ) private view returns (UD60x18) {
 
         Market.Data storage market = Market.exists(marketId);
 
         int256 orderSizeWad = DecimalMath.changeDecimals(
-            -baseBalance, 
+            -baseBalance,
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
 
-        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(
-            marketId, 
-            maturityTimestamp, 
-            orderSizeWad, 
+        return IPool(poolAddress).getAdjustedDatedIRSTwap(
+            marketId,
+            maturityTimestamp,
+            orderSizeWad,
             market.marketConfig.twapLookbackWindow
         );
 
+    }
+
+    function computeUnrealizedPnL(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseBalance,
+        int256 quoteBalance,
+        UD60x18 unwindPrice
+    ) internal view returns (int256 unrealizedPnL) {
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+
         int256 exposure = baseToExposure(baseBalance, marketId);
-        int256 unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
+        int256 unwindQuote = mulUDxInt(unwindPrice.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
 
         return quoteBalance + unwindQuote;
     }
@@ -162,12 +171,19 @@ library ExposureHelpers {
         address poolAddress
     ) internal view returns (Account.PnLComponents memory pnlComponents) {
 
-        pnlComponents.unrealizedPnL = computeUnrealizedPnL(
+        UD60x18 twap = computeTwap(
             poolState.marketId,
             poolState.maturityTimestamp,
             poolAddress,
+            poolState.baseBalance + poolState.baseBalancePool
+        );
+
+        pnlComponents.unrealizedPnL = computeUnrealizedPnL(
+            poolState.marketId,
+            poolState.maturityTimestamp,
             poolState.baseBalance + poolState.baseBalancePool,
-            poolState.quoteBalance + poolState.quoteBalancePool
+            poolState.quoteBalance + poolState.quoteBalancePool,
+            twap
         );
 
         pnlComponents.realizedPnL = poolState.accruedInterest + poolState.accruedInterestPool;
