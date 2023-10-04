@@ -22,6 +22,9 @@ import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.
 
 import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
+// todo: remove once avg prices are pulled from vamm
+import { ud } from "@prb/math/UD60x18.sol";
+
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -226,7 +229,10 @@ library Portfolio {
             unfilledBaseLong: vars.unfilledBaseLong,
             unfilledQuoteLong: vars.unfilledQuoteLong,
             unfilledBaseShort: vars.unfilledBaseShort,
-            unfilledQuoteShort: vars.unfilledQuoteShort
+            unfilledQuoteShort: vars.unfilledQuoteShort,
+            // todo: these will need to be exposed by the pool (using zeros as placeholders for now)
+            avgLongPrice: ud(0),
+            avgShortPrice: ud(0)
         });
     }
 

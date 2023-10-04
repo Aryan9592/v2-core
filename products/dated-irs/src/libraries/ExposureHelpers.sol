@@ -22,6 +22,8 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
+import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
+import "../storage/MarketManagerConfiguration.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -52,6 +54,8 @@ library ExposureHelpers {
         uint256 unfilledQuoteLong;
         uint256 unfilledBaseShort;
         uint256 unfilledQuoteShort;
+        UD60x18 avgLongPrice;
+        UD60x18 avgShortPrice;
     }
 
     struct AccruedInterestTrackers {
@@ -213,11 +217,54 @@ library ExposureHelpers {
         return exposureComponents;
     }
 
+    function computePVMRUnwindPrice(
+        UD60x18 avgPrice,
+        UD60x18 diagonalRiskParameter,
+        bool isLong
+    ) private view returns (UD60x18 pvmrUnwindPrice) {
+        // todo: note this doesn't take into account slippage & spread
+        return pvmrUnwindPrice;
+    }
+
     function getPVMRComponents(
         PoolExposureState memory poolState,
         address poolAddress,
         Account.RiskMatrixDimentions memory riskMatrixDim
     ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
+
+        UD60x18 diagonalRiskParameter;
+
+        if ((poolState.unfilledBaseShort != 0) || (poolState.unfilledBaseLong != 0)) {
+            address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+            // todo: make sure the relevant collateral pool id is fetched, using zero below
+            diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameter(
+                0,
+                riskMatrixDim.riskBlockId,
+                riskMatrixDim.riskMatrixRowId,
+                riskMatrixDim.riskMatrixRowId
+            ).intoUD60x18();
+        }
+
+        if (poolState.unfilledBaseShort != 0) {
+            pvmrComponents.pvmrShort = computeUnrealizedPnL(
+                poolState.marketId,
+                poolState.maturityTimestamp,
+                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
+                poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt(),
+                computePVMRUnwindPrice(poolState.avgShortPrice, diagonalRiskParameter, false)
+            ).toUint();
+        }
+
+        if (poolState.unfilledBaseLong != 0) {
+            pvmrComponents.pvmrLong = computeUnrealizedPnL(
+                poolState.marketId,
+                poolState.maturityTimestamp,
+                poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
+                poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt(),
+                computePVMRUnwindPrice(poolState.avgLongPrice, diagonalRiskParameter, true)
+            ).toUint();
+        }
+
         return pvmrComponents;
     }
 

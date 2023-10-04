@@ -448,6 +448,7 @@ library CollateralPool {
         uint256 columnIndex,
         SD59x18 value
     ) internal {
+        // todo: consider adding a check that ensures diagonal elements are > 0
         self.riskMatrix[blockIndex][rowIndex][columnIndex] = value;
     }
 
