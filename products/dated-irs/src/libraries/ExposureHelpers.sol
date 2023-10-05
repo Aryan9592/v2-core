@@ -252,23 +252,29 @@ library ExposureHelpers {
         }
 
         if (poolState.unfilledBaseShort != 0) {
-            pvmrComponents.pvmrShort = computeUnrealizedPnL(
+
+            int256 unrealizedPnLShort = computeUnrealizedPnL(
                 poolState.marketId,
                 poolState.maturityTimestamp,
                 poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
                 poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt(),
                 computePVMRUnwindPrice(poolState.avgShortPrice, diagonalRiskParameter, false)
-            ).toUint();
+            );
+
+            pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
         }
 
         if (poolState.unfilledBaseLong != 0) {
-            pvmrComponents.pvmrLong = computeUnrealizedPnL(
+
+            int256 unrealizedPnLLong = computeUnrealizedPnL(
                 poolState.marketId,
                 poolState.maturityTimestamp,
                 poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
                 poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt(),
                 computePVMRUnwindPrice(poolState.avgLongPrice, diagonalRiskParameter, true)
-            ).toUint();
+            );
+
+            pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
         }
 
         return pvmrComponents;
