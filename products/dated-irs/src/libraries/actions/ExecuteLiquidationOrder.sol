@@ -12,6 +12,8 @@ import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+import "../ExposureHelpers.sol";
 
 /*
 TODOs
@@ -122,8 +124,20 @@ library ExecuteLiquidationOrder {
             baseAmountToBeLiquidated = -baseAmountLiquidatable;
         }
 
-        // todo base to quote conversion based on market price
-        int256 quoteDeltaFromLiquidation = 0;
+        Market.Data storage market = Market.exists(params.marketId);
+
+        UD60x18 liquidationPrice = ExposureHelpers.computeTwap(
+            params.marketId,
+            params.maturityTimestamp,
+            market.marketConfig.poolAddress,
+            0
+        );
+
+        int256 quoteDeltaFromLiquidation = ExposureHelpers.computeQuoteDelta(
+            baseAmountToBeLiquidated,
+            liquidationPrice,
+            params.marketId
+        );
 
         Portfolio.Data storage portfolioLiquidatable = Portfolio.exists(
             params.liquidatableAccountId,
