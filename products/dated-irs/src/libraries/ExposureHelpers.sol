@@ -341,4 +341,20 @@ library ExposureHelpers {
             }
         }
     }
+
+    function computeQuoteDelta(
+        int256 baseDelta,
+        UD60x18 markPrice,
+        uint128 marketId
+    ) internal view returns (int256) {
+
+        int256 exposure = ExposureHelpers.baseToExposure(
+            baseDelta,
+            marketId
+        );
+
+        return mulUDxInt(markPrice, -exposure);
+
+    }
+
 }

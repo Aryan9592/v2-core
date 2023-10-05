@@ -35,21 +35,6 @@ library ExecuteADLOrder {
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
 
-    function computeQuoteDelta(
-        int256 baseDelta,
-        UD60x18 markPrice,
-        uint128 marketId
-    ) private view returns (int256) {
-
-        int256 exposure = ExposureHelpers.baseToExposure(
-            baseDelta,
-            marketId
-        );
-
-        return mulUDxInt(markPrice, exposure);
-
-    }
-
     function computeBankruptcyPrice(
         int256 baseDelta,
         uint256 positionUnrealizedLoss,
@@ -102,7 +87,7 @@ library ExecuteADLOrder {
             );
         }
 
-        int256 quoteDelta = computeQuoteDelta(baseDelta, markPrice, accountPortfolio.marketId);
+        int256 quoteDelta = ExposureHelpers.computeQuoteDelta(baseDelta, markPrice, accountPortfolio.marketId);
 
         Portfolio.Data storage adlPortfolio = baseDelta > 0 ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
             : Portfolio.loadOrCreate(type(uint128).max - 2, market.id);

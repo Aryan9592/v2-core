@@ -93,7 +93,6 @@ library ExecuteLiquidationOrder {
         }
 
         // revert if liquidation order direction is wrong
-        //  if baseAmountToBeLiquidated*baseAmountLiquidatableAccount>0
         if ( (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
             || (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
             revert WrongLiquidationDirection(
@@ -106,16 +105,10 @@ library ExecuteLiquidationOrder {
 
     }
 
-    function computeMaxLiquidatableBase(
-        int256 baseAmountLiquidatable
-    ) private view returns (int256) {
-        // todo: needs implementation
-        return baseAmountLiquidatable;
-    }
-
     function executeLiquidationOrder(
         LiquidationOrderParams memory params
     ) internal {
+
         int256 baseAmountLiquidatable = validateLiquidationOrder(
             params.liquidatableAccountId,
             params.marketId,
@@ -123,12 +116,10 @@ library ExecuteLiquidationOrder {
             params.baseAmountToBeLiquidated
         );
 
-        int256 maxBaseAmountLiquidatable = computeMaxLiquidatableBase(baseAmountLiquidatable);
-
         int256 baseAmountToBeLiquidated = params.baseAmountToBeLiquidated;
 
-        if (maxBaseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
-            baseAmountToBeLiquidated = -maxBaseAmountLiquidatable;
+        if (baseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
+            baseAmountToBeLiquidated = -baseAmountLiquidatable;
         }
 
         // todo base to quote conversion based on market price
