@@ -89,7 +89,9 @@ interface IPool is IERC165 {
         uint256 unfilledBaseLong,
         uint256 unfilledBaseShort,
         uint256 unfilledQuoteLong,
-        uint256 unfilledQuoteShort
+        uint256 unfilledQuoteShort,
+        UD60x18 avgLongPrice,
+        UD60x18 avgShortPrice
     );
 
     /**

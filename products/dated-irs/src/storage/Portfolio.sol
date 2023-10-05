@@ -22,9 +22,6 @@ import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.
 
 import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
 
-// todo: remove once avg prices are pulled from vamm
-import { ud } from "@prb/math/UD60x18.sol";
-
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -180,7 +177,8 @@ library Portfolio {
                 self.accountId
             );
 
-        (state.unfilledBaseLong, state.unfilledBaseShort, state.unfilledQuoteLong, state.unfilledQuoteShort) =
+        (state.unfilledBaseLong, state.unfilledBaseShort, state.unfilledQuoteLong, state.unfilledQuoteShort,
+        state.avgLongPrice, state.avgShortPrice) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
                 self.marketId, 
                 maturityTimestamp, 
