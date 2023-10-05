@@ -71,6 +71,13 @@ library Account {
      */
     error AccountNotFound(uint128 accountId);
 
+
+    /**
+    * @dev Thrown when liquidator and liquidatee (also applies to auto-exchange) belong to different
+    * collateral pools
+    */
+    error CollateralPoolMismatch(uint128 liquidatorCollateralPoolId, uint128 liquidateeCollateralPoolId);
+
     struct PnLComponents {
         int256 realizedPnL;
         /// @notice Unrealized PnL is the valued accumulated in an open position when that position 
@@ -417,6 +424,26 @@ library Account {
         
         if (marginInfo.initialDelta < 0) {
             revert AccountBelowIM(self.id, marginInfo);
+        }
+    }
+
+    function collateralPoolsCheck(
+        uint128 liquidatableAccountCollateralPoolId,
+        Account.Data storage liquidatorAccount
+    ) internal {
+
+        // note, this function applies to both position liquidations and auto-exchange
+        // liquidator and liquidatee should belong to the same collateral pool
+        // note, it's fine for the liquidator to not belong to any collateral pool
+
+        if (liquidatorAccount.firstMarketId != 0) {
+            CollateralPool.Data storage liquidatorCollateralPool = liquidatorAccount.getCollateralPool();
+            if (liquidatorCollateralPool.id != liquidatableAccountCollateralPoolId) {
+                revert CollateralPoolMismatch(
+                    liquidatorCollateralPool.id,
+                    liquidatableAccountCollateralPoolId
+                );
+            }
         }
     }
 
