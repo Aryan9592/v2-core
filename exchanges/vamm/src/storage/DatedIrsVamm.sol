@@ -114,11 +114,14 @@ library DatedIrsVamm {
         UD60x18 markPriceBand;
     }
 
+    // todo: consider renaming now that it also includes prices and not just balances (same goes for IPool interface)
     struct UnfilledBalances {
         uint256 baseLong;
         uint256 baseShort;
         uint256 quoteLong;
         uint256 quoteShort;
+        UD60x18 avgLongPrice;
+        UD60x18 avgShortPrice;
     }
 
     function create(

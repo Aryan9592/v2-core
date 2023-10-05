@@ -171,7 +171,7 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (uint256, uint256, uint256, uint256) 
+        returns (uint256, uint256, uint256, uint256, UD60x18, UD60x18)
     {      
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         DatedIrsVamm.UnfilledBalances memory unfilled = vamm.getAccountUnfilledBalances(accountId);
@@ -180,7 +180,9 @@ contract PoolModule is IPoolModule {
             unfilled.baseLong,
             unfilled.baseShort,
             unfilled.quoteLong,
-            unfilled.quoteShort
+            unfilled.quoteShort,
+            unfilled.avgLongPrice,
+            unfilled.avgShortPrice
         );
     }
 
