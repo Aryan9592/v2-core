@@ -243,9 +243,8 @@ library ExposureHelpers {
 
         if ((poolState.unfilledBaseShort != 0) || (poolState.unfilledBaseLong != 0)) {
             address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-            // todo: make sure the relevant collateral pool id is fetched, using zero below as placeholder
-            diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameter(
-                0,
+            diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
+                poolState.marketId,
                 riskMatrixDim.riskBlockId,
                 riskMatrixDim.riskMatrixRowId,
                 riskMatrixDim.riskMatrixRowId
