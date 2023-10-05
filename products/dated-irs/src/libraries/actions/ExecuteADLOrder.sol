@@ -79,12 +79,14 @@ library ExecuteADLOrder {
                 realBalanceAndIF
             );
         } else {
-            markPrice = IPool(poolAddress).getAdjustedDatedIRSTwap(
-                accountPortfolio.marketId,
+
+            markPrice = ExposureHelpers.computeTwap(
+                market.id,
                 maturityTimestamp,
-                0,
-                market.marketConfig.twapLookbackWindow
+                poolAddress,
+                0
             );
+
         }
 
         int256 quoteDelta = ExposureHelpers.computeQuoteDelta(baseDelta, markPrice, accountPortfolio.marketId);

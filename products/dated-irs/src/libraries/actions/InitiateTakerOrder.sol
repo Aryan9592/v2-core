@@ -74,16 +74,11 @@ library InitiateTakerOrder {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
-        int256 orderSizeWad = DecimalMath.changeDecimals(
-            params.baseAmount,
-            IERC20(market.quoteToken).decimals(),
-            DecimalMath.WAD_DECIMALS
-        );
-        UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
-            params.marketId, 
-            params.maturityTimestamp, 
-            orderSizeWad, 
-            market.marketConfig.twapLookbackWindow
+        UD60x18 markPrice = ExposureHelpers.computeTwap(
+            params.marketId,
+            params.maturityTimestamp,
+            market.marketConfig.poolAddress,
+            params.baseAmount
         );
 
         // todo: check there is an active pool with maturityTimestamp requested

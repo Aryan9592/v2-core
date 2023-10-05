@@ -69,7 +69,9 @@ library ExposureHelpers {
         uint32 maturityTimestamp,
         address poolAddress,
         int256 baseBalance
-    ) private view returns (UD60x18) {
+    ) internal view returns (UD60x18) {
+
+        // todo: consider passing quote token and twap lookback as arguments to this helper
 
         Market.Data storage market = Market.exists(marketId);
 
