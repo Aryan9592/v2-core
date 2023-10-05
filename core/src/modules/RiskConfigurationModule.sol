@@ -23,31 +23,10 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.getCollateralPool().onlyOwner();
-        market.setRiskConfiguration(config);
-    }
-
-    /**
-     * @inheritdoc IRiskConfigurationModule
-     */
     function configureCollateralPoolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) external override {
         CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
         collateralPool.onlyOwner();
         collateralPool.setRiskConfiguration(config);
-    }
-
-    /**
-     * @inheritdoc IRiskConfigurationModule
-     */
-    function getMarketRiskConfiguration(uint128 marketId)
-        external
-        view
-        override
-        returns (Market.RiskConfiguration memory)
-    {
-        return Market.exists(marketId).riskConfig;
     }
 
     /**

@@ -32,13 +32,6 @@ library Market {
      */
     error MarketNotFound(uint128 marketId);
 
-    struct RiskConfiguration {
-        /**
-         * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
-         */
-        UD60x18 riskParameter;
-    }
-
     struct FeeConfiguration {
         /**
          * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
@@ -79,10 +72,6 @@ library Market {
          * Not required to be unique.
          */
         string name;
-        /**
-         * @dev Market risk configurations
-         */
-        RiskConfiguration riskConfig;
         /**
          * @dev Market fee configurations for collateral pool
          */
@@ -175,16 +164,6 @@ library Market {
         returns (Account.MarketExposure[] memory exposure)
     {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
-    }
-
-    /**
-     * @dev Sets the risk configuration for a given market
-     * @param config The RiskConfiguration object with all the risk parameters
-     */
-    function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
-        self.riskConfig = config;
-
-        emit MarketUpdated(self, block.timestamp);
     }
 
     /**
