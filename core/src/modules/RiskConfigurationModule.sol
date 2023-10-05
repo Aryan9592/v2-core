@@ -85,7 +85,21 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
         uint256 blockIndex,
         uint256 rowIndex,
         uint256 columnIndex
-    ) external view returns (SD59x18 parameter) {
+    ) external view override returns (SD59x18 parameter) {
+        return CollateralPool.exists(collateralPoolId).getRiskMatrixParameter(blockIndex, rowIndex, columnIndex);
+    }
+
+    /**
+     * @inheritdoc IRiskConfigurationModule
+     */
+    function getRiskMatrixParameterFromMM(
+        uint128 marketId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex
+    ) external view override returns (SD59x18 parameter) {
+        Market.Data storage market = Market.exists(marketId);
+        uint128 collateralPoolId = market.getCollateralPool().id;
         return CollateralPool.exists(collateralPoolId).getRiskMatrixParameter(blockIndex, rowIndex, columnIndex);
     }
 
