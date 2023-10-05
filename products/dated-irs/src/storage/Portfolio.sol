@@ -168,29 +168,19 @@ library Portfolio {
         }
     }
 
-    struct GetPoolExposureStateVars {
-        int256 baseBalancePool;
-        int256 quoteBalancePool;
-        int256 accruedInterestPool;
-        uint256 unfilledBaseLong;
-        uint256 unfilledBaseShort;
-        uint256 unfilledQuoteLong;
-        uint256 unfilledQuoteShort;
-    }
-
     function getPoolExposureState(
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) internal view returns (ExposureHelpers.PoolExposureState memory) {
-        GetPoolExposureStateVars memory vars;
-        (vars.baseBalancePool, vars.quoteBalancePool, vars.accruedInterestPool) = IPool(poolAddress).getAccountFilledBalances(
-            self.marketId, 
-            maturityTimestamp, 
-            self.accountId
-        );
+    ) internal view returns (ExposureHelpers.PoolExposureState memory state) {
+        (state.baseBalancePool, state.quoteBalancePool, state.accruedInterestPool) =
+            IPool(poolAddress).getAccountFilledBalances(
+                self.marketId,
+                maturityTimestamp,
+                self.accountId
+            );
 
-        (vars.unfilledBaseLong, vars.unfilledBaseShort, vars.unfilledQuoteLong, vars.unfilledQuoteShort) =
+        (state.unfilledBaseLong, state.unfilledBaseShort, state.unfilledQuoteLong, state.unfilledQuoteShort) =
             IPool(poolAddress).getAccountUnfilledBaseAndQuote(
                 self.marketId, 
                 maturityTimestamp, 
@@ -208,32 +198,14 @@ library Portfolio {
                 self.positions[maturityTimestamp].quoteBalance
             );
 
-        return ExposureHelpers.PoolExposureState({
-            marketId: self.marketId,
-            maturityTimestamp: maturityTimestamp,
+        state.marketId = self.marketId;
+        state.maturityTimestamp = maturityTimestamp;
+        state.annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
+            self.marketId,
+            maturityTimestamp
+        );
 
-            annualizedExposureFactor: 
-                ExposureHelpers.annualizedExposureFactor(
-                    self.marketId,
-                    maturityTimestamp
-                ),
-
-            baseBalance: self.positions[maturityTimestamp].baseBalance,
-            quoteBalance: self.positions[maturityTimestamp].quoteBalance,
-            accruedInterest: latestAccruedInterestTrackers.accruedInterest,
-
-            baseBalancePool: vars.baseBalancePool,
-            quoteBalancePool: vars.quoteBalancePool,
-            accruedInterestPool: vars.accruedInterestPool,
-
-            unfilledBaseLong: vars.unfilledBaseLong,
-            unfilledQuoteLong: vars.unfilledQuoteLong,
-            unfilledBaseShort: vars.unfilledBaseShort,
-            unfilledQuoteShort: vars.unfilledQuoteShort,
-            // todo: these will need to be exposed by the pool (using zeros as placeholders for now)
-            avgLongPrice: ud(0),
-            avgShortPrice: ud(0)
-        });
+        return state;
     }
 
     function getAccountExposuresPerMaturity(
