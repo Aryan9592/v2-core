@@ -430,7 +430,7 @@ library Account {
     function collateralPoolsCheck(
         uint128 liquidatableAccountCollateralPoolId,
         Account.Data storage liquidatorAccount
-    ) internal {
+    ) internal view {
 
         // note, this function applies to both position liquidations and auto-exchange
         // liquidator and liquidatee should belong to the same collateral pool
