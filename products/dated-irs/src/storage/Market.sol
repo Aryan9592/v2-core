@@ -280,4 +280,12 @@ library Market {
     function updateOracleStateIfNeeded(Data storage self) internal {
         MarketRateOracle.updateOracleStateIfNeeded(self);
     }
+
+    function configureRiskMatrixRowId(Data storage self, uint32 maturityTimestamp, uint256 rowId) internal {
+        self.riskMatrixRowIds[maturityTimestamp] = rowId;
+    }
+
+    function getRiskMatrixRowId(Data storage self, uint32 maturityTimestamp) internal view returns (uint256) {
+        return self.riskMatrixRowIds[maturityTimestamp];
+    }
 }
