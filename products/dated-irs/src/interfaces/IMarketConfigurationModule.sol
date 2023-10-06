@@ -44,11 +44,24 @@ interface IMarketConfigurationModule {
      */
     function setMarketConfiguration(uint128 marketId, Market.MarketConfiguration memory marketConfig) external;
 
+    // todo: add natspec
+    function setRiskMatrixConfiguration(uint128 marketId, Market.RiskMatrixConfiguration memory riskMatrixConfig)
+        external;
+
+    // todo: add natspec
+    function setRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp, uint256 rowId) external;
+
     /**
      * @notice Returns the market configuration
      * @return config The market configuration
      */
     function getMarketConfiguration(uint128 marketId) external view returns (Market.MarketConfiguration memory);
+
+    // todo: add natspec
+    function getRiskMatrixConfiguration(uint128 marketId) external view returns (Market.RiskMatrixConfiguration memory);
+
+    // todo: add natspec
+    function getRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp) external view returns (uint256);
 
     /**
      * @notice Returns the market type

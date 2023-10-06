@@ -36,11 +36,49 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     /**
      * @inheritdoc IMarketConfigurationModule
      */
+    function setRiskMatrixConfiguration(uint128 marketId, Market.RiskMatrixConfiguration memory riskMatrixConfig)
+    external override {
+        OwnableStorage.onlyOwner();
+        Market.Data storage market = Market.exists(marketId);
+        market.setRiskMatrixConfiguration(riskMatrixConfig);
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function setRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp, uint256 rowId) external {
+        OwnableStorage.onlyOwner();
+        Market.Data storage market = Market.exists(marketId);
+        market.setRiskMatrixRowId(maturityTimestamp, rowId);
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
     function getMarketConfiguration(uint128 marketId) external view override returns (Market.MarketConfiguration memory) {
         Market.Data storage market = Market.exists(marketId);
         return market.marketConfig;
     }
 
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function getRiskMatrixConfiguration(uint128 marketId) external view returns (Market.RiskMatrixConfiguration memory) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.riskMatrixConfig;
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function getRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp) external view returns (uint256) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.riskMatrixRowIds[maturityTimestamp];
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
     function getMarketType(uint128 marketId) external view override returns (bytes32 marketType) {
         Market.Data storage market = Market.exists(marketId);
         return market.marketType;
