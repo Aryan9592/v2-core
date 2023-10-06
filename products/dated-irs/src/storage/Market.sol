@@ -162,6 +162,17 @@ library Market {
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => uint256 notional) notionalTracker;
+
+        /**
+        * Mapping of maturities to the risk block id for the core to know where to search its risk parameters
+        */
+        mapping(uint32 maturityTimestamp => uint256 riskBlockId) riskBlockIds;
+
+        /**
+        * Mapping of maturities to the risk matrix row id within a given block
+        */
+        mapping(uint32 maturityTimestamp => uint256 riskMatrixRowId) riskMatrixRowIds;
+
     }
 
     /**
