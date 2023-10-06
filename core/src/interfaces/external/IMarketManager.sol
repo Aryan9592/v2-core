@@ -29,6 +29,12 @@ interface IMarketManager is IERC165 {
         view
         returns (Account.MarketExposure[] memory exposures);
 
+    // todo: natspec
+    function getAccountPnLComponents(uint128 marketId, uint128 accountId)
+        external
+        view
+        returns (Account.PnLComponents memory pnlComponents);
+
     //// STATE CHANGING FUNCTIONS ////
 
     /// @notice attempts to close all the unfilled orders of a given account in the market

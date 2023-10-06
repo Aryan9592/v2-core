@@ -107,7 +107,6 @@ library Account {
         RiskMatrixDimentions riskMatrixDim;
         ExposureComponents exposureComponents;
         PVMRComponents pvmrComponents;
-        PnLComponents pnlComponents;
     }
 
     struct DutchHealthInformation {

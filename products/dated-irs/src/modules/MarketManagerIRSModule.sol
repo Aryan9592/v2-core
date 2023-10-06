@@ -79,8 +79,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      * @inheritdoc IMarketManager
      */
     function getAccountTakerAndMakerExposures(
-        uint128 accountId,
-        uint128 marketId
+        uint128 marketId,
+        uint128 accountId
     )
         external
         view
@@ -88,6 +88,17 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         returns (Account.MarketExposure[] memory exposures)
     {
         return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures();
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function getAccountPnLComponents(
+        uint128 marketId,
+        uint128 accountId
+    ) external view override returns (Account.PnLComponents memory pnlComponents) {
+        // todo: implementation
+        return pnlComponents;
     }
 
     // todo: rm after reimplemenation of exposures (used for testing)

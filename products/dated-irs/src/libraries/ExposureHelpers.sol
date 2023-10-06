@@ -40,7 +40,7 @@ library ExposureHelpers {
     struct PoolExposureState {
         uint128 marketId;
         uint32 maturityTimestamp;
-        UD60x18 annualizedExposureFactor;
+        UD60x18 exposureFactor;
 
         int256 baseBalance;
         int256 quoteBalance;
@@ -132,19 +132,6 @@ library ExposureHelpers {
         revert Market.UnsupportedMarketType(marketType);
     }
 
-    /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        UD60x18 factor = exposureFactor(marketId);
-
-        return timeDeltaAnnualized.mul(factor);
-    }
-
     function baseToAnnualizedExposure(
         int256 baseAmount,
         uint128 marketId,
@@ -154,8 +141,11 @@ library ExposureHelpers {
         view
         returns (int256 annualizedExposure)
     {
-        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
-        annualizedExposure = mulUDxInt(factor, baseAmount);
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        UD60x18 factor = exposureFactor(marketId);
+        UD60x18 annualizedFactor = timeDeltaAnnualized.mul(factor);
+
+        annualizedExposure = mulUDxInt(annualizedFactor, baseAmount);
     }
 
     function baseToExposure(
@@ -197,25 +187,17 @@ library ExposureHelpers {
         return pnlComponents;
     }
 
-    function getExposureComponents(
+    function getSwapRateExposureComponents(
         PoolExposureState memory poolState
     ) internal view returns (Account.ExposureComponents memory exposureComponents) {
+        // todo: implement
+        return exposureComponents;
+    }
 
-        exposureComponents.filledExposure = mulUDxInt(
-            poolState.annualizedExposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool
-        );
-
-        exposureComponents.cfExposureLong = mulUDxInt(
-            poolState.annualizedExposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
-        );
-
-        exposureComponents.cfExposureShort = mulUDxInt(
-            poolState.annualizedExposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
-        );
-
+    function getShortRateExposureComponents(
+        PoolExposureState memory poolState
+    ) internal view returns (Account.ExposureComponents memory exposureComponents) {
+        // todo: implement
         return exposureComponents;
     }
 
@@ -289,29 +271,30 @@ library ExposureHelpers {
     ) internal view {
 
         // todo: consider separate limit check for makers and takers
+        // todo fix once exposures are finalized
 
-        Market.Data storage market = Market.exists(marketId);
-        IPool pool = IPool(market.marketConfig.poolAddress);
-
-        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-
-        Account.MarketExposure memory exposure =
-            portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
-
-        uint256 positionSize = SignedMath.abs(
-            exposure.exposureComponents.cfExposureShort > exposure.exposureComponents.cfExposureLong ?
-                exposure.exposureComponents.cfExposureShort  :
-                exposure.exposureComponents.cfExposureLong
-        );
-
-        uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
-        if (positionSize > upperLimit) {
-            revert PositionExceedsSizeLimit(upperLimit, positionSize);
-        }
-        uint256 lowerLimit = market.marketConfig.positionSizeLowerLimit;
-        if (positionSize < lowerLimit) {
-            revert PositionExceedsSizeLimit(lowerLimit, positionSize);
-        }
+//        Market.Data storage market = Market.exists(marketId);
+//        IPool pool = IPool(market.marketConfig.poolAddress);
+//
+//        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+//
+//        Account.MarketExposure memory exposure =
+//            portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
+//
+//        uint256 positionSize = SignedMath.abs(
+//            exposure.exposureComponents.cfExposureShort > exposure.exposureComponents.cfExposureLong ?
+//                exposure.exposureComponents.cfExposureShort  :
+//                exposure.exposureComponents.cfExposureLong
+//        );
+//
+//        uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
+//        if (positionSize > upperLimit) {
+//            revert PositionExceedsSizeLimit(upperLimit, positionSize);
+//        }
+//        uint256 lowerLimit = market.marketConfig.positionSizeLowerLimit;
+//        if (positionSize < lowerLimit) {
+//            revert PositionExceedsSizeLimit(lowerLimit, positionSize);
+//        }
     }
 
     function checkOpenInterestLimit(

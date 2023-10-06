@@ -200,13 +200,19 @@ library AccountExposure {
     }
 
     function getAggregatePnLComponents(
-        Account.MarketExposure[] memory exposures
+        Account.Data storage self,
+        uint256[] memory markets
     ) private view returns (int256 realizedPnL, int256 unrealizedPnL) {
 
-        for (uint256 i = 0; i < exposures.length; i++) {
+        for (uint256 i = 0; i < markets.length; i++) {
 
-            realizedPnL += exposures[i].pnlComponents.realizedPnL;
-            unrealizedPnL += exposures[i].pnlComponents.unrealizedPnL;
+            uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
+
+            Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
+
+            realizedPnL += pnlComponents.realizedPnL;
+            unrealizedPnL += pnlComponents.unrealizedPnL;
 
         }
 
@@ -232,7 +238,7 @@ library AccountExposure {
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
         (Account.MarketExposure[] memory allExposures) = getAllExposures(self, markets);
-        (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(allExposures);
+        (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(self, markets);
 
         vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(
             self.getCollateralPool(),

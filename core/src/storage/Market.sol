@@ -166,6 +166,13 @@ library Market {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }
 
+    function getAccountPnLComponents(Data storage self, uint128 accountId)
+        internal
+        view returns (Account.PnLComponents memory pnlComponents)
+    {
+        return IMarketManager(self.marketManagerAddress).getAccountPnLComponents(self.id, accountId);
+    }
+
     /**
      * @dev Sets the protocol fee configuration for a given market
      * @param config The FeeConfiguration object with all the fee parameters

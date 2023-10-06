@@ -198,35 +198,40 @@ library Portfolio {
 
         state.marketId = self.marketId;
         state.maturityTimestamp = maturityTimestamp;
-        state.annualizedExposureFactor = ExposureHelpers.annualizedExposureFactor(
-            self.marketId,
-            maturityTimestamp
-        );
+        state.exposureFactor =
+
+        ExposureHelpers.exposureFactor(self.marketId);
 
         return state;
     }
 
     function getAccountExposuresPerMaturity(
-        Data storage self,
-        address poolAddress,
-        uint32 maturityTimestamp
-    ) internal view returns (Account.MarketExposure memory exposure) {
+        ExposureHelpers.PoolExposureState memory poolState,
+        address poolAddress
+    ) internal view returns (
+        Account.MarketExposure memory swapRateExposure,
+        Account.MarketExposure memory shortRateExposure
+    ) {
 
-        // todo: implement block & row id assignment
-        exposure.riskMatrixDim.riskBlockId = 0;
-        exposure.riskMatrixDim.riskMatrixRowId = 0;
-
-        ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
-            self,
-            maturityTimestamp,
-            poolAddress
+        swapRateExposure.exposureComponents = ExposureHelpers.getSwapRateExposureComponents(poolState);
+        shortRateExposure.exposureComponents = ExposureHelpers.getShortRateExposureComponents(poolState);
+        // note, short rate exposure pvmr components are zero
+        // todo: riskMatrixDim needs to be configured here to enable pvmr calc
+        swapRateExposure.pvmrComponents = ExposureHelpers.getPVMRComponents(
+            poolState,
+            poolAddress,
+            swapRateExposure.riskMatrixDim
         );
 
-        exposure.pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
-        exposure.exposureComponents = ExposureHelpers.getExposureComponents(poolState);
-        exposure.pvmrComponents = ExposureHelpers.getPVMRComponents(poolState, poolAddress, exposure.riskMatrixDim);
+        return (swapRateExposure, shortRateExposure);
+    }
 
-        return exposure;
+    function getAccountPnLComponents(
+        ExposureHelpers.PoolExposureState memory poolState,
+        address poolAddress
+    ) internal view returns (Account.PnLComponents memory pnlComponents) {
+        pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
+        return pnlComponents;
     }
 
     function getAccountTakerAndMakerExposures(
@@ -234,18 +239,31 @@ library Portfolio {
     )
         internal
         view
-        returns (Account.MarketExposure[] memory exposures)
+        returns (
+            Account.MarketExposure[] memory exposures
+        )
     {
 
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
+        Account.MarketExposure[] memory swapRateExposuresUncollapsed;
+        Account.MarketExposure memory shortRateExposure;
+
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
-            exposures[i - 1] = self.getAccountExposuresPerMaturity(
-                poolAddress,
-                self.activeMaturities.valueAt(i).to32()
+
+            ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
+                self,
+                self.activeMaturities.valueAt(i).to32(),
+                poolAddress
             );
+
+            (swapRateExposuresUncollapsed[i - 1],) = getAccountExposuresPerMaturity(
+                poolState,
+                poolAddress
+            );
+
         }
 
         return exposures;
