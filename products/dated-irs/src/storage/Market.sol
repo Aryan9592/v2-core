@@ -178,6 +178,11 @@ library Market {
         mapping(uint32 maturityTimestamp => uint256 riskMatrixRowId) riskMatrixRowIds;
 
         /**
+        * Mapping of maturities to their original tenor in seconds
+        */
+        mapping(uint32 maturityTimestamp => uint256 tenorInSeconds) tenors;
+
+        /**
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => UD60x18 rateIndex) rateIndexAtMaturity;
@@ -283,6 +288,11 @@ library Market {
 
     function setRiskMatrixRowId(Data storage self, uint32 maturityTimestamp, uint256 rowId) internal {
         self.riskMatrixRowIds[maturityTimestamp] = rowId;
+        // todo: add event
+    }
+
+    function setMaturityTenor(Data storage self, uint32 maturityTimestamp, uint256 tenorInSeconds) internal {
+        self.tenors[maturityTimestamp] = tenorInSeconds;
         // todo: add event
     }
 
