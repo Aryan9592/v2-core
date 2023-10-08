@@ -278,7 +278,8 @@ library ExposureHelpers {
     function getPVMRComponents(
         PoolExposureState memory poolState,
         address poolAddress,
-        Account.RiskMatrixDimentions memory riskMatrixDim
+        uint256 riskBlockId,
+        uint256 riskMatrixRowId
     ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
 
         UD60x18 diagonalRiskParameter;
@@ -287,9 +288,9 @@ library ExposureHelpers {
             address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
             diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
                 poolState.marketId,
-                riskMatrixDim.riskBlockId,
-                riskMatrixDim.riskMatrixRowId,
-                riskMatrixDim.riskMatrixRowId
+                riskBlockId,
+                riskMatrixRowId,
+                riskMatrixRowId
             ).intoUD60x18();
         }
 

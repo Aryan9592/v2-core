@@ -203,27 +203,6 @@ library Portfolio {
         return state;
     }
 
-    function getAccountExposuresPerMaturity(
-        ExposureHelpers.PoolExposureState memory poolState,
-        uint256 tenorInSeconds,
-        address poolAddress
-    ) internal view returns (
-        Account.MarketExposure memory swapRateExposure,
-        Account.MarketExposure memory shortRateExposure
-    ) {
-
-        (shortRateExposure.exposureComponents, swapRateExposure.exposureComponents) =
-        ExposureHelpers.getExposureComponents(poolState, tenorInSeconds);
-        // note, short rate exposure pvmr components are zero
-        // todo: riskMatrixDim needs to be configured here to enable pvmr calc
-        swapRateExposure.pvmrComponents = ExposureHelpers.getPVMRComponents(
-            poolState,
-            poolAddress,
-            swapRateExposure.riskMatrixDim
-        );
-
-        return (swapRateExposure, shortRateExposure);
-    }
 
     function getAccountPnLComponents(
         ExposureHelpers.PoolExposureState memory poolState,
@@ -249,6 +228,9 @@ library Portfolio {
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
         Account.MarketExposure memory shortRateExposure;
+        uint256 riskBlockId = market.riskMatrixConfig.riskBlockId;
+        shortRateExposure.riskMatrixDim.riskBlockId = riskBlockId;
+        shortRateExposure.riskMatrixDim.riskMatrixRowId = market.riskMatrixConfig.shortRateRowId;
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
 
@@ -258,19 +240,28 @@ library Portfolio {
                 poolAddress
             );
 
-            uint256 tenorInSeconds = market.tenors[self.activeMaturities.valueAt(i).to32()];
+            uint256 riskMatrixRowId = market.riskMatrixRowIds[poolState.maturityTimestamp];
 
-            Account.MarketExposure memory maturitySRExposure;
+            Account.ExposureComponents memory maturitySRExposurComponents;
 
-            (exposures[i - 1], maturitySRExposure) = getAccountExposuresPerMaturity(
+            (maturitySRExposurComponents, exposures[i - 1].exposureComponents) = ExposureHelpers.getExposureComponents(
                 poolState,
-                tenorInSeconds,
-                poolAddress
+                market.tenors[poolState.maturityTimestamp]
             );
 
-            shortRateExposure.exposureComponents.filledExposure += maturitySRExposure.exposureComponents.filledExposure;
-            shortRateExposure.exposureComponents.cfExposureLong += maturitySRExposure.exposureComponents.cfExposureLong;
-            shortRateExposure.exposureComponents.cfExposureShort += maturitySRExposure.exposureComponents.cfExposureShort;
+            // todo: decouple?
+            exposures[i - 1].pvmrComponents = ExposureHelpers.getPVMRComponents(
+                poolState,
+                poolAddress,
+                riskBlockId,
+                riskMatrixRowId
+            );
+            exposures[i - 1].riskMatrixDim.riskBlockId = riskBlockId;
+            exposures[i - 1].riskMatrixDim.riskMatrixRowId = riskMatrixRowId;
+
+            shortRateExposure.exposureComponents.filledExposure += maturitySRExposurComponents.filledExposure;
+            shortRateExposure.exposureComponents.cfExposureLong += maturitySRExposurComponents.cfExposureLong;
+            shortRateExposure.exposureComponents.cfExposureShort += maturitySRExposurComponents.cfExposureShort;
 
         }
 
