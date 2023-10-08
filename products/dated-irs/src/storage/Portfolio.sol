@@ -242,12 +242,12 @@ library Portfolio {
             Account.MarketExposure[] memory exposures
         )
     {
+        // todo: decide if collapsing is necessary
 
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
-        Account.MarketExposure[] memory swapRateExposuresUncollapsed;
         Account.MarketExposure memory shortRateExposure;
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
@@ -260,13 +260,21 @@ library Portfolio {
 
             uint256 tenorInSeconds = market.tenors[self.activeMaturities.valueAt(i).to32()];
 
-            (swapRateExposuresUncollapsed[i - 1],) = getAccountExposuresPerMaturity(
+            Account.MarketExposure memory maturitySRExposure;
+
+            (exposures[i - 1], maturitySRExposure) = getAccountExposuresPerMaturity(
                 poolState,
                 tenorInSeconds,
                 poolAddress
             );
 
+            shortRateExposure.exposureComponents.filledExposure += maturitySRExposure.exposureComponents.filledExposure;
+            shortRateExposure.exposureComponents.cfExposureLong += maturitySRExposure.exposureComponents.cfExposureLong;
+            shortRateExposure.exposureComponents.cfExposureShort += maturitySRExposure.exposureComponents.cfExposureShort;
+
         }
+
+        exposures[exposures.length] = shortRateExposure;
 
         return exposures;
     }
