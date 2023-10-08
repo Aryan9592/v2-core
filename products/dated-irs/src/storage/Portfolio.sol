@@ -204,11 +204,32 @@ library Portfolio {
     }
 
 
-    function getAccountPnLComponents(
-        ExposureHelpers.PoolExposureState memory poolState,
-        address poolAddress
-    ) internal view returns (Account.PnLComponents memory pnlComponents) {
-        pnlComponents = ExposureHelpers.getPnLComponents(poolState, poolAddress);
+    function getAccountPnLComponents(Data storage self) internal view
+        returns (Account.PnLComponents memory pnlComponents)
+    {
+
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        uint256 activeMaturitiesCount = self.activeMaturities.length();
+
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+
+            ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
+                self,
+                self.activeMaturities.valueAt(i).to32(),
+                poolAddress
+            );
+
+            Account.PnLComponents memory maturityPnLComponents = ExposureHelpers.getPnLComponents(
+                poolState,
+                poolAddress
+            );
+
+            pnlComponents.realizedPnL += maturityPnLComponents.realizedPnL;
+            pnlComponents.unrealizedPnL += maturityPnLComponents.unrealizedPnL;
+
+        }
+
         return pnlComponents;
     }
 
