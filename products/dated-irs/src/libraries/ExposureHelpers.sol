@@ -13,7 +13,7 @@ import {IPool} from "../interfaces/IPool.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
-import { mulUDxInt, divIntUD, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt, divIntUD, mulUDxUint, mulSDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
@@ -36,6 +36,8 @@ library ExposureHelpers {
 
     error PositionExceedsSizeLimit(uint256 positionSizeLimit, uint256 positionSize);
     error OpenInterestLimitExceeded(uint256 limit, uint256 openInterest);
+
+    uint256 internal constant SECONDS_IN_DAY = 86400;
 
     struct PoolExposureState {
         uint128 marketId;
@@ -187,18 +189,74 @@ library ExposureHelpers {
         return pnlComponents;
     }
 
-    function getSwapRateExposureComponents(
-        PoolExposureState memory poolState
-    ) internal view returns (Account.ExposureComponents memory exposureComponents) {
-        // todo: implement
-        return exposureComponents;
+    function decoupleExposures(
+        int256 notional,
+        uint256 tenorInSeconds,
+        uint256 timeToMaturityInSeconds
+    ) private view returns (int256 shortRateExposure, int256 swapRateExposure) {
+
+        // todo: division by zero checks, etc
+
+        // short rate exposure
+        int256 numSR = (tenorInSeconds - timeToMaturityInSeconds).toInt();
+        int256 denSR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
+        SD59x18 notionalToExposureFactorSR = sd(numSR).div(sd(denSR)).mul(Time.annualize(SECONDS_IN_DAY).intoSD59x18());
+        shortRateExposure = mulSDxInt(notionalToExposureFactorSR, notional);
+
+
+        // swap rate exposure
+        int256 numSWR = (timeToMaturityInSeconds - SECONDS_IN_DAY).toInt();
+        int256 denSWR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
+        SD59x18 notionalToExposureFactorSWR = sd(numSWR).div(sd(denSWR)).mul(Time.annualize(tenorInSeconds).intoSD59x18());
+        swapRateExposure = mulSDxInt(notionalToExposureFactorSWR, notional);
+
+        return (shortRateExposure, swapRateExposure);
     }
 
-    function getShortRateExposureComponents(
-        PoolExposureState memory poolState
-    ) internal view returns (Account.ExposureComponents memory exposureComponents) {
-        // todo: implement
-        return exposureComponents;
+    function getExposureComponents(
+        PoolExposureState memory poolState,
+        uint256 tenorInSeconds
+    ) internal view returns (
+        Account.ExposureComponents memory shortRateExposureComponents,
+        Account.ExposureComponents memory swapRateExposureComponents
+    ) {
+
+        int256 filledNotional = mulUDxInt(
+            poolState.exposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool
+        );
+
+        int256 cfNotionalLong = mulUDxInt(
+            poolState.exposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
+        );
+
+        int256 cfNotionalShort = mulUDxInt(
+            poolState.exposureFactor,
+            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
+        );
+
+        uint256 timeToMaturityInSeconds = uint256(poolState.maturityTimestamp) - block.timestamp;
+
+        (shortRateExposureComponents.filledExposure, swapRateExposureComponents.filledExposure) = decoupleExposures(
+            filledNotional,
+            tenorInSeconds,
+            timeToMaturityInSeconds
+        );
+
+        (shortRateExposureComponents.cfExposureLong, swapRateExposureComponents.cfExposureLong) = decoupleExposures(
+            cfNotionalLong,
+            tenorInSeconds,
+            timeToMaturityInSeconds
+        );
+
+        (shortRateExposureComponents.cfExposureShort, swapRateExposureComponents.cfExposureShort) = decoupleExposures(
+            cfNotionalShort,
+            tenorInSeconds,
+            timeToMaturityInSeconds
+        );
+
+        return (shortRateExposureComponents, swapRateExposureComponents);
     }
 
     function computePVMRUnwindPrice(

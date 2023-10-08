@@ -212,8 +212,8 @@ library Portfolio {
         Account.MarketExposure memory shortRateExposure
     ) {
 
-        swapRateExposure.exposureComponents = ExposureHelpers.getSwapRateExposureComponents(poolState);
-        shortRateExposure.exposureComponents = ExposureHelpers.getShortRateExposureComponents(poolState);
+        (shortRateExposure.exposureComponents, swapRateExposure.exposureComponents) =
+        ExposureHelpers.getExposureComponents(poolState, tenorInSeconds);
         // note, short rate exposure pvmr components are zero
         // todo: riskMatrixDim needs to be configured here to enable pvmr calc
         swapRateExposure.pvmrComponents = ExposureHelpers.getPVMRComponents(
