@@ -97,8 +97,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint128 accountId
     ) external view override returns (Account.PnLComponents memory pnlComponents) {
-        // todo: implementation
-        return pnlComponents;
+        return Portfolio.exists( accountId, marketId).getAccountPnLComponents();
     }
 
     // todo: rm after reimplemenation of exposures (used for testing)
