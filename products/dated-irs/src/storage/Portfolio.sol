@@ -198,15 +198,14 @@ library Portfolio {
 
         state.marketId = self.marketId;
         state.maturityTimestamp = maturityTimestamp;
-        state.exposureFactor =
-
-        ExposureHelpers.exposureFactor(self.marketId);
+        state.exposureFactor = ExposureHelpers.exposureFactor(self.marketId);
 
         return state;
     }
 
     function getAccountExposuresPerMaturity(
         ExposureHelpers.PoolExposureState memory poolState,
+        uint256 tenorInSeconds,
         address poolAddress
     ) internal view returns (
         Account.MarketExposure memory swapRateExposure,
@@ -259,8 +258,11 @@ library Portfolio {
                 poolAddress
             );
 
+            uint256 tenorInSeconds = market.tenors[self.activeMaturities.valueAt(i).to32()];
+
             (swapRateExposuresUncollapsed[i - 1],) = getAccountExposuresPerMaturity(
                 poolState,
+                tenorInSeconds,
                 poolAddress
             );
 
