@@ -120,7 +120,7 @@ contract LiquidationModule is ILiquidationModule {
             bidSubmissionKeeperId
         );
 
-        liquidatorAccount.imCheck(address(0));
+        liquidatorAccount.imCheck();
 
         // todo: should in theory revert if the account is insolvent (& insurance fund
         // can't cover the insolvency after the liquidation (socialized losses via adl

@@ -416,14 +416,14 @@ library Account {
 
     /**
      * @dev Checks if the account is below initial margin requirement and reverts if so,
-     * otherwise  returns the initial margin requirement (single token account)
+     * otherwise returns the initial margin requirement (multi token account)
      */
-    function imCheck(Data storage self, address collateralType) 
+    function imCheck(Data storage self) 
         internal 
         view 
         returns (Account.MarginInfo memory marginInfo)
     {
-        marginInfo = self.getMarginInfoByBubble(collateralType);
+        marginInfo = self.getMarginInfoByBubble(address(0));
         
         if (marginInfo.initialDelta < 0) {
             revert AccountBelowIM(self.id, marginInfo);
@@ -450,12 +450,12 @@ library Account {
         }
     }
 
-    function imAndImBufferCheck(Data storage self, address collateralType)
+    function imAndImBufferCheck(Data storage self)
         internal
         view
         returns (Account.MarginInfo memory marginInfo)
     {
-        marginInfo = self.imCheck(collateralType);
+        marginInfo = self.imCheck();
 
         if (marginInfo.initialBufferDelta > 0) {
             revert AccountAboveIMBuffer(self.id, marginInfo);

@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 /*
 TODOs
     - implement rank calculation
-    - remove address collateralType from im and lm checks
     - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
 */
 
@@ -121,10 +120,10 @@ library AccountLiquidation {
      * @dev Checks if the account is below the liquidation margin requirement
      * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
      */
-    function isBelowLMCheck(Account.Data storage self, address collateralType) private view returns
+    function isBelowLMCheck(Account.Data storage self) private view returns
     (Account.MarginInfo memory marginInfo) {
 
-        marginInfo = self.getMarginInfoByBubble(collateralType);
+        marginInfo = self.getMarginInfoByBubble(address(0));
 
         if (marginInfo.liquidationDelta > 0) {
             revert AccountNotBelowLM(self.id, marginInfo);
@@ -251,7 +250,7 @@ library AccountLiquidation {
             );
         }
 
-        liquidatorAccount.imCheck(address(0));
+        liquidatorAccount.imCheck();
 
     }
 
@@ -412,7 +411,7 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if the account is not below the liquidation margin requirement
-        isBelowLMCheck(self, address(0));
+        isBelowLMCheck(self);
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
@@ -456,7 +455,7 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if account is not below liquidation margin requirement
-        isBelowLMCheck(self, address(0));
+        isBelowLMCheck(self);
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
@@ -507,7 +506,7 @@ library AccountLiquidation {
             market.quoteToken,
             0);
 
-        liquidatorAccount.imCheck(address(0));
+        liquidatorAccount.imCheck();
 
     }
 
@@ -576,7 +575,7 @@ library AccountLiquidation {
         }
 
         if (leftExposure) {
-            backstopLpAccount.imAndImBufferCheck(address(0));
+            backstopLpAccount.imAndImBufferCheck();
 
             for (uint256 i = 0; i < markets.length; i++) {
                 uint128 marketId = markets[i].to128();

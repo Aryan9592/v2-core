@@ -109,7 +109,7 @@ library AutoExchange {
             revert AccountNotEligibleForAutoExchange(accountId, collateralType);
         }
 
-        liquidatorAccount.imCheck(address(0));
+        liquidatorAccount.imCheck();
 
     }
 }
