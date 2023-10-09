@@ -425,7 +425,13 @@ library Portfolio {
         }
     }
 
-    function executeADLOrder(Data storage self, bool inLoss, uint256 totalUnrealizedLossQuote, int256 realBalanceAndIF) internal {
+    function executeADLOrder(
+        Data storage self, 
+        bool adlNegativeUpnl, 
+        bool adlPositiveUpnl, 
+        uint256 totalUnrealizedLossQuote, 
+        int256 realBalanceAndIF
+    ) internal {
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
 
@@ -441,7 +447,8 @@ library Portfolio {
 
             // lower and upper exposures are the same, since no unfilled orders should be present at this poin
             bool executeADL = 
-                (inLoss) ? exposure.lower.pnlComponents.unrealizedPnL < 0 : exposure.lower.pnlComponents.unrealizedPnL > 0;
+                (adlNegativeUpnl && exposure.lower.pnlComponents.unrealizedPnL < 0) ||
+                (adlPositiveUpnl && exposure.lower.pnlComponents.unrealizedPnL > 0);
             if (executeADL) {
                 ExecuteADLOrder.executeADLOrder(
                     self,

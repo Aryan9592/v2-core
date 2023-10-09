@@ -104,7 +104,7 @@ library Account {
         int256 unrealizedPnL;
     }
 
-    struct DutchHealthInformation {
+    struct RawInformation {
         /// The value of margin balance with no haircuts applied to exchange rates
         int256 rawMarginBalance;
         /// The value of the liquidation margin requirement with no haircuts applied
@@ -128,7 +128,7 @@ library Account {
         /// Difference between margin balance and initial buffer margin requirement (for backstop lps)
         int256 initialBufferDelta;
         /// Information required to compute health of position in the context of adl liquidations
-        DutchHealthInformation dutchHealthInfo;
+        RawInformation rawInfo;
     }
 
     struct CollateralInfo {
@@ -440,12 +440,12 @@ library Account {
         }
     }
 
-    function imBufferCheck(Data storage self, address collateralType)
+    function imAndImBufferCheck(Data storage self, address collateralType)
         internal
         view
         returns (Account.MarginInfo memory marginInfo)
     {
-        marginInfo = self.getMarginInfoByBubble(collateralType);
+        marginInfo = self.imCheck(collateralType);
 
         if (marginInfo.initialBufferDelta > 0) {
             revert AccountAboveIMBuffer(self.id, marginInfo);

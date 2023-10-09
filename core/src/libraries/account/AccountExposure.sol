@@ -76,12 +76,12 @@ library AccountExposure {
             dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
             adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut),
             initialBufferDelta: getExchangedQuantity(marginInfo.initialBufferDelta, exchange.price, exchange.priceHaircut),
-            dutchHealthInfo: Account.DutchHealthInformation({
+            rawInfo: Account.RawInformation({
                 rawMarginBalance: 
-                    getExchangedQuantity(marginInfo.dutchHealthInfo.rawMarginBalance, exchange.priceHaircut, ZERO),
+                    getExchangedQuantity(marginInfo.rawInfo.rawMarginBalance, exchange.priceHaircut, ZERO),
                 rawLiquidationMarginRequirement:
                     getExchangedQuantity(
-                        marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement.toInt(), 
+                        marginInfo.rawInfo.rawLiquidationMarginRequirement.toInt(), 
                         exchange.priceHaircut, 
                         ZERO
                     ).toUint()
@@ -151,14 +151,14 @@ library AccountExposure {
                 initialBufferDelta:
                     marginInfo.initialBufferDelta + 
                     getExchangedQuantity(subMarginInfo.initialBufferDelta, price, haircut),
-                dutchHealthInfo: Account.DutchHealthInformation({
+                rawInfo: Account.RawInformation({
                     rawMarginBalance: 
-                        marginInfo.dutchHealthInfo.rawMarginBalance + 
-                        getExchangedQuantity(subMarginInfo.dutchHealthInfo.rawMarginBalance, price, ZERO),
+                        marginInfo.rawInfo.rawMarginBalance + 
+                        getExchangedQuantity(subMarginInfo.rawInfo.rawMarginBalance, price, ZERO),
                     rawLiquidationMarginRequirement: 
-                        marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement +
+                        marginInfo.rawInfo.rawLiquidationMarginRequirement +
                         getExchangedQuantity(
-                            subMarginInfo.dutchHealthInfo.rawLiquidationMarginRequirement.toInt(), 
+                            subMarginInfo.rawInfo.rawLiquidationMarginRequirement.toInt(), 
                             price, 
                             ZERO
                         ).toUint()
@@ -279,7 +279,7 @@ library AccountExposure {
             dutchDelta: marginBalance - vars.dutchMarginRequirement.toInt(),
             adlDelta: marginBalance - vars.adlMarginRequirement.toInt(),
             initialBufferDelta: marginBalance - vars.initialBufferMarginRequirement.toInt(),
-            dutchHealthInfo: Account.DutchHealthInformation({
+            rawInfo: Account.RawInformation({
                 rawMarginBalance: marginBalance,
                 rawLiquidationMarginRequirement: vars.liquidationMarginRequirement
             })

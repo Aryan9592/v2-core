@@ -154,14 +154,14 @@ library AccountLiquidation {
         // consider baking this function into the backstop lp function if it's not used anywhere else
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
-        return marginInfo.collateralInfo.marginBalance < 0;
+        return marginInfo.rawInfo.rawMarginBalance < 0;
     }
 
 
     function collateralPoolsCheck(
         uint128 liquidatableAccountCollateralPoolId,
         Account.Data storage liquidatorAccount
-    ) private {
+    ) private view {
 
         // liquidator and liquidatee should belong to the same collateral pool
         // note, it's fine for the liquidator to not belong to any collateral pool
@@ -182,7 +182,7 @@ library AccountLiquidation {
         Account.Data storage self,
         Account.Data storage liquidatorAccount,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-    ) private {
+    ) private view {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
@@ -413,8 +413,8 @@ library AccountLiquidation {
     function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
         // adl health info values are in USD (and therefore represented with 18 decimals)
-        UD60x18 health = ud(marginInfo.dutchHealthInfo.rawMarginBalance.toUint()).div(
-            ud(marginInfo.dutchHealthInfo.rawLiquidationMarginRequirement)
+        UD60x18 health = ud(marginInfo.rawInfo.rawMarginBalance.toUint()).div(
+            ud(marginInfo.rawInfo.rawLiquidationMarginRequirement)
         );
         if (health.gt(UNIT)) {
             health = UNIT;
@@ -549,7 +549,7 @@ library AccountLiquidation {
 
     function executeBackstopLiquidation(
         Account.Data storage self,
-        uint128 liquidatorAccountId, // todo: why do we pass this here?
+        uint128 liquidatorAccountId,
         address quoteToken,
         LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
@@ -602,20 +602,23 @@ library AccountLiquidation {
             Account.MakerMarketExposure[] memory exposures = 
                 market.getAccountTakerAndMakerExposures(self.id);
 
-            if (exposures.length > 0) {
-                leftExposure = true;
+            for (uint256 j = 0; j < exposures.length && !leftExposure; j++) {
+                // no unfilled exposure here, so lower and upper are the same
+                if (exposures[j].lower.annualizedNotional > 0) {
+                    leftExposure = true;
+                }
             }
         }
 
         if (leftExposure) {
-            backstopLpAccount.imCheck(address(0));
-            backstopLpAccount.imBufferCheck(address(0));
+            backstopLpAccount.imAndImBufferCheck(address(0));
 
             for (uint256 i = 0; i < markets.length; i++) {
                 uint128 marketId = markets[i].to128();
                 Market.exists(marketId).executeADLOrder({
                     liquidatableAccountId: self.id,
-                    inLoss: true,
+                    adlNegativeUpnl: true,
+                    adlPositiveUpnl: true,
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
@@ -640,7 +643,8 @@ library AccountLiquidation {
             uint128 marketId = markets[i].to128();
             Market.exists(marketId).executeADLOrder({
                 liquidatableAccountId: self.id,
-                inLoss: false,
+                adlNegativeUpnl: false,
+                adlPositiveUpnl: true,
                 totalUnrealizedLossQuote: 0,
                 realBalanceAndIF: 0
             });
@@ -662,7 +666,8 @@ library AccountLiquidation {
                 uint128 marketId = markets[i].to128();
                 Market.exists(marketId).executeADLOrder({
                     liquidatableAccountId: self.id,
-                    inLoss: true,
+                    adlNegativeUpnl: true,
+                    adlPositiveUpnl: false,
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
@@ -699,7 +704,8 @@ library AccountLiquidation {
                 uint128 marketId = markets[i].to128();
                 Market.exists(marketId).executeADLOrder({
                     liquidatableAccountId: self.id,
-                    inLoss: true,
+                    adlNegativeUpnl: true,
+                    adlPositiveUpnl: false,
                     totalUnrealizedLossQuote: totalUnrealizedLossQuote,
                     realBalanceAndIF: marginInfo.collateralInfo.realBalance + insuranceFundDebit.toInt()
                 });
