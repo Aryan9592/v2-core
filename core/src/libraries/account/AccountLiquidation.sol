@@ -104,6 +104,11 @@ library AccountLiquidation {
      */
     error IncorrectLiquidationBidHookAddress(LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
 
+    /**
+     * @dev Thrown when solvency is queried across bubbles (collateral type is address(0))
+     */
+    error CannotComputeSolvencyAcrossBubbles();
+
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
@@ -114,9 +119,9 @@ library AccountLiquidation {
      * and returns the shortfall
      */
     function isInsolvent(Account.Data storage self, address collateralType) private view returns (bool) {
-        // todo: note, doing too many redundunt calculations, can be optimized
-        // todo: consider reverting if address(0) is provided as collateralType
-        // consider baking this function into the backstop lp function if it's not used anywhere else
+        if (collateralType == address(0)) {
+            revert CannotComputeSolvencyAcrossBubbles();
+        }
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return marginInfo.rawInfo.rawMarginBalance < 0;
