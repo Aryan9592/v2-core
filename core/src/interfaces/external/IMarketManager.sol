@@ -107,6 +107,8 @@ interface IMarketManager is IERC165 {
     function executeADLOrder(
         uint128 liquidatableAccountId,
         uint128 marketId,
+        bool adlNegativeUpnl,
+        bool adlPositiveUpnl,
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
     ) external;

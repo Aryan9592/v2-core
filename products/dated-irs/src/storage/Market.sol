@@ -155,6 +155,11 @@ library Market {
         RateOracleConfiguration rateOracleConfig;
 
         /**
+         * @dev Duration of ADL blendin period, in seconds
+         */
+        uint256 adlBlendingDurationInSeconds;
+
+        /**
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => UD60x18 rateIndex) rateIndexAtMaturity;

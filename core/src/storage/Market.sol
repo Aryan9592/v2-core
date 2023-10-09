@@ -261,12 +261,16 @@ library Market {
     function executeADLOrder(
         Data storage self,
         uint128 liquidatableAccountId,
+        bool adlNegativeUpnl,
+        bool adlPositiveUpnl,
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
     ) internal {
         IMarketManager(self.marketManagerAddress).executeADLOrder(
             liquidatableAccountId,
             self.id,
+            adlNegativeUpnl,
+            adlPositiveUpnl,
             totalUnrealizedLossQuote,
             realBalanceAndIF
         );

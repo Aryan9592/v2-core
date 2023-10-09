@@ -11,7 +11,8 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {ExposureHelpers} from "../../libraries/ExposureHelpers.sol";
-
+import {ExecuteADLOrder} from "./ExecuteADLOrder.sol";
+import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
 /*
 TODOs
@@ -25,9 +26,19 @@ TODOs
  * @title Library for propagating adl orders
 */
 library PropagateADLOrder {
-
+    using Timer for Timer.Data;
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
+
+    /**
+     * Thrown when ADL propagation is tried during blending period
+     * @param marketId The id of the market in which the adl propagation was tried
+     * @param isLong True if the adl propagation was a long order, False otherwise
+     */
+    error CannotPropagateADLDuringBlendingPeriod(
+        uint128 marketId,
+        bool isLong
+    );
 
     /**
      * @dev Thrown when attempting to propagate an adl order in the wrong direction
@@ -42,6 +53,12 @@ library PropagateADLOrder {
         bool isLong
     ) internal {
         // todo: this suffers from double propagations, we need to guard it
+        // additionally, must make sure we don't propagate when blended order has 0 base
+
+        Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(ExecuteADLOrder.adlOrderTimerId(isLong));
+        if (adlPortfolioTimer.isActive()) {
+            revert CannotPropagateADLDuringBlendingPeriod(marketId, isLong);
+        }
 
         Market.Data storage market = Market.exists(marketId);
         address poolAddress = market.marketConfig.poolAddress;

@@ -425,20 +425,38 @@ library Portfolio {
         }
     }
 
-    function executeADLOrder(Data storage self, uint256 totalUnrealizedLossQuote, int256 realBalanceAndIF) internal {
+    function executeADLOrder(
+        Data storage self, 
+        bool adlNegativeUpnl, 
+        bool adlPositiveUpnl, 
+        uint256 totalUnrealizedLossQuote, 
+        int256 realBalanceAndIF
+    ) internal {
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
 
         uint256[] memory activeMaturities = self.activeMaturities.values();
 
         for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
-            ExecuteADLOrder.executeADLOrder(
-                self,
-                maturityTimestamp,
-                totalUnrealizedLossQuote,
-                realBalanceAndIF
+            Account.MakerMarketExposure memory exposure = self.getAccountExposuresPerMaturity(
+                poolAddress,
+                maturityTimestamp
             );
 
+            // lower and upper exposures are the same, since no unfilled orders should be present at this poin
+            bool executeADL = 
+                (adlNegativeUpnl && exposure.lower.pnlComponents.unrealizedPnL < 0) ||
+                (adlPositiveUpnl && exposure.lower.pnlComponents.unrealizedPnL > 0);
+            if (executeADL) {
+                ExecuteADLOrder.executeADLOrder(
+                    self,
+                    maturityTimestamp,
+                    totalUnrealizedLossQuote,
+                    realBalanceAndIF
+                );
+            }
         }
 
     }
