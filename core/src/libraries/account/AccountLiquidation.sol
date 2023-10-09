@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 /*
 TODOs
     - implement rank calculation
-    - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
 */
 
 
@@ -45,11 +44,6 @@ library AccountLiquidation {
      * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
      */
     error AccountNotBetweenMmrAndLm(uint128 accountId, Account.MarginInfo marginInfo);
-
-    /**
-     * @dev Thrown when account is not below the liquidation margin requirement
-     */
-    error AccountNotBelowLM(uint128 accountId, Account.MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the adl margin requirement
@@ -113,22 +107,6 @@ library AccountLiquidation {
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
-    }
-
-
-    /**
-     * @dev Checks if the account is below the liquidation margin requirement
-     * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
-     */
-    function isBelowLMCheck(Account.Data storage self) private view returns
-    (Account.MarginInfo memory marginInfo) {
-
-        marginInfo = self.getMarginInfoByBubble(address(0));
-
-        if (marginInfo.liquidationDelta > 0) {
-            revert AccountNotBelowLM(self.id, marginInfo);
-        }
-
     }
 
     /**
@@ -410,8 +388,8 @@ library AccountLiquidation {
         // revert if the account has any unfilled orders
         self.hasUnfilledOrders();
 
-        // revert if the account is not below the liquidation margin requirement
-        isBelowLMCheck(self);
+        // revert if account is not between adl and liquidation margin requirement
+        self.betweenAdlAndLmCheck();
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
@@ -454,8 +432,8 @@ library AccountLiquidation {
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
 
-        // revert if account is not below liquidation margin requirement
-        isBelowLMCheck(self);
+        // revert if account is not between adl and liquidation margin requirement
+        self.betweenAdlAndLmCheck();
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
@@ -575,7 +553,7 @@ library AccountLiquidation {
         }
 
         if (leftExposure) {
-            backstopLpAccount.imAndImBufferCheck();
+            backstopLpAccount.betweenImAndImBufferCheck();
 
             for (uint256 i = 0; i < markets.length; i++) {
                 uint128 marketId = markets[i].to128();

@@ -61,18 +61,30 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given account's total value is below the initial margin requirement
-     * + the highest unrealized loss
+     * @dev Thrown when a given account's margin balance is below the initial margin requirement
      */
     error AccountBelowIM(uint128 accountId, MarginInfo marginInfo);
 
     /**
-     * @dev Thrown when a given account's margin balance if above the initial buffer margin requirement
+     * @dev Thrown when a given account's margin balance is below the adl margin requirement
+     */
+    error AccountBelowAdl(uint128 accountId, MarginInfo marginInfo);
+
+    /**
+     * @dev Thrown when a given account's margin balance is above the initial buffer margin requirement
      * @dev To be used during backstop lps liquidations
      * @param accountId The backstop lp account id
      * @param marginInfo The margin information for the backstop lp account.
      */
     error AccountAboveIMBuffer(uint128 accountId, MarginInfo marginInfo);
+
+    /**
+     * @dev Thrown when a given account's margin balance is above the lm margin requirement
+     * @dev To be used during ranked and dutch liquidations
+     * @param accountId The account id
+     * @param marginInfo The margin information for the account id
+     */
+    error AccountAboveLm(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -416,7 +428,7 @@ library Account {
 
     /**
      * @dev Checks if the account is below initial margin requirement and reverts if so,
-     * otherwise returns the initial margin requirement (multi token account)
+     * otherwise returns the margin info (multi token account)
      */
     function imCheck(Data storage self) 
         internal 
@@ -450,7 +462,7 @@ library Account {
         }
     }
 
-    function imAndImBufferCheck(Data storage self)
+    function betweenImAndImBufferCheck(Data storage self)
         internal
         view
         returns (Account.MarginInfo memory marginInfo)
@@ -459,6 +471,34 @@ library Account {
 
         if (marginInfo.initialBufferDelta > 0) {
             revert AccountAboveIMBuffer(self.id, marginInfo);
+        }
+    }
+
+    /**
+     * @dev Checks if the account is adl initial margin requirement and reverts if so,
+     * otherwise returns the margin info (multi token account)
+     */
+    function adlCheck(Data storage self) 
+        internal 
+        view 
+        returns (Account.MarginInfo memory marginInfo)
+    {
+        marginInfo = self.getMarginInfoByBubble(address(0));
+        
+        if (marginInfo.adlDelta < 0) {
+            revert AccountBelowAdl(self.id, marginInfo);
+        }
+    }
+
+    function betweenAdlAndLmCheck(Data storage self)
+        internal
+        view 
+        returns (Account.MarginInfo memory marginInfo)
+    {
+        marginInfo = self.adlCheck();
+
+        if (marginInfo.liquidationDelta > 0) {
+            revert AccountAboveLm(self.id, marginInfo);
         }
     }
 }
