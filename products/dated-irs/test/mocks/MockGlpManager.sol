@@ -9,24 +9,33 @@ pragma solidity >=0.8.19;
 
 import {IGlpManager} from "../../src/interfaces/external/glp/IGlpManager.sol";
 import {IVault} from "../../src/interfaces/external/glp/IVault.sol";
+import {MockERC20} from "./MockERC20.sol";
 
 contract MockGlpManager is IGlpManager {
 
     IVault public vaultContract;
+    address public glpAddress;
 
     constructor(IVault _vault) {
         vaultContract = _vault;
+        glpAddress = address(new MockGlp());
     }
 
     function getAum(bool maximise) external pure override returns (uint256) {
-        return 0;
+        return 1;
     }
 
     function vault() external view override returns (IVault) {
         return vaultContract;
     }
 
-    function glp() external pure override returns (address) {
-        return address(3982843);
+    function glp() external view override returns (address) {
+        return glpAddress;
+    }
+}
+
+contract MockGlp is MockERC20 {
+    function totalSupply() external pure override returns (uint256) {
+        return 1;
     }
 }
