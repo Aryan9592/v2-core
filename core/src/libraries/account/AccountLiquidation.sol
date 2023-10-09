@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 /*
 TODOs
-    - adl positons that are in profit at current prices
     - add reference to quote token of the queue when throwing queue errors
     - implement rank calculation
     - remove address collateralType from im and lm checks
@@ -344,13 +343,12 @@ library AccountLiquidation {
             liquidationPenalty
         );
 
-        // todo: check whether we should use net deposits or free collateral (ie initialDelta)
-        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).collateralInfo.netDeposits;
+        int256 backstopLpFreeCollateralInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).initialDelta;
 
         uint256 backstopLPReward = 0;
         if (
-            backstopLpNetDepositsInUSD > 0 && 
-            backstopLpNetDepositsInUSD.toUint() > collateralPool.backstopLPConfig.minNetDepositThresholdInUSD
+            backstopLpFreeCollateralInUSD > 0 && 
+            backstopLpFreeCollateralInUSD.toUint() > collateralPool.backstopLPConfig.minNetDepositThresholdInUSD
         ) {
             backstopLPReward = mulUDxUint(
                 collateralPool.backstopLPConfig.liquidationFee,
@@ -451,16 +449,13 @@ library AccountLiquidation {
         uint128 marketId,
         bytes memory inputs
     ) internal {
-
-        // todo: consider reverting if the market is paused? (can be implemented in the market manager)
+        // todo: enable pausability on maturity level
 
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
 
         // revert if account is not below liquidation margin requirement
         isBelowLMCheck(self, address(0));
-
-        // todo: revert if below insolvency
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
