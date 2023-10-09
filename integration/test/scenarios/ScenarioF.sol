@@ -40,6 +40,16 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
     int24 public initTickAave;
     int24 public initTickGlp;
 
+    struct Something {
+        uint256 a;
+        uint256 b;
+    }
+
+    struct Some {
+        Something[] something;
+        uint256 c;
+    }
+
     function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;
     }
@@ -88,7 +98,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         datedIrsProxy.createMarket({
             marketId: marketIdAave,
-            quoteToken: address(mockToken),
+            quoteToken: address(mockUsdc),
             marketType: "compounding"
         });
         datedIrsProxy.setMarketConfiguration(
@@ -169,7 +179,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         datedIrsProxy.createMarket({
             marketId: marketIdGlp,
-            quoteToken: address(mockToken),
+            quoteToken: address(mockGlpToken),
             marketType: "linear"
         });
         datedIrsProxy.setMarketConfiguration(
@@ -248,13 +258,18 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         setConfigs_Glp_market();
         uint256 start = block.timestamp;
 
+        vm.mockCall(
+            mockUsdc,
+            abi.encodeWithSelector(IERC20.decimals.selector),
+            abi.encode(6)
+        );
+
         int24 currentTick = vammProxy.getVammTick(marketIdAave, maturityTimestampAave);
         assertEq(currentTick, -16096, "current tick");
         currentTick = vammProxy.getVammTick(marketIdGlp, maturityTimestampGlp);
         assertEq(currentTick, -23027, "current tick");
 
         // t = 0: account 1 (LP) Aave
-        mockDecimals(6);
         executeDatedIrsMakerOrder({
             marketId: marketIdAave,
             maturityTimestamp: maturityTimestampAave,
@@ -265,7 +280,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         });
 
         // t = 0: account 1 (LP) GLP
-        mockDecimals(18);
         executeDatedIrsMakerOrder({
             marketId: marketIdGlp,
             maturityTimestamp: maturityTimestampGlp,
@@ -279,7 +293,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         {   
             PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
             
-            mockDecimals(6);
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: positionInfo,
@@ -296,7 +309,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         {   
             PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketIdGlp, maturityTimestamp: maturityTimestampGlp});
 
-            mockDecimals(18);
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: positionInfo,
@@ -738,13 +750,5 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // todo: uncomment check, it fails because of accrued interest issue
         // invariantCheck(marketIdAave, maturityTimestampAave);
-    }
-
-    function mockDecimals(uint8 decimals) private {
-        vm.mockCall(
-            mockToken,
-            abi.encodeWithSelector(IERC20.decimals.selector),
-            abi.encode(decimals)
-        );
     }
 }

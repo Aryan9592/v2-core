@@ -14,8 +14,6 @@ import {MockGlpVault} from "@voltz-protocol/products-dated-irs/test/mocks/MockGl
 import {MockGlpManager} from "@voltz-protocol/products-dated-irs/test/mocks/MockGlpManager.sol";
 import {MockGlpRewardTracker} from "@voltz-protocol/products-dated-irs/test/mocks/MockGlpRewardTracker.sol";
 
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { ud60x18, UD60x18, unwrap, UNIT } from "@prb/math/UD60x18.sol";
 
@@ -24,7 +22,8 @@ contract ScenarioSetup is Test {
   VammProxy vammProxy;
   address mockCoreProxy;
 
-  address mockToken;
+  address mockUsdc;
+  address mockGlpToken;
 
   MockConstantAaveLendingPool aaveLendingPool;
   AaveV3RateOracle aaveV3RateOracle;
@@ -51,17 +50,18 @@ contract ScenarioSetup is Test {
       coreProxy: mockCoreProxy
     }));
 
-    mockToken = address(6447488);
+    mockUsdc = address(6447488);
 
     aaveLendingPool = new MockConstantAaveLendingPool();
-    aaveV3RateOracle = new AaveV3RateOracle(aaveLendingPool, mockToken);
+    aaveV3RateOracle = new AaveV3RateOracle(aaveLendingPool, mockUsdc);
     
-    MockGlpRewardTracker rewardTracker = new MockGlpRewardTracker(mockToken);
     MockGlpVault vault = new MockGlpVault();
     MockGlpManager glpManager = new MockGlpManager(vault);
+    mockGlpToken = glpManager.glpAddress();
+    MockGlpRewardTracker rewardTracker = new MockGlpRewardTracker(mockGlpToken);
     mockGlpRewardRouter = 
       new MockGlpRewardRouter(address(rewardTracker), address(glpManager));
-    glpRateOracle = new GlpRateOracle(mockGlpRewardRouter, mockToken);
+    glpRateOracle = new GlpRateOracle(mockGlpRewardRouter, mockGlpToken);
 
     vm.stopPrank();
   }
