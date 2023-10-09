@@ -9,7 +9,6 @@ pragma solidity >=0.8.19;
 
 /*
 TODOs
-    - add reference to quote token of the queue when throwing queue errors
     - implement rank calculation
     - remove address collateralType from im and lm checks
     - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
@@ -67,12 +66,12 @@ library AccountLiquidation {
     /**
     * @dev Thrown when attempting to execute a bid in an expired liquidation bid priority queue
      */
-    error LiquidationBidPriorityQueueExpired(uint256 queueId, uint256 queueEndTimestamp);
+    error LiquidationBidPriorityQueueExpired(address quoteToken, uint256 queueId, uint256 queueEndTimestamp);
 
     /**
       * @dev Thrown when attempting to submit into a queue that is full
      */
-    error LiquidationBidPriorityQueueOverflow(uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
+    error LiquidationBidPriorityQueueOverflow(address quoteToken, uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
 
     /**
       * @dev Thrown when attempting to submit a liquidation bid where number of markets and bytes inputs don't match
@@ -244,6 +243,7 @@ library AccountLiquidation {
         [liquidationBidPriorityQueues.latestQueueId].ranks.length >
             collateralPool.riskConfig.liquidationConfiguration.maxBidsInQueue) {
             revert LiquidationBidPriorityQueueOverflow(
+                liquidationBid.quoteToken,
                 liquidationBidPriorityQueues.latestQueueId,
                 liquidationBidPriorityQueues.latestQueueEndTimestamp,
                 liquidationBidPriorityQueues.priorityQueues
@@ -420,6 +420,7 @@ library AccountLiquidation {
         if (block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
             revert AccountLiquidation.LiquidationBidPriorityQueueExpired(
+                queueQuoteToken,
                 liquidationBidPriorityQueues.latestQueueId,
                 liquidationBidPriorityQueues.latestQueueEndTimestamp
             );
