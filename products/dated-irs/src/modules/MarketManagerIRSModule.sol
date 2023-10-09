@@ -112,6 +112,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId, 
         uint128 accountId
     ) external override returns (int256 /* closedUnfilledBasePool */) {
+        executionPreCheck(marketId);
+        
         return Portfolio.exists(accountId, marketId).closeAllUnfilledOrders();
     }
 
