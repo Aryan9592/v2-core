@@ -311,6 +311,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // advance time (t = 0.25)
         vm.warp(start + 86400 * 365 / 4);
+        assertEq(1.005e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdAave)), "aave li 1/4");
+        assertEq(0.025e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdGlp)), "glp li 1/4");
 
         // t = 0.25: account 2 (FT) Aave
         {
@@ -505,6 +507,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // advance time (t = 0.375 or 3/8)
         vm.warp(start + 86400 * 365 * 3 / 8);
+        assertEq(1.0075e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdAave)), "aave li 3/8");
+        assertEq(0.0375e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdGlp)), "glp li 3/8");
 
         // t = 0.375: account 3 (close unfilled order)
         closeAllUnfilledOrders({
@@ -626,6 +630,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // advance time (t = 0.5)
         vm.warp(start + 86400 * 365 / 2);
+        assertEq(1.01e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdAave)), "aave li 1/2");
+        assertEq(0.05e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdGlp)), "glp li 1/2");
 
         // ///////////////// SETTLE GLP /////////////////
 
@@ -682,6 +688,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365);
+        assertEq(1.02e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdAave)), "aave li 4/4");
+        assertEq(0.05e18, unwrap(datedIrsProxy.getRateIndexMaturity(marketIdGlp, maturityTimestampGlp)), "glp li maturity");
 
         ///////////////// SETTLE AAVE /////////////////
 
