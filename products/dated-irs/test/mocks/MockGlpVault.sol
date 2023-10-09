@@ -11,9 +11,9 @@ import {IVault} from "../../src/interfaces/external/glp/IVault.sol";
 
 contract MockGlpVault is IVault {
     function getMinPrice(address _token) external pure override returns (uint256) {
-        return 0;
+        return 1e30;
     }
     function getMaxPrice(address _token) external pure override returns (uint256) {
-        return 0;
+        return 1e30;
     }
 }

@@ -56,7 +56,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         return 7 * 86400;
     }
 
-    function invariantCheck(uint32 maturityTimestamp) internal {
+    function invariantCheck(uint128 marketId, uint32 maturityTimestamp) internal {
         uint128[] memory accountIds = new uint128[](5);
         accountIds[0] = 1;
         accountIds[1] = 2;
@@ -89,7 +89,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         //////// MARKET MANAGER CONFIGURATION ////////
 
         datedIrsProxy.createMarket({
-            marketId: marketId,
+            marketId: marketIdAave,
             quoteToken: address(mockToken),
             marketType: "compounding"
         });
@@ -121,7 +121,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }));
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
-            maturityTimestampAave: maturityTimestampAave,
+            maturityTimestamp: maturityTimestampAave,
             maxLiquidityPerTick: type(uint128).max,
             tickSpacing: 60,
             marketId: marketIdAave
@@ -202,7 +202,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }));
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
-            maturityTimestampAave: maturityTimestampGlp,
+            maturityTimestamp: maturityTimestampGlp,
             maxLiquidityPerTick: type(uint128).max,
             tickSpacing: 100,
             marketId: marketIdGlp
@@ -255,13 +255,13 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             abi.encode(6)
         );
 
-        int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestampAave);
+        int24 currentTick = vammProxy.getVammTick(marketIdAave, maturityTimestampAave);
         assertEq(currentTick, -16096, "current tick");
 
         // t = 0: account 1 (LP)
         executeDatedIrsMakerOrder({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 1,
             baseAmount: 10_000 * 1e6,
             tickLower: -19500, // 7%
@@ -270,8 +270,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // t = 0: account 2 (LP)
         executeDatedIrsMakerOrder({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 2,
             baseAmount: 10_000 * 1e6,
             tickLower: -17940, // 6%
@@ -280,7 +280,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 1
         {   
-            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave});
+            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
 
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
@@ -299,7 +299,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 2, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 4338438696,
                 expectedUnfilledBaseShort: 5661561303,
                 expectedUnfilledQuoteLong: 237891466,
@@ -307,7 +307,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
             checkZeroPoolFilledBalances(
                 address(vammProxy), 
-                PositionInfo({accountId: 2, marketId: marketId, maturityTimestampAave: maturityTimestampAave})
+                PositionInfo({accountId: 2, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave})
             );
         }
 
@@ -316,8 +316,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // t = 0.25: account 1 (LP)
         executeDatedIrsMakerOrder({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 1,
             baseAmount: 10_000 * 1e6,
             tickLower: -19500, // 7%
@@ -326,8 +326,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // t = 0.25: account 3 (LP)
         executeDatedIrsMakerOrder({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 3,
             baseAmount: 10_000 * 1e6,
             tickLower: -22020, // 9%
@@ -339,7 +339,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 7047716568,
                 expectedUnfilledBaseShort: 12952283431,
                 expectedUnfilledQuoteLong: 419887712,
@@ -347,7 +347,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
             checkZeroPoolFilledBalances(
                 address(vammProxy),
-                PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave})
+                PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave})
             );
         }
 
@@ -356,7 +356,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 3, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 9999999999,
                 expectedUnfilledBaseShort: 0,
                 expectedUnfilledQuoteLong: 801154597,
@@ -364,7 +364,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
             checkZeroPoolFilledBalances(
                 address(vammProxy), 
-                PositionInfo({accountId: 3, marketId: marketId, maturityTimestampAave: maturityTimestampAave})
+                PositionInfo({accountId: 3, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave})
             );
         }
 
@@ -376,8 +376,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // action 
             (int256 executedBase, int256 executedQuote, int256 annualizedNotional) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
-                    marketId: marketId,
-                    maturityTimestampAave: maturityTimestampAave,
+                    marketId: marketIdAave,
+                    maturityTimestamp: maturityTimestampAave,
                     accountId: 4,
                     baseAmount: -18_000 * 1e6
                 }); 
@@ -390,7 +390,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             }            
         }
 
-        currentTick = vammProxy.getVammTick(marketId, maturityTimestampAave);
+        currentTick = vammProxy.getVammTick(marketIdAave, maturityTimestampAave);
         assertEq(currentTick, -11253, "current tick");
 
         // t = 0.5: account 5 (VT)
@@ -398,8 +398,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             // action 
             (int256 executedBase, int256 executedQuote, int256 annualizedNotional) = 
                 executeDatedIrsTakerOrder_noPriceLimit({
-                    marketId: marketId,
-                    maturityTimestampAave: maturityTimestampAave,
+                    marketId: marketIdAave,
+                    maturityTimestamp: maturityTimestampAave,
                     accountId: 5,
                     baseAmount: 38_000 * 1e6
                 }); 
@@ -412,7 +412,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             }
         }
 
-        currentTick = vammProxy.getVammTick(marketId, maturityTimestampAave);
+        currentTick = vammProxy.getVammTick(marketIdAave, maturityTimestampAave);
         assertEq(currentTick, -21652, "current tick");
 
         // check account 1
@@ -420,7 +420,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 0,
                 expectedUnfilledBaseShort: 19999999999,
                 expectedUnfilledQuoteLong: 0,
@@ -430,7 +430,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkPoolFilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedBaseBalancePool: -7047716566, 
                 expectedQuoteBalancePool: 421976705,
                 expectedAccruedInterestPool: 0
@@ -442,14 +442,14 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkTakerFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: 
-                    PositionInfo({accountId: 4, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 4, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedBaseBalancePool: -18000000000, 
                 expectedQuoteBalancePool: 745587342,
                 expectedAccruedInterestPool: 0
             });
         } 
 
-        invariantCheck();
+        invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365 * 3 / 4);
         // liquidity index 1.015
@@ -459,7 +459,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 0,
                 expectedUnfilledBaseShort: 19999999999,
                 expectedUnfilledQuoteLong: 0,
@@ -469,7 +469,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkPoolFilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedBaseBalancePool: -7047716566, 
                 expectedQuoteBalancePool: 421976705,
                 expectedAccruedInterestPool: 70255593
@@ -481,7 +481,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 2, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 0,
                 expectedUnfilledBaseShort: 9999999999,
                 expectedUnfilledQuoteLong: 0,
@@ -491,7 +491,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkPoolFilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 2, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 2, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedBaseBalancePool: -4338438695, 
                 expectedQuoteBalancePool: 240270381,
                 expectedAccruedInterestPool: 38375401
@@ -503,7 +503,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 3, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedUnfilledBaseLong: 1382936724,
                 expectedUnfilledBaseShort: 8617063275,
                 expectedUnfilledQuoteLong: 124608127,
@@ -513,7 +513,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkPoolFilledBalances({
                 poolAddress: address(vammProxy),
                 positionInfo: 
-                    PositionInfo({accountId: 3, marketId: marketId, maturityTimestampAave: maturityTimestampAave}),
+                    PositionInfo({accountId: 3, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave}),
                 expectedBaseBalancePool: -8613844737, 
                 expectedQuoteBalancePool: 680862844,
                 expectedAccruedInterestPool: 127146487
@@ -522,7 +522,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 4
         {
-            PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketId, maturityTimestampAave: maturityTimestampAave});
+            PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
             
             checkZeroUnfilledBalances(address(vammProxy), positionInfo);
             checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
@@ -538,7 +538,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 5
         {
-            PositionInfo memory positionInfo = PositionInfo({accountId: 5, marketId: marketId, maturityTimestampAave: maturityTimestampAave});
+            PositionInfo memory positionInfo = PositionInfo({accountId: 5, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
             
             checkZeroUnfilledBalances(address(vammProxy), positionInfo);
             checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
@@ -552,11 +552,11 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
         } 
 
-        invariantCheck();
+        invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365 * 7 / 8);
 
-        invariantCheck();
+        invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365);
 
@@ -564,40 +564,40 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // settle account 1
         settlementCashflows[0] = settle({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 1
         });
         assertEq(settlementCashflows[0], 140511187, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflows[1] = settle({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 2
         });
         assertEq(settlementCashflows[1], 76750803, "settlement cashflow 2");
 
         // settle account 3
         settlementCashflows[2] = settle({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 3
         });
         assertEq(settlementCashflows[2], 254292975, "settlement cashflow 3");
 
         // settle account 4
         settlementCashflows[3] = settle({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 4
         });
         assertEq(settlementCashflows[3], 192793669, "settlement cashflow 4");
 
         // settle account 5
         settlementCashflows[4] = settle({
-            marketId: marketId,
-            maturityTimestampAave: maturityTimestampAave,
+            marketId: marketIdAave,
+            maturityTimestamp: maturityTimestampAave,
             accountId: 5
         });
         assertEq(settlementCashflows[4], -664348636, "settlement cashflow 5");
@@ -617,6 +617,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             );
         }
 
-        invariantCheck();
+        invariantCheck(marketIdAave, maturityTimestampAave);
     }
 }
