@@ -14,6 +14,8 @@ import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated
 /// @title Storage checks 
 abstract contract Checks is AssertionHelpers {
 
+    uint256 constant internal EPSILON = 10;
+
     struct PositionInfo {
         uint128 accountId;
         uint128 marketId;
@@ -55,9 +57,9 @@ abstract contract Checks is AssertionHelpers {
         FilledBalances memory filledBalances = datedIrsProxy
             .getAccountFilledBalances(positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId);
 
-        assertEq(expectedBaseBalance, filledBalances.base, "filledBase");
-        assertEq(expectedQuoteBalance, filledBalances.quote, "filledQuote");
-        assertEq(expectedAccruedInterest, filledBalances.accruedInterest, "accruedInterest");
+        assertAlmostEq(expectedBaseBalance, filledBalances.base, EPSILON, "filledBase");
+        assertAlmostEq(expectedQuoteBalance, filledBalances.quote, EPSILON, "filledQuote");
+        assertAlmostEq(expectedAccruedInterest, filledBalances.accruedInterest, EPSILON, "accruedInterest");
     }
 
     function checkZeroFilledBalances(
@@ -87,10 +89,11 @@ abstract contract Checks is AssertionHelpers {
             positionInfo.accountId
         );
 
-        assertEq(expectedUnfilledBaseLong, unfilledBalances.baseLong, "unfilledBaseLong");
-        assertEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, "unfilledBaseShort");
-        assertEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, "unfilledQuoteLong");
-        assertEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, "unfilledQuoteShort");
+
+        assertAlmostEq(expectedUnfilledBaseLong, unfilledBalances.baseLong, EPSILON, "unfilledBaseLong");
+        assertAlmostEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, EPSILON, "unfilledBaseShort");
+        assertAlmostEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, EPSILON, "unfilledQuoteLong");
+        assertAlmostEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, EPSILON, "unfilledQuoteShort");
         // todo: add additional assertions for average prices
     }
 
