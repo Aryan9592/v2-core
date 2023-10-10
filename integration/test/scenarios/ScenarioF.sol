@@ -40,16 +40,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
     int24 public initTickAave;
     int24 public initTickGlp;
 
-    struct Something {
-        uint256 a;
-        uint256 b;
-    }
-
-    struct Some {
-        Something[] something;
-        uint256 c;
-    }
-
     function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;
     }
@@ -86,7 +76,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         marketIdAave = 1;
         marketIdGlp = 2;
         maturityTimestampAave = uint32(block.timestamp) + 365 * 86400; // in 1 year
-        maturityTimestampGlp = uint32(block.timestamp) + 365 * 86400 / 2; // in 1 year
+        maturityTimestampGlp = uint32(block.timestamp) + 365 * 86400 / 2; // in 1/2 years
         initTickAave = -16096; // 5%
         initTickGlp = -23027; // 10%
     }
