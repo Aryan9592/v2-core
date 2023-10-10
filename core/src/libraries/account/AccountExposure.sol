@@ -197,12 +197,12 @@ library AccountExposure {
             (
                 int256[] memory marketFilledExposures,
                 Account.UnfilledExposure[] memory marketUnfilledExposures
-            ) = market.getAccountTakerAndMakerExposures(self.id);
+            ) = market.getAccountTakerAndMakerExposures(self.id, riskMatrixDim);
 
             // todo: revert if marketFilledExposures.length doesn't match the riskMatrixDim
 
             for (uint256 j = 0; j < marketFilledExposures.length; j++) {
-                filledExposures[j] = marketFilledExposures[j];
+                filledExposures[j] += marketFilledExposures[j];
             }
 
             for (uint256 k = 0; k < marketUnfilledExposures.length; k++) {

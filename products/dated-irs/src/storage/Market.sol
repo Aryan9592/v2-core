@@ -79,14 +79,6 @@ library Market {
      */
     event MarketRateOracleConfigUpdated(uint128 id, RateOracleConfiguration rateOracleConfiguration, uint256 blockTimestamp);
 
-    /**
-     * @notice Emitted when a new risk matrix configuration is set
-     * @param id The id of the market
-     * @param riskMatrixConfiguration The new risk matrix configuration
-     * @param blockTimestamp The current block timestamp.
-     */
-    event MarketRiskMatrixConfigUpdated(uint128 id, RiskMatrixConfiguration riskMatrixConfiguration, uint256 blockTimestamp);
-
     struct MarketConfiguration {
          /**
          * @dev Address of the pool address the market is linked to
@@ -135,11 +127,6 @@ library Market {
         uint256 maturityIndexCachingWindowInSeconds;
     }
 
-    struct RiskMatrixConfiguration {
-        uint256 riskBlockId;
-        uint256 shortRateRowId;
-    }
-
     struct Data {
         /**
          * @dev Id fo a given interest rate swap market
@@ -166,11 +153,6 @@ library Market {
          * @dev Rate Oracle configuration
          */
         RateOracleConfiguration rateOracleConfig;
-
-        /**
-         * @dev Risk Matrix configuration
-         */
-        RiskMatrixConfiguration riskMatrixConfig;
 
         /**
         * Mapping of maturities to the risk matrix row id
@@ -259,11 +241,6 @@ library Market {
 
         self.rateOracleConfig = rateOracleConfig;
         emit MarketRateOracleConfigUpdated(self.id, rateOracleConfig, block.timestamp);
-    }
-
-    function setRiskMatrixConfiguration(Data storage self, RiskMatrixConfiguration memory riskMatrixConfig) internal {
-        self.riskMatrixConfig = riskMatrixConfig;
-        emit MarketRiskMatrixConfigUpdated(self.id, riskMatrixConfig, block.timestamp);
     }
 
     function backfillRateIndexAtMaturityCache(Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {

@@ -57,7 +57,6 @@ interface IRiskConfigurationModule {
     // todo: add natspec
     function getRiskMatrixParameterFromMM(
         uint128 marketId,
-        uint256 blockIndex,
         uint256 rowIndex,
         uint256 columnIndex
     ) external view returns (SD59x18 parameter);

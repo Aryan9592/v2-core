@@ -234,25 +234,23 @@ library Portfolio {
     }
 
     function getAccountTakerAndMakerExposures(
-        Data storage self
+        Data storage self,
+        uint256 riskMatrixDim
     )
         internal
         view
         returns (
-            Account.MarketExposure[] memory exposures
+            int256[] memory filledExposures,
+            Account.UnfilledExposure[] memory unfilledExposures
         )
     {
-        // todo: decide if collapsing is necessary
 
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
-
-        Account.MarketExposure memory shortRateExposure;
-        uint256 riskBlockId = market.riskMatrixConfig.riskBlockId;
-        shortRateExposure.riskMatrixDim.riskBlockId = riskBlockId;
-        shortRateExposure.riskMatrixDim.riskMatrixRowId = market.riskMatrixConfig.shortRateRowId;
-
+        filledExposures = new int256[](riskMatrixDim);
+        int256 shortRateExposure;
+        uint256 unfilledExposuresCounter;
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
 
             ExposureHelpers.PoolExposureState memory poolState = getPoolExposureState(
@@ -261,34 +259,45 @@ library Portfolio {
                 poolAddress
             );
 
+            // handle filled exposures
+
             uint256 riskMatrixRowId = market.riskMatrixRowIds[poolState.maturityTimestamp];
 
-            Account.ExposureComponents memory maturitySRExposurComponents;
-
-            (maturitySRExposurComponents, exposures[i - 1].exposureComponents) = ExposureHelpers.getExposureComponents(
+            (
+                int256 shortRateFilledExposureMaturity,
+                int256 swapRateFilledExposureMaturity
+            ) = ExposureHelpers.getFilledExposures(
                 poolState,
                 market.tenors[poolState.maturityTimestamp]
             );
 
-            // todo: decouple?
-            exposures[i - 1].pvmrComponents = ExposureHelpers.getPVMRComponents(
-                poolState,
-                poolAddress,
-                riskBlockId,
-                riskMatrixRowId
-            );
-            exposures[i - 1].riskMatrixDim.riskBlockId = riskBlockId;
-            exposures[i - 1].riskMatrixDim.riskMatrixRowId = riskMatrixRowId;
 
-            shortRateExposure.exposureComponents.filledExposure += maturitySRExposurComponents.filledExposure;
-            shortRateExposure.exposureComponents.cfExposureLong += maturitySRExposurComponents.cfExposureLong;
-            shortRateExposure.exposureComponents.cfExposureShort += maturitySRExposurComponents.cfExposureShort;
+            shortRateExposure += shortRateFilledExposureMaturity;
+            filledExposures[riskMatrixRowId] += swapRateFilledExposureMaturity;
+
+            // handle unfilled exposures
+
+            if ((poolState.unfilledBaseLong != 0) || (poolState.unfilledBaseShort != 0)) {
+                unfilledExposures[unfilledExposuresCounter].exposureComponentsArr = ExposureHelpers.getUnfilledExposureComponents(
+                    poolState,
+                    market.tenors[poolState.maturityTimestamp]
+                );
+                unfilledExposures[unfilledExposuresCounter].riskMatrixRowIds[0] = market.riskMatrixRowIds[0];
+                unfilledExposures[unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
+
+                unfilledExposures[unfilledExposuresCounter].pvmrComponents = ExposureHelpers.getPVMRComponents(
+                    poolState,
+                    poolAddress,
+                    riskMatrixRowId
+                );
+                unfilledExposuresCounter += 1;
+            }
 
         }
 
-        exposures[exposures.length] = shortRateExposure;
+        filledExposures[market.riskMatrixRowIds[0]] = shortRateExposure;
 
-        return exposures;
+        return (filledExposures, unfilledExposures);
     }
 
     /**

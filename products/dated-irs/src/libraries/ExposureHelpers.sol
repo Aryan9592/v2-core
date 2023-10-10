@@ -213,12 +213,12 @@ library ExposureHelpers {
         return (shortRateExposure, swapRateExposure);
     }
 
-    function getExposureComponents(
+    function getFilledExposures(
         PoolExposureState memory poolState,
         uint256 tenorInSeconds
     ) internal view returns (
-        Account.ExposureComponents memory shortRateExposureComponents,
-        Account.ExposureComponents memory swapRateExposureComponents
+        int256 shortRateFilledExposure,
+        int256 swapRateFilledExposure
     ) {
 
         int256 filledNotional = mulUDxInt(
@@ -226,37 +226,70 @@ library ExposureHelpers {
             poolState.baseBalance + poolState.baseBalancePool
         );
 
-        int256 cfNotionalLong = mulUDxInt(
-            poolState.exposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
-        );
-
-        int256 cfNotionalShort = mulUDxInt(
-            poolState.exposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
-        );
-
         uint256 timeToMaturityInSeconds = uint256(poolState.maturityTimestamp) - block.timestamp;
 
-        (shortRateExposureComponents.filledExposure, swapRateExposureComponents.filledExposure) = decoupleExposures(
+        (shortRateFilledExposure, swapRateFilledExposure) = decoupleExposures(
             filledNotional,
             tenorInSeconds,
             timeToMaturityInSeconds
         );
 
-        (shortRateExposureComponents.cfExposureLong, swapRateExposureComponents.cfExposureLong) = decoupleExposures(
-            cfNotionalLong,
-            tenorInSeconds,
-            timeToMaturityInSeconds
-        );
+        return (shortRateFilledExposure, swapRateFilledExposure);
+    }
 
-        (shortRateExposureComponents.cfExposureShort, swapRateExposureComponents.cfExposureShort) = decoupleExposures(
-            cfNotionalShort,
-            tenorInSeconds,
-            timeToMaturityInSeconds
-        );
+    function getUnfilledExposureComponents(
+        PoolExposureState memory poolState,
+        uint256 tenorInSeconds
+    ) internal view returns (
+        Account.UnfilledExposureComponents[] memory unfilledExposureComponents
+    ) {
 
-        return (shortRateExposureComponents, swapRateExposureComponents);
+        // first entry is for short rate and second is for swap rate
+        unfilledExposureComponents = new Account.UnfilledExposureComponents[](2);
+        uint256 timeToMaturityInSeconds = uint256(poolState.maturityTimestamp) - block.timestamp;
+
+        if (poolState.unfilledBaseLong != 0) {
+
+            uint256 unfilledNotionalLong = mulUDxUint(
+                poolState.exposureFactor,
+                poolState.unfilledBaseLong
+            );
+
+
+            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) = decoupleExposures(
+                unfilledNotionalLong.toInt(),
+                tenorInSeconds,
+                timeToMaturityInSeconds
+            );
+
+            (
+                unfilledExposureComponents[0].unfilledExposureLong,
+                unfilledExposureComponents[1].unfilledExposureLong
+            ) = (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
+
+        }
+
+        if (poolState.unfilledBaseShort != 0) {
+
+            uint256 unfilledNotionalShort = mulUDxUint(
+                poolState.exposureFactor,
+                poolState.unfilledBaseShort
+            );
+
+            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) = decoupleExposures(
+                unfilledNotionalShort.toInt(),
+                tenorInSeconds,
+                timeToMaturityInSeconds
+            );
+
+            (
+                unfilledExposureComponents[0].unfilledExposureShort,
+                unfilledExposureComponents[1].unfilledExposureShort
+            ) = (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
+
+        }
+
+        return unfilledExposureComponents;
     }
 
     function computePVMRUnwindPrice(
@@ -265,7 +298,6 @@ library ExposureHelpers {
         bool isLong
     ) private view returns (UD60x18 pvmrUnwindPrice) {
         // todo: note this doesn't take into account slippage & spread
-        // todo: make sure add & sub is used correctly for long/short
         if (isLong) {
             avgPrice.add(diagonalRiskParameter);
         } else {
@@ -278,7 +310,6 @@ library ExposureHelpers {
     function getPVMRComponents(
         PoolExposureState memory poolState,
         address poolAddress,
-        uint256 riskBlockId,
         uint256 riskMatrixRowId
     ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
 
@@ -288,7 +319,6 @@ library ExposureHelpers {
             address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
             diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
                 poolState.marketId,
-                riskBlockId,
                 riskMatrixRowId,
                 riskMatrixRowId
             ).intoUD60x18();
@@ -299,8 +329,8 @@ library ExposureHelpers {
             int256 unrealizedPnLShort = computeUnrealizedPnL(
                 poolState.marketId,
                 poolState.maturityTimestamp,
-                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
-                poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt(),
+                -poolState.unfilledBaseShort.toInt(),
+                poolState.unfilledQuoteShort.toInt(),
                 computePVMRUnwindPrice(poolState.avgShortPrice, diagonalRiskParameter, false)
             );
 
@@ -312,8 +342,8 @@ library ExposureHelpers {
             int256 unrealizedPnLLong = computeUnrealizedPnL(
                 poolState.marketId,
                 poolState.maturityTimestamp,
-                poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
-                poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt(),
+                poolState.unfilledBaseLong.toInt(),
+                poolState.unfilledQuoteLong.toInt(),
                 computePVMRUnwindPrice(poolState.avgLongPrice, diagonalRiskParameter, true)
             );
 
