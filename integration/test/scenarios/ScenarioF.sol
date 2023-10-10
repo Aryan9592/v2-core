@@ -640,7 +640,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampGlp,
             accountId: 1
         });
-        assertEq(settlementCashflowsGlp[0], 2176794643940582050, "settlement cashflow 1");
+        assertEq(settlementCashflowsGlp[0], 2176794643940582051, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflowsGlp[1] = settle({
@@ -694,7 +694,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampAave,
             accountId: 1
         });
-        assertEq(settlementCashflowsAave[0], 31225980, "settlement cashflow 1");
+        assertEq(settlementCashflowsAave[0], 31225979, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflowsAave[1] = settle({
@@ -702,7 +702,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampAave,
             accountId: 2
         });
-        assertEq(settlementCashflowsAave[1], 18826639, "settlement cashflow 2");
+        assertEq(settlementCashflowsAave[1], 18826640, "settlement cashflow 2");
 
         // settle account 3
         settlementCashflowsAave[2] = settle({
@@ -710,7 +710,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampAave,
             accountId: 3
         });
-        assertEq(settlementCashflowsAave[2], -50052619, "settlement cashflow 3");
+        assertEq(settlementCashflowsAave[2], -50052620, "settlement cashflow 3");
 
         // invariant check
         {

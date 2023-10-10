@@ -13,29 +13,9 @@ contract AssertionHelpers is Test {
         assertLe(a, b + int256(eps));
     }
 
-    function assertAlmostEq(int256 a, uint256 b, uint256 eps) public {
-        assertGe(a, int256(b - eps));
-        assertLe(a, int256(b + eps));
-    }
-
-    function assertAlmostEq(uint256 a, uint256 b, uint256 eps) public {
-        assertGe(a, b - eps);
-        assertLe(a, b + eps);
-    }
-
     function assertAlmostEq(int256 a, int256 b, uint256 eps, string memory message) public {
         assertGe(a, b - int256(eps), string.concat(message,"_Ge"));
         assertLe(a, b + int256(eps), string.concat(message,"_Le"));
-    }
-
-    function assertAlmostEq(int256 a, uint256 b, uint256 eps, string memory message) public {
-        assertGe(a, int256(b - eps), string.concat(message,"_Ge"));
-        assertLe(a, int256(b + eps), string.concat(message,"_Le"));
-    }
-
-    function assertAlmostEq(uint256 a, uint256 b, uint256 eps, string memory message) public {
-        assertGe(a, b - eps, string.concat(message,"_Ge"));
-        assertLe(a, b + eps, string.concat(message,"_Le"));
     }
 
     function absUtil(int256 a) public pure returns (uint256){
