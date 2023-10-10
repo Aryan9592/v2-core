@@ -1,21 +1,23 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { AccountBalances } from "./AccountBalances.sol";
+import { VammHelpers } from "./VammHelpers.sol";
+import { VammTicks } from "./VammTicks.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
+
+import { Tick } from "../ticks/Tick.sol";
+import { TickBitmap } from "../ticks/TickBitmap.sol";
+import { LiquidityMath } from "../math/LiquidityMath.sol";
+
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { LPPosition } from "../../storage/LPPosition.sol";
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
-import { Time } from "../time/Time.sol";
-
-import { VammHelpers } from "./VammHelpers.sol";
-import { VammTicks } from "./VammTicks.sol";
-import { Tick } from "../ticks/Tick.sol";
-import { TickBitmap } from "../ticks/TickBitmap.sol";
-import { LiquidityMath } from "../math/LiquidityMath.sol";
-import {AccountBalances} from "./AccountBalances.sol";
-
-import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+
 
 library LP {
     using LPPosition for LPPosition.Data;
@@ -34,15 +36,23 @@ library LP {
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,
         uint128 accountId,
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
     )
     internal
     { 
+        uint128 marketId = self.immutableConfig.marketId;
         uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
-        Time.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
+
+        // Check if the pool is still active for orders
+        {
+            uint32 inactiveWindowBeforeMaturity = self.mutableConfig.inactiveWindowBeforeMaturity;
+
+            if (block.timestamp + inactiveWindowBeforeMaturity >= maturityTimestamp) {
+                revert VammCustomErrors.CloseOrBeyondToMaturity(marketId, maturityTimestamp);
+            }
+        }
 
         LPPosition.Data storage position = 
             LPPosition.loadOrCreate(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
@@ -94,8 +104,6 @@ library LP {
     ) private
       lock(self)
     {
-        Time.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
-
         if (liquidityDelta > 0) {
             VammTicks.checkTicksInAllowedRange(self, tickLower, tickUpper);
         } else {

@@ -67,4 +67,9 @@ interface VammCustomErrors {
      * @dev Thrown when the number of positions per account exceeded the limit.
      */
     error TooManyLpPositions(uint128 accountId);
+
+    /**
+     * @dev Thrown when the number of positions per account exceeded the limit.
+     */
+    error CloseOrBeyondToMaturity(uint128 marketId, uint32 maturityTimestamp);
 }

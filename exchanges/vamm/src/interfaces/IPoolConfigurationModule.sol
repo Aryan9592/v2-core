@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
+
+import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
+
 
 interface IPoolConfigurationModule {
   /// @notice Setting pool configuration

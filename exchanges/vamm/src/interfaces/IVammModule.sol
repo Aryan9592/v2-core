@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { Tick } from "../libraries/ticks/Tick.sol";
+
 import { LPPosition } from "../storage/LPPosition.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 import { Oracle } from "../storage/Oracle.sol";
-import { Tick } from "../libraries/ticks/Tick.sol";
+
 
 interface IVammModule {
   /**

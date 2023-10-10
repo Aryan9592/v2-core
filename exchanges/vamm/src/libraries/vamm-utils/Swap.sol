@@ -1,26 +1,28 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { SwapMath } from "./SwapMath.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
+import { VammHelpers } from "./VammHelpers.sol";
+import { VammTicks } from "./VammTicks.sol";
+
+import { Tick } from "../ticks/Tick.sol";
+import { TickBitmap } from "../ticks/TickBitmap.sol";
+import { TickMath } from "../ticks/TickMath.sol";
+import { LiquidityMath } from "../math/LiquidityMath.sol";
+
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 import { Oracle } from "../../storage/Oracle.sol";
 
-import { LiquidityMath } from "../math/LiquidityMath.sol";
-import { Time } from "../time/Time.sol";
-import { SwapMath } from "./SwapMath.sol";
-import { TickMath } from "../ticks/TickMath.sol";
-import { VammHelpers } from "./VammHelpers.sol";
-import { VammTicks } from "./VammTicks.sol";
-import { Tick } from "../ticks/Tick.sol";
-
-import { VammCustomErrors } from "./VammCustomErrors.sol";
-import { TickBitmap } from "../ticks/TickBitmap.sol";
-
-import { UD60x18, ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
-
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+
+import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
+
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
+
 
 library Swap {
     using TickBitmap for mapping(int16 => uint256);
@@ -44,12 +46,23 @@ library Swap {
         lock(self)
         returns (int256 quoteTokenDelta, int256 baseTokenDelta)
     {
-        Time.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
+        uint128 marketId = self.immutableConfig.marketId;
+        uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
+
+        // Check if the pool is still active for orders
+        {
+            
+            uint32 inactiveWindowBeforeMaturity = self.mutableConfig.inactiveWindowBeforeMaturity;
+
+            if (block.timestamp + inactiveWindowBeforeMaturity >= maturityTimestamp) {
+                revert VammCustomErrors.CloseOrBeyondToMaturity(marketId, maturityTimestamp);
+            }
+        }
 
         SwapFixedValues memory swapFixedValues = SwapFixedValues({
-            secondsTillMaturity: self.immutableConfig.maturityTimestamp - block.timestamp,
+            secondsTillMaturity: maturityTimestamp - block.timestamp,
             tickLimits: VammTicks.getCurrentTickLimits(self, params.markPrice, params.markPriceBand),
-            liquidityIndex: PoolConfiguration.getRateOracle(self.immutableConfig.marketId).getCurrentIndex()
+            liquidityIndex: PoolConfiguration.getRateOracle(marketId).getCurrentIndex()
         });
 
         if (params.amountSpecified == 0) {
@@ -77,8 +90,8 @@ library Swap {
             0,
             0,
             VammHelpers.getNewMTMTimestampAndRateIndex(
-                self.immutableConfig.marketId, 
-                self.immutableConfig.maturityTimestamp
+                marketId, 
+                maturityTimestamp
             )
         );
         
@@ -152,11 +165,11 @@ library Swap {
             if (params.amountSpecified > 0) {
                 // LP is a Variable Taker
                 step.baseTokenDelta = step.amountIn.toInt(); // this is positive
-                step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert_ud(100));
+                step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert(100));
             } else {
                 // LP is a Fixed Taker
                 step.baseTokenDelta = -step.amountOut.toInt(); // this is negative
-                step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert_ud(100));
+                step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert(100));
             }
 
             ///// UPDATE TRACKERS /////
@@ -166,7 +179,7 @@ library Swap {
                     step.baseTokenDelta,
                     step.averagePrice,
                     self.mutableConfig.spread,
-                    self.immutableConfig.marketId
+                    marketId
                 );
 
                 (
@@ -191,8 +204,8 @@ library Swap {
                     int128 liquidityNet = self.vars.ticks.cross(
                         step.tickNext,
                         state.growthGlobalX128,
-                        self.immutableConfig.marketId,
-                        self.immutableConfig.maturityTimestamp
+                        marketId,
+                        maturityTimestamp
                     );
 
                     state.liquidity = LiquidityMath.addDelta(
@@ -233,15 +246,15 @@ library Swap {
         self.vars.growthGlobalX128 = state.growthGlobalX128;
 
         emit VammHelpers.VAMMPriceChange(
-            self.immutableConfig.marketId,
-            self.immutableConfig.maturityTimestamp,
+            marketId,
+            maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
         emit VammHelpers.Swap(
-            self.immutableConfig.marketId,
-            self.immutableConfig.maturityTimestamp,
+            marketId,
+            maturityTimestamp,
             msg.sender,
             params.amountSpecified,
             params.sqrtPriceLimitX96,

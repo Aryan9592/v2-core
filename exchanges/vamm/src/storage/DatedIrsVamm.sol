@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
 import { Oracle } from "./Oracle.sol";
+
 import { Tick } from "../libraries/ticks/Tick.sol";
 
 import { AccountBalances } from "../libraries/vamm-utils/AccountBalances.sol";
@@ -10,10 +12,10 @@ import { LP } from "../libraries/vamm-utils/LP.sol";
 import { VammConfiguration } from "../libraries/vamm-utils/VammConfiguration.sol";
 import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 
+import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-
-import { FilledBalances, UnfilledBalances, PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
 
 /**
@@ -33,6 +35,8 @@ library DatedIrsVamm {
         int24 minTickAllowed;
         /// @dev The maximum allowed tick of the vamm
         int24 maxTickAllowed;
+        /// @dev The window that blocks orders before maturity to avoid manipulations
+        uint32 inactiveWindowBeforeMaturity;
     }
 
     struct Immutable {
@@ -177,7 +181,6 @@ library DatedIrsVamm {
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,
         uint128 accountId,
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
@@ -186,7 +189,6 @@ library DatedIrsVamm {
         LP.executeDatedMakerOrder(
             self,
             accountId,
-            marketId,
             tickLower,
             tickUpper,
             liquidityDelta

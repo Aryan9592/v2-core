@@ -1,26 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { IPoolModule } from "../interfaces/IPoolModule.sol";
+
+import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
+import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
+import { LPPosition } from "../storage/LPPosition.sol";
+
+import { TickMath } from "../libraries/ticks/TickMath.sol";
+import { Twap } from "../libraries/vamm-utils/Twap.sol";
+import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
+import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+
+import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SD59x18 } from "@prb/math/SD59x18.sol";
 
-import {IPoolModule} from "../interfaces/IPoolModule.sol";
-
-import {Twap} from "../libraries/vamm-utils/Twap.sol";
-import {VammTicks} from "../libraries/vamm-utils/VammTicks.sol";
-import {TickMath} from "../libraries/ticks/TickMath.sol";
-import {VammHelpers} from "../libraries/vamm-utils/VammHelpers.sol";
-
-import {DatedIrsVamm} from "../storage/DatedIrsVamm.sol";
-import {PoolConfiguration} from "../storage/PoolConfiguration.sol";
-import {LPPosition} from "../storage/LPPosition.sol";
-
-import {SafeCastU128, SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
-
-import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-
-import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
@@ -100,7 +101,7 @@ contract PoolModule is IPoolModule {
         
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
 
-        vamm.executeDatedMakerOrder(accountId, marketId, tickLower, tickUpper, liquidityDelta);
+        vamm.executeDatedMakerOrder(accountId, tickLower, tickUpper, liquidityDelta);
 
         return VammHelpers.baseAmountFromLiquidity(
             liquidityDelta,
@@ -134,7 +135,6 @@ contract PoolModule is IPoolModule {
             LPPosition.Data memory position = LPPosition.exists(positions[i].to128());
             vamm.executeDatedMakerOrder(
                 accountId, 
-                marketId,
                 position.tickLower,
                 position.tickUpper,
                 -position.liquidity.toInt()

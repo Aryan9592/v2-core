@@ -2,10 +2,14 @@
 
 pragma solidity >=0.8.13;
 
+
+import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 import { VammHelpers } from "../vamm-utils/VammHelpers.sol";
-import { MTMObservation, PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
+
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations

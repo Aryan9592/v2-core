@@ -2,24 +2,26 @@
 
 pragma solidity >=0.8.13;
 
-import {Tick} from "../ticks/Tick.sol";
-import {TickMath} from "../ticks/TickMath.sol";
-import {TickBitmap} from "../ticks/TickBitmap.sol";
 
-import {FullMath} from "../math/FullMath.sol";
-import {FixedPoint128} from "../math/FixedPoint128.sol";
+import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+
+import { Tick } from "../ticks/Tick.sol";
+import { TickMath } from "../ticks/TickMath.sol";
+import { TickBitmap } from "../ticks/TickBitmap.sol";
+import { FullMath } from "../math/FullMath.sol";
+import { FixedPoint128 } from "../math/FixedPoint128.sol";
+
+import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
 import { UD60x18, ZERO, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import { MTMObservation, PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
+import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
-import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
-import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
-import {PoolConfiguration} from "../../storage/PoolConfiguration.sol";
 
 library VammHelpers {
     using SafeCastU256 for uint256;

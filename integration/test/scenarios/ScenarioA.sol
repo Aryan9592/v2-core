@@ -128,7 +128,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             spread: ud60x18(0), // 0%
             minSecondsBetweenOracleObservations: 10,
             minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
-            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK,
+            inactiveWindowBeforeMaturity: 86400
         });
 
         // ensure the current time > 7 days
