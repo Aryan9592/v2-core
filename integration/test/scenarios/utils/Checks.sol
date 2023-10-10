@@ -111,7 +111,7 @@ abstract contract Checks is AssertionHelpers {
             uint256 unfilledBaseLong,
             uint256 unfilledBaseShort,
             uint256 unfilledQuoteLong,
-            uint256 unfilledQuoteShort
+            uint256 unfilledQuoteShort,,
         ) = IPool(poolAddress).getAccountUnfilledBaseAndQuote(
             positionInfo.marketId, 
             positionInfo.maturityTimestamp, 
@@ -122,6 +122,8 @@ abstract contract Checks is AssertionHelpers {
         assertEq(expectedUnfilledBaseShort, unfilledBaseShort, "unfilledBaseShort");
         assertEq(expectedUnfilledQuoteLong, unfilledQuoteLong, "unfilledQuoteLong");
         assertEq(expectedUnfilledQuoteShort, unfilledQuoteShort, "unfilledQuoteShort");
+
+        // todo: add additional assertions for average prices
     }
 
     function checkZeroUnfilledBalances(
