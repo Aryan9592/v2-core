@@ -139,8 +139,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             priceImpactPhi: ud60x18(0.0001e18), // vol / volume = 0.01
             spread: ud60x18(0.003e18), // 0.3%
             minSecondsBetweenOracleObservations: 10,
-            minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-            maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+            minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
         });
 
         // ensure the current time > 7 days
@@ -220,8 +220,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             priceImpactPhi: ud60x18(0.0001e18), // vol / volume = 0.01
             spread: ud60x18(0.01e18), // 1%
             minSecondsBetweenOracleObservations: 10,
-            minTickAllowed: TickMath.DEFAULT_MIN_TICK,
-            maxTickAllowed: TickMath.DEFAULT_MAX_TICK
+            minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
         });
 
         // ensure the current time > 7 days
@@ -291,7 +291,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 1 Aave
         {   
-            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
+            PositionInfo memory positionInfo = 
+                PositionInfo({accountId: 1, marketId: marketIdAave, maturityTimestamp: maturityTimestampAave});
             
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
@@ -307,7 +308,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // check account 1 Glp
         {   
-            PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketIdGlp, maturityTimestamp: maturityTimestampGlp});
+            PositionInfo memory positionInfo = 
+                PositionInfo({accountId: 1, marketId: marketIdGlp, maturityTimestamp: maturityTimestampGlp});
 
             checkUnfilledBalances({
                 poolAddress: address(vammProxy),
