@@ -505,15 +505,14 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 0
             });
 
-            // todo: fix expectedAccruedInterest and uncomment below
-            // checkFilledBalances({
-            //     datedIrsProxy: datedIrsProxy,
-            //     positionInfo: 
-            //         PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-            //     expectedBaseBalance: -313711024, 
-            //     expectedQuoteBalance: 16067554,
-            //     expectedAccruedInterest: 2460609
-            // });
+            checkFilledBalances({
+                datedIrsProxy: datedIrsProxy,
+                positionInfo: 
+                    PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
+                expectedBaseBalance: -313711024, 
+                expectedQuoteBalance: 16067554,
+                expectedAccruedInterest: 2448333
+            });
         } 
 
         // check account 2
@@ -568,13 +567,11 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
         }
 
-        // todo: sumAccruedInterest fails, uncomment after fix
-        // invariantCheck();
+        invariantCheck();
 
         vm.warp(start + 86400 * 365 * 7 / 8);
 
-        // todo: sumAccruedInterest fails, uncomment after fix
-        // invariantCheck();
+        invariantCheck();
 
         vm.warp(start + 86400 * 365);
 
@@ -586,8 +583,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 1
         });
-        // todo: fails, uncomment after fix
-        // assertEq(settlementCashflows[0], 4921218, "settlement cashflow 1");
+
+        assertEq(settlementCashflows[0], 4896667, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflows[1] = settle({
@@ -620,16 +617,14 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 netSettlementCashflow += settlementCashflows[i];
             }
 
-            // todo: fails, uncomment after fix
-            // assertAlmostEq(
-            //     netSettlementCashflow,
-            //     int(0),
-            //     5,
-            //     "net settlement cashflow"
-            // );
+            assertAlmostEq(
+                netSettlementCashflow,
+                int(0),
+                5,
+                "net settlement cashflow"
+            );
         }
 
-        // todo: sumAccruedInterest fails, uncomment after fix
-        // invariantCheck();
+        invariantCheck();
     }
 }
