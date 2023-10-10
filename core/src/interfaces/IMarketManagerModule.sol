@@ -42,7 +42,7 @@ interface IMarketManagerModule {
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
         returns (
-        Account.FilledExposure[] memory filledExposures,
+        int256[] memory filledExposures,
         Account.UnfilledExposure[] memory unfilledExposures
     );
 

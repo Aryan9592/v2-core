@@ -88,6 +88,11 @@ library Market {
          * @dev Address of fee collector
          */
         uint128 protocolFeeCollectorAccountId;
+
+        /**
+         * @dev Id of the risk matrix which hosts the parameters for this market
+         */
+        uint256 riskBlockId;
     }
 
     /**
@@ -162,7 +167,7 @@ library Market {
         internal
         view
         returns (
-        Account.FilledExposure[] memory filledExposures,
+        int256[] memory filledExposures,
         Account.UnfilledExposure[] memory unfilledExposures
     )
     {
@@ -198,6 +203,12 @@ library Market {
         self.insuranceFundFeeConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
+    }
+
+    // todo: add natspect and expose
+    function setRiskBlockId(Data storage self, uint256 riskBlockId) internal {
+        self.riskBlockId = riskBlockId;
+        // todo add event
     }
 
     /**

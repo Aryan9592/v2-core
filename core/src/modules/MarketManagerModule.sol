@@ -47,7 +47,7 @@ contract MarketManagerModule is IMarketManagerModule {
         override
         view
         returns (
-        Account.FilledExposure[] memory filledExposures,
+        int256[] memory filledExposures,
         Account.UnfilledExposure[] memory unfilledExposures
     )
     {

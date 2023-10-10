@@ -28,7 +28,7 @@ interface IMarketManager is IERC165 {
         external
         view
         returns (
-        Account.FilledExposure[] memory filledExposures,
+        int256[] memory filledExposures,
         Account.UnfilledExposure[] memory unfilledExposures
     );
 
