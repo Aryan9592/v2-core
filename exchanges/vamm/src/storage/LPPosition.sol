@@ -103,8 +103,6 @@ library LPPosition {
             deltas = calculateTrackersDelta(self, growthInsideX128);
         }
 
-        self.updatedGrowthTrackers = growthInsideX128;
-
         MTMObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
 
@@ -116,6 +114,8 @@ library LPPosition {
         );
         
         self.traderBalances.accruedInterest += deltas.accruedInterest;
+
+        self.updatedGrowthTrackers = growthInsideX128;
     }
 
     function updateLiquidity(Data storage self, int128 liquidityDelta) internal {
@@ -159,29 +159,20 @@ library LPPosition {
         pure
         returns (FilledBalances memory deltas)
     {
-        int256 baseTokenGrowthInsideDeltaX128 = growthInsideX128.base -
-            self.updatedGrowthTrackers.base;
-
         deltas.base = FullMath.mulDivSigned(
-            baseTokenGrowthInsideDeltaX128,
+            growthInsideX128.base - self.updatedGrowthTrackers.base,
             self.liquidity,
             FixedPoint128.Q128
         );
-
-        int256 quoteTokenGrowthInsideDeltaX128 = growthInsideX128.quote -
-            self.updatedGrowthTrackers.quote;
 
         deltas.quote = FullMath.mulDivSigned(
-            quoteTokenGrowthInsideDeltaX128,
+            growthInsideX128.quote - self.updatedGrowthTrackers.quote,
             self.liquidity,
             FixedPoint128.Q128
         );
 
-        int256 accruedInterestGrowthInsideDeltaX128 = growthInsideX128.accruedInterest -
-            self.updatedGrowthTrackers.accruedInterest;
-
         deltas.accruedInterest = FullMath.mulDivSigned(
-            accruedInterestGrowthInsideDeltaX128,
+            growthInsideX128.accruedInterest - self.updatedGrowthTrackers.accruedInterest,
             self.liquidity,
             FixedPoint128.Q128
         );

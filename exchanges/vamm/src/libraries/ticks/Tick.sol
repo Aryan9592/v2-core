@@ -31,131 +31,6 @@ library Tick {
         bool initialized;
     }
 
-    function growthInside(
-        int24 tickLower,
-        int24 tickUpper,
-        int24 tickCurrent,
-        int256 growthGlobalX128,
-        int256 lowerGrowthOutsideX128,
-        int256 upperGrowthOutsideX128
-    ) private pure returns (int256) {
-        // calculate the growth below
-        int256 growthBelowX128 = 
-            (tickCurrent >= tickLower) 
-                ? lowerGrowthOutsideX128 
-                : growthGlobalX128 - lowerGrowthOutsideX128;
-
-        // calculate the growth above
-        int256 growthAboveX128 = 
-            (tickCurrent < tickUpper) ? 
-                upperGrowthOutsideX128 : 
-                growthGlobalX128 - upperGrowthOutsideX128;
-
-        return growthGlobalX128 - (growthBelowX128 + growthAboveX128);
-    }
-
-    struct BaseTokenGrowthInsideParams {
-        int24 tickLower;
-        int24 tickUpper;
-        int24 tickCurrent;
-        int256 baseTokenGrowthGlobalX128;
-    }
-
-    function getBaseTokenGrowthInside(
-        mapping(int24 => Tick.Info) storage self,
-        BaseTokenGrowthInsideParams memory params
-    ) internal view returns (int256 baseTokenGrowthInsideX128) {
-        Info storage lower = self[params.tickLower];
-        Info storage upper = self[params.tickUpper];
-
-        baseTokenGrowthInsideX128 = growthInside(
-            params.tickLower,
-            params.tickUpper,
-            params.tickCurrent,
-            params.baseTokenGrowthGlobalX128,
-            lower.growthOutsideX128.base,
-            upper.growthOutsideX128.base
-        );
-    }
-
-    struct QuoteTokenGrowthInsideParams {
-        int24 tickLower;
-        int24 tickUpper;
-        int24 tickCurrent;
-        int256 quoteTokenGrowthGlobalX128;
-    }
-
-    function getQuoteTokenGrowthInside(
-        mapping(int24 => Tick.Info) storage self,
-        QuoteTokenGrowthInsideParams memory params
-    ) internal view returns (int256 quoteTokenGrowthInsideX128) {
-        Info storage lower = self[params.tickLower];
-        Info storage upper = self[params.tickUpper];
-
-        // do we need an unchecked block in here (given we are dealing with an int256)?
-        quoteTokenGrowthInsideX128 = growthInside(
-            params.tickLower,
-            params.tickUpper,
-            params.tickCurrent,
-            params.quoteTokenGrowthGlobalX128,
-            lower.growthOutsideX128.quote,
-            upper.growthOutsideX128.quote
-        );
-    }
-
-    struct AccruedInterestGrowthInsideParams {
-        int24 tickLower;
-        int24 tickUpper;
-        int24 tickCurrent;
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        PositionBalances growthGlobalX128;
-    }
-
-    function getAccruedInterestGrowthInside(
-        mapping(int24 => Tick.Info) storage self,
-        AccruedInterestGrowthInsideParams memory params
-    ) internal view returns (int256 accruedInterestGrowthInsideX128) {
-        Info storage lower = self[params.tickLower];
-        Info storage upper = self[params.tickUpper];
-
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(params.marketId, params.maturityTimestamp);
-
-        PositionBalances memory latestLowerAccruedInterestTrackers = 
-            TraderPosition.getUpdatedBalances(
-                lower.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            );
-
-        PositionBalances memory latestUpperAccruedInterestTrackers = 
-            TraderPosition.getUpdatedBalances(
-                upper.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            );
-
-        PositionBalances memory latestGlobalAccruedInterestTrackers = 
-            TraderPosition.getUpdatedBalances(
-                params.growthGlobalX128,
-                0,
-                0,
-                newObservation
-            );
-
-        accruedInterestGrowthInsideX128 = growthInside(
-            params.tickLower,
-            params.tickUpper,
-            params.tickCurrent,
-            latestGlobalAccruedInterestTrackers.accruedInterest,
-            latestLowerAccruedInterestTrackers.accruedInterest,
-            latestUpperAccruedInterestTrackers.accruedInterest
-        );
-    }
-
     /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The tick that will be updated
@@ -246,17 +121,9 @@ library Tick {
             newObservation
         );
 
-        info.growthOutsideX128.quote =
-            growthGlobalX128.quote -
-            info.growthOutsideX128.quote;
-
-        info.growthOutsideX128.base =
-            growthGlobalX128.base -
-            info.growthOutsideX128.base;
-
-        info.growthOutsideX128.accruedInterest = 
-            growthGlobalX128.accruedInterest -
-            info.growthOutsideX128.accruedInterest;
+        info.growthOutsideX128.quote = growthGlobalX128.quote - info.growthOutsideX128.quote;
+        info.growthOutsideX128.base = growthGlobalX128.base - info.growthOutsideX128.base;
+        info.growthOutsideX128.accruedInterest = growthGlobalX128.accruedInterest - info.growthOutsideX128.accruedInterest;
 
         liquidityNet = info.liquidityNet;
     }

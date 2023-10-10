@@ -108,7 +108,6 @@ contract PoolModule is IPoolModule {
             TickMath.getSqrtRatioAtTick(tickLower),
             TickMath.getSqrtRatioAtTick(tickUpper)
         );
-
     }
 
     /**
