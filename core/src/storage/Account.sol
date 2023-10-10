@@ -93,8 +93,8 @@ library Account {
     }
 
     struct UnfilledExposureComponents {
-        int256 cfExposureLong;
-        int256 cfExposureShort;
+        uint256 unfilledExposureLong;
+        uint256 unfilledExposureShort;
     }
 
     struct UnfilledExposure {
