@@ -14,13 +14,13 @@ import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated
 /// @title Storage checks 
 abstract contract Checks is AssertionHelpers {
 
-    uint256 constant internal EPSILON = 10;
-
     struct PositionInfo {
         uint128 accountId;
         uint128 marketId;
         uint32 maturityTimestamp;
     }
+
+    uint256 public constant EPSILON = 10;
 
     function checkTotalFilledBalances(
         DatedIrsProxy datedIrsProxy,
@@ -42,9 +42,9 @@ abstract contract Checks is AssertionHelpers {
             sumAccruedInterest += filledBalances.accruedInterest;
         }
         
-        assertAlmostEq(sumFilledBase, int(0), 1e4, "sumFilledBase");
-        assertAlmostEq(sumFilledQuote, int(0), 1e4, "sumFilledQuote");
-        assertAlmostEq(sumAccruedInterest, int(0), 1e4, "sumAccruedInterest");
+        assertAlmostEq(sumFilledBase, int(0), EPSILON, "sumFilledBase");
+        assertAlmostEq(sumFilledQuote, int(0), EPSILON, "sumFilledQuote");
+        assertAlmostEq(sumAccruedInterest, int(0), EPSILON, "sumAccruedInterest");
     }
     
     function checkFilledBalances(
@@ -90,10 +90,10 @@ abstract contract Checks is AssertionHelpers {
         );
 
 
-        assertAlmostEq(expectedUnfilledBaseLong, unfilledBalances.baseLong, EPSILON, "unfilledBaseLong");
-        assertAlmostEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, EPSILON, "unfilledBaseShort");
-        assertAlmostEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, EPSILON, "unfilledQuoteLong");
-        assertAlmostEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, EPSILON, "unfilledQuoteShort");
+        assertAlmostEq(int(expectedUnfilledBaseLong), int(unfilledBalances.baseLong), EPSILON, "unfilledBaseLong");
+        assertAlmostEq(int(expectedUnfilledBaseShort), int(unfilledBalances.baseShort), EPSILON, "unfilledBaseShort");
+        assertAlmostEq(int(expectedUnfilledQuoteLong), int(unfilledBalances.quoteLong), EPSILON, "unfilledQuoteLong");
+        assertAlmostEq(int(expectedUnfilledQuoteShort), int(unfilledBalances.quoteShort), EPSILON, "unfilledQuoteShort");
         // todo: add additional assertions for average prices
     }
 

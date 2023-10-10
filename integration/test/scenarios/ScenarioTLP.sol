@@ -347,52 +347,48 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
         }
 
-        // todo: bring this back
-        // invariantCheck();
+        invariantCheck();
 
-        // vm.warp(start + 86400 * 365 * 7 / 8);
+        vm.warp(start + 86400 * 365 * 7 / 8);
 
-        // todo: bring this back
-        // invariantCheck();
+        invariantCheck();
 
-        // vm.warp(start + 86400 * 365);
+        vm.warp(start + 86400 * 365);
 
-        // int256[] memory settlementCashflows = new int256[](2);
+        int256[] memory settlementCashflows = new int256[](2);
 
-        // // settle account 1
-        // settlementCashflows[0] = settle({
-        //     marketId: marketId,
-        //     maturityTimestamp: maturityTimestamp,
-        //     accountId: 1
-        // });
-        // assertEq(settlementCashflows[0], -16949720, "settlement cashflow 1");
+        // settle account 1
+        settlementCashflows[0] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 1
+        });
+        assertEq(settlementCashflows[0], -16949721, "settlement cashflow 1");
 
-        // // settle account 2
-        // settlementCashflows[1] = settle({
-        //     marketId: marketId,
-        //     maturityTimestamp: maturityTimestamp,
-        //     accountId: 2
-        // });
+        // settle account 2
+        settlementCashflows[1] = settle({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            accountId: 2
+        });
             
-        // assertEq(settlementCashflows[1], 4398628, "settlement cashflow 2");
+        assertEq(settlementCashflows[1], 16949721, "settlement cashflow 2");
             
-        // todo: bring this back
         // invariant check
-        // {
-        //     int256 netSettlementCashflow = 0;
-        //     for (uint256 i = 0; i < settlementCashflows.length; i++) {
-        //         netSettlementCashflow += settlementCashflows[i];
-        //     }
+        {
+            int256 netSettlementCashflow = 0;
+            for (uint256 i = 0; i < settlementCashflows.length; i++) {
+                netSettlementCashflow += settlementCashflows[i];
+            }
 
-        //     assertAlmostEq(
-        //         netSettlementCashflow,
-        //         int(0),
-        //         3,
-        //         "net settlement cashflow"
-        //     );
-        // }
+            assertAlmostEq(
+                netSettlementCashflow,
+                int(0),
+                3,
+                "net settlement cashflow"
+            );
+        }
 
-        // todo: bring this back
-        // invariantCheck();
+        invariantCheck();
     }
 }

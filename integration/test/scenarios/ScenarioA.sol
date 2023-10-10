@@ -271,7 +271,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1000000000, 
                 expectedQuoteBalance: 52851278,
-                expectedAccruedInterest: 8212819
+                expectedAccruedInterest: 8212817
             });
         }   
 
@@ -321,7 +321,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 1
         });
-        assertEq(settlementCashflows[0], 16425639, "settlement cashflow 1");
+        assertEq(settlementCashflows[0], 16425637, "settlement cashflow 1");
 
         // check settlement twice does not work
         vm.expectRevert(SetUtil.ValueNotInSet.selector);
