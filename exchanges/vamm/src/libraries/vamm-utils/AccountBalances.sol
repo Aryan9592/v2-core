@@ -87,25 +87,15 @@ library AccountBalances {
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
-            (
-                int256 trackerQuoteTokenGrowthInsideX128, 
-                int256 trackerBaseTokenGrowthInsideX128, 
-                int256 trackerAccruedInterestGrowthInsideX128
-            ) = computeGrowthInside(self, position.tickLower, position.tickUpper);
-        
-            (
-                int256 trackerQuoteTokenAccumulated, 
-                int256 trackerBaseTokenAccumulated, 
-                int256 trackerAccruedInterestAccumulated
-            ) = position.getUpdatedPositionBalances(
-                trackerQuoteTokenGrowthInsideX128, 
-                trackerBaseTokenGrowthInsideX128, 
-                trackerAccruedInterestGrowthInsideX128
+            FilledBalances memory it = position.getUpdatedPositionBalances(
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp,
+                computeGrowthInside(self, position.tickLower, position.tickUpper)
             ); 
 
-            balances.base += trackerBaseTokenAccumulated;
-            balances.quote += trackerQuoteTokenAccumulated;
-            balances.accruedInterest += trackerAccruedInterestAccumulated;
+            balances.base += it.base;
+            balances.quote += it.quote;
+            balances.accruedInterest += it.accruedInterest;
         }
 
     }
@@ -159,11 +149,11 @@ library AccountBalances {
     )
         internal
         view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128, int256 accruedInterestGrowthInsideX128)
+        returns (FilledBalances memory growthInsideX128)
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
-        baseTokenGrowthInsideX128 = self.vars.ticks.getBaseTokenGrowthInside(
+        growthInsideX128.base = self.vars.ticks.getBaseTokenGrowthInside(
             Tick.BaseTokenGrowthInsideParams({
                 tickLower: tickLower,
                 tickUpper: tickUpper,
@@ -172,7 +162,7 @@ library AccountBalances {
             })
         );
 
-        quoteTokenGrowthInsideX128 = self.vars.ticks.getQuoteTokenGrowthInside(
+        growthInsideX128.quote = self.vars.ticks.getQuoteTokenGrowthInside(
             Tick.QuoteTokenGrowthInsideParams({
                 tickLower: tickLower,
                 tickUpper: tickUpper,
@@ -181,7 +171,7 @@ library AccountBalances {
             })
         );
 
-        accruedInterestGrowthInsideX128 = self.vars.ticks.getAccruedInterestGrowthInside(
+        growthInsideX128.accruedInterest = self.vars.ticks.getAccruedInterestGrowthInside(
             Tick.AccruedInterestGrowthInsideParams({
                 tickLower: tickLower,
                 tickUpper: tickUpper,

@@ -62,18 +62,11 @@ library LP {
         }
 
         // this also checks if the position has enough liquidity to burn
-        {
-            (
-                int256 quoteTokenGrowthInsideX128,
-                int256 baseTokenGrowthInsideX128,
-                int256 accruedInterestGrowthInsideX128
-            ) = AccountBalances.computeGrowthInside(self, tickLower, tickUpper);
-            position.updateTokenBalances(
-                quoteTokenGrowthInsideX128,
-                baseTokenGrowthInsideX128,
-                accruedInterestGrowthInsideX128
-            );
-        }
+        position.updateTokenBalances(
+            marketId,
+            maturityTimestamp,
+            AccountBalances.computeGrowthInside(self, tickLower, tickUpper)
+        );
 
         position.updateLiquidity(liquidityDelta);
 
