@@ -640,8 +640,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampGlp,
             accountId: 1
         });
-        // todo: uncomment check, it fails because of accrued interest issue
-        // assertEq(settlementCashflowsGlp[0], 2178460260122388000, "settlement cashflow 1");
+        assertEq(settlementCashflowsGlp[0], 2176794643940582050, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflowsGlp[1] = settle({
@@ -660,29 +659,26 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         assertEq(settlementCashflowsGlp[2], -1032609874695113150, "settlement cashflow 3");
 
         // invariant check
-        // todo: uncomment check, it fails because of accrued interest issue
-        // {
-        //     int256 netSettlementCashflow = 0;
-        //     for (uint256 i = 0; i < settlementCashflowsGlp.length; i++) {
-        //         netSettlementCashflow += settlementCashflowsGlp[i];
-        //     }
+        {
+            int256 netSettlementCashflow = 0;
+            for (uint256 i = 0; i < settlementCashflowsGlp.length; i++) {
+                netSettlementCashflow += settlementCashflowsGlp[i];
+            }
 
-        //     assertAlmostEq(
-        //         netSettlementCashflow,
-        //         int(0),
-        //         3,
-        //         "net settlement cashflow"
-        //     );
-        // }
+            assertAlmostEq(
+                netSettlementCashflow,
+                int(0),
+                3,
+                "net settlement cashflow"
+            );
+        }
 
-        // todo: uncomment check, it fails because of accrued interest issue
-        // invariantCheck(marketIdGlp, maturityTimestampGlp);
-        // invariantCheck(marketIdAave, maturityTimestampAave);
+        invariantCheck(marketIdGlp, maturityTimestampGlp);
+        invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365 * 7 / 8);
 
-        // todo: uncomment check, it fails because of accrued interest issue
-        // invariantCheck(marketIdAave, maturityTimestampAave);
+        invariantCheck(marketIdAave, maturityTimestampAave);
 
         vm.warp(start + 86400 * 365);
         assertEq(1.02e18, unwrap(datedIrsProxy.getRateIndexCurrent(marketIdAave)), "aave li 4/4");
@@ -698,8 +694,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestampAave,
             accountId: 1
         });
-        // todo: uncomment check, it fails because of accrued interest issue
-        // assertEq(settlementCashflowsAave[0], 31239793, "settlement cashflow 1");
+        assertEq(settlementCashflowsAave[0], 31225980, "settlement cashflow 1");
 
         // settle account 2
         settlementCashflowsAave[1] = settle({
@@ -718,22 +713,20 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         assertEq(settlementCashflowsAave[2], -50052619, "settlement cashflow 3");
 
         // invariant check
-        // todo: uncomment check, it fails because of accrued interest issue
-        // {
-        //     int256 netSettlementCashflow = 0;
-        //     for (uint256 i = 0; i < settlementCashflowsAave.length; i++) {
-        //         netSettlementCashflow += settlementCashflowsAave[i];
-        //     }
+        {
+            int256 netSettlementCashflow = 0;
+            for (uint256 i = 0; i < settlementCashflowsAave.length; i++) {
+                netSettlementCashflow += settlementCashflowsAave[i];
+            }
 
-        //     assertAlmostEq(
-        //         netSettlementCashflow,
-        //         int(0),
-        //         3,
-        //         "net settlement cashflow"
-        //     );
-        // }
+            assertAlmostEq(
+                netSettlementCashflow,
+                int(0),
+                3,
+                "net settlement cashflow"
+            );
+        }
 
-        // todo: uncomment check, it fails because of accrued interest issue
-        // invariantCheck(marketIdAave, maturityTimestampAave);
+        invariantCheck(marketIdAave, maturityTimestampAave);
     }
 }
