@@ -12,7 +12,6 @@ import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
-import { FilledBalances } from "../DataTypes.sol";
 
 /*
 TODOs
@@ -80,14 +79,10 @@ library ExecuteLiquidationOrder {
         address poolAddress = market.marketConfig.poolAddress;
 
         // retrieve base amount filled by the liquidatable account
-        FilledBalances memory filledBalances = portfolio.getAccountFilledBalances(
+        baseAmountLiquidatableAccount = portfolio.getAccountFilledBalances(
             maturityTimestamp,
             poolAddress
-        );
-
-        int256 baseBalancePool = filledBalances.base;
-
-        baseAmountLiquidatableAccount = portfolio.positions[maturityTimestamp].base + baseBalancePool;
+        ).base;
 
         // revert if base amount filled is zero
         if (baseAmountLiquidatableAccount == 0) {
