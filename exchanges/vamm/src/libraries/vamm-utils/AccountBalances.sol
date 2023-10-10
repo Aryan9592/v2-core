@@ -2,19 +2,26 @@
 
 pragma solidity >=0.8.13;
 
-import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { LPPosition } from "../../storage/LPPosition.sol";
+
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { UD60x18, ud,  convert, unwrap } from "@prb/math/UD60x18.sol";
+import { FilledBalances, UnfilledBalances, MTMObservation } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
+
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
+import { LPPosition } from "../../storage/LPPosition.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
+
+import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
+
+import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
+
 
 library AccountBalances {
     using LPPosition for LPPosition.Data;
@@ -31,7 +38,7 @@ library AccountBalances {
     )
         internal
         view
-        returns (DatedIrsVamm.UnfilledBalances memory unfilled)
+        returns (UnfilledBalances memory unfilled)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
@@ -78,32 +85,22 @@ library AccountBalances {
     )
         internal
         view
-        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) {
+        returns (FilledBalances memory balances) {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
         
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
-            (
-                int256 trackerQuoteTokenGrowthInsideX128, 
-                int256 trackerBaseTokenGrowthInsideX128, 
-                int256 trackerAccruedInterestGrowthInsideX128
-            ) = computeGrowthInside(self, position.tickLower, position.tickUpper);
-        
-            (
-                int256 trackerQuoteTokenAccumulated, 
-                int256 trackerBaseTokenAccumulated, 
-                int256 trackerAccruedInterestAccumulated
-            ) = position.getUpdatedPositionBalances(
-                trackerQuoteTokenGrowthInsideX128, 
-                trackerBaseTokenGrowthInsideX128, 
-                trackerAccruedInterestGrowthInsideX128
+            FilledBalances memory it = position.getUpdatedPositionBalances(
+                self.immutableConfig.marketId,
+                self.immutableConfig.maturityTimestamp,
+                computeGrowthInside(self, position.tickLower, position.tickUpper)
             ); 
 
-            baseBalancePool += trackerBaseTokenAccumulated;
-            quoteBalancePool += trackerQuoteTokenAccumulated;
-            accruedInterestPool += trackerAccruedInterestAccumulated;
+            balances.base += it.base;
+            balances.quote += it.quote;
+            balances.accruedInterest += it.accruedInterest;
         }
 
     }
@@ -150,6 +147,29 @@ library AccountBalances {
         return (unfilledBase, absUnfilledQuote);
     }
 
+    function growthInside(
+        int24 tickLower,
+        int24 tickUpper,
+        int24 tickCurrent,
+        int256 growthGlobalX128,
+        int256 lowerGrowthOutsideX128,
+        int256 upperGrowthOutsideX128
+    ) private pure returns (int256) {
+        // calculate the growth below
+        int256 growthBelowX128 = 
+            (tickCurrent >= tickLower) 
+                ? lowerGrowthOutsideX128 
+                : growthGlobalX128 - lowerGrowthOutsideX128;
+
+        // calculate the growth above
+        int256 growthAboveX128 = 
+            (tickCurrent < tickUpper) ? 
+                upperGrowthOutsideX128 : 
+                growthGlobalX128 - upperGrowthOutsideX128;
+
+        return growthGlobalX128 - (growthBelowX128 + growthAboveX128);
+    }
+
     function computeGrowthInside(
         DatedIrsVamm.Data storage self,
         int24 tickLower,
@@ -157,39 +177,56 @@ library AccountBalances {
     )
         internal
         view
-        returns (int256 quoteTokenGrowthInsideX128, int256 baseTokenGrowthInsideX128, int256 accruedInterestGrowthInsideX128)
+        returns (FilledBalances memory growthInsideX128)
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
-        baseTokenGrowthInsideX128 = self.vars.ticks.getBaseTokenGrowthInside(
-            Tick.BaseTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                baseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128
-            })
+        Tick.Info memory lower = self.vars.ticks[tickLower];
+        Tick.Info memory upper = self.vars.ticks[tickUpper];
+
+        growthInsideX128.base = growthInside(
+            tickLower,
+            tickUpper,
+            self.vars.tick,
+            self.vars.growthGlobalX128.base,
+            lower.growthOutsideX128.base,
+            upper.growthOutsideX128.base
         );
 
-        quoteTokenGrowthInsideX128 = self.vars.ticks.getQuoteTokenGrowthInside(
-            Tick.QuoteTokenGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                quoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128
-            })
+        growthInsideX128.quote = growthInside(
+            tickLower,
+            tickUpper,
+            self.vars.tick,
+            self.vars.growthGlobalX128.quote,
+            lower.growthOutsideX128.quote,
+            upper.growthOutsideX128.quote
         );
 
-        accruedInterestGrowthInsideX128 = self.vars.ticks.getAccruedInterestGrowthInside(
-            Tick.AccruedInterestGrowthInsideParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                tickCurrent: self.vars.tick,
-                trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
-                trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
-                accruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128,
-                marketId: self.immutableConfig.marketId,
-                maturityTimestamp: self.immutableConfig.maturityTimestamp
-            })
+        MTMObservation memory newObservation = 
+            VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
+
+        growthInsideX128.accruedInterest = growthInside(
+            tickLower,
+            tickUpper,
+            self.vars.tick,
+            TraderPosition.getUpdatedBalances(
+                self.vars.growthGlobalX128,
+                0,
+                0,
+                newObservation
+            ).accruedInterest,
+            TraderPosition.getUpdatedBalances(
+                lower.growthOutsideX128,
+                0,
+                0,
+                newObservation
+            ).accruedInterest,
+            TraderPosition.getUpdatedBalances(
+                upper.growthOutsideX128,
+                0,
+                0,
+                newObservation
+            ).accruedInterest
         );
     }
 }

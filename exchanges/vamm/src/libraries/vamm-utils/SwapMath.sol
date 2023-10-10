@@ -2,7 +2,9 @@
 
 pragma solidity >=0.8.13;
 
-import {SqrtPriceMath} from "../math/SqrtPriceMath.sol";
+
+import { SqrtPriceMath } from "../math/SqrtPriceMath.sol";
+
 
 /// @title Computes the result of a swap within ticks
 /// @notice Contains methods for computing the result of a swap within a single tick price range, i.e., a single tick.

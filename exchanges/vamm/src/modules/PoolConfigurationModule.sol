@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
 import { IPoolConfigurationModule } from "../interfaces/IPoolConfigurationModule.sol";
 
 import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
+
 import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+
 
 contract PoolConfigurationModule is IPoolConfigurationModule {
   using PoolConfiguration for PoolConfiguration.Data;

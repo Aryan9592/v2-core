@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {IPool} from "../interfaces/IPool.sol";
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
@@ -34,31 +35,6 @@ library ExposureHelpers {
 
     error PositionExceedsSizeLimit(uint256 positionSizeLimit, uint256 positionSize);
     error OpenInterestLimitExceeded(uint256 limit, uint256 openInterest);
-
-    struct PoolExposureState {
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        UD60x18 annualizedExposureFactor;
-
-        int256 baseBalance;
-        int256 quoteBalance;
-        int256 accruedInterest;
-
-        int256 baseBalancePool;
-        int256 quoteBalancePool;
-        int256 accruedInterestPool;
-
-        uint256 unfilledBaseLong;
-        uint256 unfilledQuoteLong;
-        uint256 unfilledBaseShort;
-        uint256 unfilledQuoteShort;
-    }
-
-    struct AccruedInterestTrackers {
-        int256 accruedInterest;
-        uint256 lastMTMTimestamp;
-        UD60x18 lastMTMRateIndex;
-    }
 
     function computeUnrealizedPnL(
         uint128 marketId,
@@ -155,50 +131,44 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function getUnfilledExposureLowerInPool(
-        PoolExposureState memory poolState,
+    function getUnfilledExposureInPool(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        FilledBalances memory filledBalances,
+        UnfilledBalances memory unfilledBalances,
+        bool isLong,
         address poolAddress
     ) internal view returns (Account.MarketExposure memory) {
+        int256 totalBase = 0;
+        int256 totalQuote = 0;
+
+        if (isLong) {
+            totalBase = filledBalances.base + unfilledBalances.baseLong.toInt();
+            totalQuote = filledBalances.quote - unfilledBalances.quoteLong.toInt();
+        }
+        else {
+            totalBase = filledBalances.base - unfilledBalances.baseShort.toInt();
+            totalQuote = filledBalances.quote + unfilledBalances.quoteShort.toInt();
+        }
+
         int256 uPnL = computeUnrealizedPnL(
-            poolState.marketId,
-            poolState.maturityTimestamp,
+            marketId,
+            maturityTimestamp,
             poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt(),
-            poolState.quoteBalance + poolState.quoteBalancePool + poolState.unfilledQuoteShort.toInt()
+            totalBase,
+            totalQuote
         );
 
         return Account.MarketExposure({
             annualizedNotional: mulUDxInt(
-                poolState.annualizedExposureFactor, 
-                poolState.baseBalance + poolState.baseBalancePool - poolState.unfilledBaseShort.toInt()
+                annualizedExposureFactor(
+                    marketId,
+                    maturityTimestamp
+                ), 
+                totalBase
             ),
             pnlComponents: Account.PnLComponents({
-                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
-                lockedPnL: 0,
-                unrealizedPnL: uPnL
-            })
-        });
-    }
-
-    function getUnfilledExposureUpperInPool(
-        PoolExposureState memory poolState,
-        address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
-        int256 uPnL = computeUnrealizedPnL(
-            poolState.marketId,
-            poolState.maturityTimestamp,
-            poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt(),
-            poolState.quoteBalance + poolState.quoteBalancePool - poolState.unfilledQuoteLong.toInt()
-        );
-
-        return Account.MarketExposure({
-            annualizedNotional: mulUDxInt(
-                poolState.annualizedExposureFactor,
-                poolState.baseBalance + poolState.baseBalancePool + poolState.unfilledBaseLong.toInt()
-            ),
-            pnlComponents: Account.PnLComponents({
-                accruedCashflows: poolState.accruedInterest + poolState.accruedInterestPool,
+                accruedCashflows: filledBalances.accruedInterest,
                 lockedPnL: 0,
                 unrealizedPnL: uPnL
             })

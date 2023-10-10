@@ -2,23 +2,26 @@
 
 pragma solidity >=0.8.13;
 
-import {Tick} from "../ticks/Tick.sol";
-import {TickMath} from "../ticks/TickMath.sol";
-import {TickBitmap} from "../ticks/TickBitmap.sol";
 
-import {FullMath} from "../math/FullMath.sol";
-import {FixedPoint128} from "../math/FixedPoint128.sol";
+import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+
+import { Tick } from "../ticks/Tick.sol";
+import { TickMath } from "../ticks/TickMath.sol";
+import { TickBitmap } from "../ticks/TickBitmap.sol";
+import { FullMath } from "../math/FullMath.sol";
+import { FixedPoint128 } from "../math/FixedPoint128.sol";
+
+import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
 import { UD60x18, ZERO, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
-import {IRateOracleModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-import {IMarketConfigurationModule} from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
-import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
-import {PoolConfiguration} from "../../storage/PoolConfiguration.sol";
+import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
+import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
+import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
+
 
 library VammHelpers {
     using SafeCastU256 for uint256;
@@ -65,11 +68,9 @@ library VammHelpers {
         uint160 sqrtPriceX96;
         /// @dev the tick associated with the current price
         int24 tick;
-        /// @dev the global quote token growth
-        int256 trackerQuoteTokenGrowthGlobalX128;
-        /// @dev the global variable token growth
-        int256 trackerBaseTokenGrowthGlobalX128;
-        int256 trackerAccruedInterestGrowthGlobalX128;
+
+        PositionBalances growthGlobalX128;
+
         /// @dev the current liquidity in range
         uint128 liquidity;
         /// @dev quoteTokenDelta that will be applied to the quote token balance of the position executing the swap
@@ -190,11 +191,11 @@ library VammHelpers {
         )
     {
         stateQuoteTokenGrowthGlobalX128 = 
-            state.trackerQuoteTokenGrowthGlobalX128 + 
+            state.growthGlobalX128.quote + 
                 FullMath.mulDivSigned(balancedQuoteTokenDelta, FixedPoint128.Q128, state.liquidity);
 
         stateBaseTokenGrowthGlobalX128 = 
-            state.trackerBaseTokenGrowthGlobalX128 + 
+            state.growthGlobalX128.base + 
                 FullMath.mulDivSigned(baseTokenDelta, FixedPoint128.Q128, state.liquidity);
     }
 
@@ -227,7 +228,7 @@ library VammHelpers {
     function getNewMTMTimestampAndRateIndex(
         uint128 marketId,
         uint32 maturityTimestamp
-    ) internal view returns (MTMAccruedInterest.MTMObservation memory observation) {
+    ) internal view returns (MTMObservation memory observation) {
         IRateOracleModule marketManager = 
             IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
 

@@ -3,12 +3,13 @@ pragma solidity >=0.8.19;
 import {AssertionHelpers} from "./AssertionHelpers.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
-import {Position} from "@voltz-protocol/products-dated-irs/src/storage/Position.sol";
 import {VammProxy} from "../../../src/proxies/Vamm.sol";
 import {DatedIrsProxy} from "../../../src/proxies/DatedIrs.sol";
 import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
 import { UD60x18, ud, unwrap, convert } from "@prb/math/UD60x18.sol";
+
+import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
 /// @title Storage checks 
 abstract contract Checks is AssertionHelpers {
@@ -20,7 +21,6 @@ abstract contract Checks is AssertionHelpers {
     }
 
     function checkTotalFilledBalances(
-        address poolAddress,
         DatedIrsProxy datedIrsProxy,
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -31,19 +31,13 @@ abstract contract Checks is AssertionHelpers {
         int256 sumAccruedInterest = 0;
 
         for (uint256 i = 0; i < accountIds.length; i++) {
-            (
-                int256 baseBalancePool,
-                int256 quoteBalancePool,
-                int256 accruedInterestPool
-            ) = IPool(poolAddress)
+            FilledBalances memory filledBalances = datedIrsProxy
                 .getAccountFilledBalances(marketId, maturityTimestamp, accountIds[i]);
-            Position.Data memory position = datedIrsProxy
-                .getTakerPositionInfo(accountIds[i], marketId, maturityTimestamp);
+            
+            sumFilledBase += filledBalances.base;
+            sumFilledQuote += filledBalances.quote;
 
-            sumFilledBase += (baseBalancePool + position.baseBalance);
-            sumFilledQuote += (quoteBalancePool + position.quoteBalance);
-
-            sumAccruedInterest += (accruedInterestPool + position.accruedInterestTrackers.accruedInterest);
+            sumAccruedInterest += filledBalances.accruedInterest;
         }
         
         assertAlmostEq(sumFilledBase, int(0), 1e4, "sumFilledBase");
@@ -51,55 +45,36 @@ abstract contract Checks is AssertionHelpers {
         assertAlmostEq(sumAccruedInterest, int(0), 1e4, "sumAccruedInterest");
     }
     
-    function checkPoolFilledBalances(
-        address poolAddress,
-        PositionInfo memory positionInfo,
-        int256 expectedBaseBalancePool,
-        int256 expectedQuoteBalancePool,
-        int256 expectedAccruedInterestPool
-    ) internal {
-        (
-            int256 baseBalancePool,
-            int256 quoteBalancePool,
-            int256 accruedInterestPool
-        ) = IPool(poolAddress)
-            .getAccountFilledBalances(positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId);
-
-        assertEq(expectedBaseBalancePool, baseBalancePool, "baseBalancePool");
-        assertEq(expectedQuoteBalancePool, quoteBalancePool, "quoteBalancePool");
-        assertEq(expectedAccruedInterestPool, accruedInterestPool, "accruedInterestPool");
-    }
-
-    function checkTakerFilledBalances(
+    function checkFilledBalances(
         DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo,
-        int256 expectedBaseBalancePool,
-        int256 expectedQuoteBalancePool,
-        int256 expectedAccruedInterestPool
+        int256 expectedBaseBalance,
+        int256 expectedQuoteBalance,
+        int256 expectedAccruedInterest
     ) internal {
-        Position.Data memory position = datedIrsProxy
-            .getTakerPositionInfo(positionInfo.accountId, positionInfo.marketId, positionInfo.maturityTimestamp);
+        FilledBalances memory filledBalances = datedIrsProxy
+            .getAccountFilledBalances(positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId);
 
-        assertEq(expectedBaseBalancePool, position.baseBalance, "baseBalance");
-        assertEq(expectedQuoteBalancePool, position.quoteBalance, "quoteBalance");
-        assertEq(expectedAccruedInterestPool, position.accruedInterestTrackers.accruedInterest, "accruedInterest");
+        assertEq(expectedBaseBalance, filledBalances.base, "filledBase");
+        assertEq(expectedQuoteBalance, filledBalances.quote, "filledQuote");
+        assertEq(expectedAccruedInterest, filledBalances.accruedInterest, "accruedInterest");
     }
 
-    function checkZeroPoolFilledBalances(
-        address poolAddress,
+    function checkZeroFilledBalances(
+        DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo
     ) internal {
-        checkPoolFilledBalances({
-            poolAddress: poolAddress,
+        checkFilledBalances({
+            datedIrsProxy: datedIrsProxy,
             positionInfo: positionInfo,
-            expectedBaseBalancePool: 0, 
-            expectedQuoteBalancePool: 0,
-            expectedAccruedInterestPool: 0
+            expectedBaseBalance: 0, 
+            expectedQuoteBalance: 0,
+            expectedAccruedInterest: 0
         });
     }
 
     function checkUnfilledBalances(
-        address poolAddress,
+        DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo,
         uint256 expectedUnfilledBaseLong,
         uint256 expectedUnfilledBaseShort,
@@ -107,29 +82,24 @@ abstract contract Checks is AssertionHelpers {
         uint256 expectedUnfilledQuoteShort
     ) internal {
 
-        (
-            uint256 unfilledBaseLong,
-            uint256 unfilledBaseShort,
-            uint256 unfilledQuoteLong,
-            uint256 unfilledQuoteShort
-        ) = IPool(poolAddress).getAccountUnfilledBaseAndQuote(
+        UnfilledBalances memory unfilledBalances = datedIrsProxy.getAccountUnfilledBaseAndQuote(
             positionInfo.marketId, 
             positionInfo.maturityTimestamp, 
             positionInfo.accountId
         );
 
-        assertEq(expectedUnfilledBaseLong, unfilledBaseLong, "unfilledBaseLong");
-        assertEq(expectedUnfilledBaseShort, unfilledBaseShort, "unfilledBaseShort");
-        assertEq(expectedUnfilledQuoteLong, unfilledQuoteLong, "unfilledQuoteLong");
-        assertEq(expectedUnfilledQuoteShort, unfilledQuoteShort, "unfilledQuoteShort");
+        assertEq(expectedUnfilledBaseLong, unfilledBalances.baseLong, "unfilledBaseLong");
+        assertEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, "unfilledBaseShort");
+        assertEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, "unfilledQuoteLong");
+        assertEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, "unfilledQuoteShort");
     }
 
     function checkZeroUnfilledBalances(
-        address poolAddress,
+        DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo
     ) internal {
         checkUnfilledBalances({
-            poolAddress: poolAddress,
+            datedIrsProxy: datedIrsProxy,
             positionInfo: positionInfo,
             expectedUnfilledBaseLong: 0,
             expectedUnfilledBaseShort: 0, 
