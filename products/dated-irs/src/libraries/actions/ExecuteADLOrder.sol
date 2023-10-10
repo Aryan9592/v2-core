@@ -140,9 +140,13 @@ library ExecuteADLOrder {
             }
         }
 
-        accountPortfolio.updatePosition(maturityTimestamp, -vars.baseDelta, -vars.quoteDelta);
-        adlPortfolio.updatePosition(maturityTimestamp, vars.baseDelta, vars.quoteDelta);
-
+        Portfolio.propagateMatchedOrder(
+            adlPortfolio,
+            accountPortfolio,
+            vars.baseDelta,
+            vars.quoteDelta,
+            maturityTimestamp
+        );
     }
 
     function adlOrderTimerId(bool isLong) internal pure returns (bytes32) {

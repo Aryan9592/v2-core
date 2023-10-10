@@ -12,7 +12,7 @@ import { TickMath } from "../libraries/ticks/TickMath.sol";
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
 import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
 
 import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
@@ -53,7 +53,7 @@ contract PoolModule is IPoolModule {
         UD60x18 markPriceBand
     )
         external override
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount) {
+        returns (PositionBalances memory /* tokenDeltas */) {
         
         if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
@@ -77,7 +77,7 @@ contract PoolModule is IPoolModule {
         swapParams.markPrice = markPrice;
         swapParams.markPriceBand = markPriceBand;
 
-        (executedQuoteAmount, executedBaseAmount) = vamm.vammSwap(swapParams);
+        return vamm.vammSwap(swapParams);
     }
 
     /**

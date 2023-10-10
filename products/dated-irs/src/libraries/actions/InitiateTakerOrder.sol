@@ -39,8 +39,7 @@ library InitiateTakerOrder {
      * @param marketId The id of the market.
      * @param maturityTimestamp The maturity timestamp of the position.
      * @param collateralType The address of the collateral.
-     * @param executedBaseAmount The executed base amount of the order.
-     * @param executedQuoteAmount The executed quote amount of the order.
+     * @param tokenDeltas The executed token amounts of the order.
      * @param annualizedNotionalAmount The annualized base of the order.
      * @param blockTimestamp The current block timestamp.
      */
@@ -49,8 +48,7 @@ library InitiateTakerOrder {
         uint128 indexed marketId,
         uint32 indexed maturityTimestamp,
         address collateralType,
-        int256 executedBaseAmount,
-        int256 executedQuoteAmount,
+        PositionBalances tokenDeltas,
         int256 annualizedNotionalAmount,
         uint256 blockTimestamp
     );
@@ -68,8 +66,7 @@ library InitiateTakerOrder {
     function initiateTakerOrder(TakerOrderParams memory params)
         internal
         returns (
-            int256 executedBaseAmount,
-            int256 executedQuoteAmount,
+            PositionBalances memory tokenDeltas,
             int256 annualizedNotionalAmount
         )
     {
@@ -81,6 +78,7 @@ library InitiateTakerOrder {
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
+
         UD60x18 markPrice = pool.getAdjustedDatedIRSTwap(
             params.marketId, 
             params.maturityTimestamp, 
@@ -88,24 +86,20 @@ library InitiateTakerOrder {
             market.marketConfig.twapLookbackWindow
         );
 
-        // todo: check there is an active pool with maturityTimestamp requested
-        (executedBaseAmount, executedQuoteAmount) =
-            pool.executeDatedTakerOrder(
-                params.marketId, 
-                params.maturityTimestamp, 
-                params.baseAmount, 
-                params.priceLimit, 
-                markPrice, 
-                market.marketConfig.markPriceBand
-            );
-
-        Portfolio.Data storage portfolio = Portfolio.loadOrCreate(params.accountId, params.marketId);
-        portfolio.updatePosition(
-            params.maturityTimestamp, executedBaseAmount, executedQuoteAmount
+        tokenDeltas = pool.executeDatedTakerOrder(
+            params.marketId, 
+            params.maturityTimestamp, 
+            params.baseAmount, 
+            params.priceLimit, 
+            markPrice, 
+            market.marketConfig.markPriceBand
         );
 
+        Portfolio.Data storage portfolio = Portfolio.loadOrCreate(params.accountId, params.marketId);
+        portfolio.updatePosition(params.maturityTimestamp, tokenDeltas);
+
         annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
-            executedBaseAmount, params.marketId, params.maturityTimestamp
+            tokenDeltas.base, params.marketId, params.maturityTimestamp
         );
 
         ExposureHelpers.checkPositionSizeLimit(
@@ -122,7 +116,7 @@ library InitiateTakerOrder {
         if (
             Portfolio.exists(params.accountId, params.marketId)
             .positions[params.maturityTimestamp]
-            .base * executedBaseAmount > 0
+            .base * tokenDeltas.base > 0
         ) {
             annualizedNotionalDelta = -annualizedNotionalDelta;
         }
@@ -139,8 +133,7 @@ library InitiateTakerOrder {
             params.marketId,
             params.maturityTimestamp,
             market.quoteToken,
-            executedBaseAmount,
-            executedQuoteAmount,
+            tokenDeltas,
             annualizedNotionalAmount,
             block.timestamp
         );

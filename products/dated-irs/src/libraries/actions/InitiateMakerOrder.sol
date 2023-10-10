@@ -84,8 +84,17 @@ library InitiateMakerOrder {
             params.liquidityDelta
         );
 
-        Portfolio.loadOrCreate(params.accountId, params.marketId)
-            .updatePosition(params.maturityTimestamp, 0, 0);
+        Portfolio
+            .loadOrCreate(params.accountId, params.marketId)
+            .updatePosition(
+                params.maturityTimestamp,
+                PositionBalances({
+                    base: 0,
+                    quote: 0,
+                    extraCashflow: 0
+                })
+            );
+        
         market.updateOracleStateIfNeeded();
 
         annualizedNotionalAmount = 

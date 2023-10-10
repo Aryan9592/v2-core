@@ -6,7 +6,7 @@ pragma solidity >=0.8.13;
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { FilledBalances, UnfilledBalances, MTMObservation } from "../DataTypes.sol";
+import { PositionBalances, FilledBalances, UnfilledBalances, MTMObservation } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -88,19 +88,20 @@ library AccountBalances {
         returns (FilledBalances memory balances) {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
+
+        MTMObservation memory newObservation = 
+            VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
         
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
-            FilledBalances memory it = position.getUpdatedPositionBalances(
-                self.immutableConfig.marketId,
-                self.immutableConfig.maturityTimestamp,
+            PositionBalances memory it = position.getUpdatedPositionBalances(
                 computeGrowthInside(self, position.tickLower, position.tickUpper)
             ); 
 
             balances.base += it.base;
             balances.quote += it.quote;
-            balances.accruedInterest += it.accruedInterest;
+            balances.accruedInterest += TraderPosition.getAccruedInterest(it, newObservation);
         }
 
     }
@@ -177,7 +178,7 @@ library AccountBalances {
     )
         internal
         view
-        returns (FilledBalances memory growthInsideX128)
+        returns (PositionBalances memory growthInsideX128)
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
@@ -202,31 +203,13 @@ library AccountBalances {
             upper.growthOutsideX128.quote
         );
 
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
-
-        growthInsideX128.accruedInterest = growthInside(
+        growthInsideX128.extraCashflow = growthInside(
             tickLower,
             tickUpper,
             self.vars.tick,
-            TraderPosition.getUpdatedBalances(
-                self.vars.growthGlobalX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest,
-            TraderPosition.getUpdatedBalances(
-                lower.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest,
-            TraderPosition.getUpdatedBalances(
-                upper.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest
+            self.vars.growthGlobalX128.extraCashflow,
+            lower.growthOutsideX128.extraCashflow,
+            upper.growthOutsideX128.extraCashflow
         );
     }
 }

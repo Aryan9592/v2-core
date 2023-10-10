@@ -19,8 +19,7 @@ struct MTMObservation {
 struct PositionBalances {
     int256 base;
     int256 quote;
-    int256 accruedInterest;
-    MTMObservation lastObservation;
+    int256 extraCashflow;
 }
 
 struct FilledBalances {

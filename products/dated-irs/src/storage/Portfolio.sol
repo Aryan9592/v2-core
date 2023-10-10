@@ -170,11 +170,10 @@ library Portfolio {
             maturityTimestamp, 
             self.accountId
         );
-
-        PositionBalances memory updatedPosition = TraderPosition.getUpdatedBalances(
-            self.positions[maturityTimestamp],
-            0,
-            0,
+        
+        PositionBalances storage position = self.positions[maturityTimestamp];
+        int256 accruedInterest = TraderPosition.getAccruedInterest(
+            position,
             MarketRateOracle.getNewMTMTimestampAndRateIndex(
                 self.marketId, 
                 maturityTimestamp
@@ -182,9 +181,9 @@ library Portfolio {
         );
 
         return FilledBalances({
-            base: poolBalances.base + updatedPosition.base,
-            quote: poolBalances.quote + updatedPosition.quote,
-            accruedInterest: poolBalances.accruedInterest + updatedPosition.accruedInterest
+            base: poolBalances.base + position.base,
+            quote: poolBalances.quote + position.quote,
+            accruedInterest: poolBalances.accruedInterest + accruedInterest
         });
     }
 
@@ -245,33 +244,58 @@ library Portfolio {
         return exposures;
     }
 
+    function propagateMatchedOrder(
+        Data storage taker,
+        Data storage maker,
+        int256 base,
+        int256 quote,
+        uint32 maturityTimestamp
+    ) internal {
+        
+        int256 extraCashflow = TraderPosition.computeCashflow(
+            base,
+            quote,
+            MarketRateOracle.getNewMTMTimestampAndRateIndex(
+                taker.marketId, 
+                maturityTimestamp
+            )
+        );
+
+        taker.updatePosition(
+            maturityTimestamp, 
+            PositionBalances({
+                base: base,
+                quote: quote,
+                extraCashflow: extraCashflow
+            }));
+
+        maker.updatePosition(
+            maturityTimestamp, 
+            PositionBalances({
+                base: -base,
+                quote: -quote,
+                extraCashflow: -extraCashflow
+            }));
+    }
+
     /**
      * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st Dec 2023)
      */
     function updatePosition(
         Data storage self,
         uint32 maturityTimestamp,
-        int256 baseDelta,
-        int256 quoteDelta
-    )
-        internal
-    {
+        PositionBalances memory tokenDeltas
+    ) internal {
         PositionBalances storage position = self.positions[maturityTimestamp];
 
         // register active market
-        if (position.base == 0 && position.quote == 0) {
+        if (position.base == 0 && position.quote == 0 && position.extraCashflow == 0) {
             activateMarketMaturity(self, maturityTimestamp);
         }
 
-        TraderPosition.updateBalances(
-            position,
-            baseDelta,
-            quoteDelta,
-            MarketRateOracle.getNewMTMTimestampAndRateIndex(
-                self.marketId, 
-                maturityTimestamp
-            )
-        );
+        position.base += tokenDeltas.base;
+        position.quote += tokenDeltas.quote;
+        position.extraCashflow += tokenDeltas.extraCashflow;
 
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, position, block.timestamp);
     }
@@ -293,20 +317,16 @@ library Portfolio {
         }
 
         PositionBalances storage position = self.positions[maturityTimestamp];
-
-        /// @dev reverts if not active
-        self.deactivateMarketMaturity(maturityTimestamp);
-
-        /// @dev update position's accrued interest
-        TraderPosition.updateBalances(
+        int256 accruedInterest = TraderPosition.getAccruedInterest(
             position,
-            0,
-            0,
             MarketRateOracle.getNewMTMTimestampAndRateIndex(
                 self.marketId, 
                 maturityTimestamp
             )
         );
+
+        /// @dev reverts if not active
+        self.deactivateMarketMaturity(maturityTimestamp);
         
         /// @dev Note that the settle function will not update the
         /// last MTM timestamp in the VAMM. However, this is not an
@@ -314,7 +334,8 @@ library Portfolio {
         /// cannot be settled anymore.
         FilledBalances memory filledBalances = 
             IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
-        settlementCashflow = filledBalances.accruedInterest + position.accruedInterest;
+        
+        settlementCashflow = filledBalances.accruedInterest + accruedInterest;
 
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, position, block.timestamp);
     }

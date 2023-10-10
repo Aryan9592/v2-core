@@ -84,10 +84,12 @@ library PropagateADLOrder {
         int256 baseToPropagate = 0;
         int256 quoteToPropagate = 0;
 
-        accountPortfolio.updatePosition(maturityTimestamp, baseToPropagate, quoteToPropagate);
-        adlPortfolio.updatePosition(maturityTimestamp, -baseToPropagate, -quoteToPropagate);
-
+        Portfolio.propagateMatchedOrder(
+            accountPortfolio,
+            adlPortfolio,
+            baseToPropagate,
+            quoteToPropagate,
+            maturityTimestamp
+        );
     }
-
-
 }

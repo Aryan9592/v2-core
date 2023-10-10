@@ -39,8 +39,7 @@ library VammHelpers {
         address sender,
         int256 desiredBaseAmount,
         uint160 sqrtPriceLimitX96,
-        int256 quoteTokenDelta,
-        int256 baseTokenDelta,
+        PositionBalances tokenDeltas,
         uint256 blockTimestamp
     );
 
@@ -64,19 +63,19 @@ library VammHelpers {
     struct SwapState {
         /// @dev the amount remaining to be swapped in/out of the input/output asset
         int256 amountSpecifiedRemaining;
+        
         /// @dev current sqrt(price)
         uint160 sqrtPriceX96;
+        
         /// @dev the tick associated with the current price
         int24 tick;
 
         PositionBalances growthGlobalX128;
 
+        PositionBalances tokenDeltaCumulative;
+
         /// @dev the current liquidity in range
         uint128 liquidity;
-        /// @dev quoteTokenDelta that will be applied to the quote token balance of the position executing the swap
-        int256 quoteTokenDeltaCumulative;
-        /// @dev baseTokenDelta that will be applied to the variable token balance of the position executing the swap
-        int256 baseTokenDeltaCumulative;
     }
 
     struct StepComputations {
@@ -93,10 +92,7 @@ library VammHelpers {
         /// @dev how much is being swapped out
         uint256 amountOut;
         UD60x18 averagePrice;
-        /// @dev ...
-        int256 quoteTokenDelta; // for LP
-        /// @dev ...
-        int256 baseTokenDelta; // for LP
+        PositionBalances tokenDeltas;
     }
 
     /// @notice Computes the amount of notional coresponding to an amount of liquidity and price range
@@ -180,23 +176,18 @@ library VammHelpers {
 
     function calculateGlobalTrackerValues(
         VammHelpers.SwapState memory state,
-        int256 balancedQuoteTokenDelta,
-        int256 baseTokenDelta
-    ) 
-        internal
-        pure
-        returns (
-            int256 stateQuoteTokenGrowthGlobalX128,
-            int256 stateBaseTokenGrowthGlobalX128
-        )
-    {
-        stateQuoteTokenGrowthGlobalX128 = 
-            state.growthGlobalX128.quote + 
-                FullMath.mulDivSigned(balancedQuoteTokenDelta, FixedPoint128.Q128, state.liquidity);
+        PositionBalances memory deltas
+    ) internal pure returns (PositionBalances memory) {
+        return PositionBalances({
+            base: state.growthGlobalX128.base + 
+                FullMath.mulDivSigned(deltas.base, FixedPoint128.Q128, state.liquidity),
 
-        stateBaseTokenGrowthGlobalX128 = 
-            state.growthGlobalX128.base + 
-                FullMath.mulDivSigned(baseTokenDelta, FixedPoint128.Q128, state.liquidity);
+            quote: state.growthGlobalX128.quote + 
+                FullMath.mulDivSigned(deltas.quote, FixedPoint128.Q128, state.liquidity),
+
+            extraCashflow: state.growthGlobalX128.extraCashflow + 
+                FullMath.mulDivSigned(deltas.extraCashflow, FixedPoint128.Q128, state.liquidity)
+        });
     }
 
     /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
