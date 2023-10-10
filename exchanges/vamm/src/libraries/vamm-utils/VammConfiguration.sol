@@ -1,15 +1,20 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import { Oracle } from "../../storage/Oracle.sol";
-import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { Tick } from "../ticks/Tick.sol";
-import { TickMath } from "../ticks/TickMath.sol";
+
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { VammTicks } from "./VammTicks.sol";
 
+import { Tick } from "../ticks/Tick.sol";
+import { TickMath } from "../ticks/TickMath.sol";
+
+import { Oracle } from "../../storage/Oracle.sol";
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
+
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
 import { UNIT } from "@prb/math/UD60x18.sol";
+
 
 /**
  * @title Tracks configurations for dated irs markets

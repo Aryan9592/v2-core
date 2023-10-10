@@ -11,6 +11,7 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {ExposureHelpers} from "../../libraries/ExposureHelpers.sol";
+import {FilledBalances} from "../../libraries/DataTypes.sol";
 import {ExecuteADLOrder} from "./ExecuteADLOrder.sol";
 import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
@@ -65,15 +66,13 @@ library PropagateADLOrder {
 
         Portfolio.Data storage accountPortfolio = Portfolio.exists(accountId, marketId);
 
-        ExposureHelpers.PoolExposureState memory accountPoolState = accountPortfolio.getPoolExposureState(
+        FilledBalances memory filledBalances = accountPortfolio.getAccountFilledBalances(
             maturityTimestamp,
             poolAddress
         );
 
-        int256 accountBaseFilled = accountPoolState.baseBalance + accountPoolState.baseBalancePool;
-
         // todo: why do we need to pass isLong if we can infer it from the sign of accountBaseFilled?
-        if ( (isLong && accountBaseFilled > 0) || (!isLong && accountBaseFilled < 0)) {
+        if ( (isLong && filledBalances.base > 0) || (!isLong && filledBalances.base < 0)) {
             revert WrongADLPropagationDirection();
         }
 

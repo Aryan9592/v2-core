@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import {IVammModule} from "../interfaces/IVammModule.sol";
-import {DatedIrsVamm} from "../storage/DatedIrsVamm.sol";
-import {LPPosition} from "../storage/LPPosition.sol";
-import {Oracle} from "../storage/Oracle.sol";
-import {Tick} from "../libraries/ticks/Tick.sol";
-import {Twap} from "../libraries/vamm-utils/Twap.sol";
 
-import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
-import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { IVammModule } from "../interfaces/IVammModule.sol";
+
+import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
+import { LPPosition } from "../storage/LPPosition.sol";
+
+import { Twap } from "../libraries/vamm-utils/Twap.sol";
+
+import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+
 
 /**
  * @title Module for configuring a market
@@ -20,6 +23,22 @@ contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
     using SafeCastU256 for uint256;
+
+    /// @dev Emitted when vamm configurations are updated
+    event VammConfigUpdated(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        DatedIrsVamm.Mutable config,
+        uint256 blockTimestamp
+    );
+
+    /// @dev Emitted when a new vamm is created and initialized
+    event VammCreated(
+        int24 tick,
+        DatedIrsVamm.Immutable config,
+        DatedIrsVamm.Mutable mutableConfig,
+        uint256 blockTimestamp
+    );
 
     /**
      * @inheritdoc IVammModule
@@ -83,39 +102,11 @@ contract VammModule is IVammModule {
          mutableConfig = vamm.mutableConfig;
     }
 
-    function getVammSqrtPriceX96(uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (uint160) {
-
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.sqrtPriceX96;
-    }
-
     function getVammTick(uint128 marketId, uint32 maturityTimestamp)
         external view override returns (int24) {
 
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.vars.tick;
-    }
-
-    function getVammTickInfo(uint128 marketId, uint32 maturityTimestamp, int24 tick)
-        external view override returns (Tick.Info memory) {
-
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.ticks[tick];
-    }
-
-    function getVammTickBitmap(uint128 marketId, uint32 maturityTimestamp, int16 wordPosition)
-        external view override returns (uint256) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.tickBitmap[wordPosition];
-    }
-    
-    function getVammLiquidity(uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (uint128) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.liquidity;
     }
 
     function getVammPositionsInAccount(uint128 marketId, uint32 maturityTimestamp, uint128 accountId)
@@ -132,27 +123,6 @@ contract VammModule is IVammModule {
         return positionIds;
     }
 
-    function getVammPosition(uint128 positionId)
-        external view override returns (LPPosition.Data memory) {
-
-        LPPosition.Data storage position = LPPosition.exists(positionId);
-        return position;
-    }
-
-    function getVammTrackerQuoteTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (int256) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.trackerQuoteTokenGrowthGlobalX128;
-    }
-    
-    function getVammTrackerBaseTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (int256) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.trackerBaseTokenGrowthGlobalX128;
-    }
-
     function getVammObservationInfo(uint128 marketId, uint32 maturityTimestamp)
         external view override returns (uint16, uint16, uint16) {
         
@@ -160,17 +130,10 @@ contract VammModule is IVammModule {
         return (vamm.vars.observationIndex, vamm.vars.observationCardinality, vamm.vars.observationCardinalityNext);
     }
 
-    function getVammObservationAtIndex(uint16 index, uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (Oracle.Observation memory) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.observations[index];
-    }
+    function getVammPosition(uint128 positionId)
+        external view override returns (LPPosition.Data memory) {
 
-    function getVammObservations(uint128 marketId, uint32 maturityTimestamp)
-        external view override returns (Oracle.Observation[65535] memory) {
-        
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.vars.observations;
+        LPPosition.Data storage position = LPPosition.exists(positionId);
+        return position;
     }
 }

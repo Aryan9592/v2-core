@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
+import {FilledBalances} from "../DataTypes.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -94,12 +95,11 @@ library ExecuteADLOrder {
         Market.Data storage market = Market.exists(accountPortfolio.marketId);
         vars.poolAddress = market.marketConfig.poolAddress;
 
-        ExposureHelpers.PoolExposureState memory poolState = accountPortfolio.getPoolExposureState(
+        FilledBalances memory filledBalances = accountPortfolio.getAccountFilledBalances(
             maturityTimestamp,
             vars.poolAddress
         );
-
-        vars.baseDelta = poolState.baseBalance + poolState.baseBalancePool;
+        vars.baseDelta = filledBalances.base;
 
         if (totalUnrealizedLossQuote > 0) {
             // todo: (AB) link this to uPnL functions
@@ -130,7 +130,7 @@ library ExecuteADLOrder {
         Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(adlOrderTimerId(vars.isLong));
         /// todo: need to think how propagation can achieve exactly 0 in base & quote balances,
         /// given numerical errors
-        if (adlPortfolio.positions[maturityTimestamp].baseBalance == 0) {
+        if (adlPortfolio.positions[maturityTimestamp].base == 0) {
             adlPortfolioTimer.start(
                 market.adlBlendingDurationInSeconds
             );

@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Market} from "../storage/Market.sol";
+import { Market } from "../storage/Market.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface for the module for managing rate oracles connected to the Dated IRS Market Manager
