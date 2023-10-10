@@ -19,7 +19,8 @@ import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { UD60x18, ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
+import { PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 library Swap {
     using TickBitmap for mapping(int16 => uint256);
@@ -70,26 +71,23 @@ library Swap {
                     params.sqrtPriceLimitX96 > swapFixedValues.tickLimits.minSqrtRatio,
             "SPL"
         );
-        
-        self.vars.trackerAccruedInterestGrowthGlobalX128 = 
-            MTMAccruedInterest.getMTMAccruedInterestTrackers(
-                self.vars.trackerAccruedInterestGrowthGlobalX128,
-                VammHelpers.getNewMTMTimestampAndRateIndex(
-                    self.immutableConfig.marketId, 
-                    self.immutableConfig.maturityTimestamp
-                ),
-                self.vars.trackerBaseTokenGrowthGlobalX128,
-                self.vars.trackerQuoteTokenGrowthGlobalX128
-            );
 
+        TraderPosition.updateBalances(
+            self.vars.growthGlobalX128,
+            0,
+            0,
+            VammHelpers.getNewMTMTimestampAndRateIndex(
+                self.immutableConfig.marketId, 
+                self.immutableConfig.maturityTimestamp
+            )
+        );
+        
         VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
             liquidity: self.vars.liquidity,
-            trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
-            trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
-            trackerAccruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128.accruedInterest,
+            growthGlobalX128: self.vars.growthGlobalX128,
             quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
             baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
         });
@@ -172,8 +170,8 @@ library Swap {
                 );
 
                 (
-                    state.trackerQuoteTokenGrowthGlobalX128,
-                    state.trackerBaseTokenGrowthGlobalX128
+                    state.growthGlobalX128.quote,
+                    state.growthGlobalX128.base
                 ) = VammHelpers.calculateGlobalTrackerValues(
                     state,
                     step.quoteTokenDelta,
@@ -192,9 +190,7 @@ library Swap {
                 if (step.initialized) {
                     int128 liquidityNet = self.vars.ticks.cross(
                         step.tickNext,
-                        state.trackerQuoteTokenGrowthGlobalX128,
-                        state.trackerBaseTokenGrowthGlobalX128,
-                        state.trackerAccruedInterestGrowthGlobalX128,
+                        state.growthGlobalX128,
                         self.immutableConfig.marketId,
                         self.immutableConfig.maturityTimestamp
                     );
@@ -234,9 +230,7 @@ library Swap {
         }
 
         self.vars.liquidity = state.liquidity;
-
-        self.vars.trackerBaseTokenGrowthGlobalX128 = state.trackerBaseTokenGrowthGlobalX128;
-        self.vars.trackerQuoteTokenGrowthGlobalX128 = state.trackerQuoteTokenGrowthGlobalX128;
+        self.vars.growthGlobalX128 = state.growthGlobalX128;
 
         emit VammHelpers.VAMMPriceChange(
             self.immutableConfig.marketId,

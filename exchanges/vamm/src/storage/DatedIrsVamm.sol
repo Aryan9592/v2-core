@@ -13,7 +13,8 @@ import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -75,12 +76,8 @@ library DatedIrsVamm {
         /// @notice The currently in range liquidity available to the pool
         /// @dev This value has no relationship to the total liquidity across all ticks
         uint128 liquidity;
-        /// @dev total amount of variable tokens in vamm
-        int256 trackerQuoteTokenGrowthGlobalX128;
-        /// @dev total amount of base tokens in vamm
-        int256 trackerBaseTokenGrowthGlobalX128;
-
-        MTMAccruedInterest.AccruedInterestTrackers trackerAccruedInterestGrowthGlobalX128;
+        
+        PositionBalances growthGlobalX128;
         
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;
@@ -112,13 +109,6 @@ library DatedIrsVamm {
         UD60x18 markPrice;
         /// @dev Fixed Mark Price Band applied to the mark price to compute the dynamic price limits
         UD60x18 markPriceBand;
-    }
-
-    struct UnfilledBalances {
-        uint256 baseLong;
-        uint256 baseShort;
-        uint256 quoteLong;
-        uint256 quoteShort;
     }
 
     function create(
@@ -209,16 +199,16 @@ library DatedIrsVamm {
     function getAccountUnfilledBalances(DatedIrsVamm.Data storage self, uint128 accountId)
     internal
     view
-    returns (DatedIrsVamm.UnfilledBalances memory) {
+    returns (UnfilledBalances memory) {
         return AccountBalances.getAccountUnfilledBalances(self, accountId);
     }
 
     /// @dev For a given LP posiiton, how much of it is already traded and what are base and 
     /// quote tokens representing those exiting trades?
-    function getAccountFilledBalances(DatedIrsVamm.Data storage self,uint128 accountId)
+    function getAccountFilledBalances(DatedIrsVamm.Data storage self, uint128 accountId)
     internal
     view
-    returns (int256 /* baseBalancePool */, int256 /* quoteBalancePool */, int256 /* accruedInterestPool */) {
+    returns (FilledBalances memory) {
         return AccountBalances.getAccountFilledBalances(self, accountId);
     }
 }

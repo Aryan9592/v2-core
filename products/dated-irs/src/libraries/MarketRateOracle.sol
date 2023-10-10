@@ -9,13 +9,12 @@ pragma solidity >=0.8.19;
 
 import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
+import { MTMObservation } from  "../libraries/DataTypes.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
+import { UD60x18, ZERO, unwrap } from "@prb/math/UD60x18.sol";
 
-import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
-
-import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 library MarketRateOracle {
     using Market for Market.Data;
@@ -38,6 +37,11 @@ library MarketRateOracle {
      * @dev Thrown if the maturity index caching window is ongoing in context of maturity index backfill
      */
     error MaturityIndexCachingWindowOngoing();
+
+    /**
+     * @dev Thrown if the maturity index is requested but it has not been cached yet
+     */
+    error MaturityIndexNotCached();
 
 
     /**
@@ -117,11 +121,18 @@ library MarketRateOracle {
             Note, for some period of time (until cache is captured) post maturity, the rate index cached for the maturity
             will be zero
         */
+
         if (Time.blockTimestampTruncated() < maturityTimestamp) {
             revert MaturityNotReached();
         }
 
-        return self.rateIndexAtMaturity[maturityTimestamp];
+        UD60x18 cachedMaturityRateIndex = self.rateIndexAtMaturity[maturityTimestamp];
+
+        if (cachedMaturityRateIndex.eq(ZERO)) {
+            revert MaturityIndexNotCached();
+        }
+
+        return cachedMaturityRateIndex;
     }
 
     function updateOracleStateIfNeeded(Market.Data storage self) internal {
@@ -136,7 +147,7 @@ library MarketRateOracle {
     function getNewMTMTimestampAndRateIndex(
         uint128 marketId,
         uint32 maturityTimestamp
-    ) internal view returns (MTMAccruedInterest.MTMObservation memory observation) {
+    ) internal view returns (MTMObservation memory observation) {
         Market.Data storage market = Market.exists(marketId);
 
         if (block.timestamp < maturityTimestamp) {

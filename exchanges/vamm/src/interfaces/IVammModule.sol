@@ -7,22 +7,6 @@ import { Oracle } from "../storage/Oracle.sol";
 import { Tick } from "../libraries/ticks/Tick.sol";
 
 interface IVammModule {
-  /// @dev Emitted when vamm configurations are updated
-  event VammConfigUpdated(
-      uint128 marketId,
-      uint32 maturityTimestamp,
-      DatedIrsVamm.Mutable config,
-      uint256 blockTimestamp
-  );
-
-  /// @dev Emitted when a new vamm is created and initialized
-  event VammCreated(
-      int24 tick,
-      DatedIrsVamm.Immutable config,
-      DatedIrsVamm.Mutable mutableConfig,
-      uint256 blockTimestamp
-  );
-
   /**
     * @notice registers a new vamm with the specified configurationsa and initializes the price
     */
@@ -63,38 +47,14 @@ interface IVammModule {
       DatedIrsVamm.Mutable memory mutableConfig
     );
 
-  function getVammSqrtPriceX96(uint128 marketId, uint32 maturityTimestamp)
-    external view returns (uint160 sqrtPriceX96);
-
   function getVammTick(uint128 marketId, uint32 maturityTimestamp)
     external view returns (int24 tick);
-
-  function getVammTickInfo(uint128 marketId, uint32 maturityTimestamp, int24 tick)
-    external view returns (Tick.Info memory tickInfo);
-
-  function getVammTickBitmap(uint128 marketId, uint32 maturityTimestamp, int16 wordPosition)
-    external view returns (uint256);
-  
-  function getVammLiquidity(uint128 marketId, uint32 maturityTimestamp)
-    external view returns (uint128 liquidity);
 
   function getVammPositionsInAccount(uint128 marketId, uint32 maturityTimestamp, uint128 accountId)
     external view returns (uint128[] memory positionsInAccount);
 
-  function getVammTrackerQuoteTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
-    external view returns (int256 trackerQuoteTokenGrowthGlobalX128);
-  
-  function getVammTrackerBaseTokenGrowthGlobalX128(uint128 marketId, uint32 maturityTimestamp)
-    external view returns (int256 trackerBaseTokenGrowthGlobalX128);
-
   function getVammObservationInfo(uint128 marketId, uint32 maturityTimestamp)
       external view returns (uint16, uint16, uint16);
-
-  function getVammObservations(uint128 marketId, uint32 maturityTimestamp)
-      external view returns (Oracle.Observation[65535] memory);
-
-  function getVammObservationAtIndex(uint16 index, uint128 marketId, uint32 maturityTimestamp)
-        external view returns (Oracle.Observation memory);
 
   function getVammPosition(uint128 positionId)
         external view returns (LPPosition.Data memory);

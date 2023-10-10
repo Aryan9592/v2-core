@@ -16,6 +16,8 @@ import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-c
 
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
+import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+
 library AccountBalances {
     using LPPosition for LPPosition.Data;
     using SafeCastU256 for uint256;
@@ -31,7 +33,7 @@ library AccountBalances {
     )
         internal
         view
-        returns (DatedIrsVamm.UnfilledBalances memory unfilled)
+        returns (UnfilledBalances memory unfilled)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
@@ -78,7 +80,7 @@ library AccountBalances {
     )
         internal
         view
-        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool) {
+        returns (FilledBalances memory balances) {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
         
@@ -101,9 +103,9 @@ library AccountBalances {
                 trackerAccruedInterestGrowthInsideX128
             ); 
 
-            baseBalancePool += trackerBaseTokenAccumulated;
-            quoteBalancePool += trackerQuoteTokenAccumulated;
-            accruedInterestPool += trackerAccruedInterestAccumulated;
+            balances.base += trackerBaseTokenAccumulated;
+            balances.quote += trackerQuoteTokenAccumulated;
+            balances.accruedInterest += trackerAccruedInterestAccumulated;
         }
 
     }
@@ -166,7 +168,7 @@ library AccountBalances {
                 tickLower: tickLower,
                 tickUpper: tickUpper,
                 tickCurrent: self.vars.tick,
-                baseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128
+                baseTokenGrowthGlobalX128: self.vars.growthGlobalX128.base
             })
         );
 
@@ -175,7 +177,7 @@ library AccountBalances {
                 tickLower: tickLower,
                 tickUpper: tickUpper,
                 tickCurrent: self.vars.tick,
-                quoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128
+                quoteTokenGrowthGlobalX128: self.vars.growthGlobalX128.quote
             })
         );
 
@@ -184,9 +186,7 @@ library AccountBalances {
                 tickLower: tickLower,
                 tickUpper: tickUpper,
                 tickCurrent: self.vars.tick,
-                trackerBaseTokenGrowthGlobalX128: self.vars.trackerBaseTokenGrowthGlobalX128,
-                trackerQuoteTokenGrowthGlobalX128: self.vars.trackerQuoteTokenGrowthGlobalX128,
-                accruedInterestGrowthGlobalX128: self.vars.trackerAccruedInterestGrowthGlobalX128,
+                growthGlobalX128: self.vars.growthGlobalX128,
                 marketId: self.immutableConfig.marketId,
                 maturityTimestamp: self.immutableConfig.maturityTimestamp
             })

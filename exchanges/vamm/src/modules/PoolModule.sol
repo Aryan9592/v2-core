@@ -20,6 +20,8 @@ import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+
 /// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
@@ -154,7 +156,7 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool){     
+        returns (FilledBalances memory) {     
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.getAccountFilledBalances(accountId);
     
@@ -171,17 +173,10 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (uint256, uint256, uint256, uint256) 
+        returns (UnfilledBalances memory) 
     {      
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        DatedIrsVamm.UnfilledBalances memory unfilled = vamm.getAccountUnfilledBalances(accountId);
-
-        return (
-            unfilled.baseLong,
-            unfilled.baseShort,
-            unfilled.quoteLong,
-            unfilled.quoteShort
-        );
+        return vamm.getAccountUnfilledBalances(accountId);
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {

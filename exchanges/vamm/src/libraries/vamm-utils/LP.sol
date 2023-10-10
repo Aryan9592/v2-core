@@ -165,8 +165,8 @@ library LP {
             tickLower,
             self.vars.tick,
             liquidityDelta,
-            self.vars.trackerQuoteTokenGrowthGlobalX128,
-            self.vars.trackerBaseTokenGrowthGlobalX128,
+            self.vars.growthGlobalX128.quote,
+            self.vars.growthGlobalX128.base,
             false,
             maxLiquidityPerTick
         );
@@ -176,8 +176,8 @@ library LP {
             tickUpper,
             self.vars.tick,
             liquidityDelta,
-            self.vars.trackerQuoteTokenGrowthGlobalX128,
-            self.vars.trackerBaseTokenGrowthGlobalX128,
+            self.vars.growthGlobalX128.quote,
+            self.vars.growthGlobalX128.base,
             true,
             maxLiquidityPerTick
         );

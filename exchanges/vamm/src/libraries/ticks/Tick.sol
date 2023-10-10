@@ -2,9 +2,10 @@
 
 pragma solidity >=0.8.13;
 
-import {LiquidityMath} from "../math/LiquidityMath.sol";
-import {VammHelpers} from "../vamm-utils/VammHelpers.sol";
-import {MTMAccruedInterest} from  "@voltz-protocol/util-contracts/src/commons/MTMAccruedInterest.sol";
+import { LiquidityMath } from "../math/LiquidityMath.sol";
+import { VammHelpers } from "../vamm-utils/VammHelpers.sol";
+import { MTMObservation, PositionBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations
@@ -15,13 +16,12 @@ library Tick {
     struct Info {
         /// @dev the total per-tick liquidity that references this tick (either as tick lower or tick upper)
         uint128 liquidityGross;
+
         /// @dev amount of per-tick liquidity added (subtracted) when tick is crossed from left to right (right to left),
         int128 liquidityNet;
-        /// @dev growth per unit of liquidity on the _other_ side of this tick (relative to the current tick)
-        /// @dev only has relative meaning, not absolute — the value depends on when the tick is initialized
-        int256 trackerQuoteTokenGrowthOutsideX128;
-        int256 trackerBaseTokenGrowthOutsideX128;
-        MTMAccruedInterest.AccruedInterestTrackers trackerAccruedInterestGrowthOutsideX128;
+
+        PositionBalances growthOutsideX128;
+
         /// @dev true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
         /// @dev these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
         bool initialized;
@@ -69,8 +69,8 @@ library Tick {
             params.tickUpper,
             params.tickCurrent,
             params.baseTokenGrowthGlobalX128,
-            lower.trackerBaseTokenGrowthOutsideX128,
-            upper.trackerBaseTokenGrowthOutsideX128
+            lower.growthOutsideX128.base,
+            upper.growthOutsideX128.base
         );
     }
 
@@ -94,8 +94,8 @@ library Tick {
             params.tickUpper,
             params.tickCurrent,
             params.quoteTokenGrowthGlobalX128,
-            lower.trackerQuoteTokenGrowthOutsideX128,
-            upper.trackerQuoteTokenGrowthOutsideX128
+            lower.growthOutsideX128.quote,
+            upper.growthOutsideX128.quote
         );
     }
 
@@ -103,11 +103,9 @@ library Tick {
         int24 tickLower;
         int24 tickUpper;
         int24 tickCurrent;
-        int256 trackerBaseTokenGrowthGlobalX128;
-        int256 trackerQuoteTokenGrowthGlobalX128;
-        MTMAccruedInterest.AccruedInterestTrackers accruedInterestGrowthGlobalX128;
         uint128 marketId;
         uint32 maturityTimestamp;
+        PositionBalances growthGlobalX128;
     }
 
     function getAccruedInterestGrowthInside(
@@ -117,31 +115,31 @@ library Tick {
         Info storage lower = self[params.tickLower];
         Info storage upper = self[params.tickUpper];
 
-        MTMAccruedInterest.MTMObservation memory newObservation = 
+        MTMObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(params.marketId, params.maturityTimestamp);
 
-        MTMAccruedInterest.AccruedInterestTrackers memory latestLowerAccruedInterestTrackers = 
-            MTMAccruedInterest.getMTMAccruedInterestTrackers(
-                lower.trackerAccruedInterestGrowthOutsideX128,
-                newObservation,
-                lower.trackerBaseTokenGrowthOutsideX128,
-                lower.trackerQuoteTokenGrowthOutsideX128
+        PositionBalances memory latestLowerAccruedInterestTrackers = 
+            TraderPosition.getUpdatedBalances(
+                lower.growthOutsideX128,
+                0,
+                0,
+                newObservation
             );
 
-        MTMAccruedInterest.AccruedInterestTrackers memory latestUpperAccruedInterestTrackers = 
-            MTMAccruedInterest.getMTMAccruedInterestTrackers(
-                upper.trackerAccruedInterestGrowthOutsideX128,
-                newObservation,
-                upper.trackerBaseTokenGrowthOutsideX128,
-                upper.trackerQuoteTokenGrowthOutsideX128
+        PositionBalances memory latestUpperAccruedInterestTrackers = 
+            TraderPosition.getUpdatedBalances(
+                upper.growthOutsideX128,
+                0,
+                0,
+                newObservation
             );
 
-        MTMAccruedInterest.AccruedInterestTrackers memory latestGlobalAccruedInterestTrackers = 
-            MTMAccruedInterest.getMTMAccruedInterestTrackers(
-                params.accruedInterestGrowthGlobalX128,
-                newObservation,
-                params.trackerBaseTokenGrowthGlobalX128,
-                params.trackerQuoteTokenGrowthGlobalX128
+        PositionBalances memory latestGlobalAccruedInterestTrackers = 
+            TraderPosition.getUpdatedBalances(
+                params.growthGlobalX128,
+                0,
+                0,
+                newObservation
             );
 
         accruedInterestGrowthInsideX128 = growthInside(
@@ -166,7 +164,7 @@ library Tick {
     /// @param maxLiquidity The maximum liquidity allocation for a single tick
     /// @return flipped Whether the tick was flipped from initialized to uninitialized, or vice versa
     function update(
-        mapping(int24 => Tick.Info) storage self,
+        mapping(int24 => Info) storage self,
         int24 tick,
         int24 tickCurrent,
         int128 liquidityDelta,
@@ -175,7 +173,7 @@ library Tick {
         bool upper,
         uint128 maxLiquidity
     ) internal returns (bool flipped) {
-        Tick.Info storage info = self[tick];
+        Info storage info = self[tick];
 
         uint128 liquidityGrossBefore = info.liquidityGross;
         require(
@@ -194,11 +192,8 @@ library Tick {
         if (liquidityGrossBefore == 0) {
             // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
             if (tick <= tickCurrent) {
-
-                info.trackerQuoteTokenGrowthOutsideX128 = quoteTokenGrowthGlobalX128;
-
-                info
-                    .trackerBaseTokenGrowthOutsideX128 = baseTokenGrowthGlobalX128;
+                info.growthOutsideX128.quote = quoteTokenGrowthGlobalX128;
+                info.growthOutsideX128.base = baseTokenGrowthGlobalX128;
             }
 
             info.initialized = true;
@@ -227,42 +222,37 @@ library Tick {
     /// @notice Transitions to next tick as needed by price movement
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The destination tick of the transition
-    /// @param quoteTokenGrowthGlobalX128 The quote token growth accumulated per unit of liquidity for the entire life of the vamm
-    /// @param baseTokenGrowthGlobalX128 The variable token growth accumulated per unit of liquidity for the entire life of the vamm
     /// @return liquidityNet The amount of liquidity added (subtracted) when tick is crossed from left to right (right to left)
     function cross(
         mapping(int24 => Tick.Info) storage self,
         int24 tick,
-        int256 quoteTokenGrowthGlobalX128,
-        int256 baseTokenGrowthGlobalX128,
-        int256 accruedInterestGrowthGlobalX128,
+        PositionBalances memory growthGlobalX128,
         uint128 marketId,
         uint32 maturityTimestamp
     ) internal returns (int128 liquidityNet) {
         Tick.Info storage info = self[tick];
 
-        MTMAccruedInterest.MTMObservation memory newObservation = 
+        MTMObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
 
-        info.trackerAccruedInterestGrowthOutsideX128 = 
-            MTMAccruedInterest.getMTMAccruedInterestTrackers(
-                info.trackerAccruedInterestGrowthOutsideX128,
-                newObservation,
-                info.trackerBaseTokenGrowthOutsideX128,
-                info.trackerQuoteTokenGrowthOutsideX128
-            );
+        TraderPosition.updateBalances(
+            info.growthOutsideX128,
+            0,
+            0,
+            newObservation
+        );
 
-        info.trackerQuoteTokenGrowthOutsideX128 =
-            quoteTokenGrowthGlobalX128 -
-            info.trackerQuoteTokenGrowthOutsideX128;
+        info.growthOutsideX128.quote =
+            growthGlobalX128.quote -
+            info.growthOutsideX128.quote;
 
-        info.trackerBaseTokenGrowthOutsideX128 =
-            baseTokenGrowthGlobalX128 -
-            info.trackerBaseTokenGrowthOutsideX128;
+        info.growthOutsideX128.base =
+            growthGlobalX128.base -
+            info.growthOutsideX128.base;
 
-        info.trackerAccruedInterestGrowthOutsideX128.accruedInterest = 
-            accruedInterestGrowthGlobalX128 -
-            info.trackerAccruedInterestGrowthOutsideX128.accruedInterest;
+        info.growthOutsideX128.accruedInterest = 
+            growthGlobalX128.accruedInterest -
+            info.growthOutsideX128.accruedInterest;
 
         liquidityNet = info.liquidityNet;
     }
