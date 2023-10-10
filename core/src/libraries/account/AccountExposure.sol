@@ -173,45 +173,50 @@ library AccountExposure {
         uint256 adlMarginRequirement;
     }
 
-//    function getAllExposures(
-//        Account.Data storage self,
-//        uint256[] memory markets
-//    ) private view returns (
-//        Account.FilledExposure[] memory filledExposures,
-//        Account.UnfilledExposure[] memory unfilledExposures
-//    ) {
-//
-//        uint256 filledExposuresCounter;
-//        uint256 unfilledExposuresCounter;
-//
-//        for (uint256 i = 0; i < markets.length; i++) {
-//            uint128 marketId = markets[i].to128();
-//            Market.Data storage market = Market.exists(marketId);
-//
-//            Account.FilledExposure[] memory marketFilledExposures;
-//            Account.UnfilledExposure[] memory marketUnfilledExposures;
-//
-//            (marketFilledExposures, marketUnfilledExposures) = market.getAccountTakerAndMakerExposures(self.id);
-//
-//            for (uint256 j = 0; j < marketFilledExposures.length; j++) {
-//
-//                filledExposures[filledExposuresCounter] = marketFilledExposures[j];
-//                filledExposuresCounter += 1;
-//
-//            }
-//
-//            for (uint256 k = 0; k < marketUnfilledExposures.length; k++) {
-//
-//                unfilledExposures[unfilledExposuresCounter] = marketUnfilledExposures[k];
-//                unfilledExposuresCounter += 1;
-//
-//            }
-//
-//        }
-//
-//        return (filledExposures, unfilledExposures);
-//
-//    }
+    function getBlockExposures(
+        Account.Data storage self,
+        uint256 riskBlockId,
+        uint256 riskMatrixDim,
+        uint256[] memory markets
+    ) private view returns (
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    ) {
+
+        filledExposures = new int256[](riskMatrixDim);
+        uint256 unfilledExposuresCounter;
+
+        for (uint256 i = 0; i < markets.length; i++) {
+
+            Market.Data storage market = Market.exists(markets[i].to128());
+
+            if (!(market.riskBlockId == riskBlockId)) {
+                continue;
+            }
+
+            (
+                int256[] memory marketFilledExposures,
+                Account.UnfilledExposure[] memory marketUnfilledExposures
+            ) = market.getAccountTakerAndMakerExposures(self.id);
+
+            // todo: revert if marketFilledExposures.length doesn't match the riskMatrixDim
+
+            for (uint256 j = 0; j < marketFilledExposures.length; j++) {
+                filledExposures[j] = marketFilledExposures[j];
+            }
+
+            for (uint256 k = 0; k < marketUnfilledExposures.length; k++) {
+
+                unfilledExposures[unfilledExposuresCounter] = marketUnfilledExposures[k];
+                unfilledExposuresCounter += 1;
+
+            }
+
+        }
+
+        return (filledExposures, unfilledExposures);
+
+    }
 
     function getAggregatePnLComponents(
         Account.Data storage self,
@@ -251,10 +256,19 @@ library AccountExposure {
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
-//        (
-//            Account.FilledExposure[] memory filledExposures,
-//            Account.UnfilledExposure[] memory unfilledExposures
-//        ) = getAllExposures(self, markets);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        for (uint256 i = 0; i < collateralPool.riskBlockCount; i++) {
+
+            uint256 riskMatrixDim = collateralPool.riskMatrixDims[i];
+
+            (
+                int256[] memory filledExposures,
+                Account.UnfilledExposure[] memory unfilledExposures
+            ) = getBlockExposures(self, i, riskMatrixDim, markets);
+
+
+        }
 //
 //        vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(
 //            self.getCollateralPool(),
