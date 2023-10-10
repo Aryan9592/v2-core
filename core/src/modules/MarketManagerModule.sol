@@ -42,7 +42,7 @@ contract MarketManagerModule is IMarketManagerModule {
     /**
      * @inheritdoc IMarketManagerModule
      */
-    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
+    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId, uint256 riskMatrixDim)
         external
         override
         view
@@ -51,7 +51,10 @@ contract MarketManagerModule is IMarketManagerModule {
         Account.UnfilledExposure[] memory unfilledExposures
     )
     {
-        (filledExposures, unfilledExposures) = Market.exists(marketId).getAccountTakerAndMakerExposures(accountId);
+        (filledExposures, unfilledExposures) = Market.exists(marketId).getAccountTakerAndMakerExposures(
+            accountId,
+            riskMatrixDim
+        );
     }
 
     /**
