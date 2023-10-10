@@ -182,12 +182,12 @@ library ExecuteLiquidationOrder {
             params.marketId
         );
 
-        portfolioLiquidatable.updatePosition(
-            params.maturityTimestamp, baseAmountToBeLiquidated, quoteDeltaFromLiquidation
-        );
-
-        portfolioLiquidator.updatePosition(
-            params.maturityTimestamp, -baseAmountToBeLiquidated, -quoteDeltaFromLiquidation
+        Portfolio.propagateMatchedOrder(
+            portfolioLiquidatable,
+            portfolioLiquidator,
+            baseAmountToBeLiquidated,
+            quoteDeltaFromLiquidation,
+            params.maturityTimestamp
         );
     }
 

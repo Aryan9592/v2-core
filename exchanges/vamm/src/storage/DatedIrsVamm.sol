@@ -167,7 +167,7 @@ library DatedIrsVamm {
     function vammSwap(
         DatedIrsVamm.Data storage self,
         DatedIrsVamm.SwapParams memory params
-    ) internal returns (int256 /* quoteTokenDelta */, int256 /* baseTokenDelta */) {
+    ) internal returns (PositionBalances memory /* tokenDeltas */) {
         return Swap.vammSwap(self, params);
     }
 

@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
 
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -34,7 +34,7 @@ interface IPool is IERC165 {
         UD60x18 markPriceBand
     )
         external
-        returns (int256 executedBaseAmount, int256 executedQuoteAmount);
+        returns (PositionBalances memory /* tokenDeltas */);
 
     /**
      * @notice Provides liquidity to (or removes liquidty from) a given marketId & maturityTimestamp pair

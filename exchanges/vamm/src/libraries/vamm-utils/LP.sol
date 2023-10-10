@@ -73,8 +73,6 @@ library LP {
 
         // this also checks if the position has enough liquidity to burn
         position.updateTokenBalances(
-            marketId,
-            maturityTimestamp,
             AccountBalances.computeGrowthInside(self, tickLower, tickUpper)
         );
 
