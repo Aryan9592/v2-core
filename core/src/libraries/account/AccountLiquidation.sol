@@ -13,9 +13,11 @@ TODOs
 */
 
 
+import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
+import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
 import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -32,6 +34,8 @@ import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol
 library AccountLiquidation {
     using Account for Account.Data;
     using AccountLiquidation for Account.Data;
+    using AccountAutoExchange for Account.Data;
+    using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
     using Market for Market.Data;
@@ -627,7 +631,23 @@ library AccountLiquidation {
             uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
 
-            // todo: handle if auto-exchange was not completed
+            // gather pending funds from auto-exchange
+            uint256 pendingAutoExchangeFunds = 0;
+            if (self.isEligibleForAutoExchange(quoteToken)) {
+                address[] memory collateralTokens = 
+                    CollateralConfiguration.exists(collateralPool.id, address(0)).childTokens.values();
+
+                for (uint256 i = 0; i < collateralTokens.length; i++) {
+                    address collateralType = collateralTokens[i];
+                    (, , uint256 quoteDelta) = self.calculateAvailableCollateralToAutoExchange(
+                        collateralType,
+                        quoteToken,
+                        0 // todo: cannot come up with this value here, sync with @arturbeg
+                    );
+
+                    pendingAutoExchangeFunds += quoteDelta;
+                }                
+            }
 
             // compute total unrealized loss
             uint256 totalUnrealizedLossQuote = 0;
@@ -651,7 +671,10 @@ library AccountLiquidation {
                     adlNegativeUpnl: true,
                     adlPositiveUpnl: false,
                     totalUnrealizedLossQuote: totalUnrealizedLossQuote,
-                    realBalanceAndIF: marginInfo.collateralInfo.realBalance + insuranceFundDebit.toInt()
+                    realBalanceAndIF: 
+                        marginInfo.collateralInfo.realBalance + 
+                        pendingAutoExchangeFunds.toInt() + 
+                        insuranceFundDebit.toInt()
                 });
 
                 // todo: shouldn't we update trackers here?
