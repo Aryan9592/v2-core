@@ -87,25 +87,29 @@ library Account {
         int256 unrealizedPnL;
     }
 
-    struct PVMRComponents {
-        uint256 pvmrLong;
-        uint256 pvmrShort;
-    }
-
-    struct ExposureComponents {
-        int256 filledExposure;
-        int256 cfExposureLong;
-        int256 cfExposureShort;
-    }
-
     struct RiskMatrixDimentions {
         uint256 riskBlockId;
         uint256 riskMatrixRowId;
     }
 
-    struct MarketExposure {
+    struct PVMRComponents {
+        uint256 pvmrLong;
+        uint256 pvmrShort;
+    }
+
+    struct UnfilledExposureComponents {
+        uint256 unfilledExposureLong;
+        uint256 unfilledExposureShort;
+    }
+
+    struct FilledExposure {
         RiskMatrixDimentions riskMatrixDim;
-        ExposureComponents exposureComponents;
+        int256 exposure;
+    }
+
+    struct UnfilledExposure {
+        RiskMatrixDimentions[] riskMatrixDimArr;
+        UnfilledExposureComponents[] exposureComponentsArr;
         PVMRComponents pvmrComponents;
     }
 

@@ -161,7 +161,10 @@ library Market {
     function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId)
         internal
         view
-        returns (Account.MarketExposure[] memory exposure)
+        returns (
+        Account.FilledExposure[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    )
     {
         return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
     }

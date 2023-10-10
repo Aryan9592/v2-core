@@ -176,26 +176,40 @@ library AccountExposure {
     function getAllExposures(
         Account.Data storage self,
         uint256[] memory markets
-    ) private view returns (Account.MarketExposure[] memory allExposures) {
+    ) private view returns (
+        Account.FilledExposure[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    ) {
 
-        uint256 exposuresCounter;
+        uint256 filledExposuresCounter;
+        uint256 unfilledExposuresCounter;
 
         for (uint256 i = 0; i < markets.length; i++) {
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
-            Account.MarketExposure[] memory marketExposures = market.getAccountTakerAndMakerExposures(self.id);
+            Account.FilledExposure[] memory marketFilledExposures;
+            Account.UnfilledExposure[] memory marketUnfilledExposures;
 
-            for (uint256 j = 0; j < marketExposures.length; j++) {
+            (marketFilledExposures, marketUnfilledExposures) = market.getAccountTakerAndMakerExposures(self.id);
 
-                allExposures[exposuresCounter] = marketExposures[j];
-                exposuresCounter += 1;
+            for (uint256 j = 0; j < marketFilledExposures.length; j++) {
+
+                filledExposures[filledExposuresCounter] = marketFilledExposures[j];
+                filledExposuresCounter += 1;
+
+            }
+
+            for (uint256 k = 0; k < marketUnfilledExposures.length; k++) {
+
+                unfilledExposures[unfilledExposuresCounter] = marketUnfilledExposures[k];
+                unfilledExposuresCounter += 1;
 
             }
 
         }
 
-        return allExposures;
+        return (filledExposures, unfilledExposures);
 
     }
 
@@ -237,12 +251,16 @@ library AccountExposure {
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
-        (Account.MarketExposure[] memory allExposures) = getAllExposures(self, markets);
+        (
+            Account.FilledExposure[] memory filledExposures,
+            Account.UnfilledExposure[] memory unfilledExposures
+        ) = getAllExposures(self, markets);
         (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(self, markets);
 
         vars.liquidationMarginRequirement = computeLiquidationMarginRequirement(
             self.getCollateralPool(),
-            allExposures
+            filledExposures,
+            unfilledExposures
         );
         vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
         vars.maintenanceMarginRequirement  = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
@@ -285,127 +303,128 @@ library AccountExposure {
     }
 
 
-    function getRiskParameter(
-        CollateralPool.Data storage collateralPool,
-        Account.MarketExposure memory exposureA,
-        Account.MarketExposure memory exposureB
-    ) private view returns (SD59x18 riskParameter) {
+//    function getRiskParameter(
+//        CollateralPool.Data storage collateralPool,
+//        Account.MarketExposure memory exposureA,
+//        Account.MarketExposure memory exposureB
+//    ) private view returns (SD59x18 riskParameter) {
+//
+//        if (exposureA.riskMatrixDim.riskBlockId == exposureB.riskMatrixDim.riskBlockId) {
+//            riskParameter = collateralPool.riskMatrix[exposureA.riskMatrixDim.riskBlockId][exposureA.riskMatrixDim.riskMatrixRowId]
+//                [exposureB.riskMatrixDim.riskMatrixRowId];
+//        }
+//
+//        return riskParameter;
+//    }
 
-        if (exposureA.riskMatrixDim.riskBlockId == exposureB.riskMatrixDim.riskBlockId) {
-            riskParameter = collateralPool.riskMatrix[exposureA.riskMatrixDim.riskBlockId][exposureA.riskMatrixDim.riskMatrixRowId]
-                [exposureB.riskMatrixDim.riskMatrixRowId];
-        }
 
-        return riskParameter;
-    }
-
-
-    function getExposure(
-        Account.MarketExposure memory exposure,
-        uint256 exposureIndex,
-        int256 unfilledIndex,
-        bool isLong
-    ) private view returns (int256) {
-
-        if ((unfilledIndex > 0) && (exposureIndex == unfilledIndex.toUint())) {
-            return isLong ? exposure.exposureComponents.cfExposureLong : exposure.exposureComponents.cfExposureShort;
-        }
-
-        return exposure.exposureComponents.filledExposure;
-    }
-
-    function computeLMRFilled(
-        CollateralPool.Data storage collateralPool,
-        Account.MarketExposure[] memory exposures,
-        int256 unfilledIndex,
-        bool isLong
-    ) private view returns (uint256) {
-
-        SD59x18 lmrFilledSquared;
-
-        for (uint256 i = 0; i < exposures.length; i++) {
-
-            int256 exposureA = getExposure(exposures[i], i, unfilledIndex, isLong);
-
-            for (uint256 j = 0; i < exposures.length; j++) {
-
-                int256 exposureB = getExposure(exposures[j], j, unfilledIndex, isLong);
-
-                SD59x18 riskParam = getRiskParameter(
-                    collateralPool,
-                    exposures[i],
-                    exposures[j]
-                );
-
-                if (unwrap(riskParam) != 0) {
-                    lmrFilledSquared.add(sd(exposureA).mul(sd(exposureB)).mul(riskParam));
-                }
-
-            }
-
-        }
-
-        return lmrFilledSquared.sqrt().unwrap().toUint();
-    }
-
-    function hasUnfilledExposure(
-        Account.MarketExposure memory exposure,
-        bool isLong
-    ) private view returns (bool hasUnfilled) {
-
-        if (isLong) {
-            hasUnfilled = exposure.exposureComponents.cfExposureLong != exposure.exposureComponents.filledExposure;
-        } else {
-            hasUnfilled = exposure.exposureComponents.cfExposureShort != exposure.exposureComponents.filledExposure;
-        }
-
-        return hasUnfilled;
-    }
-
-    function computeLMRUnfilled(
-        CollateralPool.Data storage collateralPool,
-        Account.MarketExposure[] memory exposures,
-        uint256 lmrFilled
-    ) private view returns (uint256 lmrUnfilled) {
-
-        for (uint256 i = 0; i < exposures.length; i++) {
-
-            uint256 lmrLong;
-            uint256 lmrShort;
-
-            if (hasUnfilledExposure(exposures[i], true)) {
-                uint256 lmrLongCF = computeLMRFilled(collateralPool, exposures, i.toInt(), true);
-                lmrLong = lmrLongCF > lmrFilled ? lmrLongCF - lmrFilled : 0;
-                lmrLong += exposures[i].pvmrComponents.pvmrLong;
-            }
-
-            if (hasUnfilledExposure(exposures[i], false)) {
-                uint256 lmShortCF = computeLMRFilled(collateralPool, exposures, i.toInt(), false);
-                lmrShort = lmShortCF > lmrFilled ? lmShortCF - lmrFilled : 0;
-                lmrShort += exposures[i].pvmrComponents.pvmrShort;
-            }
-
-            lmrUnfilled += lmrLong > lmrShort ? lmrLong : lmrShort;
-
-        }
-
-        return lmrUnfilled;
-    }
+//    function getExposure(
+//        Account.MarketExposure memory exposure,
+//        uint256 exposureIndex,
+//        int256 unfilledIndex,
+//        bool isLong
+//    ) private view returns (int256) {
+//
+//        if ((unfilledIndex > 0) && (exposureIndex == unfilledIndex.toUint())) {
+//            return isLong ? exposure.exposureComponents.cfExposureLong : exposure.exposureComponents.cfExposureShort;
+//        }
+//
+//        return exposure.exposureComponents.filledExposure;
+//    }
+//
+//    function computeLMRFilled(
+//        CollateralPool.Data storage collateralPool,
+//        Account.MarketExposure[] memory exposures,
+//        int256 unfilledIndex,
+//        bool isLong
+//    ) private view returns (uint256) {
+//
+//        SD59x18 lmrFilledSquared;
+//
+//        for (uint256 i = 0; i < exposures.length; i++) {
+//
+//            int256 exposureA = getExposure(exposures[i], i, unfilledIndex, isLong);
+//
+//            for (uint256 j = 0; i < exposures.length; j++) {
+//
+//                int256 exposureB = getExposure(exposures[j], j, unfilledIndex, isLong);
+//
+//                SD59x18 riskParam = getRiskParameter(
+//                    collateralPool,
+//                    exposures[i],
+//                    exposures[j]
+//                );
+//
+//                if (unwrap(riskParam) != 0) {
+//                    lmrFilledSquared.add(sd(exposureA).mul(sd(exposureB)).mul(riskParam));
+//                }
+//
+//            }
+//
+//        }
+//
+//        return lmrFilledSquared.sqrt().unwrap().toUint();
+//    }
+//
+//    function hasUnfilledExposure(
+//        Account.MarketExposure memory exposure,
+//        bool isLong
+//    ) private view returns (bool hasUnfilled) {
+//
+//        if (isLong) {
+//            hasUnfilled = exposure.exposureComponents.cfExposureLong != exposure.exposureComponents.filledExposure;
+//        } else {
+//            hasUnfilled = exposure.exposureComponents.cfExposureShort != exposure.exposureComponents.filledExposure;
+//        }
+//
+//        return hasUnfilled;
+//    }
+//
+//    function computeLMRUnfilled(
+//        CollateralPool.Data storage collateralPool,
+//        Account.MarketExposure[] memory exposures,
+//        uint256 lmrFilled
+//    ) private view returns (uint256 lmrUnfilled) {
+//
+//        for (uint256 i = 0; i < exposures.length; i++) {
+//
+//            uint256 lmrLong;
+//            uint256 lmrShort;
+//
+//            if (hasUnfilledExposure(exposures[i], true)) {
+//                uint256 lmrLongCF = computeLMRFilled(collateralPool, exposures, i.toInt(), true);
+//                lmrLong = lmrLongCF > lmrFilled ? lmrLongCF - lmrFilled : 0;
+//                lmrLong += exposures[i].pvmrComponents.pvmrLong;
+//            }
+//
+//            if (hasUnfilledExposure(exposures[i], false)) {
+//                uint256 lmShortCF = computeLMRFilled(collateralPool, exposures, i.toInt(), false);
+//                lmrShort = lmShortCF > lmrFilled ? lmShortCF - lmrFilled : 0;
+//                lmrShort += exposures[i].pvmrComponents.pvmrShort;
+//            }
+//
+//            lmrUnfilled += lmrLong > lmrShort ? lmrLong : lmrShort;
+//
+//        }
+//
+//        return lmrUnfilled;
+//    }
 
     /**
      * @dev Returns the liquidation margin requirement given the exposures array
      */
     function computeLiquidationMarginRequirement(
         CollateralPool.Data storage collateralPool,
-        Account.MarketExposure[] memory exposures
+        Account.FilledExposure[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
     )
     private
     view
     returns (uint256 liquidationMarginRequirement)
     {
-        uint256 lmrFilled = computeLMRFilled(collateralPool, exposures, -1, false);
-        uint256 lmrUnfilled = computeLMRUnfilled(collateralPool, exposures, lmrFilled);
-        liquidationMarginRequirement = lmrFilled + lmrUnfilled;
+//        uint256 lmrFilled = computeLMRFilled(collateralPool, exposures, -1, false);
+//        uint256 lmrUnfilled = computeLMRUnfilled(collateralPool, exposures, lmrFilled);
+//        liquidationMarginRequirement = lmrFilled + lmrUnfilled;
         return liquidationMarginRequirement;
     }
 

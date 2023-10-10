@@ -27,7 +27,10 @@ interface IMarketManager is IERC165 {
     function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
         external
         view
-        returns (Account.MarketExposure[] memory exposures);
+        returns (
+        Account.FilledExposure[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    );
 
     // todo: natspec
     function getAccountPnLComponents(uint128 marketId, uint128 accountId)
