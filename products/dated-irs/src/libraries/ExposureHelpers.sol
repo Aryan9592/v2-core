@@ -219,7 +219,6 @@ library ExposureHelpers {
             market.notionalTracker[maturityTimestamp] -= (-notionalDelta).toUint();
         }
         
-
         // check upper limit of open interest
         if (annualizedNotionalDelta > 0) {
             uint256 totalNotional = market.notionalTracker[maturityTimestamp];

@@ -86,7 +86,7 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         datedIrsProxy.createMarket({
             marketId: marketId,
-            quoteToken: address(mockToken),
+            quoteToken: address(mockUsdc),
             marketType: "compounding"
         });
 
@@ -169,7 +169,7 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
         uint256 start = block.timestamp;
 
         vm.mockCall(
-            mockToken,
+            mockUsdc,
             abi.encodeWithSelector(IERC20.decimals.selector),
             abi.encode(6)
         );
