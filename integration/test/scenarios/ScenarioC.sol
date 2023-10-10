@@ -62,7 +62,6 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         accountIds[4] = 5;
 
         checkTotalFilledBalances(
-            address(vammProxy),
             datedIrsProxy,
             marketId,
             maturityTimestamp,
@@ -199,7 +198,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
             PositionInfo memory positionInfo = PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp});
 
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedUnfilledBaseLong: 3523858284,
                 expectedUnfilledBaseShort: 6476141715,
@@ -207,13 +206,13 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 251499795
             });
 
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+            checkZeroFilledBalances(datedIrsProxy, positionInfo);
         }
 
         // check account 2
         {   
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 4338438696,
@@ -221,8 +220,8 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteLong: 237891466,
                 expectedUnfilledQuoteShort: 253917588
             });
-            checkZeroPoolFilledBalances(
-                address(vammProxy), 
+            checkZeroFilledBalances(
+                datedIrsProxy, 
                 PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp})
             );
         }
@@ -253,7 +252,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // check account 1
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 7047716568,
@@ -261,8 +260,8 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteLong: 419887712,
                 expectedUnfilledQuoteShort: 505514588
             });
-            checkZeroPoolFilledBalances(
-                address(vammProxy),
+            checkZeroFilledBalances(
+                datedIrsProxy,
                 PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp})
             );
         }
@@ -270,7 +269,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // check account 3
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 9999999999,
@@ -278,8 +277,8 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteLong: 801154597,
                 expectedUnfilledQuoteShort: 0
             });
-            checkZeroPoolFilledBalances(
-                address(vammProxy), 
+            checkZeroFilledBalances(
+                datedIrsProxy, 
                 PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp})
             );
         }
@@ -334,7 +333,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // check account 1
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 0,
@@ -343,25 +342,25 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 930006292
             });
 
-            checkPoolFilledBalances({
-                poolAddress: address(vammProxy),
+            checkFilledBalances({
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-                expectedBaseBalancePool: -7047716566, 
-                expectedQuoteBalancePool: 421976705,
-                expectedAccruedInterestPool: 0
+                expectedBaseBalance: -7047716566, 
+                expectedQuoteBalance: 421976705,
+                expectedAccruedInterest: 0
             });
         } 
 
         // check account 4
         {
-            checkTakerFilledBalances({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-                expectedBaseBalancePool: -18000000000, 
-                expectedQuoteBalancePool: 745587342,
-                expectedAccruedInterestPool: 0
+                expectedBaseBalance: -18000000000, 
+                expectedQuoteBalance: 745587342,
+                expectedAccruedInterest: 0
             });
         } 
 
@@ -373,7 +372,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // check account 1
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 0,
@@ -382,20 +381,20 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 934610284
             });
 
-            checkPoolFilledBalances({
-                poolAddress: address(vammProxy),
+            checkFilledBalances({
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-                expectedBaseBalancePool: -7047716566, 
-                expectedQuoteBalancePool: 421976705,
-                expectedAccruedInterestPool: 70255593
+                expectedBaseBalance: -7047716566, 
+                expectedQuoteBalance: 421976705,
+                expectedAccruedInterest: 70255593
             });
         } 
 
         // check account 2
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 0,
@@ -404,20 +403,20 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 499186190
             });
 
-            checkPoolFilledBalances({
-                poolAddress: address(vammProxy),
+            checkFilledBalances({
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-                expectedBaseBalancePool: -4338438695, 
-                expectedQuoteBalancePool: 240270381,
-                expectedAccruedInterestPool: 38375401
+                expectedBaseBalance: -4338438695, 
+                expectedQuoteBalance: 240270381,
+                expectedAccruedInterest: 38375401
             });
         } 
 
         // check account 3
         {
             checkUnfilledBalances({
-                poolAddress: address(vammProxy),
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
                 expectedUnfilledBaseLong: 1382936724,
@@ -426,13 +425,13 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 684518157
             });
 
-            checkPoolFilledBalances({
-                poolAddress: address(vammProxy),
+            checkFilledBalances({
+                datedIrsProxy: datedIrsProxy,
                 positionInfo: 
                     PositionInfo({accountId: 3, marketId: marketId, maturityTimestamp: maturityTimestamp}),
-                expectedBaseBalancePool: -8613844737, 
-                expectedQuoteBalancePool: 680862844,
-                expectedAccruedInterestPool: 127146487
+                expectedBaseBalance: -8613844737, 
+                expectedQuoteBalance: 680862844,
+                expectedAccruedInterest: 127146487
             });
         } 
 
@@ -440,15 +439,14 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         {
             PositionInfo memory positionInfo = PositionInfo({accountId: 4, marketId: marketId, maturityTimestamp: maturityTimestamp});
             
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+            checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
             
-            checkTakerFilledBalances({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
-                expectedBaseBalancePool: -18000000000, 
-                expectedQuoteBalancePool: 745587342,
-                expectedAccruedInterestPool: 96396835
+                expectedBaseBalance: -18000000000, 
+                expectedQuoteBalance: 745587342,
+                expectedAccruedInterest: 96396835
             });
         } 
 
@@ -456,15 +454,14 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
         {
             PositionInfo memory positionInfo = PositionInfo({accountId: 5, marketId: marketId, maturityTimestamp: maturityTimestamp});
             
-            checkZeroUnfilledBalances(address(vammProxy), positionInfo);
-            checkZeroPoolFilledBalances(address(vammProxy), positionInfo);
+            checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkTakerFilledBalances({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
-                expectedBaseBalancePool: 38000000000, 
-                expectedQuoteBalancePool: -2088697274,
-                expectedAccruedInterestPool: -332174318
+                expectedBaseBalance: 38000000000, 
+                expectedQuoteBalance: -2088697274,
+                expectedAccruedInterest: -332174318
             });
         } 
 
@@ -508,7 +505,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 4
         });
-        assertEq(settlementCashflows[3], 192793669, "settlement cashflow 4");
+        assertEq(settlementCashflows[3], 192793671, "settlement cashflow 4");
 
         // settle account 5
         settlementCashflows[4] = settle({
@@ -516,7 +513,7 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 5
         });
-        assertEq(settlementCashflows[4], -664348636, "settlement cashflow 5");
+        assertEq(settlementCashflows[4], -664348637, "settlement cashflow 5");
 
         // invariant check
         {
