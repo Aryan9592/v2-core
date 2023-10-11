@@ -379,7 +379,7 @@ contract SetupProtocol is BatchScript {
       params.maturityTimestamp,
       params.tickLower,
       params.tickUpper,
-      Utils.getLiquidityForBase(params.tickLower, params.tickUpper, baseAmount)    
+      baseAmount    
     );
 
     return periphery_execute(commands, inputs, params.peripheryExecuteDeadline)[inputs.length-1];
