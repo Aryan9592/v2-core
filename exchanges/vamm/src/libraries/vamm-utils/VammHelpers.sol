@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 
-import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
+import { PositionBalances } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
@@ -11,10 +11,8 @@ import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { FullMath } from "../math/FullMath.sol";
 import { FixedPoint128 } from "../math/FixedPoint128.sol";
 
-import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
-
-import { UD60x18, ZERO, UNIT, unwrap, convert } from "@prb/math/UD60x18.sol";
-import { mulUDxInt, mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18, ZERO } from "@prb/math/UD60x18.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 

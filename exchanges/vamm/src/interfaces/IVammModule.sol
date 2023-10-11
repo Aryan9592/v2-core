@@ -6,7 +6,6 @@ import { Tick } from "../libraries/ticks/Tick.sol";
 
 import { LPPosition } from "../storage/LPPosition.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
-import { Oracle } from "../storage/Oracle.sol";
 
 
 interface IVammModule {
