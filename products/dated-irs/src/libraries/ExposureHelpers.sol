@@ -124,16 +124,17 @@ library ExposureHelpers {
         return price;
     }
 
-    function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
-        bytes32 marketType = Market.exists(marketId).marketType;
-        if (marketType == Market.LINEAR_MARKET) {
-            return UNIT_ud;
-        } else if (marketType == Market.COMPOUNDING_MARKET) {
-            UD60x18 currentLiquidityIndex = Market.exists(marketId).getRateIndexCurrent();
-            return currentLiquidityIndex;
-        }
+    /**
+     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
+     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
+     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
+     * underlying rate oracle (e.g. aUSDC lend rate oracle)
+     */
+    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        UD60x18 factor = Market.exists(marketId).exposureFactor();
 
-        revert Market.UnsupportedMarketType(marketType);
+        return timeDeltaAnnualized.mul(factor);
     }
 
     function baseToAnnualizedExposure(
@@ -146,7 +147,7 @@ library ExposureHelpers {
         returns (int256 annualizedExposure)
     {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        UD60x18 factor = exposureFactor(marketId);
+        UD60x18 factor = Market.exists(marketId).exposureFactor();
         UD60x18 annualizedFactor = timeDeltaAnnualized.mul(factor);
 
         annualizedExposure = mulUDxInt(annualizedFactor, baseAmount);
@@ -160,7 +161,7 @@ library ExposureHelpers {
         view
         returns (int256 exposure)
     {
-        UD60x18 factor = exposureFactor(marketId);
+        UD60x18 factor = Market.exists(marketId).exposureFactor();
         exposure = mulUDxInt(factor, baseAmount);
     }
 

@@ -9,6 +9,8 @@ pragma solidity >=0.8.19;
 
 import { Market } from "../storage/Market.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 /**
  * @title Module for configuring a market
  * @notice Allows the owner to configure the quote token of the given market
@@ -61,4 +63,10 @@ interface IMarketConfigurationModule {
      * @return marketType The market type
      */
     function getMarketType(uint128 marketId) external view returns (bytes32);
+
+    /**
+     * @notice Returns the exposure factor of the market
+     * @return The exposure factor
+     */
+    function getExposureFactor(uint128 marketId) external view returns (UD60x18);
 }

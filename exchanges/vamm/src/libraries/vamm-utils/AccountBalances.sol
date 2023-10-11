@@ -43,6 +43,7 @@ library AccountBalances {
         returns (UnfilledBalances memory unfilled)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
+        UD60x18 exposureFactor = self.getExposureFactor();
 
         uint256 quoteUnbalancedLong;
         uint256 quoteUnbalancedShort;
@@ -56,11 +57,11 @@ library AccountBalances {
             
             {
                 (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
                     position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
                     position.liquidity,
                     self.mutableConfig.spread,
+                    exposureFactor,
                     true
                 );
             
@@ -71,11 +72,11 @@ library AccountBalances {
             
             {
                 (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
                     position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
                     position.liquidity,
                     self.mutableConfig.spread,
+                    exposureFactor,
                     false
                 );
 
@@ -121,13 +122,13 @@ library AccountBalances {
     }
 
     function getOneSideUnfilledBalances(
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
         uint128 liquidity,
         UD60x18 spread,
+        UD60x18 exposureFactor,
         bool isLong
-    ) private view returns (uint256/* unfilledBase */,uint256 /* unfilledQuote */,uint256/* unfilledQuoteUnbalanced*/)
+    ) private view returns (uint256/* unfilledBase */, uint256 /* unfilledQuote */, uint256/* unfilledQuoteUnbalanced*/)
     {
         if (tickLower == tickUpper) {
             return (0, 0, 0);
@@ -151,7 +152,7 @@ library AccountBalances {
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
             computeAvgFixedRate(unbalancedQuoteTokens, unfilledBase),
             spread,
-            marketId
+            exposureFactor
         );
 
         return (unfilledBase, SignedMath.abs(unfilledQuote), unbalancedQuoteTokens);

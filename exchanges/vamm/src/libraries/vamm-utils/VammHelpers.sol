@@ -18,10 +18,6 @@ import { mulUDxInt, mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
-import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
-
 
 library VammHelpers {
     using SafeCastU256 for uint256;
@@ -139,10 +135,10 @@ library VammHelpers {
         int256 baseTokenDelta,
         UD60x18 averagePrice,
         UD60x18 spread,
-        uint128 marketId
+        UD60x18 exposureFactor
     ) 
         internal
-        view
+        pure
         returns (
             int256 quoteTokenDelta
         )
@@ -152,39 +148,9 @@ library VammHelpers {
             averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
         }
 
-        int256 exposure = baseToExposure(
-            baseTokenDelta,
-            marketId
-        );
+        int256 exposure = mulUDxInt(exposureFactor, baseTokenDelta);
 
         quoteTokenDelta = mulUDxInt(averagePriceWithSpread, -exposure);
-    }
-
-    function baseToExposure(
-        int256 baseAmount,
-        uint128 marketId
-    )
-        private
-        view
-        returns (int256 exposure)
-    {
-        UD60x18 factor = exposureFactor(marketId);
-        exposure = mulUDxInt(factor, baseAmount);
-    }
-
-    function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
-        address marketManagerAddress = PoolConfiguration.load().marketManagerAddress;
-        bytes32 marketType = IMarketConfigurationModule(marketManagerAddress)
-            .getMarketType(marketId);
-        if (marketType == Market.LINEAR_MARKET) {
-            return UNIT;
-        } else if (marketType == Market.COMPOUNDING_MARKET) {
-            UD60x18 currentLiquidityIndex = IRateOracleModule(marketManagerAddress)
-                .getRateIndexCurrent(marketId);
-            return currentLiquidityIndex;
-        }
-
-        revert Market.UnsupportedMarketType(marketType);
     }
 
     function calculateGlobalTrackerValues(

@@ -18,6 +18,7 @@ import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservati
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
 import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
 
 
@@ -224,5 +225,13 @@ library DatedIrsVamm {
             self.immutableConfig.marketId, 
             self.immutableConfig.maturityTimestamp
         );
+    }
+
+    function getExposureFactor(DatedIrsVamm.Data storage self) internal view returns (UD60x18) {
+        IMarketConfigurationModule marketConfigurationModule = IMarketConfigurationModule(
+            PoolConfiguration.load().marketManagerAddress
+        );
+        
+        return marketConfigurationModule.getExposureFactor(self.immutableConfig.marketId);
     }
 }
