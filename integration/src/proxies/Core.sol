@@ -8,7 +8,10 @@ import "@voltz-protocol/core/src/modules/CollateralConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/CollateralModule.sol";
 import "@voltz-protocol/core/src/modules/FeatureFlagModule.sol";
 import "@voltz-protocol/core/src/modules/FeeConfigurationModule.sol";
-import "@voltz-protocol/core/src/modules/LiquidationModule.sol";
+import "@voltz-protocol/core/src/modules/liquidation/LiquidationModule.sol";
+import "@voltz-protocol/core/src/modules/liquidation/RankedLiquidationModule.sol";
+import "@voltz-protocol/core/src/modules/liquidation/DutchLiquidationModule.sol";
+import "@voltz-protocol/core/src/modules/liquidation/BackstopLiquidationModule.sol";
 import "@voltz-protocol/core/src/modules/OwnerUpgradeModule.sol";
 import "@voltz-protocol/core/src/modules/MarketManagerModule.sol";
 import "@voltz-protocol/core/src/modules/RiskConfigurationModule.sol";
@@ -25,6 +28,9 @@ contract CoreRouter is
   FeatureFlagModule,
   FeeConfigurationModule,
   LiquidationModule,
+  RankedLiquidationModule,
+  DutchLiquidationModule,
+  BackstopLiquidationModule,
   OwnerUpgradeModule,
   MarketManagerModule,
   RiskConfigurationModule

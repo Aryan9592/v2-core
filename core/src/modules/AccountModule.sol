@@ -146,4 +146,16 @@ contract AccountModule is IAccountModule {
             revert OnlyAccountTokenProxy(msg.sender);
         }
     }
+
+    /**
+     * @inheritdoc IAccountModule
+     */
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
+        external 
+        view 
+        override 
+        returns (Account.MarginInfo memory) 
+    {
+        return Account.exists(accountId).getMarginInfoByBubble(collateralType);
+    }
 }

@@ -56,6 +56,8 @@ library PropagateADLOrder {
         // todo: this suffers from double propagations, we need to guard it
         // additionally, must make sure we don't propagate when blended order has 0 base
 
+        // todo: how do we mark market as active for accountId in core?
+
         Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(ExecuteADLOrder.adlOrderTimerId(isLong));
         if (adlPortfolioTimer.isActive()) {
             revert CannotPropagateADLDuringBlendingPeriod(marketId, isLong);

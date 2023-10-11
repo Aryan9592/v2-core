@@ -270,8 +270,8 @@ library AccountLiquidation {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
-            int256 lmDeltaChange = self.getMarginInfoByBubble(quoteToken).liquidationDelta
-            - lmDeltaBeforeLiquidation;
+            int256 lmDeltaChange = 
+                self.getMarginInfoByBubble(quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
 
             if (lmDeltaChange < 0) {
                 revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
@@ -413,20 +413,24 @@ library AccountLiquidation {
         }
 
         // extract top ranked order
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = 
+            liquidationBidPriorityQueues.priorityQueues[
+                liquidationBidPriorityQueues.latestQueueId
+            ].topBid();
 
-        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = liquidationBidPriorityQueues
-        .priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
-        ].topBid();
-
-        (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
-            "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
-            self.id, bidSubmissionKeeperId, topRankedLiquidationBid));
+        (bool success, bytes memory reason) = 
+            address(this).call(
+                abi.encodeWithSignature(
+                    "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
+                    self.id, 
+                    bidSubmissionKeeperId, 
+                    topRankedLiquidationBid
+                )
+            );
 
         // dequeue top bid it's successfully executed or not
-
         liquidationBidPriorityQueues.priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
+            liquidationBidPriorityQueues.latestQueueId
         ].dequeue();
     }
 
@@ -491,10 +495,10 @@ library AccountLiquidation {
                 lmDeltaChange.toUint()
             ),
             market.quoteToken,
-            0);
+            0
+        );
 
         liquidatorAccount.imCheck();
-
     }
 
 
@@ -573,8 +577,6 @@ library AccountLiquidation {
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
-
-                // todo: shouldn't we update trackers here?
             }
         }
     }
@@ -599,8 +601,6 @@ library AccountLiquidation {
                 totalUnrealizedLossQuote: 0,
                 realBalanceAndIF: 0
             });
-
-            // todo: shouldn't we update trackers here?
         }
 
         Account.Data storage insuranceFundAccount = 
@@ -622,45 +622,27 @@ library AccountLiquidation {
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
         } else {
+            int realBalanceAndIF = marginInfo.collateralInfo.realBalance;
+
             // note: insuranceFundCoverAvailable should never be negative
             uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+            realBalanceAndIF += insuranceFundDebit.toInt();
 
             // gather pending funds from auto-exchange
-            uint256 pendingAutoExchangeFunds = 0;
-            if (self.isEligibleForAutoExchange(quoteToken)) {
-                address[] memory collateralTokens = 
-                    CollateralConfiguration.exists(collateralPool.id, address(0)).childTokens.values();
-
-                for (uint256 i = 0; i < collateralTokens.length; i++) {
-                    address collateralType = collateralTokens[i];
-                    (, , uint256 quoteDelta) = self.calculateAvailableCollateralToAutoExchange(
-                        collateralType,
-                        quoteToken,
-                        0 // todo: cannot come up with this value here, sync with @arturbeg
-                    );
-
-                    pendingAutoExchangeFunds += quoteDelta;
-                }                
-            }
+            realBalanceAndIF += self.getPendingAutoExchangeFunds(quoteToken).toInt();
 
             // compute total unrealized loss
             uint256 totalUnrealizedLossQuote = 0;
             for (uint256 i = 0; i < markets.length; i++) {
-                    uint128 marketId = markets[i].to128();
+                uint128 marketId = markets[i].to128();
                 Market.Data storage market = Market.exists(marketId);
 
                 Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
                 // upnl here is negative since all positive upnl exposures were adl-ed at market price
                 totalUnrealizedLossQuote += (-pnlComponents.unrealizedPnL).toUint();
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
 
             // adl maturities with negative upnl at bankruptcy price
@@ -671,15 +653,32 @@ library AccountLiquidation {
                     adlNegativeUpnl: true,
                     adlPositiveUpnl: false,
                     totalUnrealizedLossQuote: totalUnrealizedLossQuote,
-                    realBalanceAndIF: 
-                        marginInfo.collateralInfo.realBalance + 
-                        pendingAutoExchangeFunds.toInt() + 
-                        insuranceFundDebit.toInt()
+                    realBalanceAndIF: realBalanceAndIF
                 });
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
+        }
+    }
+
+    function getPendingAutoExchangeFunds(
+        Account.Data storage self,
+        address quoteToken
+    ) internal returns (uint256 pendingAutoExchangeFunds) {
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        if (self.isEligibleForAutoExchange(quoteToken)) {
+            address[] memory collateralTokens = 
+                CollateralConfiguration.exists(collateralPool.id, address(0)).childTokens.values();
+
+            for (uint256 i = 0; i < collateralTokens.length; i++) {
+                address collateralType = collateralTokens[i];
+                (, , uint256 quoteDelta) = self.calculateAvailableCollateralToAutoExchange(
+                    collateralType,
+                    quoteToken,
+                    0 // todo: cannot come up with this value here, sync with @arturbeg
+                );
+
+                pendingAutoExchangeFunds += quoteDelta;
+            }                
         }
     }
 }
