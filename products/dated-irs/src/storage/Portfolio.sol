@@ -240,7 +240,7 @@ library Portfolio {
         GetAccountTakerAndMakerExposuresVars memory vars;
         vars.poolAddress = market.marketConfig.poolAddress;
         filledExposures = new int256[](riskMatrixDim);
-        vars.exposureFactor = ExposureHelpers.exposureFactor(market.id);
+        vars.exposureFactor = market.exposureFactor();
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
 
