@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -38,21 +38,9 @@ interface IPool is IERC165 {
 
     /**
      * @notice Provides liquidity to (or removes liquidty from) a given marketId & maturityTimestamp pair
-     * @param accountId Id of the `Account` with which the lp wants to provide liqudity
-     * @param marketId Id of the market in which the lp wants to provide liqudiity
-     * @param maturityTimestamp Timestamp at which a given market matures
-     * @param tickLower Lower tick of the range order
-     * @param tickUpper Upper tick of the range order
-     * @param liquidityDelta Liquidity to add (positive values) or remove (negative values) within the tick range
+     * @param params Parameters of the maker order
      */
-    function executeDatedMakerOrder(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int24 tickLower,
-        int24 tickUpper,
-        int128 liquidityDelta
-    ) external returns (int256 baseAmount);
+    function executeDatedMakerOrder(MakerOrderParams memory params) external;
 
     /**
      * @notice Calculates base and quote token balances of all LP positions in the account.

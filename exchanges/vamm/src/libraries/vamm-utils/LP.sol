@@ -26,13 +26,6 @@ library LP {
     using TickBitmap for mapping(int16 => uint256);
     using DatedIrsVamm for DatedIrsVamm.Data;
 
-    /**
-     * @notice Executes a dated maker order that provides liquidity to (or removes liquidty from) this VAMM
-     * @param accountId Id of the `Account` with which the lp wants to provide liqudiity
-     * @param tickLower Lower tick of the range order
-     * @param tickUpper Upper tick of the range order
-     * @param liquidityDelta Liquidity to add (positive values) or remove (negative values) witin the tick range
-     */
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,
         uint128 accountId,

@@ -36,3 +36,12 @@ struct UnfilledBalances {
     UD60x18 avgLongPrice;
     UD60x18 avgShortPrice;
 }
+
+struct MakerOrderParams {
+    uint128 accountId;
+    uint128 marketId;
+    uint32 maturityTimestamp;
+    int24 tickLower;
+    int24 tickUpper;
+    int256 baseDelta;
+}

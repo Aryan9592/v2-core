@@ -14,7 +14,7 @@ import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
 import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
@@ -251,18 +251,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             uint32 maturityTimestamp,
             int24 tickLower,
             int24 tickUpper,
-            int128 liquidityDelta
-        ) = abi.decode(inputs, (uint32, int24, int24, int128));
+            int256 baseDelta
+        ) = abi.decode(inputs, (uint32, int24, int24, int256));
 
         output = abi.encode();
         annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
-            InitiateMakerOrder.MakerOrderParams({
+            MakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 tickLower: tickLower,
                 tickUpper: tickUpper,
-                liquidityDelta: liquidityDelta
+                baseDelta: baseDelta
             })
         );
     }

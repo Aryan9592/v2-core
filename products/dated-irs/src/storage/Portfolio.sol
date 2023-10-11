@@ -383,10 +383,6 @@ library Portfolio {
         /// @dev reverts if not active
         self.deactivateMarketMaturity(maturityTimestamp);
         
-        /// @dev Note that the settle function will not update the
-        /// last MTM timestamp in the VAMM. However, this is not an
-        /// issue since the market has been deactivated and the position
-        /// cannot be settled anymore.
         FilledBalances memory filledBalances = 
             IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
         
