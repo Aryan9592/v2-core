@@ -6,7 +6,7 @@ pragma solidity >=0.8.13;
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { PositionBalances, FilledBalances, UnfilledBalances, MTMObservation } from "../DataTypes.sol";
+import { PositionBalances, FilledBalances, UnfilledBalances, RateOracleObservation } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -89,7 +89,7 @@ library AccountBalances {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
-        MTMObservation memory newObservation = 
+        RateOracleObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
         
         for (uint256 i = 0; i < positions.length; i++) {

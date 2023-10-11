@@ -11,7 +11,7 @@ pragma solidity >=0.8.19;
 import { UD60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
-struct MTMObservation {
+struct RateOracleObservation {
     uint256 timestamp;
     UD60x18 rateIndex;
 }

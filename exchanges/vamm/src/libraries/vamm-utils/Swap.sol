@@ -7,7 +7,7 @@ import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
@@ -100,7 +100,7 @@ library Swap {
             })
         });
 
-        MTMObservation memory newObservation = 
+        RateOracleObservation memory newObservation = 
             VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
 
         // continue swapping as long as we haven't used the entire input/output and haven't 
