@@ -3,12 +3,10 @@
 pragma solidity >=0.8.13;
 
 
-import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
 
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 import { VammHelpers } from "../vamm-utils/VammHelpers.sol";
-
-import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 
 /// @title Tick
@@ -105,25 +103,13 @@ library Tick {
     function cross(
         mapping(int24 => Tick.Info) storage self,
         int24 tick,
-        PositionBalances memory growthGlobalX128,
-        uint128 marketId,
-        uint32 maturityTimestamp
+        PositionBalances memory growthGlobalX128
     ) internal returns (int128 liquidityNet) {
         Tick.Info storage info = self[tick];
 
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
-
-        TraderPosition.updateBalances(
-            info.growthOutsideX128,
-            0,
-            0,
-            newObservation
-        );
-
         info.growthOutsideX128.quote = growthGlobalX128.quote - info.growthOutsideX128.quote;
         info.growthOutsideX128.base = growthGlobalX128.base - info.growthOutsideX128.base;
-        info.growthOutsideX128.accruedInterest = growthGlobalX128.accruedInterest - info.growthOutsideX128.accruedInterest;
+        info.growthOutsideX128.extraCashflow = growthGlobalX128.extraCashflow - info.growthOutsideX128.extraCashflow;
 
         liquidityNet = info.liquidityNet;
     }

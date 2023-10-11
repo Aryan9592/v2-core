@@ -6,7 +6,7 @@ pragma solidity >=0.8.13;
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { FilledBalances, UnfilledBalances, MTMObservation } from "../DataTypes.sol";
+import { PositionBalances, FilledBalances, UnfilledBalances, RateOracleObservation } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -19,6 +19,8 @@ import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-c
 import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
+
+import { mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
@@ -41,6 +43,7 @@ library AccountBalances {
         returns (UnfilledBalances memory unfilled)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
+        UD60x18 exposureFactor = self.getExposureFactor();
 
         uint256 quoteUnbalancedLong;
         uint256 quoteUnbalancedShort;
@@ -53,15 +56,14 @@ library AccountBalances {
             }
             
             {
-                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) =
-                    getOneSideUnfilledBalances(
-                        self.immutableConfig.marketId,
-                        position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
-                        position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
-                        position.liquidity.toInt(),
-                        self.mutableConfig.spread,
-                        true
-                    );
+                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) = getOneSideUnfilledBalances(
+                    position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
+                    position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
+                    position.liquidity,
+                    self.mutableConfig.spread,
+                    exposureFactor,
+                    true
+                );
             
                 unfilled.baseLong += unfilledBase;
                 unfilled.quoteLong += unfilledQuote;
@@ -69,15 +71,14 @@ library AccountBalances {
             }
             
             {
-                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) =
-                    getOneSideUnfilledBalances(
-                        self.immutableConfig.marketId,
-                        position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
-                        position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
-                        position.liquidity.toInt(),
-                        self.mutableConfig.spread,
-                        false
-                    );
+                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) = getOneSideUnfilledBalances(
+                    position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
+                    position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
+                    position.liquidity,
+                    self.mutableConfig.spread,
+                    exposureFactor,
+                    false
+                );
 
                 unfilled.baseShort += unfilledBase;
                 unfilled.quoteShort += unfilledQuote;
@@ -103,51 +104,45 @@ library AccountBalances {
         returns (FilledBalances memory balances) {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
+
+        RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
         
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
-            FilledBalances memory it = position.getUpdatedPositionBalances(
-                self.immutableConfig.marketId,
-                self.immutableConfig.maturityTimestamp,
+            PositionBalances memory it = position.getUpdatedPositionBalances(
                 computeGrowthInside(self, position.tickLower, position.tickUpper)
             ); 
 
             balances.base += it.base;
             balances.quote += it.quote;
-            balances.accruedInterest += it.accruedInterest;
+            balances.accruedInterest += TraderPosition.getAccruedInterest(it, rateOracleObservation);
         }
 
     }
 
     function getOneSideUnfilledBalances(
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
-        int128 liquidity,
+        uint128 liquidity,
         UD60x18 spread,
+        UD60x18 exposureFactor,
         bool isLong
-    ) private view returns (uint256/* unfilledBase */,uint256 /* unfilledQuote */,uint256/* unfilledQuoteUnbalanced*/)
+    ) private view returns (uint256/* unfilledBase */, uint256 /* unfilledQuote */, uint256/* unfilledQuoteUnbalanced*/)
     {
         if (tickLower == tickUpper) {
             return (0, 0, 0);
         }
 
-        uint256 unfilledBase = VammHelpers.baseBetweenTicks(
+        (uint256 unfilledBase, uint256 unbalancedQuoteTokens) = VammHelpers.amountsFromLiquidity(
+            liquidity,
             tickLower,
-            tickUpper,
-            liquidity
-        ).toUint();
+            tickUpper
+        );
 
         if (unfilledBase == 0) {
             return (0, 0, 0);
         }
-        
-        int256 unbalancedQuoteTokens = VammHelpers.unbalancedQuoteBetweenTicks(
-            tickLower,
-            tickUpper,
-            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt()
-        );
 
         // todo: stack limit reached if want to avoid double calculating abs of unbalancedQuoteTokens
         // consider introducing vars struct
@@ -155,12 +150,12 @@ library AccountBalances {
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
         int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
-            computeAvgFixedRate(SignedMath.abs(unbalancedQuoteTokens), unfilledBase),
+            computeAvgFixedRate(unbalancedQuoteTokens, unfilledBase),
             spread,
-            marketId
+            exposureFactor
         );
 
-        return (unfilledBase, SignedMath.abs(unfilledQuote), SignedMath.abs(unbalancedQuoteTokens));
+        return (unfilledBase, SignedMath.abs(unfilledQuote), unbalancedQuoteTokens);
     }
 
     function computeAvgFixedRate(
@@ -200,7 +195,7 @@ library AccountBalances {
     )
         internal
         view
-        returns (FilledBalances memory growthInsideX128)
+        returns (PositionBalances memory growthInsideX128)
     {
         VammTicks.checkTicksLimits(tickLower, tickUpper);
 
@@ -225,31 +220,13 @@ library AccountBalances {
             upper.growthOutsideX128.quote
         );
 
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
-
-        growthInsideX128.accruedInterest = growthInside(
+        growthInsideX128.extraCashflow = growthInside(
             tickLower,
             tickUpper,
             self.vars.tick,
-            TraderPosition.getUpdatedBalances(
-                self.vars.growthGlobalX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest,
-            TraderPosition.getUpdatedBalances(
-                lower.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest,
-            TraderPosition.getUpdatedBalances(
-                upper.growthOutsideX128,
-                0,
-                0,
-                newObservation
-            ).accruedInterest
+            self.vars.growthGlobalX128.extraCashflow,
+            lower.growthOutsideX128.extraCashflow,
+            upper.growthOutsideX128.extraCashflow
         );
     }
 }

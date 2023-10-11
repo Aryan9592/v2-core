@@ -11,7 +11,7 @@ pragma solidity >=0.8.19;
 import { UD60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
-struct MTMObservation {
+struct RateOracleObservation {
     uint256 timestamp;
     UD60x18 rateIndex;
 }
@@ -19,8 +19,7 @@ struct MTMObservation {
 struct PositionBalances {
     int256 base;
     int256 quote;
-    int256 accruedInterest;
-    MTMObservation lastObservation;
+    int256 extraCashflow;
 }
 
 struct FilledBalances {
@@ -36,4 +35,13 @@ struct UnfilledBalances {
     uint256 quoteShort;
     UD60x18 avgLongPrice;
     UD60x18 avgShortPrice;
+}
+
+struct MakerOrderParams {
+    uint128 accountId;
+    uint128 marketId;
+    uint32 maturityTimestamp;
+    int24 tickLower;
+    int24 tickUpper;
+    int256 baseDelta;
 }

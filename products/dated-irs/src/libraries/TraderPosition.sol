@@ -8,59 +8,32 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 
 pragma solidity >=0.8.19;
 
-import { UD60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
+import { PositionBalances, RateOracleObservation } from "./DataTypes.sol";
+
+import { mulUDxInt, mulSDxInt, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import { PositionBalances, MTMObservation } from "./DataTypes.sol";
+
+import { convert as convert_ud } from "@prb/math/UD60x18.sol";
+import { convert as convert_sd } from "@prb/math/SD59x18.sol";
 
 library TraderPosition {
-    error MarkingToMarketInThePast(MTMObservation currentObservation, MTMObservation newObservation);
+    using SafeCastU256 for uint256;
 
-    function getUpdatedBalances(
-        PositionBalances memory balances,
-        int256 baseDelta,
-        int256 quoteDelta,
-        MTMObservation memory newObservation
-    ) internal pure returns (PositionBalances memory /* updatedBalances */) {
-        if (balances.lastObservation.timestamp > newObservation.timestamp) {
-            revert MarkingToMarketInThePast(balances.lastObservation, newObservation);
-        }
-
-        bool shouldMarkToMarket = balances.lastObservation.timestamp < newObservation.timestamp;
-        int256 accruedInterestDelta = 0;
-
-        if (shouldMarkToMarket) {
-            UD60x18 annualizedTime = 
-                Time.timeDeltaAnnualized(uint32(balances.lastObservation.timestamp), uint32(newObservation.timestamp));
-                
-            accruedInterestDelta = 
-                mulUDxInt(newObservation.rateIndex.sub(balances.lastObservation.rateIndex), balances.base) +
-                mulUDxInt(annualizedTime, balances.quote);
-        }
-
-        return PositionBalances({
-            base: balances.base + baseDelta,
-            quote: balances.quote + quoteDelta,
-            accruedInterest: balances.accruedInterest + accruedInterestDelta,
-            lastObservation: (shouldMarkToMarket) ? newObservation : balances.lastObservation
-        });
+    function computeCashflow(
+        int256 base,
+        int256 quote,
+        RateOracleObservation memory newObservation
+    ) internal pure returns (int256) {
+        return mulUDxInt(newObservation.rateIndex, base) + 
+            divIntUD(mulSDxInt(convert_sd(newObservation.timestamp.toInt()), quote), convert_ud(Time.SECONDS_IN_YEAR));
     }
 
-    function updateBalances(
-        PositionBalances storage balances,
-        int256 baseDelta,
-        int256 quoteDelta,
-        MTMObservation memory newObservation
-    ) internal {
-        PositionBalances memory updatedBalances = getUpdatedBalances(
-            balances,
-            baseDelta,
-            quoteDelta,
-            newObservation
-        );
-
-        balances.base = updatedBalances.base;
-        balances.quote = updatedBalances.quote;
-        balances.accruedInterest = updatedBalances.accruedInterest;
-        balances.lastObservation = updatedBalances.lastObservation;
+    function getAccruedInterest(
+        PositionBalances memory balances, 
+        RateOracleObservation memory newObservation
+    ) internal pure returns (int256) {
+        return computeCashflow(balances.base, balances.quote, newObservation) - balances.extraCashflow;
     }
 }

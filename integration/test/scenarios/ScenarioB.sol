@@ -427,7 +427,7 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             accountId: 1
         });
         {   
-            assertEq(settlementCashflows[0], 24000639, "settlementCashflowInQuote_1");
+            assertEq(settlementCashflows[0], 24000637, "settlementCashflowInQuote_1");
 
             // check settlement twice does not work
             vm.expectRevert(SetUtil.ValueNotInSet.selector);
@@ -454,7 +454,7 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             maturityTimestamp: maturityTimestamp,
             accountId: 3
         });
-        assertEq(settlementCashflows[2], -33633927, "settlementCashflowInQuote_3");
+        assertEq(settlementCashflows[2], -33633926, "settlementCashflowInQuote_3");
 
         // settle account 4
         settlementCashflows[3]  = settle({

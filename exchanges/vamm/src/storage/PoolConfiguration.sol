@@ -2,9 +2,6 @@
 pragma solidity >=0.8.13;
 
 
-import { IRateOracle } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-
 import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
 
@@ -35,12 +32,5 @@ library PoolConfiguration {
 
     function whenNotPaused() internal view {
         FeatureFlag.ensureAccessToFeature(_PAUSER_FEATURE_FLAG);
-    }
-
-    function getRateOracle(uint128 marketId) internal view returns (IRateOracle) {
-        address rateOracleAddress = IRateOracleModule(load().marketManagerAddress)
-            .getRateOracleConfiguration(marketId).oracleAddress;
-
-        return IRateOracle(rateOracleAddress);
     }
 }

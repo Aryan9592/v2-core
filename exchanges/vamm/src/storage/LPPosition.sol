@@ -6,9 +6,7 @@ import { FullMath } from "../libraries/math/FullMath.sol";
 import { FixedPoint128 } from "../libraries/math/FixedPoint128.sol";
 import { LiquidityMath } from "../libraries/math/LiquidityMath.sol";
 import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
-import { MTMObservation, FilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
-
-import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
+import { PositionBalances } from "../libraries/DataTypes.sol";
 
 
 /**
@@ -43,7 +41,7 @@ library LPPosition {
         /** 
         * @dev vamm trackers
         */
-        FilledBalances updatedGrowthTrackers;
+        PositionBalances updatedGrowthTrackers;
         /** 
         * @dev trader balances
         */
@@ -94,26 +92,16 @@ library LPPosition {
 
     function updateTokenBalances(
         Data storage self,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        FilledBalances memory growthInsideX128
+        PositionBalances memory growthInsideX128
     ) internal {
-        FilledBalances memory deltas;
+        PositionBalances memory deltas;
         if (self.liquidity > 0) {
             deltas = calculateTrackersDelta(self, growthInsideX128);
         }
 
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
-
-        TraderPosition.updateBalances(
-            self.traderBalances,
-            deltas.base,
-            deltas.quote,
-            newObservation
-        );
-        
-        self.traderBalances.accruedInterest += deltas.accruedInterest;
+        self.traderBalances.base += deltas.base;
+        self.traderBalances.quote += deltas.quote;
+        self.traderBalances.extraCashflow += deltas.extraCashflow;
 
         self.updatedGrowthTrackers = growthInsideX128;
     }
@@ -124,40 +112,28 @@ library LPPosition {
 
     function getUpdatedPositionBalances(
         Data memory self,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        FilledBalances memory growthInsideX128
-    ) internal view returns (FilledBalances memory) 
+        PositionBalances memory growthInsideX128
+    ) internal view returns (PositionBalances memory) 
     {
-        FilledBalances memory deltas;
+        PositionBalances memory deltas;
         if (self.liquidity > 0) {
             deltas = calculateTrackersDelta(self, growthInsideX128);
         }
-
-        MTMObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
-
-        PositionBalances memory updatedPosition = TraderPosition.getUpdatedBalances(
-            self.traderBalances,
-            deltas.base,
-            deltas.quote,
-            newObservation
-        );
         
-        return FilledBalances({
-            base: updatedPosition.base,
-            quote: updatedPosition.quote,
-            accruedInterest: updatedPosition.accruedInterest + deltas.accruedInterest
+        return PositionBalances({
+            base: self.traderBalances.base + deltas.base,
+            quote: self.traderBalances.quote + deltas.quote,
+            extraCashflow: self.traderBalances.extraCashflow + deltas.extraCashflow
         });
     }
 
     function calculateTrackersDelta(
         Data memory self,
-        FilledBalances memory growthInsideX128
+        PositionBalances memory growthInsideX128
     )
         private
         pure
-        returns (FilledBalances memory deltas)
+        returns (PositionBalances memory deltas)
     {
         deltas.base = FullMath.mulDivSigned(
             growthInsideX128.base - self.updatedGrowthTrackers.base,
@@ -171,8 +147,8 @@ library LPPosition {
             FixedPoint128.Q128
         );
 
-        deltas.accruedInterest = FullMath.mulDivSigned(
-            growthInsideX128.accruedInterest - self.updatedGrowthTrackers.accruedInterest,
+        deltas.extraCashflow = FullMath.mulDivSigned(
+            growthInsideX128.extraCashflow - self.updatedGrowthTrackers.extraCashflow,
             self.liquidity,
             FixedPoint128.Q128
         );

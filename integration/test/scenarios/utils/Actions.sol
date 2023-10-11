@@ -2,7 +2,6 @@ pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
 
-import {Utils} from "../../../src/utils/Utils.sol";
 import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 import {DatedIrsProxy} from "../../../src/proxies/DatedIrs.sol";
@@ -20,15 +19,13 @@ abstract contract Actions is Test {
     ) internal returns (int256) {
         vm.startPrank(getCoreProxyAddress());
 
-        int128 liquidityDelta = 
-            Utils.getLiquidityForBase(tickLower, tickUpper, baseAmount);
-
         bytes memory inputs = abi.encode(
             maturityTimestamp,
             tickLower,
             tickUpper,
-            liquidityDelta
+            baseAmount
         );
+
         (, int256 annualizedNotional) = 
             getDatedIrsProxy().executeMakerOrder(accountId, marketId, inputs);
 

@@ -20,6 +20,8 @@ abstract contract Checks is AssertionHelpers {
         uint32 maturityTimestamp;
     }
 
+    uint256 public constant EPSILON = 10;
+
     function checkTotalFilledBalances(
         DatedIrsProxy datedIrsProxy,
         uint128 marketId,
@@ -40,9 +42,9 @@ abstract contract Checks is AssertionHelpers {
             sumAccruedInterest += filledBalances.accruedInterest;
         }
         
-        assertAlmostEq(sumFilledBase, int(0), 1e4, "sumFilledBase");
-        assertAlmostEq(sumFilledQuote, int(0), 1e4, "sumFilledQuote");
-        assertAlmostEq(sumAccruedInterest, int(0), 1e4, "sumAccruedInterest");
+        assertAlmostEq(sumFilledBase, int(0), EPSILON, "sumFilledBase");
+        assertAlmostEq(sumFilledQuote, int(0), EPSILON, "sumFilledQuote");
+        assertAlmostEq(sumAccruedInterest, int(0), EPSILON, "sumAccruedInterest");
     }
     
     function checkFilledBalances(
@@ -55,9 +57,9 @@ abstract contract Checks is AssertionHelpers {
         FilledBalances memory filledBalances = datedIrsProxy
             .getAccountFilledBalances(positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId);
 
-        assertEq(expectedBaseBalance, filledBalances.base, "filledBase");
-        assertEq(expectedQuoteBalance, filledBalances.quote, "filledQuote");
-        assertEq(expectedAccruedInterest, filledBalances.accruedInterest, "accruedInterest");
+        assertAlmostEq(expectedBaseBalance, filledBalances.base, EPSILON, "filledBase");
+        assertAlmostEq(expectedQuoteBalance, filledBalances.quote, EPSILON, "filledQuote");
+        assertAlmostEq(expectedAccruedInterest, filledBalances.accruedInterest, EPSILON, "accruedInterest");
     }
 
     function checkZeroFilledBalances(
@@ -87,10 +89,11 @@ abstract contract Checks is AssertionHelpers {
             positionInfo.accountId
         );
 
-        assertEq(expectedUnfilledBaseLong, unfilledBalances.baseLong, "unfilledBaseLong");
-        assertEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, "unfilledBaseShort");
-        assertEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, "unfilledQuoteLong");
-        assertEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, "unfilledQuoteShort");
+
+        assertAlmostEq(int(expectedUnfilledBaseLong), int(unfilledBalances.baseLong), EPSILON, "unfilledBaseLong");
+        assertAlmostEq(int(expectedUnfilledBaseShort), int(unfilledBalances.baseShort), EPSILON, "unfilledBaseShort");
+        assertAlmostEq(int(expectedUnfilledQuoteLong), int(unfilledBalances.quoteLong), EPSILON, "unfilledQuoteLong");
+        assertAlmostEq(int(expectedUnfilledQuoteShort), int(unfilledBalances.quoteShort), EPSILON, "unfilledQuoteShort");
         // todo: add additional assertions for average prices
     }
 

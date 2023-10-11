@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 
-import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
@@ -13,14 +13,10 @@ import { FixedPoint128 } from "../math/FixedPoint128.sol";
 
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
-import { UD60x18, ZERO, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18, ZERO, UNIT, unwrap, convert } from "@prb/math/UD60x18.sol";
+import { mulUDxInt, mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
-import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
-import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
 
 library VammHelpers {
@@ -39,8 +35,7 @@ library VammHelpers {
         address sender,
         int256 desiredBaseAmount,
         uint160 sqrtPriceLimitX96,
-        int256 quoteTokenDelta,
-        int256 baseTokenDelta,
+        PositionBalances tokenDeltas,
         uint256 blockTimestamp
     );
 
@@ -64,19 +59,19 @@ library VammHelpers {
     struct SwapState {
         /// @dev the amount remaining to be swapped in/out of the input/output asset
         int256 amountSpecifiedRemaining;
+        
         /// @dev current sqrt(price)
         uint160 sqrtPriceX96;
+        
         /// @dev the tick associated with the current price
         int24 tick;
 
         PositionBalances growthGlobalX128;
 
+        PositionBalances tokenDeltaCumulative;
+
         /// @dev the current liquidity in range
         uint128 liquidity;
-        /// @dev quoteTokenDelta that will be applied to the quote token balance of the position executing the swap
-        int256 quoteTokenDeltaCumulative;
-        /// @dev baseTokenDelta that will be applied to the variable token balance of the position executing the swap
-        int256 baseTokenDeltaCumulative;
     }
 
     struct StepComputations {
@@ -93,47 +88,57 @@ library VammHelpers {
         /// @dev how much is being swapped out
         uint256 amountOut;
         UD60x18 averagePrice;
-        /// @dev ...
-        int256 quoteTokenDelta; // for LP
-        /// @dev ...
-        int256 baseTokenDelta; // for LP
+        PositionBalances tokenDeltas;
     }
 
-    /// @notice Computes the amount of notional coresponding to an amount of liquidity and price range
-    /// @dev Calculates amount1 * (sqrt(upper) - sqrt(lower)).
-    /// @param liquidity Liquidity per tick
-    /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary
-    /// @param sqrtRatioBX96 A sqrt price representing the second tick boundary
-    /// @return baseAmount The base amount of returned from liquidity
-    function baseAmountFromLiquidity(int128 liquidity, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
-        internal pure returns (int256 baseAmount) {
+    function amountsFromLiquidity(
+        uint128 liquidity, 
+        int24 tickLower,
+        int24 tickUpper
+    ) internal pure returns (uint256 absBase, uint256 absUnbalancedQuote) {
+
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
+
         if (sqrtRatioAX96 > sqrtRatioBX96)
             (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
-        uint256 absBase = FullMath
-                .mulDiv(uint128(liquidity > 0 ? liquidity : -liquidity), sqrtRatioBX96 - sqrtRatioAX96, Q96);
+        absBase = FullMath.mulDiv(liquidity, sqrtRatioBX96 - sqrtRatioAX96, Q96);
 
-        baseAmount = liquidity > 0 ? absBase.toInt() : -(absBase.toInt());
+        absUnbalancedQuote = 
+            FullMath.mulDiv(
+                FullMath.mulDiv(absBase, Q96, sqrtRatioBX96),
+                Q96,
+                sqrtRatioAX96
+            );
     }
 
-    function unbalancedQuoteAmountFromBase(int256 baseAmount, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
-        internal pure returns (int256 unbalancedQuoteAmount) {
-        uint256 absQuote = FullMath
-                .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), Q96, sqrtRatioBX96);
-        absQuote = FullMath
-                .mulDiv(absQuote, Q96, sqrtRatioAX96);
+    function liquidityFromBase(
+        int256 base, 
+        int24 tickLower,
+        int24 tickUpper
+    ) internal pure returns (int128 liquidity) {
 
-        unbalancedQuoteAmount = baseAmount > 0 ? -(absQuote.toInt()) : absQuote.toInt();
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
+
+        if (sqrtRatioAX96 > sqrtRatioBX96)
+            (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
+        
+        uint256 absLiquidity = FullMath
+            .mulDiv(uint256(base > 0 ? base : -base), Q96, sqrtRatioBX96 - sqrtRatioAX96);
+
+        return base > 0 ? absLiquidity.toInt().to128() : -(absLiquidity.toInt().to128());
     }
 
     function calculateQuoteTokenDelta(
         int256 baseTokenDelta,
         UD60x18 averagePrice,
         UD60x18 spread,
-        uint128 marketId
+        UD60x18 exposureFactor
     ) 
         internal
-        view
+        pure
         returns (
             int256 quoteTokenDelta
         )
@@ -143,103 +148,24 @@ library VammHelpers {
             averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
         }
 
-        int256 exposure = baseToExposure(
-            baseTokenDelta,
-            marketId
-        );
+        int256 exposure = mulUDxInt(exposureFactor, baseTokenDelta);
 
         quoteTokenDelta = mulUDxInt(averagePriceWithSpread, -exposure);
     }
 
-    function baseToExposure(
-        int256 baseAmount,
-        uint128 marketId
-    )
-        private
-        view
-        returns (int256 exposure)
-    {
-        UD60x18 factor = exposureFactor(marketId);
-        exposure = mulUDxInt(factor, baseAmount);
-    }
-
-    function exposureFactor(uint128 marketId) private view returns (UD60x18 factor) {
-        address marketManagerAddress = PoolConfiguration.load().marketManagerAddress;
-        bytes32 marketType = IMarketConfigurationModule(marketManagerAddress)
-            .getMarketType(marketId);
-        if (marketType == Market.LINEAR_MARKET) {
-            return UNIT;
-        } else if (marketType == Market.COMPOUNDING_MARKET) {
-            UD60x18 currentLiquidityIndex = IRateOracleModule(marketManagerAddress)
-                .getRateIndexCurrent(marketId);
-            return currentLiquidityIndex;
-        }
-
-        revert Market.UnsupportedMarketType(marketType);
-    }
-
     function calculateGlobalTrackerValues(
         VammHelpers.SwapState memory state,
-        int256 balancedQuoteTokenDelta,
-        int256 baseTokenDelta
-    ) 
-        internal
-        pure
-        returns (
-            int256 stateQuoteTokenGrowthGlobalX128,
-            int256 stateBaseTokenGrowthGlobalX128
-        )
-    {
-        stateQuoteTokenGrowthGlobalX128 = 
-            state.growthGlobalX128.quote + 
-                FullMath.mulDivSigned(balancedQuoteTokenDelta, FixedPoint128.Q128, state.liquidity);
+        PositionBalances memory deltas
+    ) internal pure returns (PositionBalances memory) {
+        return PositionBalances({
+            base: state.growthGlobalX128.base + 
+                FullMath.mulDivSigned(deltas.base, FixedPoint128.Q128, state.liquidity),
 
-        stateBaseTokenGrowthGlobalX128 = 
-            state.growthGlobalX128.base + 
-                FullMath.mulDivSigned(baseTokenDelta, FixedPoint128.Q128, state.liquidity);
+            quote: state.growthGlobalX128.quote + 
+                FullMath.mulDivSigned(deltas.quote, FixedPoint128.Q128, state.liquidity),
+
+            extraCashflow: state.growthGlobalX128.extraCashflow + 
+                FullMath.mulDivSigned(deltas.extraCashflow, FixedPoint128.Q128, state.liquidity)
+        });
     }
-
-    /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
-    /// The answer must be a valid `int256`. Reverts on overflow.
-    function baseBetweenTicks(
-        int24 tickLower,
-        int24 tickUpper,
-        int128 liquidityPerTick
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
-
-        return VammHelpers.baseAmountFromLiquidity(liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function unbalancedQuoteBetweenTicks(
-        int24 tickLower,
-        int24 tickUpper,
-        int256 baseAmount
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
-
-        return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function getNewMTMTimestampAndRateIndex(
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (MTMObservation memory observation) {
-        IRateOracleModule marketManager = 
-            IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
-
-        if (block.timestamp < maturityTimestamp) {
-            observation.timestamp = block.timestamp;
-            observation.rateIndex = marketManager.getRateIndexCurrent(marketId);
-        } else {
-            observation.timestamp = maturityTimestamp;
-            observation.rateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
-        }
-    }
-
-    
 }

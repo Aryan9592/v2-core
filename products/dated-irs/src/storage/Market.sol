@@ -10,15 +10,18 @@ pragma solidity >=0.8.19;
 import {IPool} from "../interfaces/IPool.sol";
 import {IRateOracle} from "../interfaces/IRateOracle.sol";
 import {MarketRateOracle} from "../libraries/MarketRateOracle.sol"; 
+import { RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
-import {UD60x18} from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Tracks configurations and metadata for dated irs markets
  */
 library Market {
+    using Market for Market.Data;
+
     /// Market types
     bytes32 internal constant LINEAR_MARKET = "linear";
     bytes32 internal constant COMPOUNDING_MARKET = "compounding";
@@ -257,12 +260,16 @@ library Market {
         MarketRateOracle.updateRateIndexAtMaturityCache(self, maturityTimestamp);
     }
 
-    function getRateIndexCurrent(Data storage self) internal view returns (UD60x18 rateIndexCurrent) {
+    function getRateIndexCurrent(Data storage self) internal view returns (UD60x18) {
         return MarketRateOracle.getRateIndexCurrent(self);
     }
 
-    function getRateIndexMaturity(Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18 rateIndexMaturity) {
+    function getRateIndexMaturity(Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18) {
         return MarketRateOracle.getRateIndexMaturity(self, maturityTimestamp);
+    }
+
+    function getLatestRateIndex(Data storage self, uint32 maturityTimestamp) internal view returns (RateOracleObservation memory) {
+        return MarketRateOracle.getLatestRateIndex(self, maturityTimestamp);
     }
 
     function updateOracleStateIfNeeded(Data storage self) internal {
@@ -281,5 +288,18 @@ library Market {
 
     function getRiskMatrixRowId(Data storage self, uint32 maturityTimestamp) internal view returns (uint256) {
         return self.riskMatrixRowIds[maturityTimestamp];
+    }
+    
+    function exposureFactor(Data storage self) internal view returns (UD60x18 factor) {
+        if (self.marketType == LINEAR_MARKET) {
+            return UNIT;
+        } 
+        
+        if (self.marketType == COMPOUNDING_MARKET) {
+            UD60x18 currentLiquidityIndex = self.getRateIndexCurrent();
+            return currentLiquidityIndex;
+        }
+
+        revert UnsupportedMarketType(self.marketType);
     }
 }

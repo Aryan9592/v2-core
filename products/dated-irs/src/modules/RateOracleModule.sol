@@ -22,7 +22,6 @@ contract RateOracleModule is IRateOracleModule {
     /**
      * @inheritdoc IRateOracleModule
      */
-
     function getRateIndexCurrent(
         uint128 marketId
     )
@@ -47,6 +46,16 @@ contract RateOracleModule is IRateOracleModule {
         returns (UD60x18 rateIndexMaturity)
     {
         return Market.exists(marketId).getRateIndexMaturity(maturityTimestamp);
+    }
+
+    /**
+     * @inheritdoc IRateOracleModule
+     */
+    function getLatestRateIndex(
+        uint128 marketId, 
+        uint32 maturityTimestamp
+    ) external view returns (RateOracleObservation memory) {
+        return Market.exists(marketId).getLatestRateIndex(maturityTimestamp);
     }
 
     /**

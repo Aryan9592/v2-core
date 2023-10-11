@@ -7,6 +7,8 @@ import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
+
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { TickMath } from "../ticks/TickMath.sol";
@@ -44,25 +46,28 @@ library Swap {
     )
         internal
         lock(self)
-        returns (int256 quoteTokenDelta, int256 baseTokenDelta)
+        returns (PositionBalances memory tokenDeltas)
     {
-        uint128 marketId = self.immutableConfig.marketId;
-        uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
-
         // Check if the pool is still active for orders
         {
             
             uint32 inactiveWindowBeforeMaturity = self.mutableConfig.inactiveWindowBeforeMaturity;
 
-            if (block.timestamp + inactiveWindowBeforeMaturity >= maturityTimestamp) {
-                revert VammCustomErrors.CloseOrBeyondToMaturity(marketId, maturityTimestamp);
+            if (block.timestamp + inactiveWindowBeforeMaturity >= self.immutableConfig.maturityTimestamp) {
+                revert VammCustomErrors.CloseOrBeyondToMaturity(
+                    self.immutableConfig.marketId, 
+                    self.immutableConfig.maturityTimestamp
+                );
             }
         }
 
+        RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
+        UD60x18 exposureFactor = self.getExposureFactor();
+
         SwapFixedValues memory swapFixedValues = SwapFixedValues({
-            secondsTillMaturity: maturityTimestamp - block.timestamp,
+            secondsTillMaturity:self.immutableConfig.maturityTimestamp - block.timestamp,
             tickLimits: VammTicks.getCurrentTickLimits(self, params.markPrice, params.markPriceBand),
-            liquidityIndex: PoolConfiguration.getRateOracle(marketId).getCurrentIndex()
+            liquidityIndex: rateOracleObservation.rateIndex
         });
 
         if (params.amountSpecified == 0) {
@@ -85,24 +90,17 @@ library Swap {
             "SPL"
         );
 
-        TraderPosition.updateBalances(
-            self.vars.growthGlobalX128,
-            0,
-            0,
-            VammHelpers.getNewMTMTimestampAndRateIndex(
-                marketId, 
-                maturityTimestamp
-            )
-        );
-        
         VammHelpers.SwapState memory state = VammHelpers.SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
             liquidity: self.vars.liquidity,
             growthGlobalX128: self.vars.growthGlobalX128,
-            quoteTokenDeltaCumulative: 0, // for Trader (user invoking the swap)
-            baseTokenDeltaCumulative: 0 // for Trader (user invoking the swap)
+            tokenDeltaCumulative: PositionBalances({
+                base: 0,
+                quote: 0,
+                extraCashflow: 0
+            })
         });
 
         // continue swapping as long as we haven't used the entire input/output and haven't 
@@ -164,35 +162,38 @@ library Swap {
             // along the 2 axes of the vamm
             if (params.amountSpecified > 0) {
                 // LP is a Variable Taker
-                step.baseTokenDelta = step.amountIn.toInt(); // this is positive
+                step.tokenDeltas.base = step.amountIn.toInt(); // this is positive
                 step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert(100));
             } else {
                 // LP is a Fixed Taker
-                step.baseTokenDelta = -step.amountOut.toInt(); // this is negative
+                step.tokenDeltas.base = -step.amountOut.toInt(); // this is negative
                 step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert(100));
             }
 
             ///// UPDATE TRACKERS /////
-            state.amountSpecifiedRemaining -= step.baseTokenDelta;
+            state.amountSpecifiedRemaining -= step.tokenDeltas.base;
             if (state.liquidity > 0) {
-                step.quoteTokenDelta = VammHelpers.calculateQuoteTokenDelta(
-                    step.baseTokenDelta,
+                step.tokenDeltas.quote = VammHelpers.calculateQuoteTokenDelta(
+                    step.tokenDeltas.base,
                     step.averagePrice,
                     self.mutableConfig.spread,
-                    marketId
+                    exposureFactor
                 );
 
-                (
-                    state.growthGlobalX128.quote,
-                    state.growthGlobalX128.base
-                ) = VammHelpers.calculateGlobalTrackerValues(
+                step.tokenDeltas.extraCashflow = TraderPosition.computeCashflow(
+                    step.tokenDeltas.base,
+                    step.tokenDeltas.quote,
+                    rateOracleObservation
+                );
+
+                state.growthGlobalX128 = VammHelpers.calculateGlobalTrackerValues(
                     state,
-                    step.quoteTokenDelta,
-                    step.baseTokenDelta
+                    step.tokenDeltas
                 );
 
-                state.quoteTokenDeltaCumulative -= step.quoteTokenDelta; // opposite sign from that of the LP's
-                state.baseTokenDeltaCumulative -= step.baseTokenDelta; // opposite sign from that of the LP's
+                state.tokenDeltaCumulative.base -= step.tokenDeltas.base;
+                state.tokenDeltaCumulative.quote -= step.tokenDeltas.quote;
+                state.tokenDeltaCumulative.extraCashflow -= step.tokenDeltas.extraCashflow;
             }
 
             ///// UPDATE TICK AFTER SWAP STEP /////
@@ -203,9 +204,7 @@ library Swap {
                 if (step.initialized) {
                     int128 liquidityNet = self.vars.ticks.cross(
                         step.tickNext,
-                        state.growthGlobalX128,
-                        marketId,
-                        maturityTimestamp
+                        state.growthGlobalX128
                     );
 
                     state.liquidity = LiquidityMath.addDelta(
@@ -246,24 +245,23 @@ library Swap {
         self.vars.growthGlobalX128 = state.growthGlobalX128;
 
         emit VammHelpers.VAMMPriceChange(
-            marketId,
-            maturityTimestamp,
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
         emit VammHelpers.Swap(
-            marketId,
-            maturityTimestamp,
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
             msg.sender,
             params.amountSpecified,
             params.sqrtPriceLimitX96,
-            quoteTokenDelta,
-            baseTokenDelta,
+            state.tokenDeltaCumulative,
             block.timestamp
         );
 
-        return (state.quoteTokenDeltaCumulative, state.baseTokenDeltaCumulative);
+        return state.tokenDeltaCumulative;
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
