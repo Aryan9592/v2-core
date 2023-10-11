@@ -115,7 +115,7 @@ library InitiateTakerOrder {
         if (
             Portfolio.exists(params.accountId, params.marketId)
             .positions[params.maturityTimestamp]
-            .baseBalance * executedBaseAmount > 0
+            .base * executedBaseAmount > 0
         ) {
             annualizedNotionalDelta = -annualizedNotionalDelta;
         }

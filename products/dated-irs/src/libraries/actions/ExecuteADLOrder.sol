@@ -10,10 +10,12 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
+import {FilledBalances} from "../DataTypes.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { UNIT, UD60x18 } from "@prb/math/UD60x18.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 import {mulDiv} from "@prb/math/UD60x18.sol";
+import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
 /*
 TODOs
@@ -31,9 +33,19 @@ TODOs
  * @title Library for adl order execution
 */
 library ExecuteADLOrder {
-
+    using Timer for Timer.Data;
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
+
+    /**
+     * @notice Thrown when an ADL order comes in during propagation of a
+     * previous blended ADL order
+     * @param marketId The id of the market in which the account was tried to be adl'ed
+     * @param accountId The id of the account that was tried to be adl'ed
+     * @param baseDelta The base delta that was tried to be adl'ed
+     */
+    error CannotBlendADLDuringPropagation(uint128 marketId, uint128 accountId, int256 baseDelta);
+
 
     function computeBankruptcyPrice(
         int256 baseDelta,
@@ -50,53 +62,78 @@ library ExecuteADLOrder {
         return bankruptcyPrice;
     }
 
+    struct ExecuteADLOrderVars {
+        address poolAddress;
+        int256 baseDelta;
+        int256 quoteDelta;
+        UD60x18 markPrice;
+        bool isLong;
+    }
+
     function executeADLOrder(
         Portfolio.Data storage accountPortfolio,
         uint32 maturityTimestamp,
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
     ) internal {
+        ExecuteADLOrderVars memory vars;
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);
-        address poolAddress = market.marketConfig.poolAddress;
+        vars.poolAddress = market.marketConfig.poolAddress;
 
-        ExposureHelpers.PoolExposureState memory poolState = accountPortfolio.getPoolExposureState(
+        FilledBalances memory filledBalances = accountPortfolio.getAccountFilledBalances(
             maturityTimestamp,
-            poolAddress
+            vars.poolAddress
         );
+        vars.baseDelta = filledBalances.base;
 
-        int256 baseDelta = poolState.baseBalance + poolState.baseBalancePool;
-
-        UD60x18 markPrice;
         if (totalUnrealizedLossQuote > 0) {
             // todo: (AB) link this to uPnL functions
             uint256 positionUnrealizedLoss = 0;
             
-            markPrice = computeBankruptcyPrice(
-                baseDelta,
+            vars.markPrice = computeBankruptcyPrice(
+                vars.baseDelta,
                 positionUnrealizedLoss,
                 totalUnrealizedLossQuote,
                 realBalanceAndIF
             );
         } else {
 
-            markPrice = ExposureHelpers.computeTwap(
+            vars.markPrice = ExposureHelpers.computeTwap(
                 market.id,
                 maturityTimestamp,
-                poolAddress,
+                vars.poolAddress,
                 0
             );
 
         }
 
-        int256 quoteDelta = ExposureHelpers.computeQuoteDelta(baseDelta, markPrice, accountPortfolio.marketId);
+        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
 
-        Portfolio.Data storage adlPortfolio = baseDelta > 0 ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
+        vars.isLong = vars.baseDelta > 0;
+
+        Portfolio.Data storage adlPortfolio = vars.isLong ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
             : Portfolio.loadOrCreate(type(uint128).max - 2, market.id);
+        
+        Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(adlOrderTimerId(vars.isLong));
+        /// todo: need to think how propagation can achieve exactly 0 in base & quote balances,
+        /// given numerical errors
+        if (adlPortfolio.positions[maturityTimestamp].base == 0) {
+            adlPortfolioTimer.start(
+                market.adlBlendingDurationInSeconds
+            );
+        } else {
+            if (!adlPortfolioTimer.isActive()) {
+                revert CannotBlendADLDuringPropagation(accountPortfolio.marketId, accountPortfolio.accountId, vars.baseDelta);
+            }
+        }
 
-        accountPortfolio.updatePosition(maturityTimestamp, -baseDelta, -quoteDelta);
-        adlPortfolio.updatePosition(maturityTimestamp, baseDelta, quoteDelta);
+        accountPortfolio.updatePosition(maturityTimestamp, -vars.baseDelta, -vars.quoteDelta);
+        adlPortfolio.updatePosition(maturityTimestamp, vars.baseDelta, vars.quoteDelta);
 
     }
 
+    function adlOrderTimerId(bool isLong) internal pure returns (bytes32) {
+        return (isLong) ? bytes32("LongBlendedAdlOrderTimer") : bytes32("ShortBlendedAdlOrderTimer");
+    }
 }

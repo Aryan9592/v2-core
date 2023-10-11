@@ -1,21 +1,23 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { AccountBalances } from "./AccountBalances.sol";
+import { VammHelpers } from "./VammHelpers.sol";
+import { VammTicks } from "./VammTicks.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
+
+import { Tick } from "../ticks/Tick.sol";
+import { TickBitmap } from "../ticks/TickBitmap.sol";
+import { LiquidityMath } from "../math/LiquidityMath.sol";
+
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { LPPosition } from "../../storage/LPPosition.sol";
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
-import { Time } from "../time/Time.sol";
-
-import { VammHelpers } from "./VammHelpers.sol";
-import { VammTicks } from "./VammTicks.sol";
-import { Tick } from "../ticks/Tick.sol";
-import { TickBitmap } from "../ticks/TickBitmap.sol";
-import { LiquidityMath } from "../math/LiquidityMath.sol";
-import {AccountBalances} from "./AccountBalances.sol";
-
-import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+
 
 library LP {
     using LPPosition for LPPosition.Data;
@@ -34,15 +36,23 @@ library LP {
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,
         uint128 accountId,
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
     )
     internal
     { 
+        uint128 marketId = self.immutableConfig.marketId;
         uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
-        Time.checkCurrentTimestampMaturityTimestampDelta(maturityTimestamp);
+
+        // Check if the pool is still active for orders
+        {
+            uint32 inactiveWindowBeforeMaturity = self.mutableConfig.inactiveWindowBeforeMaturity;
+
+            if (block.timestamp + inactiveWindowBeforeMaturity >= maturityTimestamp) {
+                revert VammCustomErrors.CloseOrBeyondToMaturity(marketId, maturityTimestamp);
+            }
+        }
 
         LPPosition.Data storage position = 
             LPPosition.loadOrCreate(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
@@ -62,18 +72,11 @@ library LP {
         }
 
         // this also checks if the position has enough liquidity to burn
-        {
-            (
-                int256 quoteTokenGrowthInsideX128,
-                int256 baseTokenGrowthInsideX128,
-                int256 accruedInterestGrowthInsideX128
-            ) = AccountBalances.computeGrowthInside(self, tickLower, tickUpper);
-            position.updateTokenBalances(
-                quoteTokenGrowthInsideX128,
-                baseTokenGrowthInsideX128,
-                accruedInterestGrowthInsideX128
-            );
-        }
+        position.updateTokenBalances(
+            marketId,
+            maturityTimestamp,
+            AccountBalances.computeGrowthInside(self, tickLower, tickUpper)
+        );
 
         position.updateLiquidity(liquidityDelta);
 
@@ -101,8 +104,6 @@ library LP {
     ) private
       lock(self)
     {
-        Time.checkCurrentTimestampMaturityTimestampDelta(self.immutableConfig.maturityTimestamp);
-
         if (liquidityDelta > 0) {
             VammTicks.checkTicksInAllowedRange(self, tickLower, tickUpper);
         } else {
@@ -165,8 +166,8 @@ library LP {
             tickLower,
             self.vars.tick,
             liquidityDelta,
-            self.vars.trackerQuoteTokenGrowthGlobalX128,
-            self.vars.trackerBaseTokenGrowthGlobalX128,
+            self.vars.growthGlobalX128.quote,
+            self.vars.growthGlobalX128.base,
             false,
             maxLiquidityPerTick
         );
@@ -176,8 +177,8 @@ library LP {
             tickUpper,
             self.vars.tick,
             liquidityDelta,
-            self.vars.trackerQuoteTokenGrowthGlobalX128,
-            self.vars.trackerBaseTokenGrowthGlobalX128,
+            self.vars.growthGlobalX128.quote,
+            self.vars.growthGlobalX128.base,
             true,
             maxLiquidityPerTick
         );

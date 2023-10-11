@@ -129,6 +129,12 @@ library CollateralPool {
          */
         UD60x18 adlMultiplier;
 
+        /**
+         * @dev IM Buffer Multiplier is used to make sure the capacity of backstop lps
+         * is almost finished during liquidations.
+         * where im buffer margin requirement = imBufferMuliplier * LM
+         */
+        UD60x18 imBufferMultiplier;
     }
 
     struct LiquidationConfiguration {

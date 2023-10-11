@@ -24,6 +24,7 @@ import { UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import "../storage/MarketManagerConfiguration.sol";
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -60,6 +61,7 @@ library ExposureHelpers {
         UD60x18 avgShortPrice;
     }
 
+    // todo: is this struct used anywhere?
     struct AccruedInterestTrackers {
         int256 accruedInterest;
         uint256 lastMTMTimestamp;
@@ -163,28 +165,29 @@ library ExposureHelpers {
     }
 
 
-
     function getPnLComponents(
-        PoolExposureState memory poolState,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        FilledBalances memory filledBalances,
         address poolAddress
     ) internal view returns (Account.PnLComponents memory pnlComponents) {
 
         UD60x18 twap = computeTwap(
-            poolState.marketId,
-            poolState.maturityTimestamp,
+            marketId,
+            maturityTimestamp,
             poolAddress,
-            poolState.baseBalance + poolState.baseBalancePool
+            filledBalances.base
         );
 
         pnlComponents.unrealizedPnL = computeUnrealizedPnL(
-            poolState.marketId,
-            poolState.maturityTimestamp,
-            poolState.baseBalance + poolState.baseBalancePool,
-            poolState.quoteBalance + poolState.quoteBalancePool,
+            marketId,
+            maturityTimestamp,
+            filledBalances.base,
+            filledBalances.quote,
             twap
         );
 
-        pnlComponents.realizedPnL = poolState.accruedInterest + poolState.accruedInterestPool;
+        pnlComponents.realizedPnL = filledBalances.accruedInterest;
 
         return pnlComponents;
     }
@@ -214,7 +217,9 @@ library ExposureHelpers {
     }
 
     function getFilledExposures(
-        PoolExposureState memory poolState,
+        int256 filledBase,
+        UD60x18 exposureFactor,
+        uint32 maturityTimestamp,
         uint256 tenorInSeconds
     ) internal view returns (
         int256 shortRateFilledExposure,
@@ -222,11 +227,11 @@ library ExposureHelpers {
     ) {
 
         int256 filledNotional = mulUDxInt(
-            poolState.exposureFactor,
-            poolState.baseBalance + poolState.baseBalancePool
+            exposureFactor,
+            filledBase
         );
 
-        uint256 timeToMaturityInSeconds = uint256(poolState.maturityTimestamp) - block.timestamp;
+        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
 
         (shortRateFilledExposure, swapRateFilledExposure) = decoupleExposures(
             filledNotional,
@@ -238,7 +243,10 @@ library ExposureHelpers {
     }
 
     function getUnfilledExposureComponents(
-        PoolExposureState memory poolState,
+        uint256 unfilledBaseLong,
+        uint256 unfilledBaseShort,
+        UD60x18 exposureFactor,
+        uint32 maturityTimestamp,
         uint256 tenorInSeconds
     ) internal view returns (
         Account.UnfilledExposureComponents[] memory unfilledExposureComponents
@@ -246,13 +254,13 @@ library ExposureHelpers {
 
         // first entry is for short rate and second is for swap rate
         unfilledExposureComponents = new Account.UnfilledExposureComponents[](2);
-        uint256 timeToMaturityInSeconds = uint256(poolState.maturityTimestamp) - block.timestamp;
+        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
 
-        if (poolState.unfilledBaseLong != 0) {
+        if (unfilledBaseLong != 0) {
 
             uint256 unfilledNotionalLong = mulUDxUint(
-                poolState.exposureFactor,
-                poolState.unfilledBaseLong
+                exposureFactor,
+                unfilledBaseLong
             );
 
 
@@ -269,11 +277,11 @@ library ExposureHelpers {
 
         }
 
-        if (poolState.unfilledBaseShort != 0) {
+        if (unfilledBaseShort != 0) {
 
             uint256 unfilledNotionalShort = mulUDxUint(
-                poolState.exposureFactor,
-                poolState.unfilledBaseShort
+                exposureFactor,
+                unfilledBaseShort
             );
 
             (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) = decoupleExposures(
@@ -308,43 +316,45 @@ library ExposureHelpers {
     }
 
     function getPVMRComponents(
-        PoolExposureState memory poolState,
+        UnfilledBalances memory unfilledBalances,
+        uint128 marketId,
+        uint32 maturityTimestamp,
         address poolAddress,
         uint256 riskMatrixRowId
     ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
 
         UD60x18 diagonalRiskParameter;
 
-        if ((poolState.unfilledBaseShort != 0) || (poolState.unfilledBaseLong != 0)) {
+        if ((unfilledBalances.baseShort != 0) || (unfilledBalances.baseLong != 0)) {
             address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
             diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
-                poolState.marketId,
+                marketId,
                 riskMatrixRowId,
                 riskMatrixRowId
             ).intoUD60x18();
         }
 
-        if (poolState.unfilledBaseShort != 0) {
+        if (unfilledBalances.baseShort != 0) {
 
             int256 unrealizedPnLShort = computeUnrealizedPnL(
-                poolState.marketId,
-                poolState.maturityTimestamp,
-                -poolState.unfilledBaseShort.toInt(),
-                poolState.unfilledQuoteShort.toInt(),
-                computePVMRUnwindPrice(poolState.avgShortPrice, diagonalRiskParameter, false)
+                marketId,
+                maturityTimestamp,
+                -unfilledBalances.baseShort.toInt(),
+                unfilledBalances.quoteShort.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.avgShortPrice, diagonalRiskParameter, false)
             );
 
             pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
         }
 
-        if (poolState.unfilledBaseLong != 0) {
+        if (unfilledBalances.baseLong != 0) {
 
             int256 unrealizedPnLLong = computeUnrealizedPnL(
-                poolState.marketId,
-                poolState.maturityTimestamp,
-                poolState.unfilledBaseLong.toInt(),
-                poolState.unfilledQuoteLong.toInt(),
-                computePVMRUnwindPrice(poolState.avgLongPrice, diagonalRiskParameter, true)
+                marketId,
+                maturityTimestamp,
+                unfilledBalances.baseLong.toInt(),
+                -unfilledBalances.quoteLong.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.avgLongPrice, diagonalRiskParameter, true)
             );
 
             pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
@@ -403,7 +413,6 @@ library ExposureHelpers {
             market.notionalTracker[maturityTimestamp] -= (-notionalDelta).toUint();
         }
         
-
         // check upper limit of open interest
         if (annualizedNotionalDelta > 0) {
             uint256 totalNotional = market.notionalTracker[maturityTimestamp];

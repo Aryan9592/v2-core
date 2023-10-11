@@ -1,16 +1,18 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { VammCustomErrors } from "./VammCustomErrors.sol";
+
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
+import { FixedPoint96 } from "../math/FixedPoint96.sol";
+import { FullMath } from "../math/FullMath.sol";
+
+import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { UD60x18, ZERO, ud, UNIT, convert } from "@prb/math/UD60x18.sol";
 
-import {TickMath} from "../ticks/TickMath.sol";
-import {DatedIrsVamm} from "../../storage/DatedIrsVamm.sol";
-import {VammCustomErrors} from "./VammCustomErrors.sol";
-import {FixedPoint96} from "../math/FixedPoint96.sol";
-import {FullMath} from "../math/FullMath.sol";
 
 /**
  * @title Tracks configurations for dated irs markets

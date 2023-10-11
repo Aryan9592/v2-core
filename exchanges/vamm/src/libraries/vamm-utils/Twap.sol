@@ -1,17 +1,21 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
+
+import { VammTicks } from "./VammTicks.sol";
+import { VammCustomErrors } from "./VammCustomErrors.sol";
+
 import { Tick } from "../ticks/Tick.sol";
 
 import { Oracle } from "../../storage/Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { Time } from "../time/Time.sol";
-import { VammTicks } from "./VammTicks.sol";
-import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+
 import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 import { SD59x18, ZERO as ZERO_sd } from "@prb/math/SD59x18.sol";
+
 
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;

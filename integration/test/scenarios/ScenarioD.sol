@@ -1,7 +1,5 @@
 pragma solidity >=0.8.19;
 
-import "forge-std/Test.sol";
-
 import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
 import {SafeCastI256, SafeCastU256, SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -63,7 +61,6 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         accountIds[1] = 2;
 
         checkTotalFilledBalances(
-            address(vammProxy),
             datedIrsProxy,
             marketId,
             maturityTimestamp,
@@ -85,7 +82,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         datedIrsProxy.createMarket({
             marketId: marketId,
-            quoteToken: address(mockToken),
+            quoteToken: address(mockUsdc),
             marketType: "compounding"
         });
 
@@ -129,7 +126,8 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             spread: spread,
             minSecondsBetweenOracleObservations: 10,
             minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
-            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK
+            maxTickAllowed: VammTicks.DEFAULT_MAX_TICK,
+            inactiveWindowBeforeMaturity: 86400
         });
 
         // ensure the current time > 7 days
@@ -166,7 +164,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         uint256 start = block.timestamp;
 
         vm.mockCall(
-            mockToken,
+            mockUsdc,
             abi.encodeWithSelector(IERC20.decimals.selector),
             abi.encode(6)
         );
@@ -286,7 +284,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         uint256 start = block.timestamp;
 
         vm.mockCall(
-            mockToken,
+            mockUsdc,
             abi.encodeWithSelector(IERC20.decimals.selector),
             abi.encode(6)
         );
@@ -421,7 +419,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         uint256 start = block.timestamp;
 
         vm.mockCall(
-            mockToken,
+            mockUsdc,
             abi.encodeWithSelector(IERC20.decimals.selector),
             abi.encode(6)
         );

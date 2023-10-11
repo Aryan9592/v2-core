@@ -102,19 +102,16 @@ library ExecuteLiquidationOrder {
             revert LiquidationOrderZero(liquidatableAccountId, marketId, maturityTimestamp);
         }
 
-        Market.Data storage market = Market.exists(marketId);
         Portfolio.Data storage portfolio = Portfolio.exists(liquidatableAccountId, marketId);
 
+        Market.Data storage market = Market.exists(marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+
         // retrieve base amount filled by the liquidatable account
-
-        (int256 baseBalancePool,,) = IPool(market.marketConfig.poolAddress).getAccountFilledBalances(
-            marketId,
+        baseAmountLiquidatableAccount = portfolio.getAccountFilledBalances(
             maturityTimestamp,
-            liquidatableAccountId
-        );
-
-        baseAmountLiquidatableAccount = portfolio.positions[maturityTimestamp].baseBalance
-        + baseBalancePool;
+            poolAddress
+        ).base;
 
         // revert if base amount filled is zero
         if (baseAmountLiquidatableAccount == 0) {

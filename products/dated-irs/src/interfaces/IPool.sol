@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -63,20 +65,13 @@ interface IPool is IERC165 {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    )
-        external
-        view
-        returns (int256 baseBalancePool, int256 quoteBalancePool, int256 accruedInterestPool);
+    ) external view returns (FilledBalances memory /* accountBalances */);
 
     /**
      * @notice Returns the base amount minted by an account but not used in a swap.
      * @param marketId Id of the market to look at 
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param accountId Id of the `Account` to look at
-     * @return unfilledBaseLong Base amount left unused to the right of the current tick
-     * @return unfilledBaseShort Base amount left unused to the left of the current tick
-     * @return unfilledQuoteLong Simulated quote amount left unused to the right of the current tick
-     * @return unfilledQuoteShort Simulated quote amount left unused to the left of the current tick
     */
     function getAccountUnfilledBaseAndQuote(
         uint128 marketId,
@@ -86,28 +81,8 @@ interface IPool is IERC165 {
     external
     view
     returns (
-        uint256 unfilledBaseLong,
-        uint256 unfilledBaseShort,
-        uint256 unfilledQuoteLong,
-        uint256 unfilledQuoteShort,
-        UD60x18 avgLongPrice,
-        UD60x18 avgShortPrice
+        UnfilledBalances memory
     );
-
-    /**
-     * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market
-     * @param marketId Id of the market in which the positions should be closed
-     * @param maturityTimestamp Timestamp at which a given market matures
-     * @param accountId Id of the `Account` with which the lp wants to provide liqudity
-     * @return closedUnfilledBasePool Total amount of unfilled based that was burned
-     */
-    function closeUnfilledBase(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        uint128 accountId
-    )
-        external
-        returns (int256 closedUnfilledBasePool);
 
     /**
      * @notice Get dated irs twap, adjusted for price impact and spread
@@ -129,6 +104,21 @@ interface IPool is IERC165 {
         external
         view
         returns (UD60x18 datedIRSTwap);
+
+    /**
+     * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market
+     * @param marketId Id of the market in which the positions should be closed
+     * @param maturityTimestamp Timestamp at which a given market matures
+     * @param accountId Id of the `Account` with which the lp wants to provide liqudity
+     * @return closedUnfilledBasePool Total amount of unfilled based that was burned
+     */
+    function closeUnfilledBase(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint128 accountId
+    )
+        external
+        returns (int256 closedUnfilledBasePool);
 
     function hasUnfilledOrders(
         uint128 marketId,

@@ -165,6 +165,12 @@ library Market {
         mapping(uint32 maturityTimestamp => uint256 tenorInSeconds) tenors;
 
         /**
+         * @dev Duration of ADL blendin period, in seconds
+         */
+        // todo: setter and getter?
+        uint256 adlBlendingDurationInSeconds;
+
+        /**
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => UD60x18 rateIndex) rateIndexAtMaturity;

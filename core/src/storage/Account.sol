@@ -61,10 +61,18 @@ library Account {
     error PermissionDenied(uint128 accountId, address target);
 
     /**
-     * @dev Thrown when a given account's account's total value is below the initial margin requirement
+     * @dev Thrown when a given account's total value is below the initial margin requirement
      * + the highest unrealized loss
      */
     error AccountBelowIM(uint128 accountId, MarginInfo marginInfo);
+
+    /**
+     * @dev Thrown when a given account's margin balance if above the initial buffer margin requirement
+     * @dev To be used during backstop lps liquidations
+     * @param accountId The backstop lp account id
+     * @param marginInfo The margin information for the backstop lp account.
+     */
+    error AccountAboveIMBuffer(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when an account cannot be found.
@@ -103,7 +111,7 @@ library Account {
         PVMRComponents pvmrComponents;
     }
 
-    struct DutchHealthInformation {
+    struct RawInformation {
         /// The value of margin balance with no haircuts applied to exchange rates
         int256 rawMarginBalance;
         /// The value of the liquidation margin requirement with no haircuts applied
@@ -124,8 +132,10 @@ library Account {
         int256 dutchDelta;
         /// Difference between margin balance and adl margin requirement
         int256 adlDelta;
+        /// Difference between margin balance and initial buffer margin requirement (for backstop lps)
+        int256 initialBufferDelta;
         /// Information required to compute health of position in the context of adl liquidations
-        DutchHealthInformation dutchHealthInfo;
+        RawInformation rawInfo;
     }
 
     struct CollateralInfo {
@@ -440,4 +450,15 @@ library Account {
         }
     }
 
+    function imAndImBufferCheck(Data storage self, address collateralType)
+        internal
+        view
+        returns (Account.MarginInfo memory marginInfo)
+    {
+        marginInfo = self.imCheck(collateralType);
+
+        if (marginInfo.initialBufferDelta > 0) {
+            revert AccountAboveIMBuffer(self.id, marginInfo);
+        }
+    }
 }
