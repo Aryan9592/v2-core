@@ -63,14 +63,19 @@ library DatedIrsVamm {
 
         // the current price of the pool as a sqrt(trackerBaseToken/trackerQuoteToken) Q64.96 value
         uint160 sqrtPriceX96;
+        
         // the current tick of the vamm, i.e. according to the last tick transition that was run.
         int24 tick;
+        
         // the most-recently updated index of the observations array
         uint16 observationIndex;
+        
         // the current maximum number of observations that are being stored
         uint16 observationCardinality;
+        
         // the next maximum number of observations to store, triggered in observations.write
         uint16 observationCardinalityNext;
+        
         // whether the pool is locked
         bool unlocked;
 
@@ -89,6 +94,7 @@ library DatedIrsVamm {
         
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;
+        
         /// @dev map from tick to tick bitmap
         mapping(int16 => uint256) tickBitmap;
     }
@@ -97,12 +103,16 @@ library DatedIrsVamm {
     struct Data {
         /// @dev vamm config set at initialization, can't be modified after creation
         Immutable immutableConfig;
+        
         /// @dev configurable vamm config
         Mutable mutableConfig;
+        
         /// @dev vamm state frequently-updated
         State vars;
+        
         /// @dev Equivalent to getSqrtRatioAtTick(minTickAllowed)
         uint160 minSqrtRatioAllowed;
+        
         /// @dev Equivalent to getSqrtRatioAtTick(maxTickAllowed)
         uint160 maxSqrtRatioAllowed;
     }
@@ -111,10 +121,13 @@ library DatedIrsVamm {
         /// @dev The amount of the swap in base tokens, which implicitly configures the swap 
         ///      as exact input (positive), or exact output (negative)
         int256 amountSpecified;
+        
         /// @dev The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
         uint160 sqrtPriceLimitX96;
+        
         /// @dev Mark price used to compute dynamic price limits
         UD60x18 markPrice;
+        
         /// @dev Fixed Mark Price Band applied to the mark price to compute the dynamic price limits
         UD60x18 markPriceBand;
     }

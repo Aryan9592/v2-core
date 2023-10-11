@@ -2,10 +2,6 @@ pragma solidity >=0.8.19;
 
 import "forge-std/Test.sol";
 
-import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
-import {FullMath} from "@voltz-protocol/v2-vamm/src/libraries/math/FullMath.sol";
-import {FixedPoint96} from "@voltz-protocol/v2-vamm/src/libraries/math/FixedPoint96.sol";
-
 contract AssertionHelpers is Test {
 
     function assertAlmostEq(int256 a, int256 b, uint256 eps) public {
