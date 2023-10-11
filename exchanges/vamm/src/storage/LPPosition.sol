@@ -112,7 +112,7 @@ library LPPosition {
     function getUpdatedPositionBalances(
         Data memory self,
         PositionBalances memory growthInsideX128
-    ) internal view returns (PositionBalances memory) 
+    ) internal pure returns (PositionBalances memory) 
     {
         PositionBalances memory deltas;
         if (self.liquidity > 0) {

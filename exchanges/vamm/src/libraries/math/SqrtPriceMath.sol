@@ -3,11 +3,11 @@
 pragma solidity >=0.8.13;
 
 
-import "./FullMath.sol";
-import "./UnsafeMath.sol";
-import "./FixedPoint96.sol";
+import { FullMath } from "./FullMath.sol";
+import { UnsafeMath } from "./UnsafeMath.sol";
+import { FixedPoint96 } from "./FixedPoint96.sol";
 
-import "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 
 /// @title Functions based on Q64.96 sqrt price and liquidity

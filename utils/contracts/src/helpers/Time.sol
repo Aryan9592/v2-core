@@ -26,7 +26,7 @@ library Time {
         }
     }
 
-    function annualize(uint256 timeDelta) internal view returns (UD60x18 _timeDeltaAnnualized) {
+    function annualize(uint256 timeDelta) internal pure returns (UD60x18 _timeDeltaAnnualized) {
         _timeDeltaAnnualized = timeDelta.toUD60x18().div(SECONDS_IN_YEAR.toUD60x18());
     }
 
