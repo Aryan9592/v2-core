@@ -20,6 +20,8 @@ import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
 
+import { mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 
@@ -54,7 +56,7 @@ library AccountBalances {
                     self.immutableConfig.marketId,
                     position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
-                    position.liquidity.toInt(),
+                    position.liquidity,
                     self.mutableConfig.spread,
                     true
                 );
@@ -68,7 +70,7 @@ library AccountBalances {
                     self.immutableConfig.marketId,
                     position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
-                    position.liquidity.toInt(),
+                    position.liquidity,
                     self.mutableConfig.spread,
                     false
                 );
@@ -89,8 +91,7 @@ library AccountBalances {
 
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
-        RateOracleObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
+        RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
         
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
@@ -101,7 +102,7 @@ library AccountBalances {
 
             balances.base += it.base;
             balances.quote += it.quote;
-            balances.accruedInterest += TraderPosition.getAccruedInterest(it, newObservation);
+            balances.accruedInterest += TraderPosition.getAccruedInterest(it, rateOracleObservation);
         }
 
     }
@@ -110,42 +111,41 @@ library AccountBalances {
         uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
-        int128 liquidity,
+        uint128 liquidity,
         UD60x18 spread,
         bool isLong
-    ) private view returns (uint256 /* unfilledBase */ , uint256 /* unfilledQuote */)
+    ) private view returns (uint256 unfilledBase, uint256 unfilledQuote)
     {
         if (tickLower == tickUpper) {
             return (0, 0);
         }
 
-        uint256 unfilledBase = VammHelpers.baseBetweenTicks(
+        uint256 unbalancedQuote;
+        (unfilledBase, unbalancedQuote) = VammHelpers.amountsFromLiquidity(
+            liquidity,
             tickLower,
-            tickUpper,
-            liquidity
-        ).toUint();
+            tickUpper
+        );
 
-        if (unfilledBase == 0) {
-            return (0, 0);
+        uint256 unbalancedQuotePenalty = mulUDxUint(spread.mul(convert(100)), unfilledBase);
+        uint256 remainingUnbalancedQuote = 0;
+
+        if (isLong) {
+            remainingUnbalancedQuote = unbalancedQuote + unbalancedQuotePenalty;
         }
-        
-        int256 unbalancedQuoteTokens = VammHelpers.unbalancedQuoteBetweenTicks(
-            tickLower,
-            tickUpper,
-            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt()
-        );
+        else {
+            if (unbalancedQuotePenalty < unbalancedQuote) {
+                remainingUnbalancedQuote = unbalancedQuote - unbalancedQuotePenalty;
+            }
+        }
 
-        // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
-        int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
-            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
-            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)).div(convert(100)),
-            spread,
-            marketId
-        );
+        if (remainingUnbalancedQuote == 0) {
+            return (unfilledBase, 0);
+        }
 
-        uint256 absUnfilledQuote = ((isLong) ? unfilledQuote : -unfilledQuote).toUint();
+        UD60x18 factor = VammHelpers.exposureFactor(marketId);
 
-        return (unfilledBase, absUnfilledQuote);
+        unfilledQuote = divUintUD(mulUDxUint(factor, remainingUnbalancedQuote), convert(100));
     }
 
     function growthInside(

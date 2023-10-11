@@ -13,8 +13,8 @@ import { FixedPoint128 } from "../math/FixedPoint128.sol";
 
 import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
-import { UD60x18, ZERO, UNIT, unwrap } from "@prb/math/UD60x18.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18, ZERO, UNIT, unwrap, convert } from "@prb/math/UD60x18.sol";
+import { mulUDxInt, mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -95,31 +95,44 @@ library VammHelpers {
         PositionBalances tokenDeltas;
     }
 
-    /// @notice Computes the amount of notional coresponding to an amount of liquidity and price range
-    /// @dev Calculates amount1 * (sqrt(upper) - sqrt(lower)).
-    /// @param liquidity Liquidity per tick
-    /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary
-    /// @param sqrtRatioBX96 A sqrt price representing the second tick boundary
-    /// @return baseAmount The base amount of returned from liquidity
-    function baseAmountFromLiquidity(int128 liquidity, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
-        internal pure returns (int256 baseAmount) {
+    function amountsFromLiquidity(
+        uint128 liquidity, 
+        int24 tickLower,
+        int24 tickUpper
+    ) internal pure returns (uint256 absBase, uint256 absUnbalancedQuote) {
+
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
+
         if (sqrtRatioAX96 > sqrtRatioBX96)
             (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
-        uint256 absBase = FullMath
-                .mulDiv(uint128(liquidity > 0 ? liquidity : -liquidity), sqrtRatioBX96 - sqrtRatioAX96, Q96);
+        absBase = FullMath.mulDiv(liquidity, sqrtRatioBX96 - sqrtRatioAX96, Q96);
 
-        baseAmount = liquidity > 0 ? absBase.toInt() : -(absBase.toInt());
+        absUnbalancedQuote = 
+            FullMath.mulDiv(
+                FullMath.mulDiv(absBase, Q96, sqrtRatioBX96),
+                Q96,
+                sqrtRatioAX96
+            );
     }
 
-    function unbalancedQuoteAmountFromBase(int256 baseAmount, uint160 sqrtRatioAX96, uint160 sqrtRatioBX96) 
-        internal pure returns (int256 unbalancedQuoteAmount) {
-        uint256 absQuote = FullMath
-                .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), Q96, sqrtRatioBX96);
-        absQuote = FullMath
-                .mulDiv(absQuote, Q96, sqrtRatioAX96);
+    function liquidityFromBase(
+        int256 base, 
+        int24 tickLower,
+        int24 tickUpper
+    ) internal pure returns (int128 liquidity) {
 
-        unbalancedQuoteAmount = baseAmount > 0 ? -(absQuote.toInt()) : absQuote.toInt();
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
+
+        if (sqrtRatioAX96 > sqrtRatioBX96)
+            (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
+        
+        uint256 absLiquidity = FullMath
+            .mulDiv(uint256(base > 0 ? base : -base), Q96, sqrtRatioBX96 - sqrtRatioAX96);
+
+        return base > 0 ? absLiquidity.toInt().to128() : -(absLiquidity.toInt().to128());
     }
 
     function calculateQuoteTokenDelta(
@@ -159,7 +172,7 @@ library VammHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function exposureFactor(uint128 marketId) private view returns (UD60x18 factor) {
+    function exposureFactor(uint128 marketId) internal view returns (UD60x18 factor) {
         address marketManagerAddress = PoolConfiguration.load().marketManagerAddress;
         bytes32 marketType = IMarketConfigurationModule(marketManagerAddress)
             .getMarketType(marketId);
@@ -189,48 +202,4 @@ library VammHelpers {
                 FullMath.mulDivSigned(deltas.extraCashflow, FixedPoint128.Q128, state.liquidity)
         });
     }
-
-    /// @dev Computes the agregate amount of base between two ticks, given a tick range and the amount of liquidity per tick.
-    /// The answer must be a valid `int256`. Reverts on overflow.
-    function baseBetweenTicks(
-        int24 tickLower,
-        int24 tickUpper,
-        int128 liquidityPerTick
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
-
-        return VammHelpers.baseAmountFromLiquidity(liquidityPerTick, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function unbalancedQuoteBetweenTicks(
-        int24 tickLower,
-        int24 tickUpper,
-        int256 baseAmount
-    ) internal pure returns(int256) {
-        // get sqrt ratios
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
-
-        return VammHelpers.unbalancedQuoteAmountFromBase(baseAmount, sqrtRatioAX96, sqrtRatioBX96);
-    }
-
-    function getNewMTMTimestampAndRateIndex(
-        uint128 marketId,
-        uint32 maturityTimestamp
-    ) internal view returns (RateOracleObservation memory observation) {
-        IRateOracleModule marketManager = 
-            IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
-
-        if (block.timestamp < maturityTimestamp) {
-            observation.timestamp = block.timestamp;
-            observation.rateIndex = marketManager.getRateIndexCurrent(marketId);
-        } else {
-            observation.timestamp = maturityTimestamp;
-            observation.rateIndex = marketManager.getRateIndexMaturity(marketId, maturityTimestamp);
-        }
-    }
-
-    
 }

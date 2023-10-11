@@ -14,6 +14,7 @@ import "../../storage/Portfolio.sol";
 import "../ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
 import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
+import { MakerOrderParams } from "../DataTypes.sol";
 
 /**
  * @title Library for maker orders logic.
@@ -27,45 +28,19 @@ library InitiateMakerOrder {
      */
     error NotAuthorized(address caller, bytes32 functionName);
 
-    struct MakerOrderParams {
-        uint128 accountId;
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        int24 tickLower;
-        int24 tickUpper;
-        int128 liquidityDelta;
-    }
-
     /**
      * @notice Emitted after a successful mint or burn of liquidity on a given LP position
-     * @param accountId The id of the account.
-     * @param marketId The id of the market.
-     * @param maturityTimestamp The maturity timestamp of the position.
-     * @param sender Address that called the initiate maker order function.
-     * @param tickLower Lower tick of the range order
-     * @param tickUpper Upper tick of the range order
-     * @param liquidityDelta Liquidity added (positive values) or removed (negative values) within the tick range
+     * @param params The parameters of the maker order transaction
      * @param blockTimestamp The current block timestamp.
      */
     event MakerOrder(
-        uint128 indexed accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        address sender,
-        int24 indexed tickLower,
-        int24 indexed tickUpper,
-        int128 liquidityDelta,
+        MakerOrderParams params,
         uint256 blockTimestamp
     );
 
     /**
      * @notice Initiates a maker order for a given account by providing or burining liquidity in the given tick range
-     * param accountId Id of the `Account` with which the lp wants to provide liqudity
-     * param marketId Id of the market in which the lp wants to provide liqudiity
-     * param maturityTimestamp Timestamp at which a given market matures
-     * param tickLower Lower tick of the range order
-     * param tickUpper Upper tick of the range order
-     * param liquidityDelta Liquidity to add (positive values) or remove (negative values) within the tick range
+     * @param params Parameters of the maker order
      */
     function initiateMakerOrder(MakerOrderParams memory params)
         internal
@@ -75,30 +50,21 @@ library InitiateMakerOrder {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
-        int256 baseAmount = pool.executeDatedMakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            params.tickLower,
-            params.tickUpper,
-            params.liquidityDelta
-        );
+        pool.executeDatedMakerOrder(params);
 
-        Portfolio
-            .loadOrCreate(params.accountId, params.marketId)
-            .updatePosition(
-                params.maturityTimestamp,
-                PositionBalances({
-                    base: 0,
-                    quote: 0,
-                    extraCashflow: 0
-                })
-            );
+        Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
+            params.maturityTimestamp,
+            PositionBalances({
+                base: 0,
+                quote: 0,
+                extraCashflow: 0
+            })
+        );
         
         market.updateOracleStateIfNeeded();
 
         annualizedNotionalAmount = 
-            ExposureHelpers.baseToAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
+            ExposureHelpers.baseToAnnualizedExposure(params.baseDelta, params.marketId, params.maturityTimestamp);
         
         ExposureHelpers.checkPositionSizeLimit(
             params.accountId,
@@ -112,16 +78,7 @@ library InitiateMakerOrder {
             annualizedNotionalAmount // inherits the sign of liquidity delta
         );
 
-        emit MakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            msg.sender,
-            params.tickLower,
-            params.tickUpper,
-            params.liquidityDelta,
-            block.timestamp
-        );
+        emit MakerOrder(params, block.timestamp);
     }
 
 }

@@ -34,3 +34,12 @@ struct UnfilledBalances {
     uint256 quoteLong;
     uint256 quoteShort;
 }
+
+struct MakerOrderParams {
+    uint128 accountId;
+    uint128 marketId;
+    uint32 maturityTimestamp;
+    int24 tickLower;
+    int24 tickUpper;
+    int256 baseDelta;
+}

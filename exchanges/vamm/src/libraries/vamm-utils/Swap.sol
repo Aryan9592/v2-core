@@ -61,10 +61,12 @@ library Swap {
             }
         }
 
+        RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
+
         SwapFixedValues memory swapFixedValues = SwapFixedValues({
             secondsTillMaturity: maturityTimestamp - block.timestamp,
             tickLimits: VammTicks.getCurrentTickLimits(self, params.markPrice, params.markPriceBand),
-            liquidityIndex: PoolConfiguration.getRateOracle(marketId).getCurrentIndex()
+            liquidityIndex: rateOracleObservation.rateIndex
         });
 
         if (params.amountSpecified == 0) {
@@ -99,9 +101,6 @@ library Swap {
                 extraCashflow: 0
             })
         });
-
-        RateOracleObservation memory newObservation = 
-            VammHelpers.getNewMTMTimestampAndRateIndex(marketId, maturityTimestamp);
 
         // continue swapping as long as we haven't used the entire input/output and haven't 
         //     reached the price (implied fixed rate) limit
@@ -183,7 +182,7 @@ library Swap {
                 step.tokenDeltas.extraCashflow = TraderPosition.computeCashflow(
                     step.tokenDeltas.base,
                     step.tokenDeltas.quote,
-                    newObservation
+                    rateOracleObservation
                 );
 
                 state.growthGlobalX128 = VammHelpers.calculateGlobalTrackerValues(

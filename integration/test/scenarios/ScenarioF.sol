@@ -307,8 +307,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionInfo,
                 expectedUnfilledBaseLong: 310446070449190803793,
                 expectedUnfilledBaseShort: 689553929550809196206,
-                expectedUnfilledQuoteLong: 41198760337346016142,
-                expectedUnfilledQuoteShort: 41972657502152943674
+                expectedUnfilledQuoteLong: 41198760337346016313,
+                expectedUnfilledQuoteShort: 41972657502152943879
             });
 
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
@@ -458,8 +458,8 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionGlp,
                 expectedUnfilledBaseLong: 110380184483112673149,
                 expectedUnfilledBaseShort: 889619815516887326850,
-                expectedUnfilledQuoteLong: 16482429557428148354,
-                expectedUnfilledQuoteShort: 62687670562749248678
+                expectedUnfilledQuoteLong: 16482429557428148442,
+                expectedUnfilledQuoteShort: 62687670562749249138
             });
 
             checkFilledBalances({

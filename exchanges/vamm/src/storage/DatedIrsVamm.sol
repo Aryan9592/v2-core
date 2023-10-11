@@ -3,6 +3,7 @@ pragma solidity >=0.8.13;
 
 
 import { Oracle } from "./Oracle.sol";
+import { PoolConfiguration } from "./PoolConfiguration.sol";
 
 import { Tick } from "../libraries/ticks/Tick.sol";
 
@@ -12,10 +13,12 @@ import { LP } from "../libraries/vamm-utils/LP.sol";
 import { VammConfiguration } from "../libraries/vamm-utils/VammConfiguration.sol";
 import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 
-import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
 
 
 /**
@@ -212,5 +215,14 @@ library DatedIrsVamm {
     view
     returns (FilledBalances memory) {
         return AccountBalances.getAccountFilledBalances(self, accountId);
+    }
+
+    function getLatestRateIndex(DatedIrsVamm.Data storage self) internal view returns (RateOracleObservation memory) {
+        IRateOracleModule rateOracleModule = IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
+        
+        return rateOracleModule.getLatestRateIndex(
+            self.immutableConfig.marketId, 
+            self.immutableConfig.maturityTimestamp
+        );
     }
 }
