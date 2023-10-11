@@ -12,6 +12,8 @@ import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { UD60x18, ud } from "@prb/math/UD60x18.sol";
+import "../ExposureHelpers.sol";
 
 /*
 TODOs
@@ -20,7 +22,6 @@ TODOs
     - add returns to execute liquidation order
     - make sure open interest trackers are updated after a liquidation order is executed
     - consider moving base filled calc (done in validate liq order) into portfolio?
-    - make sure active market and maturity trackers of the liquidator are updated
     - liquidatable portfolio is retrieved twice in the liquidation order flow (once in validation and once in main body)
 */
 
@@ -51,15 +52,43 @@ library ExecuteLiquidationOrder {
      */
     error FilledBalanceZero(uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp);
 
+    /**
+     * @dev Thrown if liquidation order hits the price limit set by the liquidator
+     */
+    error PriceLimitBreached(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    );
+
     struct LiquidationOrderParams {
         uint128 liquidatableAccountId;
         uint128 liquidatorAccountId;
         uint128 marketId;
         uint32 maturityTimestamp;
         int256 baseAmountToBeLiquidated;
-        uint160 priceLimit;
+        uint256 priceLimit;
     }
 
+    function isPriceLimitBreached(
+        bool isLiquidationLong,
+        UD60x18 liquidationPrice,
+        UD60x18 priceLimit
+    ) private pure returns (bool)  {
+
+        // if liquidation is long (from the perspective of liquidatee), the liquidator is taking the short side
+
+        if (isLiquidationLong && liquidationPrice.lt(priceLimit)) {
+            return true;
+        }
+
+        if (!isLiquidationLong && liquidationPrice.gt(priceLimit)) {
+            return true;
+        }
+
+        return false;
+    }
 
     function validateLiquidationOrder(
         uint128 liquidatableAccountId,
@@ -90,7 +119,6 @@ library ExecuteLiquidationOrder {
         }
 
         // revert if liquidation order direction is wrong
-        //  if baseAmountToBeLiquidated*baseAmountLiquidatableAccount>0
         if ( (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
             || (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
             revert WrongLiquidationDirection(
@@ -103,16 +131,10 @@ library ExecuteLiquidationOrder {
 
     }
 
-    function computeMaxLiquidatableBase(
-        int256 baseAmountLiquidatable
-    ) private view returns (int256) {
-        // todo: needs implementation
-        return baseAmountLiquidatable;
-    }
-
     function executeLiquidationOrder(
         LiquidationOrderParams memory params
     ) internal {
+
         int256 baseAmountLiquidatable = validateLiquidationOrder(
             params.liquidatableAccountId,
             params.marketId,
@@ -120,16 +142,35 @@ library ExecuteLiquidationOrder {
             params.baseAmountToBeLiquidated
         );
 
-        int256 maxBaseAmountLiquidatable = computeMaxLiquidatableBase(baseAmountLiquidatable);
-
         int256 baseAmountToBeLiquidated = params.baseAmountToBeLiquidated;
 
-        if (maxBaseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
-            baseAmountToBeLiquidated = -maxBaseAmountLiquidatable;
+        if (baseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
+            baseAmountToBeLiquidated = -baseAmountLiquidatable;
         }
 
-        // todo base to quote conversion based on market price
-        int256 quoteDeltaFromLiquidation = 0;
+        Market.Data storage market = Market.exists(params.marketId);
+
+        UD60x18 liquidationPrice = ExposureHelpers.computeTwap(
+            params.marketId,
+            params.maturityTimestamp,
+            market.marketConfig.poolAddress,
+            0
+        );
+
+        if (isPriceLimitBreached(baseAmountToBeLiquidated > 0, liquidationPrice, ud(params.priceLimit))) {
+            revert PriceLimitBreached(
+                params.liquidatableAccountId,
+                params.liquidatorAccountId,
+                params.marketId,
+                params.maturityTimestamp
+            );
+        }
+
+        int256 quoteDeltaFromLiquidation = ExposureHelpers.computeQuoteDelta(
+            baseAmountToBeLiquidated,
+            liquidationPrice,
+            params.marketId
+        );
 
         Portfolio.Data storage portfolioLiquidatable = Portfolio.exists(
             params.liquidatableAccountId,

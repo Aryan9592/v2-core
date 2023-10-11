@@ -14,9 +14,9 @@ import {Market} from "../../storage/Market.sol";
 
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {mulUDxUint, mulUDxInt, mulSDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { sd, unwrap, SD59x18 } from "@prb/math/SD59x18.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
-
 import {UNIT, ZERO} from "@prb/math/UD60x18.sol";
 
 /**
@@ -168,12 +168,9 @@ library AccountExposure {
     }
 
     struct MarginInfoVars {
+        int256 realizedPnL;
+        int256 unrealizedPnL;
         uint256 liquidationMarginRequirement;
-
-        int256 accruedCashflows;
-        int256 lockedPnL;
-        int256 highestUnrealizedLoss;
-
         uint256 initialMarginRequirement;
         uint256 maintenanceMarginRequirement;
         uint256 dutchMarginRequirement;
@@ -181,8 +178,74 @@ library AccountExposure {
         uint256 initialBufferMarginRequirement;
     }
 
+    function getBlockExposures(
+        Account.Data storage self,
+        uint256 riskBlockId,
+        uint256 riskMatrixDim,
+        uint256[] memory markets
+    ) private view returns (
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    ) {
+
+        filledExposures = new int256[](riskMatrixDim);
+        uint256 unfilledExposuresCounter;
+
+        for (uint256 i = 0; i < markets.length; i++) {
+
+            Market.Data storage market = Market.exists(markets[i].to128());
+
+            if (!(market.riskBlockId == riskBlockId)) {
+                continue;
+            }
+
+            (
+                int256[] memory marketFilledExposures,
+                Account.UnfilledExposure[] memory marketUnfilledExposures
+            ) = market.getAccountTakerAndMakerExposures(self.id, riskMatrixDim);
+
+            // todo: revert if marketFilledExposures.length doesn't match the riskMatrixDim
+
+            for (uint256 j = 0; j < marketFilledExposures.length; j++) {
+                filledExposures[j] += marketFilledExposures[j];
+            }
+
+            for (uint256 k = 0; k < marketUnfilledExposures.length; k++) {
+
+                unfilledExposures[unfilledExposuresCounter] = marketUnfilledExposures[k];
+                unfilledExposuresCounter += 1;
+
+            }
+
+        }
+
+        return (filledExposures, unfilledExposures);
+
+    }
+
+    function getAggregatePnLComponents(
+        Account.Data storage self,
+        uint256[] memory markets
+    ) private view returns (int256 realizedPnL, int256 unrealizedPnL) {
+
+        for (uint256 i = 0; i < markets.length; i++) {
+
+            uint128 marketId = markets[i].to128();
+            Market.Data storage market = Market.exists(marketId);
+
+            Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
+
+            realizedPnL += pnlComponents.realizedPnL;
+            unrealizedPnL += pnlComponents.unrealizedPnL;
+
+        }
+
+        return (realizedPnL, unrealizedPnL);
+
+    }
+
     /**
-     * @dev Returns the initial (im) and liquidataion (lm) margin requirement deltas
+     * @dev Returns the margin info for a given account
      * @dev The amounts are in collateral type. 
      */
     function getMarginInfoByCollateralType(
@@ -198,51 +261,27 @@ library AccountExposure {
 
         uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
 
-        for (uint256 i = 0; i < markets.length; i++) {
-            uint128 marketId = markets[i].to128();
-            Market.Data storage market = Market.exists(marketId);
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-            // Get the risk parameter of the market
-            UD60x18 riskParameter = market.riskConfig.riskParameter;
+        for (uint256 i = 0; i < collateralPool.riskBlockCount; i++) {
 
-            // Get taker and maker exposure to the market
-            Account.MakerMarketExposure[] memory makerExposures = 
-                market.getAccountTakerAndMakerExposures(self.id);
+            uint256 riskMatrixDim = collateralPool.riskMatrixDims[i];
 
-            // Aggregate LMR and unrealized loss for all exposures
-            for (uint256 j = 0; j < makerExposures.length; j++) {
-                Account.MarketExposure memory exposureLower = makerExposures[j].lower;
-                Account.MarketExposure memory exposureUpper = makerExposures[j].upper;
+            (
+                int256[] memory filledExposures,
+                Account.UnfilledExposure[] memory unfilledExposures
+            ) = getBlockExposures(self, i, riskMatrixDim, markets);
 
-                vars.accruedCashflows += exposureLower.pnlComponents.accruedCashflows;
-                vars.lockedPnL += exposureLower.pnlComponents.lockedPnL;
+            vars.liquidationMarginRequirement += computeLiquidationMarginRequirement(
+                collateralPool,
+                i,
+                filledExposures,
+                unfilledExposures
+            );
 
-                uint256 lowerLMR = 
-                    computeLiquidationMarginRequirement(exposureLower.annualizedNotional, riskParameter);
-
-                if (equalExposures(exposureLower, exposureUpper)) {
-                    vars.liquidationMarginRequirement += lowerLMR;
-                    vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
-                } else {
-                    uint256 upperLMR = 
-                    computeLiquidationMarginRequirement(exposureUpper.annualizedNotional, riskParameter);
-
-                    if (
-                        lowerLMR.toInt() + exposureLower.pnlComponents.unrealizedPnL >
-                        upperLMR.toInt() + exposureUpper.pnlComponents.unrealizedPnL
-                    ) {
-                        vars.liquidationMarginRequirement += lowerLMR;
-                        vars.highestUnrealizedLoss += SignedMath.min(exposureLower.pnlComponents.unrealizedPnL, 0);
-                    } else {
-                        vars.liquidationMarginRequirement += upperLMR;
-                        vars.highestUnrealizedLoss += SignedMath.min(exposureUpper.pnlComponents.unrealizedPnL, 0);
-                    }
-                }
-            }
         }
 
-        // Get the initial margin requirement
-        vars.initialMarginRequirement = mulUDxUint(riskMultipliers.imMultiplier, vars.liquidationMarginRequirement);
+        (vars.realizedPnL, vars.unrealizedPnL) = getAggregatePnLComponents(self, markets);
 
         // Get the maintenance margin requirement
         vars.maintenanceMarginRequirement = mulUDxUint(riskMultipliers.mmrMultiplier, vars.liquidationMarginRequirement);
@@ -258,14 +297,9 @@ library AccountExposure {
 
         // Get the collateral balance of the account in this specific collateral
         int256 netDeposits = self.getAccountNetCollateralDeposits(collateralType);
+        int256 marginBalance = netDeposits + vars.realizedPnL + vars.unrealizedPnL;
+        int256 realBalance = netDeposits + vars.realizedPnL;
 
-        // todo: margin balance should have the unrealized pnl from filled orders!
-        // otherwise we're being too restrictive
-        int256 marginBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL + vars.highestUnrealizedLoss;
-        int256 realBalance = netDeposits + vars.accruedCashflows + vars.lockedPnL;
-        
-        // todo: make sure when we're adding the highestUnrealizedLoss it's only from unfilled orders
-        // filled orders should be taken care of in the balance calculations
         return Account.MarginInfo({
             collateralType: collateralType,
             collateralInfo: Account.CollateralInfo({
@@ -299,34 +333,149 @@ library AccountExposure {
         return (value >= 0) ? int256(1) : -1;
     }
 
+
+    function computeLMRFilled(
+        CollateralPool.Data storage collateralPool,
+        uint256 riskBlockId,
+        int256[] memory exposures
+    ) private view returns (uint256) {
+
+        SD59x18 lmrFilledSquared;
+
+        for (uint256 i = 0; i < exposures.length; i++) {
+
+            for (uint256 j = 0; i < exposures.length; j++) {
+
+                SD59x18 riskParam = collateralPool.riskMatrix[riskBlockId][i][j];
+
+                if (unwrap(riskParam) != 0) {
+                    lmrFilledSquared.add(sd(exposures[i]).mul(sd(exposures[j])).mul(riskParam));
+                }
+
+            }
+
+        }
+
+        return lmrFilledSquared.sqrt().unwrap().toUint();
+    }
+
+
+
+    function hasUnfilledExposure(
+        Account.UnfilledExposureComponents[] memory unfilledExposureComponents,
+        bool isLong
+    ) private view returns (bool hasUnfilled) {
+
+        for (uint256 i = 0; i < unfilledExposureComponents.length; i++) {
+
+            if (isLong && unfilledExposureComponents[i].unfilledExposureLong != 0) {
+                return true;
+            }
+
+            if (!isLong && unfilledExposureComponents[i].unfilledExposureShort != 0) {
+                return true;
+            }
+
+        }
+
+
+        return hasUnfilled;
+    }
+
+    function getCFExposures(
+        uint256[] memory riskMatrixRowIds,
+        Account.UnfilledExposureComponents[] memory unfilledExposureComponents,
+        int256[] memory filledExposures,
+        bool isLong
+    ) private view returns (int256[] memory) {
+
+        for (uint256 i = 0; i < riskMatrixRowIds.length; i++) {
+
+            if (isLong) {
+                filledExposures[i] += unfilledExposureComponents[i].unfilledExposureLong.toInt();
+            } else {
+                filledExposures[i] += unfilledExposureComponents[i].unfilledExposureShort.toInt();
+            }
+
+        }
+
+        return filledExposures;
+
+    }
+
+    function computeLMRUnfilled(
+        CollateralPool.Data storage collateralPool,
+        uint256 riskBlockId,
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures,
+        uint256 lmrFilled
+    ) private view returns (uint256 lmrUnfilled) {
+
+        for (uint256 i = 0; i < unfilledExposures.length; i++) {
+
+            uint256 lmrLong;
+            uint256 lmrShort;
+
+            Account.UnfilledExposure memory unfilledExposure = unfilledExposures[i];
+
+            if (hasUnfilledExposure(unfilledExposure.exposureComponentsArr, true)) {
+
+                int256[] memory cfExposuresLong = getCFExposures(
+                    unfilledExposure.riskMatrixRowIds,
+                    unfilledExposure.exposureComponentsArr,
+                    filledExposures,
+                    true
+                );
+
+                uint256 lmrLongCf = computeLMRFilled(collateralPool, riskBlockId, cfExposuresLong);
+
+                lmrLong = lmrLongCf > lmrFilled ? lmrLongCf - lmrFilled : 0;
+                lmrLong += unfilledExposure.pvmrComponents.pvmrLong;
+
+            }
+
+            if (hasUnfilledExposure(unfilledExposure.exposureComponentsArr, false)) {
+
+                int256[] memory cfExposuresShort = getCFExposures(
+                    unfilledExposure.riskMatrixRowIds,
+                    unfilledExposure.exposureComponentsArr,
+                    filledExposures,
+                    false
+                );
+
+                uint256 lmrShortCf = computeLMRFilled(collateralPool, riskBlockId, cfExposuresShort);
+
+                lmrShort = lmrShortCf > lmrFilled ? lmrShortCf - lmrFilled : 0;
+                lmrShort += unfilledExposure.pvmrComponents.pvmrShort;
+
+            }
+
+            lmrUnfilled += lmrLong > lmrShort ? lmrLong : lmrShort;
+
+        }
+
+        return lmrUnfilled;
+
+    }
+
     /**
-     * @dev Returns the liquidation margin requirement given the annualized exposure and the risk parameter
+     * @dev Returns the liquidation margin requirement given the exposures array
      */
-    function computeLiquidationMarginRequirement(int256 annualizedNotional, UD60x18 riskParameter)
+    function computeLiquidationMarginRequirement(
+        CollateralPool.Data storage collateralPool,
+        uint256 riskBlockId,
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    )
     private
-    pure
+    view
     returns (uint256 liquidationMarginRequirement)
     {
-        uint256 absAnnualizedNotional = annualizedNotional < 0 ? uint256(-annualizedNotional) : uint256(annualizedNotional);
-        liquidationMarginRequirement = mulUDxUint(riskParameter, absAnnualizedNotional);
+        uint256 lmrFilled = computeLMRFilled(collateralPool, riskBlockId, filledExposures);
+        uint256 lmrUnfilled = computeLMRUnfilled(collateralPool, riskBlockId, filledExposures, unfilledExposures, lmrFilled);
+        liquidationMarginRequirement = lmrFilled + lmrUnfilled;
         return liquidationMarginRequirement;
     }
 
 
-    function equalExposures(Account.MarketExposure memory a, Account.MarketExposure memory b) 
-    private 
-    pure 
-    returns (bool) 
-    {
-        if (
-            a.annualizedNotional == b.annualizedNotional && 
-            a.pnlComponents.accruedCashflows == b.pnlComponents.accruedCashflows &&
-            a.pnlComponents.lockedPnL == b.pnlComponents.lockedPnL &&
-            a.pnlComponents.unrealizedPnL == b.pnlComponents.unrealizedPnL
-        ) {
-            return true;
-        }
-
-        return false;
-    }
 }

@@ -10,11 +10,10 @@ pragma solidity >=0.8.19;
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {IPool} from "../interfaces/IPool.sol";
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
 
-import { mulUDxInt, divIntUD, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt, divIntUD, mulUDxUint, mulSDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
@@ -23,6 +22,9 @@ import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
+import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
+import "../storage/MarketManagerConfiguration.sol";
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -36,32 +38,73 @@ library ExposureHelpers {
     error PositionExceedsSizeLimit(uint256 positionSizeLimit, uint256 positionSize);
     error OpenInterestLimitExceeded(uint256 limit, uint256 openInterest);
 
-    function computeUnrealizedPnL(
+    uint256 internal constant SECONDS_IN_DAY = 86400;
+
+    struct PoolExposureState {
+        uint128 marketId;
+        uint32 maturityTimestamp;
+        UD60x18 exposureFactor;
+
+        int256 baseBalance;
+        int256 quoteBalance;
+        int256 accruedInterest;
+
+        int256 baseBalancePool;
+        int256 quoteBalancePool;
+        int256 accruedInterestPool;
+
+        uint256 unfilledBaseLong;
+        uint256 unfilledQuoteLong;
+        uint256 unfilledBaseShort;
+        uint256 unfilledQuoteShort;
+        UD60x18 avgLongPrice;
+        UD60x18 avgShortPrice;
+    }
+
+    // todo: is this struct used anywhere?
+    struct AccruedInterestTrackers {
+        int256 accruedInterest;
+        uint256 lastMTMTimestamp;
+        UD60x18 lastMTMRateIndex;
+    }
+
+    function computeTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
         address poolAddress,
-        int256 baseBalance,
-        int256 quoteBalance
-    ) internal view returns (int256 unrealizedPnL) {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        int256 baseBalance
+    ) internal view returns (UD60x18) {
+
+        // todo: consider passing quote token and twap lookback as arguments to this helper
 
         Market.Data storage market = Market.exists(marketId);
 
         int256 orderSizeWad = DecimalMath.changeDecimals(
-            -baseBalance, 
+            -baseBalance,
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
 
-        UD60x18 twap = IPool(poolAddress).getAdjustedDatedIRSTwap(
-            marketId, 
-            maturityTimestamp, 
-            orderSizeWad, 
+        return IPool(poolAddress).getAdjustedDatedIRSTwap(
+            marketId,
+            maturityTimestamp,
+            orderSizeWad,
             market.marketConfig.twapLookbackWindow
         );
 
+    }
+
+    function computeUnrealizedPnL(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseBalance,
+        int256 quoteBalance,
+        UD60x18 unwindPrice
+    ) internal view returns (int256 unrealizedPnL) {
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+
         int256 exposure = baseToExposure(baseBalance, marketId);
-        int256 unwindQuote = mulUDxInt(twap.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
+        int256 unwindQuote = mulUDxInt(unwindPrice.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
 
         return quoteBalance + unwindQuote;
     }
@@ -93,19 +136,6 @@ library ExposureHelpers {
         revert Market.UnsupportedMarketType(marketType);
     }
 
-    /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        UD60x18 factor = exposureFactor(marketId);
-
-        return timeDeltaAnnualized.mul(factor);
-    }
-
     function baseToAnnualizedExposure(
         int256 baseAmount,
         uint128 marketId,
@@ -115,8 +145,11 @@ library ExposureHelpers {
         view
         returns (int256 annualizedExposure)
     {
-        UD60x18 factor = annualizedExposureFactor(marketId, maturityTimestamp);
-        annualizedExposure = mulUDxInt(factor, baseAmount);
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        UD60x18 factor = exposureFactor(marketId);
+        UD60x18 annualizedFactor = timeDeltaAnnualized.mul(factor);
+
+        annualizedExposure = mulUDxInt(annualizedFactor, baseAmount);
     }
 
     function baseToExposure(
@@ -131,48 +164,203 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function getUnfilledExposureInPool(
+
+    function getPnLComponents(
         uint128 marketId,
         uint32 maturityTimestamp,
         FilledBalances memory filledBalances,
-        UnfilledBalances memory unfilledBalances,
-        bool isLong,
         address poolAddress
-    ) internal view returns (Account.MarketExposure memory) {
-        int256 totalBase = 0;
-        int256 totalQuote = 0;
+    ) internal view returns (Account.PnLComponents memory pnlComponents) {
 
-        if (isLong) {
-            totalBase = filledBalances.base + unfilledBalances.baseLong.toInt();
-            totalQuote = filledBalances.quote - unfilledBalances.quoteLong.toInt();
-        }
-        else {
-            totalBase = filledBalances.base - unfilledBalances.baseShort.toInt();
-            totalQuote = filledBalances.quote + unfilledBalances.quoteShort.toInt();
-        }
-
-        int256 uPnL = computeUnrealizedPnL(
+        UD60x18 twap = computeTwap(
             marketId,
             maturityTimestamp,
             poolAddress,
-            totalBase,
-            totalQuote
+            filledBalances.base
         );
 
-        return Account.MarketExposure({
-            annualizedNotional: mulUDxInt(
-                annualizedExposureFactor(
-                    marketId,
-                    maturityTimestamp
-                ), 
-                totalBase
-            ),
-            pnlComponents: Account.PnLComponents({
-                accruedCashflows: filledBalances.accruedInterest,
-                lockedPnL: 0,
-                unrealizedPnL: uPnL
-            })
-        });
+        pnlComponents.unrealizedPnL = computeUnrealizedPnL(
+            marketId,
+            maturityTimestamp,
+            filledBalances.base,
+            filledBalances.quote,
+            twap
+        );
+
+        pnlComponents.realizedPnL = filledBalances.accruedInterest;
+
+        return pnlComponents;
+    }
+
+    function decoupleExposures(
+        int256 notional,
+        uint256 tenorInSeconds,
+        uint256 timeToMaturityInSeconds
+    ) private view returns (int256 shortRateExposure, int256 swapRateExposure) {
+
+        // todo: division by zero checks, etc
+
+        // short rate exposure
+        int256 numSR = (tenorInSeconds - timeToMaturityInSeconds).toInt();
+        int256 denSR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
+        SD59x18 notionalToExposureFactorSR = sd(numSR).div(sd(denSR)).mul(Time.annualize(SECONDS_IN_DAY).intoSD59x18());
+        shortRateExposure = mulSDxInt(notionalToExposureFactorSR, notional);
+
+
+        // swap rate exposure
+        int256 numSWR = (timeToMaturityInSeconds - SECONDS_IN_DAY).toInt();
+        int256 denSWR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
+        SD59x18 notionalToExposureFactorSWR = sd(numSWR).div(sd(denSWR)).mul(Time.annualize(tenorInSeconds).intoSD59x18());
+        swapRateExposure = mulSDxInt(notionalToExposureFactorSWR, notional);
+
+        return (shortRateExposure, swapRateExposure);
+    }
+
+    function getFilledExposures(
+        int256 filledBase,
+        UD60x18 exposureFactor,
+        uint32 maturityTimestamp,
+        uint256 tenorInSeconds
+    ) internal view returns (
+        int256 shortRateFilledExposure,
+        int256 swapRateFilledExposure
+    ) {
+
+        int256 filledNotional = mulUDxInt(
+            exposureFactor,
+            filledBase
+        );
+
+        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
+
+        (shortRateFilledExposure, swapRateFilledExposure) = decoupleExposures(
+            filledNotional,
+            tenorInSeconds,
+            timeToMaturityInSeconds
+        );
+
+        return (shortRateFilledExposure, swapRateFilledExposure);
+    }
+
+    function getUnfilledExposureComponents(
+        uint256 unfilledBaseLong,
+        uint256 unfilledBaseShort,
+        UD60x18 exposureFactor,
+        uint32 maturityTimestamp,
+        uint256 tenorInSeconds
+    ) internal view returns (
+        Account.UnfilledExposureComponents[] memory unfilledExposureComponents
+    ) {
+
+        // first entry is for short rate and second is for swap rate
+        unfilledExposureComponents = new Account.UnfilledExposureComponents[](2);
+        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
+
+        if (unfilledBaseLong != 0) {
+
+            uint256 unfilledNotionalLong = mulUDxUint(
+                exposureFactor,
+                unfilledBaseLong
+            );
+
+
+            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) = decoupleExposures(
+                unfilledNotionalLong.toInt(),
+                tenorInSeconds,
+                timeToMaturityInSeconds
+            );
+
+            (
+                unfilledExposureComponents[0].unfilledExposureLong,
+                unfilledExposureComponents[1].unfilledExposureLong
+            ) = (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
+
+        }
+
+        if (unfilledBaseShort != 0) {
+
+            uint256 unfilledNotionalShort = mulUDxUint(
+                exposureFactor,
+                unfilledBaseShort
+            );
+
+            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) = decoupleExposures(
+                unfilledNotionalShort.toInt(),
+                tenorInSeconds,
+                timeToMaturityInSeconds
+            );
+
+            (
+                unfilledExposureComponents[0].unfilledExposureShort,
+                unfilledExposureComponents[1].unfilledExposureShort
+            ) = (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
+
+        }
+
+        return unfilledExposureComponents;
+    }
+
+    function computePVMRUnwindPrice(
+        UD60x18 avgPrice,
+        UD60x18 diagonalRiskParameter,
+        bool isLong
+    ) private view returns (UD60x18 pvmrUnwindPrice) {
+        // todo: note this doesn't take into account slippage & spread
+        if (isLong) {
+            avgPrice.add(diagonalRiskParameter);
+        } else {
+            avgPrice.sub(diagonalRiskParameter);
+        }
+
+        return pvmrUnwindPrice;
+    }
+
+    function getPVMRComponents(
+        UnfilledBalances memory unfilledBalances,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        address poolAddress,
+        uint256 riskMatrixRowId
+    ) internal view returns (Account.PVMRComponents memory pvmrComponents) {
+
+        UD60x18 diagonalRiskParameter;
+
+        if ((unfilledBalances.baseShort != 0) || (unfilledBalances.baseLong != 0)) {
+            address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+            diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
+                marketId,
+                riskMatrixRowId,
+                riskMatrixRowId
+            ).intoUD60x18();
+        }
+
+        if (unfilledBalances.baseShort != 0) {
+
+            int256 unrealizedPnLShort = computeUnrealizedPnL(
+                marketId,
+                maturityTimestamp,
+                -unfilledBalances.baseShort.toInt(),
+                unfilledBalances.quoteShort.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.avgShortPrice, diagonalRiskParameter, false)
+            );
+
+            pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
+        }
+
+        if (unfilledBalances.baseLong != 0) {
+
+            int256 unrealizedPnLLong = computeUnrealizedPnL(
+                marketId,
+                maturityTimestamp,
+                unfilledBalances.baseLong.toInt(),
+                -unfilledBalances.quoteLong.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.avgLongPrice, diagonalRiskParameter, true)
+            );
+
+            pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
+        }
+
+        return pvmrComponents;
     }
 
     function checkPositionSizeLimit(
@@ -180,26 +368,32 @@ library ExposureHelpers {
         uint128 marketId,
         uint32 maturityTimestamp
     ) internal view {
-        Market.Data storage market = Market.exists(marketId);
-        IPool pool = IPool(market.marketConfig.poolAddress);
 
-        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        Account.MakerMarketExposure memory exposure = 
-            portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
-        uint256 positionSize = SignedMath.abs(
-            exposure.lower.annualizedNotional > exposure.upper.annualizedNotional ?
-                exposure.lower.annualizedNotional :
-                exposure.upper.annualizedNotional
-        );
+        // todo: consider separate limit check for makers and takers
+        // todo fix once exposures are finalized
 
-        uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
-        if (positionSize > upperLimit) {
-            revert PositionExceedsSizeLimit(upperLimit, positionSize);
-        }
-        uint256 lowerLimit = market.marketConfig.positionSizeLowerLimit;
-        if (positionSize < lowerLimit) {
-            revert PositionExceedsSizeLimit(lowerLimit, positionSize);
-        }
+//        Market.Data storage market = Market.exists(marketId);
+//        IPool pool = IPool(market.marketConfig.poolAddress);
+//
+//        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+//
+//        Account.MarketExposure memory exposure =
+//            portfolio.getAccountExposuresPerMaturity(address(pool), maturityTimestamp);
+//
+//        uint256 positionSize = SignedMath.abs(
+//            exposure.exposureComponents.cfExposureShort > exposure.exposureComponents.cfExposureLong ?
+//                exposure.exposureComponents.cfExposureShort  :
+//                exposure.exposureComponents.cfExposureLong
+//        );
+//
+//        uint256 upperLimit = market.marketConfig.positionSizeUpperLimit;
+//        if (positionSize > upperLimit) {
+//            revert PositionExceedsSizeLimit(upperLimit, positionSize);
+//        }
+//        uint256 lowerLimit = market.marketConfig.positionSizeLowerLimit;
+//        if (positionSize < lowerLimit) {
+//            revert PositionExceedsSizeLimit(lowerLimit, positionSize);
+//        }
     }
 
     function checkOpenInterestLimit(
@@ -230,4 +424,20 @@ library ExposureHelpers {
             }
         }
     }
+
+    function computeQuoteDelta(
+        int256 baseDelta,
+        UD60x18 markPrice,
+        uint128 marketId
+    ) internal view returns (int256) {
+
+        int256 exposure = ExposureHelpers.baseToExposure(
+            baseDelta,
+            marketId
+        );
+
+        return mulUDxInt(markPrice, -exposure);
+
+    }
+
 }

@@ -81,7 +81,6 @@ abstract contract Checks is AssertionHelpers {
         uint256 expectedUnfilledQuoteLong,
         uint256 expectedUnfilledQuoteShort
     ) internal {
-
         UnfilledBalances memory unfilledBalances = datedIrsProxy.getAccountUnfilledBaseAndQuote(
             positionInfo.marketId, 
             positionInfo.maturityTimestamp, 
@@ -92,6 +91,7 @@ abstract contract Checks is AssertionHelpers {
         assertEq(expectedUnfilledBaseShort, unfilledBalances.baseShort, "unfilledBaseShort");
         assertEq(expectedUnfilledQuoteLong, unfilledBalances.quoteLong, "unfilledQuoteLong");
         assertEq(expectedUnfilledQuoteShort, unfilledBalances.quoteShort, "unfilledQuoteShort");
+        // todo: add additional assertions for average prices
     }
 
     function checkZeroUnfilledBalances(

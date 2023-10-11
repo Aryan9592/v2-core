@@ -32,13 +32,6 @@ library Market {
      */
     error MarketNotFound(uint128 marketId);
 
-    struct RiskConfiguration {
-        /**
-         * @dev Risk Parameters are multiplied by notional exposures to derived shocked cashflow calculations
-         */
-        UD60x18 riskParameter;
-    }
-
     struct FeeConfiguration {
         /**
          * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
@@ -80,10 +73,6 @@ library Market {
          */
         string name;
         /**
-         * @dev Market risk configurations
-         */
-        RiskConfiguration riskConfig;
-        /**
          * @dev Market fee configurations for collateral pool
          */
         FeeConfiguration collateralPoolFeeConfig;
@@ -99,6 +88,11 @@ library Market {
          * @dev Address of fee collector
          */
         uint128 protocolFeeCollectorAccountId;
+
+        /**
+         * @dev Id of the risk matrix which hosts the parameters for this market
+         */
+        uint256 riskBlockId;
     }
 
     /**
@@ -169,22 +163,26 @@ library Market {
      * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
      * for a given collateralType
      */
-    function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId)
+    function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId, uint256 riskMatrixDim)
         internal
         view
-        returns (Account.MakerMarketExposure[] memory exposure)
+        returns (
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    )
     {
-        return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(self.id, accountId);
+        return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(
+            self.id,
+            accountId,
+            riskMatrixDim
+        );
     }
 
-    /**
-     * @dev Sets the risk configuration for a given market
-     * @param config The RiskConfiguration object with all the risk parameters
-     */
-    function setRiskConfiguration(Data storage self, RiskConfiguration memory config) internal {
-        self.riskConfig = config;
-
-        emit MarketUpdated(self, block.timestamp);
+    function getAccountPnLComponents(Data storage self, uint128 accountId)
+        internal
+        view returns (Account.PnLComponents memory pnlComponents)
+    {
+        return IMarketManager(self.marketManagerAddress).getAccountPnLComponents(self.id, accountId);
     }
 
     /**
@@ -209,6 +207,12 @@ library Market {
         self.insuranceFundFeeConfig = config;
 
         emit MarketUpdated(self, block.timestamp);
+    }
+
+    // todo: add natspect and expose
+    function setRiskBlockId(Data storage self, uint256 riskBlockId) internal {
+        self.riskBlockId = riskBlockId;
+        // todo add event
     }
 
     /**

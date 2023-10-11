@@ -46,20 +46,6 @@ library ExecuteADLOrder {
      */
     error CannotBlendADLDuringPropagation(uint128 marketId, uint128 accountId, int256 baseDelta);
 
-    function computeQuoteDelta(
-        int256 baseDelta,
-        UD60x18 markPrice,
-        uint128 marketId
-    ) private view returns (int256) {
-
-        int256 exposure = ExposureHelpers.baseToExposure(
-            baseDelta,
-            marketId
-        );
-
-        return mulUDxInt(markPrice, exposure);
-
-    }
 
     function computeBankruptcyPrice(
         int256 baseDelta,
@@ -112,15 +98,17 @@ library ExecuteADLOrder {
                 realBalanceAndIF
             );
         } else {
-            vars.markPrice = IPool(vars.poolAddress).getAdjustedDatedIRSTwap(
-                accountPortfolio.marketId,
+
+            vars.markPrice = ExposureHelpers.computeTwap(
+                market.id,
                 maturityTimestamp,
-                0,
-                market.marketConfig.twapLookbackWindow
+                vars.poolAddress,
+                0
             );
+
         }
 
-        vars.quoteDelta = computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
+        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
 
         vars.isLong = vars.baseDelta > 0;
 

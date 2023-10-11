@@ -66,6 +66,7 @@ library AutoExchange {
 
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
+        Account.collateralPoolsCheck(collateralPool.id, liquidatorAccount);
         Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
 
         (

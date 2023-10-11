@@ -10,11 +10,7 @@ pragma solidity >=0.8.19;
 /*
 TODOs
     - adl positons that are in profit at current prices
-    - lots of margin requirement check functions, is it even worth having the one-off ones as helpers?
-    - collateralPoolsCheck, is this function a duplicate of an existing one?
     - add reference to quote token of the queue when throwing queue errors
-    - is there a way to re-use LiquidationOrder struct in liquidation bid and other places where relevant?
-    - implement dutch reward parameter calculation
     - implement rank calculation
     - remove address collateralType from im and lm checks
     - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
@@ -90,12 +86,6 @@ library AccountLiquidation {
     error LiquidationBidOrdersOverflow(uint256 ordersLength, uint256 maxOrders);
 
     /**
-      * @dev Thrown when attempting the liquidation bidder belongs to a different collateral pool from the liquidatee
-    */
-    error LiquidatorAndLiquidateeBelongToDifferentCollateralPools(uint128 liquidatorCollateralPoolId,
-        uint128 liquidateeCollateralPoolId);
-
-    /**
      * @dev Thrown if an account has unfilled orders in any of its active markets
     */
     error AccountHasUnfilledOrders(uint128 accountId);
@@ -157,27 +147,6 @@ library AccountLiquidation {
         return marginInfo.rawInfo.rawMarginBalance < 0;
     }
 
-
-    function collateralPoolsCheck(
-        uint128 liquidatableAccountCollateralPoolId,
-        Account.Data storage liquidatorAccount
-    ) private view {
-
-        // liquidator and liquidatee should belong to the same collateral pool
-        // note, it's fine for the liquidator to not belong to any collateral pool
-
-        if (liquidatorAccount.firstMarketId != 0) {
-            CollateralPool.Data storage liquidatorCollateralPool = liquidatorAccount.getCollateralPool();
-            if (liquidatorCollateralPool.id != liquidatableAccountCollateralPoolId) {
-                revert LiquidatorAndLiquidateeBelongToDifferentCollateralPools(
-                    liquidatorCollateralPool.id,
-                    liquidatableAccountCollateralPoolId
-                );
-            }
-        }
-    }
-
-
     function validateLiquidationBid(
         Account.Data storage self,
         Account.Data storage liquidatorAccount,
@@ -186,7 +155,7 @@ library AccountLiquidation {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        collateralPoolsCheck(collateralPool.id, liquidatorAccount);
+        Account.collateralPoolsCheck(collateralPool.id, liquidatorAccount);
 
         uint256 marketIdsLength = liquidationBid.marketIds.length;
         uint256 inputsLength = liquidationBid.inputs.length;
@@ -304,7 +273,7 @@ library AccountLiquidation {
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        collateralPoolsCheck(collateralPool.id, liquidatorAccount);
+        Account.collateralPoolsCheck(collateralPool.id, liquidatorAccount);
 
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
@@ -496,7 +465,7 @@ library AccountLiquidation {
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
 
-        collateralPoolsCheck(self.getCollateralPool().id, liquidatorAccount);
+        Account.collateralPoolsCheck(self.getCollateralPool().id, liquidatorAccount);
 
         Market.Data storage market = Market.exists(marketId);
 
@@ -599,12 +568,12 @@ library AccountLiquidation {
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
-            Account.MakerMarketExposure[] memory exposures = 
-                market.getAccountTakerAndMakerExposures(self.id);
+            (int256[] memory filledExposures,) =
+                market.getAccountTakerAndMakerExposures(self.id, collateralPool.riskMatrixDims[market.riskBlockId]);
 
-            for (uint256 j = 0; j < exposures.length && !leftExposure; j++) {
+            for (uint256 j = 0; j < filledExposures.length && !leftExposure; j++) {
                 // no unfilled exposure here, so lower and upper are the same
-                if (exposures[j].lower.annualizedNotional > 0) {
+                if (filledExposures[j] > 0) {
                     leftExposure = true;
                 }
             }
@@ -688,12 +657,9 @@ library AccountLiquidation {
                     uint128 marketId = markets[i].to128();
                 Market.Data storage market = Market.exists(marketId);
 
-                Account.MakerMarketExposure[] memory exposures = market.getAccountTakerAndMakerExposures(self.id);
-
-                for (uint256 j = 0; j < exposures.length; j++) {
-                    // upnl here is negative since all positive upnl exposures were adl-ed at market price
-                    totalUnrealizedLossQuote += (-exposures[j].lower.pnlComponents.unrealizedPnL).toUint();
-                }
+                Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
+                // upnl here is negative since all positive upnl exposures were adl-ed at market price
+                totalUnrealizedLossQuote += (-pnlComponents.unrealizedPnL).toUint();
 
                 // todo: shouldn't we update trackers here?
                 // todo: shall we query active markets again before this loop?

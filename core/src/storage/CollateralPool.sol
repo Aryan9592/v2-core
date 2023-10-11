@@ -14,6 +14,7 @@ import {GlobalCollateralConfiguration} from "./GlobalCollateralConfiguration.sol
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {UD60x18} from "@prb/math/UD60x18.sol";
+import {SD59x18} from "@prb/math/SD59x18.sol";
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
@@ -247,6 +248,17 @@ library CollateralPool {
          * @dev Collateral pool wide risk configuration 
          */
         RiskConfiguration riskConfig;
+
+        // block -> row -> column -> value
+        mapping(uint256 => mapping(uint256 => mapping(uint256 => SD59x18))) riskMatrix;
+
+        // number of risk matrix blocks supported by the collateral pool
+        uint256 riskBlockCount;
+
+        // block -> risk matrix dimension
+        // dimensions for each risk matrix block
+        mapping(uint256 => uint256) riskMatrixDims;
+
         /**
          * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
          */
@@ -441,6 +453,45 @@ library CollateralPool {
 
         GlobalCollateralConfiguration.Data storage globalConfig = GlobalCollateralConfiguration.exists(collateralType);
         return globalConfig.convertToAssets(self.collateralShares[collateralType]);
+    }
+
+    function configureRiskMatrix(
+        Data storage self,
+        uint256 blockId,
+        uint256 rowId,
+        uint256 columnId,
+        SD59x18 value
+    ) internal {
+        // todo: consider adding a check that ensures diagonal elements are > 0
+        self.riskMatrix[blockId][rowId][columnId] = value;
+    }
+
+    // todo: expose + getter
+    function setRiskMatrixDim(
+        Data storage self,
+        uint256 blockId,
+        uint256 dim
+    ) internal {
+        self.riskMatrixDims[blockId] = dim;
+        // todo: add event
+    }
+
+    // todo: expose + getter
+    function setRiskBlockCount(
+       Data storage self,
+       uint256 count
+    ) internal {
+        self.riskBlockCount = count;
+        // todo: add event
+    }
+
+    function getRiskMatrixParameter(
+        Data storage self,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex
+    ) internal view returns (SD59x18) {
+        return self.riskMatrix[blockIndex][rowIndex][columnIndex];
     }
 
     function updateCollateralShares(

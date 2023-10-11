@@ -155,8 +155,19 @@ library Market {
         RateOracleConfiguration rateOracleConfig;
 
         /**
+        * Mapping of maturities to the risk matrix row id
+        */
+        mapping(uint32 maturityTimestamp => uint256 riskMatrixRowId) riskMatrixRowIds;
+
+        /**
+        * Mapping of maturities to their original tenor in seconds
+        */
+        mapping(uint32 maturityTimestamp => uint256 tenorInSeconds) tenors;
+
+        /**
          * @dev Duration of ADL blendin period, in seconds
          */
+        // todo: setter and getter?
         uint256 adlBlendingDurationInSeconds;
 
         /**
@@ -167,6 +178,7 @@ library Market {
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => uint256 notional) notionalTracker;
+
     }
 
     /**
@@ -255,5 +267,19 @@ library Market {
 
     function updateOracleStateIfNeeded(Data storage self) internal {
         MarketRateOracle.updateOracleStateIfNeeded(self);
+    }
+
+    function setRiskMatrixRowId(Data storage self, uint32 maturityTimestamp, uint256 rowId) internal {
+        self.riskMatrixRowIds[maturityTimestamp] = rowId;
+        // todo: add event
+    }
+
+    function setMaturityTenor(Data storage self, uint32 maturityTimestamp, uint256 tenorInSeconds) internal {
+        self.tenors[maturityTimestamp] = tenorInSeconds;
+        // todo: add event
+    }
+
+    function getRiskMatrixRowId(Data storage self, uint32 maturityTimestamp) internal view returns (uint256) {
+        return self.riskMatrixRowIds[maturityTimestamp];
     }
 }

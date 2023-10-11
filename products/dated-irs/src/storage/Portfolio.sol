@@ -20,6 +20,8 @@ import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -160,6 +162,37 @@ library Portfolio {
         }
     }
 
+    function getAccountPnLComponents(Data storage self) internal view
+        returns (Account.PnLComponents memory pnlComponents)
+    {
+
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        uint256 activeMaturitiesCount = self.activeMaturities.length();
+
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+
+            FilledBalances memory filledBalances = getAccountFilledBalances(
+                self,
+                self.activeMaturities.valueAt(i).to32(),
+                poolAddress
+            );
+
+            Account.PnLComponents memory maturityPnLComponents = ExposureHelpers.getPnLComponents(
+                market.id,
+                self.activeMaturities.valueAt(i).to32(),
+                filledBalances,
+                poolAddress
+            );
+
+            pnlComponents.realizedPnL += maturityPnLComponents.realizedPnL;
+            pnlComponents.unrealizedPnL += maturityPnLComponents.unrealizedPnL;
+
+        }
+
+        return pnlComponents;
+    }
+
     function getAccountFilledBalances(
         Data storage self,
         uint32 maturityTimestamp,
@@ -188,61 +221,93 @@ library Portfolio {
         });
     }
 
-    function getAccountExposuresPerMaturity(
-        Data storage self,
-        address poolAddress,
-        uint32 maturityTimestamp
-    ) internal view returns (Account.MakerMarketExposure memory exposure) {
-        FilledBalances memory filledBalances = getAccountFilledBalances(
-            self,
-            maturityTimestamp,
-            poolAddress
-        );
-
-        UnfilledBalances memory unfilledBalances = IPool(poolAddress).getAccountUnfilledBaseAndQuote(
-            self.marketId, 
-            maturityTimestamp, 
-            self.accountId
-        );
-
-        exposure.lower = ExposureHelpers.getUnfilledExposureInPool(
-            self.marketId, 
-            maturityTimestamp, 
-            filledBalances,
-            unfilledBalances,
-            false,
-            poolAddress
-        );
-
-        exposure.upper = ExposureHelpers.getUnfilledExposureInPool(
-            self.marketId, 
-            maturityTimestamp, 
-            filledBalances,
-            unfilledBalances,
-            true,
-            poolAddress
-        );
+    struct GetAccountTakerAndMakerExposuresVars {
+        address poolAddress;
+        int256 shortRateExposure;
+        uint256 unfilledExposuresCounter;
+        UD60x18 exposureFactor;
     }
 
     function getAccountTakerAndMakerExposures(
-        Data storage self
+        Data storage self,
+        uint256 riskMatrixDim
     )
         internal
         view
-        returns (Account.MakerMarketExposure[] memory exposures)
+        returns (
+            int256[] memory filledExposures,
+            Account.UnfilledExposure[] memory unfilledExposures
+        )
     {
-        Market.Data storage market = Market.exists(self.marketId);
-        address poolAddress = market.marketConfig.poolAddress;
-        uint256[] memory activeMaturities = self.activeMaturities.values();
 
-        for (uint256 i = 0; i < activeMaturities.length; i++) {
-            exposures[i] = self.getAccountExposuresPerMaturity(
-                poolAddress,
-                self.activeMaturities.valueAt(i).to32()
+        Market.Data storage market = Market.exists(self.marketId);
+        GetAccountTakerAndMakerExposuresVars memory vars;
+        vars.poolAddress = market.marketConfig.poolAddress;
+        filledExposures = new int256[](riskMatrixDim);
+        vars.exposureFactor = ExposureHelpers.exposureFactor(market.id);
+
+        for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
+
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+
+            FilledBalances memory filledBalances = getAccountFilledBalances(
+                self,
+                maturityTimestamp,
+                vars.poolAddress
             );
+
+            UnfilledBalances memory unfilledBalances = IPool(vars.poolAddress).getAccountUnfilledBaseAndQuote(
+                market.id,
+                maturityTimestamp,
+                self.accountId
+            );
+
+            // handle filled exposures
+
+            uint256 riskMatrixRowId = market.riskMatrixRowIds[maturityTimestamp];
+
+            (
+                int256 shortRateFilledExposureMaturity,
+                int256 swapRateFilledExposureMaturity
+            ) = ExposureHelpers.getFilledExposures(
+                filledBalances.base,
+                vars.exposureFactor,
+                maturityTimestamp,
+                market.tenors[maturityTimestamp]
+            );
+
+            vars.shortRateExposure += shortRateFilledExposureMaturity;
+            filledExposures[riskMatrixRowId] += swapRateFilledExposureMaturity;
+
+            // handle unfilled exposures
+
+            if ((unfilledBalances.baseLong != 0) || (unfilledBalances.baseShort != 0)) {
+                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr =
+                ExposureHelpers.getUnfilledExposureComponents(
+                    unfilledBalances.baseLong,
+                    unfilledBalances.baseShort,
+                    vars.exposureFactor,
+                    maturityTimestamp,
+                    market.tenors[maturityTimestamp]
+                );
+                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] = market.riskMatrixRowIds[0];
+                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
+
+                unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents = ExposureHelpers.getPVMRComponents(
+                    unfilledBalances,
+                    market.id,
+                    maturityTimestamp,
+                    vars.poolAddress,
+                    riskMatrixRowId
+                );
+                vars.unfilledExposuresCounter += 1;
+            }
+
         }
 
-        return exposures;
+        filledExposures[market.riskMatrixRowIds[0]] = vars.shortRateExposure;
+
+        return (filledExposures, unfilledExposures);
     }
 
     /**
@@ -421,15 +486,23 @@ library Portfolio {
         for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
-            Account.MakerMarketExposure memory exposure = self.getAccountExposuresPerMaturity(
-                poolAddress,
-                maturityTimestamp
+            FilledBalances memory filledBalances = getAccountFilledBalances(
+                self,
+                maturityTimestamp,
+                poolAddress
+            );
+
+            Account.PnLComponents memory pnlComponents = ExposureHelpers.getPnLComponents(
+                market.id,
+                maturityTimestamp,
+                filledBalances,
+                poolAddress
             );
 
             // lower and upper exposures are the same, since no unfilled orders should be present at this poin
             bool executeADL = 
-                (adlNegativeUpnl && exposure.lower.pnlComponents.unrealizedPnL < 0) ||
-                (adlPositiveUpnl && exposure.lower.pnlComponents.unrealizedPnL > 0);
+                (adlNegativeUpnl && pnlComponents.unrealizedPnL < 0) ||
+                (adlPositiveUpnl && pnlComponents.unrealizedPnL > 0);
             if (executeADL) {
                 ExecuteADLOrder.executeADLOrder(
                     self,

@@ -77,7 +77,12 @@ interface IPool is IERC165 {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (UnfilledBalances memory /* accountBalances */ );
+    )
+    external
+    view
+    returns (
+        UnfilledBalances memory
+    );
 
     /**
      * @notice Get dated irs twap, adjusted for price impact and spread

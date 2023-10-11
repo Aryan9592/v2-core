@@ -39,9 +39,12 @@ interface IMarketManagerModule {
 
 
     /// @notice returns account taker and maker exposures for a given market and account
-    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
+    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId, uint256 riskMatrixDim)
         external
-        returns (Account.MakerMarketExposure[] memory exposures);
+        returns (
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    );
 
     //// STATE CHANGING FUNCTIONS ////
 

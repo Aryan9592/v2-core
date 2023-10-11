@@ -24,10 +24,19 @@ interface IMarketManager is IERC165 {
     function getMarketQuoteToken(uint128 marketId) external view returns (address);
 
     /// @notice returns account taker and maker exposures for a given account and collateral type
-    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId)
+    function getAccountTakerAndMakerExposures(uint128 marketId, uint128 accountId, uint256 riskMatrixDim)
         external
         view
-        returns (Account.MakerMarketExposure[] memory exposures);
+        returns (
+        int256[] memory filledExposures,
+        Account.UnfilledExposure[] memory unfilledExposures
+    );
+
+    // todo: natspec
+    function getAccountPnLComponents(uint128 marketId, uint128 accountId)
+        external
+        view
+        returns (Account.PnLComponents memory pnlComponents);
 
     //// STATE CHANGING FUNCTIONS ////
 

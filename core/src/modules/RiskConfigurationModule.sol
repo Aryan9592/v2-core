@@ -23,15 +23,6 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.getCollateralPool().onlyOwner();
-        market.setRiskConfiguration(config);
-    }
-
-    /**
-     * @inheritdoc IRiskConfigurationModule
-     */
     function configureCollateralPoolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) external override {
         CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
         collateralPool.onlyOwner();
@@ -41,23 +32,53 @@ contract RiskConfigurationModule is IRiskConfigurationModule {
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getMarketRiskConfiguration(uint128 marketId)
-        external
+    function getCollateralPoolRiskConfiguration(uint128 collateralPoolId) 
+        external 
         view
         override
-        returns (Market.RiskConfiguration memory)
+        returns (CollateralPool.RiskConfiguration memory) 
     {
-        return Market.exists(marketId).riskConfig;
+        return CollateralPool.exists(collateralPoolId).riskConfig;
     }
 
     /**
      * @inheritdoc IRiskConfigurationModule
      */
-    function getCollateralPoolRiskConfiguration(uint128 collateralPoolId) 
-        external 
-        view 
-        returns (CollateralPool.RiskConfiguration memory) 
-    {
-        return CollateralPool.exists(collateralPoolId).riskConfig;
+    function configureRiskMatrix(
+        uint128 collateralPoolId,
+        uint256 blockIndex,
+        uint256 rowIndex,
+        uint256 columnIndex,
+        SD59x18 value
+    ) external override {
+        CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
+        collateralPool.onlyOwner();
+        collateralPool.configureRiskMatrix(blockIndex, rowIndex, columnIndex, value);
     }
+
+    /**
+     * @inheritdoc IRiskConfigurationModule
+     */
+    function getRiskMatrixParameter(
+        uint128 collateralPoolId,
+        uint256 blockId,
+        uint256 rowId,
+        uint256 columnId
+    ) external view override returns (SD59x18 parameter) {
+        return CollateralPool.exists(collateralPoolId).getRiskMatrixParameter(blockId, rowId, columnId);
+    }
+
+    /**
+     * @inheritdoc IRiskConfigurationModule
+     */
+    function getRiskMatrixParameterFromMM(
+        uint128 marketId,
+        uint256 rowId,
+        uint256 columnId
+    ) external view override returns (SD59x18 parameter) {
+        Market.Data storage market = Market.exists(marketId);
+        uint128 collateralPoolId = market.getCollateralPool().id;
+        return CollateralPool.exists(collateralPoolId).getRiskMatrixParameter(market.riskBlockId, rowId, columnId);
+    }
+
 }

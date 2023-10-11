@@ -90,13 +90,17 @@ library InitiateMakerOrder {
 
         annualizedNotionalAmount = 
             ExposureHelpers.baseToAnnualizedExposure(baseAmount, params.marketId, params.maturityTimestamp);
-        
+
+        // todo: consider having a separate position size limit check for makers which only considers unfilled
+        // orders
         ExposureHelpers.checkPositionSizeLimit(
             params.accountId,
             params.marketId,
             params.maturityTimestamp
         );
 
+        // todo: don't think it makes sense to perform an open interest check with a maker order
+        // by definition it should not affect open interest since it's only created one orders actually get filled
         ExposureHelpers.checkOpenInterestLimit(
             params.marketId,
             params.maturityTimestamp,

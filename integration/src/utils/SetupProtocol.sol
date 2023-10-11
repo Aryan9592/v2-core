@@ -284,12 +284,6 @@ contract SetupProtocol is BatchScript {
       })
     );
 
-    configureMarketRisk(
-      marketId,
-      Market.RiskConfiguration({
-        riskParameter: riskParameter
-      })
-    );
   }
 
   function deployPool(
@@ -562,20 +556,6 @@ contract SetupProtocol is BatchScript {
     }
   }
 
-  function configureMarketRisk(uint128 marketId, Market.RiskConfiguration memory config) public {
-    if (!settings.multisig) {
-      broadcastOrPrank();
-      contracts.coreProxy.configureMarketRisk(marketId, config);
-    } else {
-      addToBatch(
-        address(contracts.coreProxy),
-        abi.encodeCall(
-          contracts.coreProxy.configureMarketRisk,
-          (marketId, config)
-        )
-      );
-    }
-  }
 
   function configureProtocolRisk(uint128 collateralPoolId, CollateralPool.RiskConfiguration memory config) public {
     if (!settings.multisig) {

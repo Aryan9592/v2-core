@@ -42,6 +42,9 @@ library AccountBalances {
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
+        uint256 quoteUnbalancedLong;
+        uint256 quoteUnbalancedShort;
+
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
@@ -50,32 +53,44 @@ library AccountBalances {
             }
             
             {
-                (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
-                    position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
-                    position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
-                    position.liquidity.toInt(),
-                    self.mutableConfig.spread,
-                    true
-                );
+                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) =
+                    getOneSideUnfilledBalances(
+                        self.immutableConfig.marketId,
+                        position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
+                        position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
+                        position.liquidity.toInt(),
+                        self.mutableConfig.spread,
+                        true
+                    );
             
                 unfilled.baseLong += unfilledBase;
                 unfilled.quoteLong += unfilledQuote;
+                quoteUnbalancedLong += unfilledQuoteUnbalanced;
             }
             
             {
-                (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
-                    position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
-                    position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
-                    position.liquidity.toInt(),
-                    self.mutableConfig.spread,
-                    false
-                );
+                (uint256 unfilledBase, uint256 unfilledQuote, uint256 unfilledQuoteUnbalanced) =
+                    getOneSideUnfilledBalances(
+                        self.immutableConfig.marketId,
+                        position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
+                        position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
+                        position.liquidity.toInt(),
+                        self.mutableConfig.spread,
+                        false
+                    );
 
                 unfilled.baseShort += unfilledBase;
                 unfilled.quoteShort += unfilledQuote;
+                quoteUnbalancedShort += unfilledQuoteUnbalanced;
             }
+        }
+
+        if (unfilled.baseLong != 0 && quoteUnbalancedLong != 0) {
+            unfilled.avgLongPrice = computeAvgFixedRate(quoteUnbalancedLong, unfilled.baseLong);
+        }
+
+        if (unfilled.baseShort != 0 && quoteUnbalancedShort != 0) {
+            unfilled.avgShortPrice = computeAvgFixedRate(quoteUnbalancedShort, unfilled.baseShort);
         }
     }
 
@@ -112,10 +127,10 @@ library AccountBalances {
         int128 liquidity,
         UD60x18 spread,
         bool isLong
-    ) private view returns (uint256 /* unfilledBase */ , uint256 /* unfilledQuote */)
+    ) private view returns (uint256/* unfilledBase */,uint256 /* unfilledQuote */,uint256/* unfilledQuoteUnbalanced*/)
     {
         if (tickLower == tickUpper) {
-            return (0, 0);
+            return (0, 0, 0);
         }
 
         uint256 unfilledBase = VammHelpers.baseBetweenTicks(
@@ -125,7 +140,7 @@ library AccountBalances {
         ).toUint();
 
         if (unfilledBase == 0) {
-            return (0, 0);
+            return (0, 0, 0);
         }
         
         int256 unbalancedQuoteTokens = VammHelpers.unbalancedQuoteBetweenTicks(
@@ -134,17 +149,25 @@ library AccountBalances {
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt()
         );
 
+        // todo: stack limit reached if want to avoid double calculating abs of unbalancedQuoteTokens
+        // consider introducing vars struct
+
         // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
         int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
             (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
-            ud(SignedMath.abs(unbalancedQuoteTokens)).div(ud(unfilledBase)).div(convert(100)),
+            computeAvgFixedRate(SignedMath.abs(unbalancedQuoteTokens), unfilledBase),
             spread,
             marketId
         );
 
-        uint256 absUnfilledQuote = ((isLong) ? unfilledQuote : -unfilledQuote).toUint();
+        return (unfilledBase, SignedMath.abs(unfilledQuote), SignedMath.abs(unbalancedQuoteTokens));
+    }
 
-        return (unfilledBase, absUnfilledQuote);
+    function computeAvgFixedRate(
+        uint256 unbalancedQuoteTokens,
+        uint256 baseTokens
+    ) private pure returns (UD60x18) {
+        return ud(unbalancedQuoteTokens).div(ud(baseTokens)).div(convert(100));
     }
 
     function growthInside(

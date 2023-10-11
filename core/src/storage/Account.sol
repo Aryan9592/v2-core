@@ -79,29 +79,36 @@ library Account {
      */
     error AccountNotFound(uint128 accountId);
 
+
+    /**
+    * @dev Thrown when liquidator and liquidatee (also applies to auto-exchange) belong to different
+    * collateral pools
+    */
+    error CollateralPoolMismatch(uint128 liquidatorCollateralPoolId, uint128 liquidateeCollateralPoolId);
+
     struct PnLComponents {
-        /// @notice Accrued cashflows are all cashflows that are interchanged with a pool as a 
-        /// result of having a positions open in a derivative instrument, as determined 
-        /// by the derivative’s contractual obligations at certain timestamps.
-        /// @dev e.g., perpetual futures require the interchange of a funding rate a regular intervals, 
-        /// which would be reported as accrued cashflows; interest rate swaps also determine the 
-        /// interchange of net accrued interest amounts, which are also accrued cashflows.
-        int256 accruedCashflows;
-        /// @notice Locked PnL are the component of PnL locked by unwinding exposure tokens. An 
-        /// exception to this is when transactions in that exposure token are not in the 
-        ////settlement token, but rather in a different token which would need to be burned 
-        /// to result in a balance in the settlement token.
-        /// @dev e.g., in the Voltz Protocol’s Interest rate swaps, exposure tokens are termed 
-        /// variable tokens, and the Protocol’s vAMM always interchanges these variable tokens 
-        /// against forward looking, fixed interest tokens as a way of pricing. Converting the 
-        /// PnL locked by unwinding a variable token balance into the settlement token would require 
-        /// burning the resulting fixed token balance.
-        int256 lockedPnL;
+        int256 realizedPnL;
         /// @notice Unrealized PnL is the valued accumulated in an open position when that position 
         /// is priced at market values (’mark to market’). As opposed to the previous components of PnL, 
         /// this component changes with time, as market prices change. Strictly speaking, then, unrealized PnL 
         /// is actually a function of time: unrealizedPnL(t).
         int256 unrealizedPnL;
+    }
+
+    struct PVMRComponents {
+        uint256 pvmrLong;
+        uint256 pvmrShort;
+    }
+
+    struct UnfilledExposureComponents {
+        uint256 unfilledExposureLong;
+        uint256 unfilledExposureShort;
+    }
+
+    struct UnfilledExposure {
+        uint256[] riskMatrixRowIds;
+        UnfilledExposureComponents[] exposureComponentsArr;
+        PVMRComponents pvmrComponents;
     }
 
     struct RawInformation {
@@ -138,23 +145,6 @@ library Account {
         /// The real balance is the balance that is in ‘cash’, that is, actually held in the settlement
         /// token and not as value of an instrument which settles in that token
         int256 realBalance;
-    }
-
-    /**
-     * @dev Structure for tracking one-side market exposure.
-     */
-    struct MarketExposure {
-        /// @notice Annualized notional of the exposure
-        int256 annualizedNotional;
-        PnLComponents pnlComponents;
-    }
-
-    /**
-     * @dev Structure for tracking maker (two-side) market exposure.
-     */
-    struct MakerMarketExposure {
-        MarketExposure lower;
-        MarketExposure upper;
     }
 
     /**
@@ -437,6 +427,26 @@ library Account {
         
         if (marginInfo.initialDelta < 0) {
             revert AccountBelowIM(self.id, marginInfo);
+        }
+    }
+
+    function collateralPoolsCheck(
+        uint128 liquidatableAccountCollateralPoolId,
+        Account.Data storage liquidatorAccount
+    ) internal view {
+
+        // note, this function applies to both position liquidations and auto-exchange
+        // liquidator and liquidatee should belong to the same collateral pool
+        // note, it's fine for the liquidator to not belong to any collateral pool
+
+        if (liquidatorAccount.firstMarketId != 0) {
+            CollateralPool.Data storage liquidatorCollateralPool = liquidatorAccount.getCollateralPool();
+            if (liquidatorCollateralPool.id != liquidatableAccountCollateralPoolId) {
+                revert CollateralPoolMismatch(
+                    liquidatorCollateralPool.id,
+                    liquidatableAccountCollateralPoolId
+                );
+            }
         }
     }
 

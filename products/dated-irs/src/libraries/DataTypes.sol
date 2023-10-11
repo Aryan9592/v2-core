@@ -34,4 +34,6 @@ struct UnfilledBalances {
     uint256 baseShort;
     uint256 quoteLong;
     uint256 quoteShort;
+    UD60x18 avgLongPrice;
+    UD60x18 avgShortPrice;
 }
