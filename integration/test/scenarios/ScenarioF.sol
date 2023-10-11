@@ -151,7 +151,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // FEATURE FLAGS
         datedIrsProxy.addToFeatureFlagAllowlist(
-            keccak256(abi.encode(Constants._MARKET_ENABLED_FEATURE_FLAG, marketIdAave)), mockCoreProxy
+            datedIrsProxy.getMarketEnabledFeatureFlagId(marketIdAave, maturityTimestampAave), mockCoreProxy
         );
         vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
 
@@ -233,7 +233,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // FEATURE FLAGS
         datedIrsProxy.addToFeatureFlagAllowlist(
-            keccak256(abi.encode(Constants._MARKET_ENABLED_FEATURE_FLAG, marketIdGlp)), mockCoreProxy
+            datedIrsProxy.getMarketEnabledFeatureFlagId(marketIdGlp, maturityTimestampGlp), mockCoreProxy
         );
         vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
 

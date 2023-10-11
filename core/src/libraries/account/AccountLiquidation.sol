@@ -440,8 +440,6 @@ library AccountLiquidation {
         uint128 marketId,
         bytes memory inputs
     ) internal {
-        // todo: enable pausability on maturity level
-
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
 

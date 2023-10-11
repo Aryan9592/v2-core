@@ -12,16 +12,13 @@ import {IPool} from "../interfaces/IPool.sol";
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
-import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
-import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
-import {SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 import {Settlement} from "../libraries/actions/Settlement.sol";
@@ -29,7 +26,7 @@ import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
 import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
 import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import {PropagateADLOrder} from "../libraries/actions/PropagateADLOrder.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 
 /*
@@ -47,6 +44,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     using Market for Market.Data;
     using Portfolio for Portfolio.Data;
     using SafeCastI256 for int256;
+    using SafeCastU256 for uint256;
+    using SetUtil for SetUtil.UintSet;
 
     /**
      * @notice Thrown when an attempt to access a function without authorization.
@@ -111,7 +110,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId, 
         uint128 accountId
     ) external override returns (int256 /* closedUnfilledBasePool */) {
-        executionPreCheck(marketId);
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+        uint256[] memory activeMaturities = portfolio.activeMaturities.values();
+        for (uint256 i = 0; i < activeMaturities.length; i++) {
+            uint32 maturityTimestamp = activeMaturities[i].to32();
+            executionPreCheck(marketId, maturityTimestamp);
+        }
         
         return Portfolio.exists(accountId, marketId).closeAllUnfilledOrders();
     }
@@ -125,13 +129,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         bytes calldata inputs
     ) external override returns (bytes memory output) { /// todo: @arturbeg populate output?
-        executionPreCheck(marketId);
-
         ( 
             uint32 maturityTimestamp,
             int256 baseAmountToBeLiquidated,
             uint160 priceLimit
         ) = abi.decode(inputs, (uint32, int256, uint160));
+        executionPreCheck(marketId, maturityTimestamp);
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
             ExecuteLiquidationOrder.LiquidationOrderParams({
@@ -210,13 +213,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         bytes memory output,
         int256 annualizedNotional
     ) {
-        executionPreCheck(marketId);
-    
         ( 
             uint32 maturityTimestamp,
             int256 baseAmount,
             uint160 priceLimit
         ) = abi.decode(inputs, (uint32, int256, uint160));
+        executionPreCheck(marketId, maturityTimestamp);
 
         (
             PositionBalances memory tokenDeltas,
@@ -245,8 +247,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         bytes memory output, 
         int256 annualizedNotional
     ) {
-        executionPreCheck(marketId);
-
         ( 
             uint32 maturityTimestamp,
             int24 tickLower,
@@ -278,22 +278,21 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         bytes memory output,
         int256 cashflowAmount
     ) {
-        executionPreCheck(marketId);
-
         uint32 maturityTimestamp = abi.decode(inputs, (uint32));
+        executionPreCheck(marketId, maturityTimestamp);
 
         output = abi.encode();
         cashflowAmount = Settlement.settle(accountId, marketId, maturityTimestamp);
     }
 
     /// @notice run before each account-changing interaction
-    function executionPreCheck(uint128 marketId) internal view {
+    function executionPreCheck(uint128 marketId, uint32 maturityTimestamp) internal view {
         // only Core can call these functions
         if (msg.sender != MarketManagerConfiguration.getCoreProxyAddress()) {
             revert NotAuthorized(msg.sender, "execute");
         }
         // ensure market is enabled
-        FeatureFlagSupport.ensureEnabledMarket(marketId);
+        FeatureFlagSupport.ensureEnabledMarket(marketId, maturityTimestamp);
     }
 
     /**
