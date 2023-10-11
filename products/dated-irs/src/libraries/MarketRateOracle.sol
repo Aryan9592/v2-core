@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
-import { MTMObservation } from  "../libraries/DataTypes.sol";
+import { RateOracleObservation } from  "../libraries/DataTypes.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { UD60x18, ZERO, unwrap } from "@prb/math/UD60x18.sol";
@@ -144,18 +144,16 @@ library MarketRateOracle {
         }
     }
 
-    function getNewMTMTimestampAndRateIndex(
-        uint128 marketId,
+    function getLatestRateIndex(
+        Market.Data storage self,
         uint32 maturityTimestamp
-    ) internal view returns (MTMObservation memory observation) {
-        Market.Data storage market = Market.exists(marketId);
-
+    ) internal view returns (RateOracleObservation memory observation) {
         if (block.timestamp < maturityTimestamp) {
             observation.timestamp = block.timestamp;
-            observation.rateIndex = market.getRateIndexCurrent();
+            observation.rateIndex = self.getRateIndexCurrent();
         } else {
             observation.timestamp = maturityTimestamp;
-            observation.rateIndex = market.getRateIndexMaturity(maturityTimestamp);
+            observation.rateIndex = self.getRateIndexMaturity(maturityTimestamp);
         }
     }
 }

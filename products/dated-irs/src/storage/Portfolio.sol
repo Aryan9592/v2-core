@@ -207,10 +207,7 @@ library Portfolio {
         PositionBalances storage position = self.positions[maturityTimestamp];
         int256 accruedInterest = TraderPosition.getAccruedInterest(
             position,
-            MarketRateOracle.getNewMTMTimestampAndRateIndex(
-                self.marketId, 
-                maturityTimestamp
-            )
+            Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         return FilledBalances({
@@ -320,10 +317,7 @@ library Portfolio {
         int256 extraCashflow = TraderPosition.computeCashflow(
             base,
             quote,
-            MarketRateOracle.getNewMTMTimestampAndRateIndex(
-                taker.marketId, 
-                maturityTimestamp
-            )
+            Market.exists(taker.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         taker.updatePosition(
@@ -370,7 +364,6 @@ library Portfolio {
      */
     function settle(
         Data storage self,
-        uint128 marketId,
         uint32 maturityTimestamp,
         address poolAddress
     )
@@ -378,16 +371,13 @@ library Portfolio {
         returns (int256 settlementCashflow)
     {
         if (maturityTimestamp > Time.blockTimestampTruncated()) {
-            revert SettlementBeforeMaturity(marketId, maturityTimestamp, self.accountId);
+            revert SettlementBeforeMaturity(self.marketId, maturityTimestamp, self.accountId);
         }
 
         PositionBalances storage position = self.positions[maturityTimestamp];
         int256 accruedInterest = TraderPosition.getAccruedInterest(
             position,
-            MarketRateOracle.getNewMTMTimestampAndRateIndex(
-                self.marketId, 
-                maturityTimestamp
-            )
+            Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         /// @dev reverts if not active
@@ -398,7 +388,7 @@ library Portfolio {
         /// issue since the market has been deactivated and the position
         /// cannot be settled anymore.
         FilledBalances memory filledBalances = 
-            IPool(poolAddress).getAccountFilledBalances(marketId, maturityTimestamp, self.accountId);
+            IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
         
         settlementCashflow = filledBalances.accruedInterest + accruedInterest;
 

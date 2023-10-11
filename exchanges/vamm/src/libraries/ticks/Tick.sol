@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 
-import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
 
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 import { VammHelpers } from "../vamm-utils/VammHelpers.sol";

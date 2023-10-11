@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 
-import { MTMObservation, PositionBalances } from "../DataTypes.sol";
+import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
@@ -219,7 +219,7 @@ library VammHelpers {
     function getNewMTMTimestampAndRateIndex(
         uint128 marketId,
         uint32 maturityTimestamp
-    ) internal view returns (MTMObservation memory observation) {
+    ) internal view returns (RateOracleObservation memory observation) {
         IRateOracleModule marketManager = 
             IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
 

@@ -53,7 +53,7 @@ library Settlement {
         market.updateRateIndexAtMaturityCache(maturityTimestamp);
 
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
-        settlementCashflowInQuote = portfolio.settle(marketId, maturityTimestamp, market.marketConfig.poolAddress);
+        settlementCashflowInQuote = portfolio.settle(maturityTimestamp, market.marketConfig.poolAddress);
 
         emit DatedIRSPositionSettled(
             accountId, marketId, maturityTimestamp, market.quoteToken, settlementCashflowInQuote, block.timestamp

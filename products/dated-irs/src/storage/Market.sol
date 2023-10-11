@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {IPool} from "../interfaces/IPool.sol";
 import {IRateOracle} from "../interfaces/IRateOracle.sol";
 import {MarketRateOracle} from "../libraries/MarketRateOracle.sol"; 
+import { RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
@@ -257,12 +258,16 @@ library Market {
         MarketRateOracle.updateRateIndexAtMaturityCache(self, maturityTimestamp);
     }
 
-    function getRateIndexCurrent(Data storage self) internal view returns (UD60x18 rateIndexCurrent) {
+    function getRateIndexCurrent(Data storage self) internal view returns (UD60x18) {
         return MarketRateOracle.getRateIndexCurrent(self);
     }
 
-    function getRateIndexMaturity(Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18 rateIndexMaturity) {
+    function getRateIndexMaturity(Data storage self, uint32 maturityTimestamp) internal view returns (UD60x18) {
         return MarketRateOracle.getRateIndexMaturity(self, maturityTimestamp);
+    }
+
+    function getLatestRateIndex(Data storage self, uint32 maturityTimestamp) internal view returns (RateOracleObservation memory) {
+        return MarketRateOracle.getLatestRateIndex(self, maturityTimestamp);
     }
 
     function updateOracleStateIfNeeded(Data storage self) internal {
