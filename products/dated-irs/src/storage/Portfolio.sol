@@ -282,7 +282,8 @@ library Portfolio {
             // handle unfilled exposures
 
             if ((unfilledBalances.baseLong != 0) || (unfilledBalances.baseShort != 0)) {
-                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr = ExposureHelpers.getUnfilledExposureComponents(
+                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr =
+                ExposureHelpers.getUnfilledExposureComponents(
                     unfilledBalances.baseLong,
                     unfilledBalances.baseShort,
                     vars.exposureFactor,
