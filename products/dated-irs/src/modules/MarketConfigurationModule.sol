@@ -12,6 +12,8 @@ import {Market} from "../storage/Market.sol";
 
 import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
 /**
  * @title Module for configuring a market
  * @dev See IMarketConfigurationModule.
@@ -44,5 +46,10 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     function getMarketType(uint128 marketId) external view override returns (bytes32 marketType) {
         Market.Data storage market = Market.exists(marketId);
         return market.marketType;
+    }
+
+    function getExposureFactor(uint128 marketId) external view override returns (UD60x18) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.exposureFactor();
     }
 }

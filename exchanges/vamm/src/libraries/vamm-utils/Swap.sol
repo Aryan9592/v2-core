@@ -48,23 +48,24 @@ library Swap {
         lock(self)
         returns (PositionBalances memory tokenDeltas)
     {
-        uint128 marketId = self.immutableConfig.marketId;
-        uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
-
         // Check if the pool is still active for orders
         {
             
             uint32 inactiveWindowBeforeMaturity = self.mutableConfig.inactiveWindowBeforeMaturity;
 
-            if (block.timestamp + inactiveWindowBeforeMaturity >= maturityTimestamp) {
-                revert VammCustomErrors.CloseOrBeyondToMaturity(marketId, maturityTimestamp);
+            if (block.timestamp + inactiveWindowBeforeMaturity >= self.immutableConfig.maturityTimestamp) {
+                revert VammCustomErrors.CloseOrBeyondToMaturity(
+                    self.immutableConfig.marketId, 
+                    self.immutableConfig.maturityTimestamp
+                );
             }
         }
 
         RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
+        UD60x18 exposureFactor = self.getExposureFactor();
 
         SwapFixedValues memory swapFixedValues = SwapFixedValues({
-            secondsTillMaturity: maturityTimestamp - block.timestamp,
+            secondsTillMaturity:self.immutableConfig.maturityTimestamp - block.timestamp,
             tickLimits: VammTicks.getCurrentTickLimits(self, params.markPrice, params.markPriceBand),
             liquidityIndex: rateOracleObservation.rateIndex
         });
@@ -176,7 +177,7 @@ library Swap {
                     step.tokenDeltas.base,
                     step.averagePrice,
                     self.mutableConfig.spread,
-                    marketId
+                    exposureFactor
                 );
 
                 step.tokenDeltas.extraCashflow = TraderPosition.computeCashflow(
@@ -244,15 +245,15 @@ library Swap {
         self.vars.growthGlobalX128 = state.growthGlobalX128;
 
         emit VammHelpers.VAMMPriceChange(
-            marketId,
-            maturityTimestamp,
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
         emit VammHelpers.Swap(
-            marketId,
-            maturityTimestamp,
+            self.immutableConfig.marketId,
+            self.immutableConfig.maturityTimestamp,
             msg.sender,
             params.amountSpecified,
             params.sqrtPriceLimitX96,

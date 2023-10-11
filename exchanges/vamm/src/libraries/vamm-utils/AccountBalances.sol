@@ -43,6 +43,7 @@ library AccountBalances {
         returns (UnfilledBalances memory unfilled)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
+        UD60x18 exposureFactor = self.getExposureFactor();
 
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
@@ -53,11 +54,11 @@ library AccountBalances {
             
             {
                 (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
                     position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick,
                     position.liquidity,
                     self.mutableConfig.spread,
+                    exposureFactor,
                     true
                 );
             
@@ -67,11 +68,11 @@ library AccountBalances {
             
             {
                 (uint256 unfilledBase, uint256 unfilledQuote) = getOneSideUnfilledBalances(
-                    self.immutableConfig.marketId,
                     position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick,
                     position.liquidity,
                     self.mutableConfig.spread,
+                    exposureFactor,
                     false
                 );
 
@@ -108,44 +109,39 @@ library AccountBalances {
     }
 
     function getOneSideUnfilledBalances(
-        uint128 marketId,
         int24 tickLower,
         int24 tickUpper,
         uint128 liquidity,
         UD60x18 spread,
+        UD60x18 exposureFactor,
         bool isLong
-    ) private view returns (uint256 unfilledBase, uint256 unfilledQuote)
+    ) private view returns (uint256 /* unfilledBase */ , uint256 /* unfilledQuote */)
     {
         if (tickLower == tickUpper) {
             return (0, 0);
         }
 
-        uint256 unbalancedQuote;
-        (unfilledBase, unbalancedQuote) = VammHelpers.amountsFromLiquidity(
+        (uint256 unfilledBase, uint256 unbalancedQuoteTokens) = VammHelpers.amountsFromLiquidity(
             liquidity,
             tickLower,
             tickUpper
         );
 
-        uint256 unbalancedQuotePenalty = mulUDxUint(spread.mul(convert(100)), unfilledBase);
-        uint256 remainingUnbalancedQuote = 0;
-
-        if (isLong) {
-            remainingUnbalancedQuote = unbalancedQuote + unbalancedQuotePenalty;
-        }
-        else {
-            if (unbalancedQuotePenalty < unbalancedQuote) {
-                remainingUnbalancedQuote = unbalancedQuote - unbalancedQuotePenalty;
-            }
+        if (unfilledBase == 0) {
+            return (0, 0);
         }
 
-        if (remainingUnbalancedQuote == 0) {
-            return (unfilledBase, 0);
-        }
+        // note calculateQuoteTokenDelta considers spread in advantage (for LPs)
+        int256 unfilledQuote = VammHelpers.calculateQuoteTokenDelta(
+            (isLong) ? -unfilledBase.toInt() : unfilledBase.toInt(),
+            ud(unbalancedQuoteTokens).div(ud(unfilledBase)).div(convert(100)),
+            spread,
+            exposureFactor
+        );
 
-        UD60x18 factor = VammHelpers.exposureFactor(marketId);
+        uint256 absUnfilledQuote = ((isLong) ? unfilledQuote : -unfilledQuote).toUint();
 
-        unfilledQuote = divUintUD(mulUDxUint(factor, remainingUnbalancedQuote), convert(100));
+        return (unfilledBase, absUnfilledQuote);
     }
 
     function growthInside(
