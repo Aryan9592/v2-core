@@ -15,7 +15,6 @@ import { TickMath } from "../ticks/TickMath.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
 
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 import { Oracle } from "../../storage/Oracle.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";

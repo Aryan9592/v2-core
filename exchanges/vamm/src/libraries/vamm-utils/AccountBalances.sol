@@ -20,8 +20,6 @@ import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
 
-import { mulUDxUint, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 
@@ -128,7 +126,7 @@ library AccountBalances {
         UD60x18 spread,
         UD60x18 exposureFactor,
         bool isLong
-    ) private view returns (uint256/* unfilledBase */, uint256 /* unfilledQuote */, uint256/* unfilledQuoteUnbalanced*/)
+    ) private pure returns (uint256/* unfilledBase */, uint256 /* unfilledQuote */, uint256/* unfilledQuoteUnbalanced*/)
     {
         if (tickLower == tickUpper) {
             return (0, 0, 0);

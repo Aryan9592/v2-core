@@ -5,7 +5,6 @@ pragma solidity >=0.8.13;
 import { FullMath } from "../libraries/math/FullMath.sol";
 import { FixedPoint128 } from "../libraries/math/FixedPoint128.sol";
 import { LiquidityMath } from "../libraries/math/LiquidityMath.sol";
-import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
 import { PositionBalances } from "../libraries/DataTypes.sol";
 
 
@@ -113,7 +112,7 @@ library LPPosition {
     function getUpdatedPositionBalances(
         Data memory self,
         PositionBalances memory growthInsideX128
-    ) internal view returns (PositionBalances memory) 
+    ) internal pure returns (PositionBalances memory) 
     {
         PositionBalances memory deltas;
         if (self.liquidity > 0) {

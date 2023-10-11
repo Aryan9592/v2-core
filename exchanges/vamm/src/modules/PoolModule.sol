@@ -8,7 +8,6 @@ import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
 import { LPPosition } from "../storage/LPPosition.sol";
 
-import { TickMath } from "../libraries/ticks/TickMath.sol";
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
 import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
@@ -23,7 +22,6 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SD59x18 } from "@prb/math/SD59x18.sol";
 
 
-/// @title Interface a Pool needs to adhere.
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using VammTicks for DatedIrsVamm.Data;
@@ -36,7 +34,9 @@ contract PoolModule is IPoolModule {
      */
     error NotAuthorized(address caller, bytes32 functionName);
 
-    /// @notice returns a human-readable name for a given pool
+    /**
+     * @inheritdoc IPool
+     */
     function name() external pure override returns (string memory) {
         return "Dated Irs Pool";
     }
@@ -51,33 +51,35 @@ contract PoolModule is IPoolModule {
         uint160 sqrtPriceLimitX96,
         UD60x18 markPrice,
         UD60x18 markPriceBand
-    )
-        external override
-        returns (PositionBalances memory /* tokenDeltas */) {
-        
+    ) external override returns (PositionBalances memory) {
         if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
         }
+
         PoolConfiguration.whenNotPaused();
 
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(
+            marketId,
+            maturityTimestamp
+        );
 
-        DatedIrsVamm.SwapParams memory swapParams;
-        swapParams.amountSpecified = -baseAmount;
         if (sqrtPriceLimitX96 == 0) {
-            VammTicks.TickLimits memory currentTickLimits = vamm.getCurrentTickLimits(markPrice, markPriceBand);
-            swapParams.sqrtPriceLimitX96 = (
-                baseAmount > 0 // VT
+            VammTicks.TickLimits memory currentTickLimits = 
+                vamm.getCurrentTickLimits(markPrice, markPriceBand);
+    
+            sqrtPriceLimitX96 = (
+                baseAmount > 0 // long
                     ? currentTickLimits.minSqrtRatio + 1
                     : currentTickLimits.maxSqrtRatio - 1
             );
-        } else {
-            swapParams.sqrtPriceLimitX96 = sqrtPriceLimitX96;
         }
-        swapParams.markPrice = markPrice;
-        swapParams.markPriceBand = markPriceBand;
 
-        return vamm.vammSwap(swapParams);
+        return vamm.vammSwap(DatedIrsVamm.SwapParams({
+            amountSpecified: -baseAmount,
+            sqrtPriceLimitX96: sqrtPriceLimitX96,
+            markPrice: markPrice,
+            markPriceBand: markPriceBand
+        }));
     }
 
     /**
@@ -116,21 +118,23 @@ contract PoolModule is IPoolModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    )
-        external override
-        returns (int256 closedUnfilledBasePool) {
-
+    ) external override returns (int256 closedUnfilledBasePool) {
         if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
-            revert NotAuthorized(msg.sender, "executeDatedTakerOrder");
+            revert NotAuthorized(msg.sender, "closeUnfilledBase");
         }
+
         PoolConfiguration.whenNotPaused();
 
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(
+            marketId, 
+            maturityTimestamp
+        );
 
         uint256[] memory positions = vamm.vars.accountPositions[accountId].values();
 
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data memory position = LPPosition.exists(positions[i].to128());
+            
             vamm.executeDatedMakerOrder(
                 accountId, 
                 position.tickLower,
@@ -150,14 +154,9 @@ contract PoolModule is IPoolModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    )
-        external
-        view
-        override
-        returns (FilledBalances memory) {     
-        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
+    ) external view override returns (FilledBalances memory) {     
+        DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp); 
         return vamm.getAccountFilledBalances(accountId);
-    
     }
 
     /**
@@ -167,30 +166,23 @@ contract PoolModule is IPoolModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    )
-        external
-        view
-        override
-        returns (UnfilledBalances memory) 
-    {      
+    ) external view override returns (UnfilledBalances memory) {      
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.getAccountUnfilledBalances(accountId);
-    }
-
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        return interfaceId == type(IPool).interfaceId || interfaceId == this.supportsInterface.selector;
     }
 
     /**
      * @inheritdoc IPool
      */
-    function getAdjustedDatedIRSTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSizeWad, uint32 lookbackWindow) 
-        external view override returns (UD60x18 datedIRSTwap) 
-    {   
+    function getAdjustedTwap(uint128 marketId, uint32 maturityTimestamp, int256 orderSizeWad, uint32 lookbackWindow) 
+        external view override returns (UD60x18) {   
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        datedIRSTwap = Twap.twap(vamm, lookbackWindow, SD59x18.wrap(orderSizeWad));
+        return Twap.twap(vamm, lookbackWindow, SD59x18.wrap(orderSizeWad));
     }
 
+    /**
+     * @inheritdoc IPool
+     */
     function hasUnfilledOrders(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -207,5 +199,9 @@ contract PoolModule is IPoolModule {
         }
 
         return false;
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(IPool).interfaceId || interfaceId == this.supportsInterface.selector;
     }
 }

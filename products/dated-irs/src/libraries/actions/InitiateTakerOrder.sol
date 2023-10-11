@@ -16,6 +16,9 @@ import "../../interfaces/IPool.sol";
 import "../FeatureFlagSupport.sol";
 import "../ExposureHelpers.sol";
 
+import { TakerOrderParams } from "../DataTypes.sol";
+
+
 /**
  * @title Library for taker orders logic.
  */
@@ -23,29 +26,15 @@ library InitiateTakerOrder {
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
 
-    struct TakerOrderParams {
-        uint128 accountId;
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        int256 baseAmount;
-        uint160 priceLimit;
-    }
-
     /**
      * @notice Emitted when a taker order of the account token with id `accountId` is initiated.
-     * @param accountId The id of the account.
-     * @param marketId The id of the market.
-     * @param maturityTimestamp The maturity timestamp of the position.
-     * @param collateralType The address of the collateral.
+     * @param params The parameters of the taker order.
      * @param tokenDeltas The executed token amounts of the order.
      * @param annualizedNotionalAmount The annualized base of the order.
      * @param blockTimestamp The current block timestamp.
      */
     event TakerOrder(
-        uint128 indexed accountId,
-        uint128 indexed marketId,
-        uint32 indexed maturityTimestamp,
-        address collateralType,
+        TakerOrderParams params,
         PositionBalances tokenDeltas,
         int256 annualizedNotionalAmount,
         uint256 blockTimestamp
@@ -61,13 +50,10 @@ library InitiateTakerOrder {
      * params baseAmount Amount of notional that the account wants to trade in either long (+) or short (-) direction depending on
      * sign
      */
-    function initiateTakerOrder(TakerOrderParams memory params)
-        internal
-        returns (
-            PositionBalances memory tokenDeltas,
-            int256 annualizedNotionalAmount
-        )
-    {
+    function initiateTakerOrder(TakerOrderParams memory params) internal returns (
+        PositionBalances memory tokenDeltas,
+        int256 annualizedNotionalAmount
+    ) {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
 
@@ -75,13 +61,13 @@ library InitiateTakerOrder {
             params.marketId,
             params.maturityTimestamp,
             market.marketConfig.poolAddress,
-            params.baseAmount
+            params.baseDelta
         );
 
         tokenDeltas = pool.executeDatedTakerOrder(
             params.marketId, 
             params.maturityTimestamp, 
-            params.baseAmount, 
+            params.baseDelta, 
             params.priceLimit, 
             markPrice, 
             market.marketConfig.markPriceBand
@@ -112,6 +98,7 @@ library InitiateTakerOrder {
         ) {
             annualizedNotionalDelta = -annualizedNotionalDelta;
         }
+
         ExposureHelpers.checkOpenInterestLimit(
             params.marketId,
             params.maturityTimestamp,
@@ -121,10 +108,7 @@ library InitiateTakerOrder {
         market.updateOracleStateIfNeeded();
 
         emit TakerOrder(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp,
-            market.quoteToken,
+            params,
             tokenDeltas,
             annualizedNotionalAmount,
             block.timestamp

@@ -7,8 +7,6 @@ import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFla
 
 /// @title Pool configuration
 library PoolConfiguration {
-    event PauseState(bool newPauseState, uint256 blockTimestamp);
-
     bytes32 private constant _PAUSER_FEATURE_FLAG = "pauser";
 
     struct Data {
