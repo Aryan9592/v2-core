@@ -14,7 +14,7 @@ import {Market} from "../storage/Market.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams, TakerOrderParams } from "../libraries/DataTypes.sol";
 
 import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
@@ -214,7 +214,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     
         ( 
             uint32 maturityTimestamp,
-            int256 baseAmount,
+            int256 baseDelta,
             uint160 priceLimit
         ) = abi.decode(inputs, (uint32, int256, uint160));
 
@@ -222,11 +222,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             PositionBalances memory tokenDeltas,
             int256 annualizedNotionalTraded
         ) = InitiateTakerOrder.initiateTakerOrder(
-            InitiateTakerOrder.TakerOrderParams({
+            TakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
-                baseAmount: baseAmount,
+                baseDelta: baseDelta,
                 priceLimit: priceLimit
             })
         );

@@ -115,7 +115,7 @@ abstract contract Checks is AssertionHelpers {
         uint128 marketId, uint32 maturityTimestamp, int256 orderSize
     ) internal view returns (uint256 twap) {
         twap = unwrap(
-            getVammProxy().getAdjustedDatedIRSTwap(
+            getVammProxy().getAdjustedTwap(
                 marketId, 
                 maturityTimestamp, 
                 orderSize, 

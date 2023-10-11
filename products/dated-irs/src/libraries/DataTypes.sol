@@ -45,3 +45,11 @@ struct MakerOrderParams {
     int24 tickUpper;
     int256 baseDelta;
 }
+
+struct TakerOrderParams {
+    uint128 accountId;
+    uint128 marketId;
+    uint32 maturityTimestamp;
+    int256 baseDelta;
+    uint160 priceLimit;
+}

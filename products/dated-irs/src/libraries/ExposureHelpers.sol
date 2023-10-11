@@ -40,34 +40,6 @@ library ExposureHelpers {
 
     uint256 internal constant SECONDS_IN_DAY = 86400;
 
-    struct PoolExposureState {
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        UD60x18 exposureFactor;
-
-        int256 baseBalance;
-        int256 quoteBalance;
-        int256 accruedInterest;
-
-        int256 baseBalancePool;
-        int256 quoteBalancePool;
-        int256 accruedInterestPool;
-
-        uint256 unfilledBaseLong;
-        uint256 unfilledQuoteLong;
-        uint256 unfilledBaseShort;
-        uint256 unfilledQuoteShort;
-        UD60x18 avgLongPrice;
-        UD60x18 avgShortPrice;
-    }
-
-    // todo: is this struct used anywhere?
-    struct AccruedInterestTrackers {
-        int256 accruedInterest;
-        uint256 lastMTMTimestamp;
-        UD60x18 lastMTMRateIndex;
-    }
-
     function computeTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -85,7 +57,7 @@ library ExposureHelpers {
             DecimalMath.WAD_DECIMALS
         );
 
-        return IPool(poolAddress).getAdjustedDatedIRSTwap(
+        return IPool(poolAddress).getAdjustedTwap(
             marketId,
             maturityTimestamp,
             orderSizeWad,
