@@ -55,22 +55,5 @@ library Utils {
       return false;
     }
   }
-
-  function getLiquidityForBase(
-    int24 tickLower,
-    int24 tickUpper,
-    int256 baseAmount
-  ) internal pure returns (int128 liquidity) {
-    // get sqrt ratios
-    uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);
-    uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(tickUpper);
-
-    if (sqrtRatioAX96 > sqrtRatioBX96)
-        (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
-    uint256 absLiquidity = FullMath
-            .mulDiv(uint256(baseAmount > 0 ? baseAmount : -baseAmount), Q96, sqrtRatioBX96 - sqrtRatioAX96);
-
-    return baseAmount > 0 ? absLiquidity.toInt().to128() : -(absLiquidity.toInt().to128());
-  } 
 }
 
