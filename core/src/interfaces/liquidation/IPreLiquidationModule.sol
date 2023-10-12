@@ -8,9 +8,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 /**
- * @title Liquidation Engine interface
+ * @title Pre-Liquidation Engine interface
  */
-interface ILiquidationModule {
+interface IPreLiquidationModule {
     // todo: add natspec
     function closeAllUnfilledOrders(
         uint128 liquidatableAccountId,

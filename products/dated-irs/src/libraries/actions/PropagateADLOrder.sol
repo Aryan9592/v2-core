@@ -10,10 +10,12 @@ pragma solidity >=0.8.19;
 
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
-import {ExposureHelpers} from "../../libraries/ExposureHelpers.sol";
 import {FilledBalances} from "../../libraries/DataTypes.sol";
 import {ExecuteADLOrder} from "./ExecuteADLOrder.sol";
 import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
+
+import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
 
 /*
 TODOs
@@ -56,8 +58,6 @@ library PropagateADLOrder {
         // todo: this suffers from double propagations, we need to guard it
         // additionally, must make sure we don't propagate when blended order has 0 base
 
-        // todo: how do we mark market as active for accountId in core?
-
         Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(ExecuteADLOrder.adlOrderTimerId(isLong));
         if (adlPortfolioTimer.isActive()) {
             revert CannotPropagateADLDuringBlendingPeriod(marketId, isLong);
@@ -93,5 +93,18 @@ library PropagateADLOrder {
             quoteToPropagate,
             maturityTimestamp
         );
+
+        // todo: check this once share to be propagated is compute above (must 
+        // pay attention to rounding errors)
+        if (filledBalances.base == baseToPropagate && filledBalances.quote == quoteToPropagate) {
+            // adl propagation is done, unpause maturity
+            FeatureFlag.Data storage flag = FeatureFlag.load(
+                FeatureFlagSupport.getMarketEnabledFeatureFlagId(
+                    accountPortfolio.marketId, 
+                    maturityTimestamp
+                )
+            );
+            flag.denyAll = false;
+        }
     }
 }

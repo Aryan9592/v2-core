@@ -94,7 +94,7 @@ library AccountLiquidation {
     /**
     * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
     */
-    error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, int256 lmDeltaChange);
+    error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, uint256 lmrBefore, uint256 lmrAfter);
 
     /**
     * @dev Thrown if a liquidation bid quote token doesn't match the quote token of the market where
@@ -264,17 +264,16 @@ library AccountLiquidation {
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
-            int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(quoteToken).liquidationDelta;
+            uint256 rawLMRBefore = self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement;
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
             for (uint256 j = 0; j < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
-            int256 lmDeltaChange = 
-                self.getMarginInfoByBubble(quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
+            uint256 rawLMRAfter = self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
-            if (lmDeltaChange < 0) {
-                revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+            if (rawLMRAfter > rawLMRBefore) {
+                revert LiquidationCausedNegativeLMDeltaChange(self.id, rawLMRBefore, rawLMRAfter);
             }
 
             distributeLiquidationPenalty(
@@ -282,7 +281,7 @@ library AccountLiquidation {
                 liquidatorAccount,
                 mulUDxUint(
                     collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
-                    lmDeltaChange.toUint()
+                    rawLMRBefore - rawLMRAfter
                 ),
                 quoteToken,
                 0);
@@ -334,7 +333,7 @@ library AccountLiquidation {
         uint256 backstopLPReward = 0;
         if (
             backstopLpFreeCollateralInUSD > 0 && 
-            backstopLpFreeCollateralInUSD.toUint() > collateralPool.backstopLPConfig.minNetDepositThresholdInUSD
+            backstopLpFreeCollateralInUSD.toUint() > collateralPool.backstopLPConfig.minFreeCollateralThresholdInUSD
         ) {
             backstopLPReward = mulUDxUint(
                 collateralPool.backstopLPConfig.liquidationFee,
@@ -470,7 +469,7 @@ library AccountLiquidation {
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
-        int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(market.quoteToken).liquidationDelta;
+        uint256 rawLMRBefore = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
         market.executeLiquidationOrder(
             self.id,
@@ -478,11 +477,10 @@ library AccountLiquidation {
             inputs
         );
 
-        int256 lmDeltaChange =
-        self.getMarginInfoByBubble(market.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
+        uint256 rawLMRAfter = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
-        if (lmDeltaChange < 0) {
-            revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+        if (rawLMRAfter > rawLMRBefore) {
+            revert LiquidationCausedNegativeLMDeltaChange(self.id, rawLMRBefore, rawLMRAfter);
         }
 
         distributeLiquidationPenalty(
@@ -490,7 +488,7 @@ library AccountLiquidation {
             liquidatorAccount,
             mulUDxUint(
                 liquidationPenaltyParameter,
-                lmDeltaChange.toUint()
+                rawLMRBefore - rawLMRAfter
             ),
             market.quoteToken,
             0
@@ -622,7 +620,7 @@ library AccountLiquidation {
                 });
             }
         } else {
-            int realBalanceAndIF = marginInfo.collateralInfo.realBalance;
+            int256 realBalanceAndIF = marginInfo.collateralInfo.realBalance;
 
             // note: insuranceFundCoverAvailable should never be negative
             uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
@@ -657,12 +655,14 @@ library AccountLiquidation {
         }
     }
 
+    // todo: check function after auto-exchange is addressed
     function getPendingAutoExchangeFunds(
         Account.Data storage self,
         address quoteToken
     ) internal returns (uint256 pendingAutoExchangeFunds) {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
+        // todo: check correctness here after auto-exchange is addressed
         if (self.isEligibleForAutoExchange(quoteToken)) {
             address[] memory collateralTokens = 
                 CollateralConfiguration.exists(collateralPool.id, address(0)).childTokens.values();

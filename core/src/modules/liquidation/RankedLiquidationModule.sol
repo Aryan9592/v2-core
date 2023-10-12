@@ -83,7 +83,7 @@ contract RankedLiquidationModule is IRankedLiquidationModule {
             }
         }
 
-        int256 lmDeltaBeforeLiquidation = account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta;
+        uint256 rawLMRBefore = account.getMarginInfoByBubble(liquidationBid.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
@@ -94,14 +94,14 @@ contract RankedLiquidationModule is IRankedLiquidationModule {
             );
         }
 
-        int256 lmDeltaChange =
-        account.getMarginInfoByBubble(liquidationBid.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
-        if (lmDeltaChange < 0) {
-            revert AccountLiquidation.LiquidationCausedNegativeLMDeltaChange(account.id, lmDeltaChange);
+        uint256 rawLMRAfter = account.getMarginInfoByBubble(liquidationBid.quoteToken).rawInfo.rawLiquidationMarginRequirement;
+
+        if (rawLMRAfter > rawLMRBefore) {
+            revert AccountLiquidation.LiquidationCausedNegativeLMDeltaChange(account.id, rawLMRBefore, rawLMRAfter);
         }
         uint256 liquidationPenalty = mulUDxUint(
             liquidationBid.liquidatorRewardParameter,
-            lmDeltaChange.toUint()
+            rawLMRBefore - rawLMRAfter
         );
 
         account.distributeLiquidationPenalty(

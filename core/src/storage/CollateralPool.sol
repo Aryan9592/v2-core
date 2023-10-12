@@ -205,10 +205,10 @@ library CollateralPool {
         UD60x18 liquidationFee;
 
         /**
-         * Lower bound threshold enforced on the total net deposits of the backstop lp
+         * Lower bound threshold enforced on the total free collateral of the backstop lp
          * (in USD) in order to earn backstop rewards.
          */
-        uint256 minNetDepositThresholdInUSD;
+        uint256 minFreeCollateralThresholdInUSD;
 
         /**
          * Duration in seconds of the period between withdrawal announcement

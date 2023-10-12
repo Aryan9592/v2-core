@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../../storage/Account.sol";
 import {AccountLiquidation} from "../../libraries/account/AccountLiquidation.sol";
-import {ILiquidationModule} from "../../interfaces/liquidation/ILiquidationModule.sol";
+import {IPreLiquidationModule} from "../../interfaces/liquidation/IPreLiquidationModule.sol";
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -18,7 +18,7 @@ import {ILiquidationModule} from "../../interfaces/liquidation/ILiquidationModul
  * @dev See ILiquidationModule
  */
 
-contract LiquidationModule is ILiquidationModule {
+contract PreLiquidationModule is IPreLiquidationModule {
     using Account for Account.Data;
     using AccountLiquidation for Account.Data;
 
