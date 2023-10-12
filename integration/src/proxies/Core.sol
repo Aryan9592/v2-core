@@ -20,20 +20,20 @@ import "@voltz-protocol/core/src/modules/AccessPassConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/AccountTokenModule.sol";
 
 contract CoreRouter is
-  AccessPassConfigurationModule,
-  AccountModule, 
-  AssociatedSystemsModule,
-  CollateralConfigurationModule,
-  CollateralModule,
-  FeatureFlagModule,
-  FeeConfigurationModule,
-  PreLiquidationModule,
-  RankedLiquidationModule,
-  DutchLiquidationModule,
-  BackstopLiquidationModule,
-  OwnerUpgradeModule,
-  MarketManagerModule,
-  RiskConfigurationModule
+    AccessPassConfigurationModule,
+    AccountModule,
+    AssociatedSystemsModule,
+    CollateralConfigurationModule,
+    CollateralModule,
+    FeatureFlagModule,
+    FeeConfigurationModule,
+    PreLiquidationModule,
+    RankedLiquidationModule,
+    DutchLiquidationModule,
+    BackstopLiquidationModule,
+    OwnerUpgradeModule,
+    MarketManagerModule,
+    RiskConfigurationModule
 { }
 
 contract CoreProxy is UUPSProxyWithOwner, CoreRouter {
