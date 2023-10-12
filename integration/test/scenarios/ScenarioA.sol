@@ -1,44 +1,32 @@
 pragma solidity >=0.8.19;
 
-import {CollateralConfiguration} from "@voltz-protocol/core/src/storage/CollateralConfiguration.sol";
-import {SafeCastI256, SafeCastU256, SafeCastU128} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {ScenarioSetup} from "./utils/ScenarioSetup.sol";
-import {AssertionHelpers} from "./utils/AssertionHelpers.sol";
-import {Constants} from "./utils/Constants.sol";
-import {PoolConfiguration} from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
-import {Market} from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
-import {IAccountModule} from "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
-import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
-import {IRateOracle} from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracle.sol";
-import {VammConfiguration} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammConfiguration.sol";
-import {DatedIrsVamm} from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
-import {DatedIrsProxy} from "../../src/proxies/DatedIrs.sol";
-import {TickMath} from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
-import {Actions} from "./utils/Actions.sol";
-import {Checks} from "./utils/Checks.sol";
-import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import {VammProxy} from "../../src/proxies/Vamm.sol";
-import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
-import {VammHelpers} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammHelpers.sol";
-import {Utils} from "../../src/utils/Utils.sol";
-import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { Actions } from "./utils/Actions.sol";
+import { AssertionHelpers } from "./utils/AssertionHelpers.sol";
+import { Checks } from "./utils/Checks.sol";
+import { Constants } from "./utils/Constants.sol";
+import { ScenarioSetup } from "./utils/ScenarioSetup.sol";
 
-import { ud60x18, div, SD59x18, UD60x18, convert, unwrap, wrap } from "@prb/math/UD60x18.sol";
+import { DatedIrsProxy } from "../../src/proxies/DatedIrs.sol";
+import { VammProxy } from "../../src/proxies/Vamm.sol";
+
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
+
+import { DatedIrsVamm } from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
+import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
+import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
+import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
+
+import { ud60x18, wrap, unwrap } from "@prb/math/UD60x18.sol";
 
 contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
-    using SafeCastI256 for int256;
-    using SafeCastU256 for uint256;
-    using SafeCastU128 for uint128;
 
-    address internal user1;
-    address internal user2;
-
-    uint128 productId;
-    uint128 marketId;
-    uint32 maturityTimestamp;
-    int24 initTick;
+    uint128 public marketId;
+    uint32 public maturityTimestamp;
+    int24 public initTick;
 
     function getDatedIrsProxy() internal view override returns (DatedIrsProxy) {
         return datedIrsProxy;

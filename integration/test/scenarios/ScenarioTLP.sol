@@ -10,7 +10,6 @@ import { DatedIrsProxy } from "../../src/proxies/DatedIrs.sol";
 import { VammProxy } from "../../src/proxies/Vamm.sol";
 
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
-import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
@@ -19,16 +18,12 @@ import { DatedIrsVamm } from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.s
 import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfiguration.sol";
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
-import { VammHelpers } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammHelpers.sol";
 
-import { ud60x18, UD60x18, unwrap, wrap } from "@prb/math/UD60x18.sol";
+import { ud60x18, wrap } from "@prb/math/UD60x18.sol";
 
 
 contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
-    address internal user1;
-    address internal user2;
 
-    uint128 public productId;
     uint128 public marketId;
     uint32 public maturityTimestamp;
     int24 public initTick;

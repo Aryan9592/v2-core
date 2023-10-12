@@ -1,13 +1,10 @@
 pragma solidity >=0.8.19;
 
-import {AssertionHelpers} from "./AssertionHelpers.sol";
-import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
-import {IPool} from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
-import {VammProxy} from "../../../src/proxies/Vamm.sol";
-import {DatedIrsProxy} from "../../../src/proxies/DatedIrs.sol";
-import {VammTicks} from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
+import { AssertionHelpers } from "./AssertionHelpers.sol";
+import { VammProxy } from "../../../src/proxies/Vamm.sol";
+import { DatedIrsProxy } from "../../../src/proxies/DatedIrs.sol";
 
-import { UD60x18, ud, unwrap, convert } from "@prb/math/UD60x18.sol";
+import { unwrap } from "@prb/math/UD60x18.sol";
 
 import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 

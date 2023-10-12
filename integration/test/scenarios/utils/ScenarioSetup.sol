@@ -15,22 +15,21 @@ import {MockGlpManager} from "@voltz-protocol/products-dated-irs/test/mocks/Mock
 import {MockGlpRewardTracker} from "@voltz-protocol/products-dated-irs/test/mocks/MockGlpRewardTracker.sol";
 
 import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import { ud60x18, UD60x18, unwrap, UNIT } from "@prb/math/UD60x18.sol";
 
 contract ScenarioSetup is Test {
-  DatedIrsProxy datedIrsProxy;
-  VammProxy vammProxy;
-  address mockCoreProxy;
+  DatedIrsProxy public datedIrsProxy;
+  VammProxy public vammProxy;
+  address public mockCoreProxy;
 
-  address mockUsdc;
-  address mockGlpToken;
+  address public mockUsdc;
+  address public mockGlpToken;
 
-  MockConstantAaveLendingPool aaveLendingPool;
-  AaveV3RateOracle aaveV3RateOracle;
-  GlpRateOracle glpRateOracle;
-  MockGlpRewardRouter mockGlpRewardRouter;
+  MockConstantAaveLendingPool public aaveLendingPool;
+  AaveV3RateOracle public aaveV3RateOracle;
+  GlpRateOracle public glpRateOracle;
+  MockGlpRewardRouter public mockGlpRewardRouter;
 
-  address owner;
+  address public owner;
 
   function datedIrsSetup() public {
     vm.warp(86400 * 365); // time has to be > lookbackwindow for twap to avoid underflow
