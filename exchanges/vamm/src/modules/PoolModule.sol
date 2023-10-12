@@ -126,8 +126,13 @@ contract PoolModule is IPoolModule {
 
             vamm.executeDatedMakerOrder(accountId, position.tickLower, position.tickUpper, -position.liquidity.toInt());
 
-            // todo: shouldn't we convert liquidity to base here?
-            closedUnfilledBasePool += position.liquidity.toInt();
+            (uint256 absClosedBase, ) = VammHelpers.amountsFromLiquidity(
+                position.liquidity,
+                position.tickLower,
+                position.tickUpper
+            );
+
+            closedUnfilledBasePool += absClosedBase.toInt();
         }
     }
 

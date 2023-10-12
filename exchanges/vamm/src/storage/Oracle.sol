@@ -104,7 +104,6 @@ library Oracle {
     {
         Observation memory last = self[index];
 
-        // todo: review during testing
         // overwrite last observation if it took place in the same block
         if (last.blockTimestamp == blockTimestamp) {
             Observation memory lastButOne = (index > 0) ? self[index - 1] : self[cardinality - 1];
