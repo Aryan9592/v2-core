@@ -10,7 +10,7 @@ import { LPPosition } from "../storage/LPPosition.sol";
 
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
-import { VammHelpers } from "../libraries/vamm-utils/VammHelpers.sol";
+import { liquidityFromBase } from "../libraries/vamm-utils/VammHelpers.sol";
 import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
 import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -97,7 +97,7 @@ contract PoolModule is IPoolModule {
             params.maturityTimestamp
         );
 
-        int128 liquidityDelta = VammHelpers.liquidityFromBase(
+        int128 liquidityDelta = liquidityFromBase(
             params.baseDelta,
             params.tickLower,
             params.tickUpper

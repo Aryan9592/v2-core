@@ -2,6 +2,8 @@
 pragma solidity >=0.8.13;
 
 
+import { Events } from "../libraries/Events.sol";
+
 import { IVammModule } from "../interfaces/IVammModule.sol";
 
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
@@ -24,22 +26,6 @@ contract VammModule is IVammModule {
     using SetUtil for SetUtil.UintSet;
     using SafeCastU256 for uint256;
 
-    /// @dev Emitted when vamm configurations are updated
-    event VammConfigUpdated(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        DatedIrsVamm.Mutable config,
-        uint256 blockTimestamp
-    );
-
-    /// @dev Emitted when a new vamm is created and initialized
-    event VammCreated(
-        int24 tick,
-        DatedIrsVamm.Immutable config,
-        DatedIrsVamm.Mutable mutableConfig,
-        uint256 blockTimestamp
-    );
-
     /**
      * @inheritdoc IVammModule
      */
@@ -60,7 +46,7 @@ contract VammModule is IVammModule {
             mutableConfig
         );
     
-        emit VammCreated(
+        emit Events.VammCreated(
             vamm.vars.tick,
             config,
             mutableConfig,
@@ -77,7 +63,7 @@ contract VammModule is IVammModule {
         OwnableStorage.onlyOwner();
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         vamm.configure(config);
-        emit VammConfigUpdated(marketId, maturityTimestamp, config, block.timestamp);
+        emit Events.VammConfigUpdated(marketId, maturityTimestamp, config, block.timestamp);
     }
 
     /**

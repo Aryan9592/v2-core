@@ -4,15 +4,19 @@ pragma solidity >=0.8.13;
 
 import { SwapMath } from "./SwapMath.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
-import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
+import { calculatePrice, applySpread } from "./VammHelpers.sol";
 
-import { RateOracleObservation, PositionBalances } from "../DataTypes.sol";
+import { PositionBalances, SwapState, SwapStepComputations, RateOracleObservation } from "../DataTypes.sol";
+
+import { Events } from "../Events.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 import { LiquidityMath } from "../math/LiquidityMath.sol";
+import { FixedPoint128 } from "../math/FixedPoint128.sol";
+import { FullMath } from "../math/FullMath.sol";
 
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { Oracle } from "../../storage/Oracle.sol";
@@ -91,7 +95,7 @@ library Swap {
             "SPL"
         );
 
-        VammHelpers.SwapState memory state = VammHelpers.SwapState({
+        SwapState memory state = SwapState({
             amountSpecifiedRemaining: params.amountSpecified, // base ramaining
             sqrtPriceX96: self.vars.sqrtPriceX96,
             tick: self.vars.tick,
@@ -110,7 +114,7 @@ library Swap {
             state.amountSpecifiedRemaining != 0 &&
             state.sqrtPriceX96 != params.sqrtPriceLimitX96
         ) {
-            VammHelpers.StepComputations memory step;
+            SwapStepComputations memory step;
 
             ///// GET NEXT TICK /////
 
@@ -165,8 +169,8 @@ library Swap {
                 // LP is a Variable Taker
                 step.tokenDeltas.base = step.amountIn.toInt(); // this is positive
 
-                step.averagePrice = VammHelpers.applySpread(
-                    VammHelpers.calculatePrice(step.amountIn, step.amountOut),
+                step.averagePrice = applySpread(
+                    calculatePrice(step.amountIn, step.amountOut),
                     self.mutableConfig.spread,
                     true
                 );
@@ -174,8 +178,8 @@ library Swap {
                 // LP is a Fixed Taker
                 step.tokenDeltas.base = -step.amountOut.toInt(); // this is negative
 
-                step.averagePrice = VammHelpers.applySpread(
-                    VammHelpers.calculatePrice(step.amountOut, step.amountIn),
+                step.averagePrice = applySpread(
+                    calculatePrice(step.amountOut, step.amountIn),
                     self.mutableConfig.spread,
                     false
                 );
@@ -192,7 +196,7 @@ library Swap {
                     rateOracleObservation
                 );
 
-                state.growthGlobalX128 = VammHelpers.calculateGlobalTrackerValues(
+                state.growthGlobalX128 = calculateGlobalTrackerValues(
                     state,
                     step.tokenDeltas
                 );
@@ -250,14 +254,14 @@ library Swap {
         self.vars.liquidity = state.liquidity;
         self.vars.growthGlobalX128 = state.growthGlobalX128;
 
-        emit VammHelpers.VAMMPriceChange(
+        emit Events.VAMMPriceChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             self.vars.tick,
             block.timestamp
         );
 
-        emit VammHelpers.Swap(
+        emit Events.Swap(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,
@@ -268,6 +272,22 @@ library Swap {
         );
 
         return state.tokenDeltaCumulative;
+    }
+
+    function calculateGlobalTrackerValues(
+        SwapState memory state,
+        PositionBalances memory deltas
+    ) private pure returns (PositionBalances memory) {
+        return PositionBalances({
+            base: state.growthGlobalX128.base + 
+                FullMath.mulDivSigned(deltas.base, FixedPoint128.Q128, state.liquidity),
+
+            quote: state.growthGlobalX128.quote + 
+                FullMath.mulDivSigned(deltas.quote, FixedPoint128.Q128, state.liquidity),
+
+            extraCashflow: state.growthGlobalX128.extraCashflow + 
+                FullMath.mulDivSigned(deltas.extraCashflow, FixedPoint128.Q128, state.liquidity)
+        });
     }
 
     /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance

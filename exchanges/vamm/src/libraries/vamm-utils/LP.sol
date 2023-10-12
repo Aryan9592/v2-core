@@ -3,9 +3,10 @@ pragma solidity >=0.8.13;
 
 
 import { AccountBalances } from "./AccountBalances.sol";
-import { VammHelpers } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
+
+import { Events } from "../Events.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 import { TickBitmap } from "../ticks/TickBitmap.sol";
@@ -72,7 +73,7 @@ library LP {
 
         updateLiquidity(self, tickLower, tickUpper, liquidityDelta);
 
-        emit VammHelpers.LiquidityChange(
+        emit Events.LiquidityChange(
             self.immutableConfig.marketId,
             self.immutableConfig.maturityTimestamp,
             msg.sender,

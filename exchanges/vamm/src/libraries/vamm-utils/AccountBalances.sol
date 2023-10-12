@@ -3,7 +3,7 @@
 pragma solidity >=0.8.13;
 
 
-import { VammHelpers } from "./VammHelpers.sol";
+import { amountsFromLiquidity, calculatePrice, applySpread } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
 import { PositionBalances, FilledBalances, UnfilledBalances, RateOracleObservation } from "../DataTypes.sol";
@@ -54,7 +54,7 @@ library AccountBalances {
             }
             
             {
-                (uint256 unfilledBase, uint256 unbalancedQuote) = VammHelpers.amountsFromLiquidity(
+                (uint256 unfilledBase, uint256 unbalancedQuote) = amountsFromLiquidity(
                     position.liquidity,
                     position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick
@@ -65,7 +65,7 @@ library AccountBalances {
             }
             
             {
-                (uint256 unfilledBase, uint256 unbalancedQuote) = VammHelpers.amountsFromLiquidity(
+                (uint256 unfilledBase, uint256 unbalancedQuote) = amountsFromLiquidity(
                     position.liquidity,
                     position.tickLower > self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper > self.vars.tick ? position.tickUpper : self.vars.tick
@@ -77,8 +77,8 @@ library AccountBalances {
         }
 
         if (unfilled.baseLong > 0) {
-            unfilled.averagePriceLong = VammHelpers.applySpread(
-                VammHelpers.calculatePrice(unfilled.baseLong, unbalancedQuoteLong),
+            unfilled.averagePriceLong = applySpread(
+                calculatePrice(unfilled.baseLong, unbalancedQuoteLong),
                 self.mutableConfig.spread,
                 false
             );
@@ -87,8 +87,8 @@ library AccountBalances {
         }
 
         if (unfilled.baseShort > 0) {
-            unfilled.averagePriceShort = VammHelpers.applySpread(
-                VammHelpers.calculatePrice(unfilled.baseShort, unbalancedQuoteShort),
+            unfilled.averagePriceShort = applySpread(
+                calculatePrice(unfilled.baseShort, unbalancedQuoteShort),
                 self.mutableConfig.spread,
                 true
             );
