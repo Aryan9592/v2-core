@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
-
 
 /// @title Pool configuration
 library PoolConfiguration {

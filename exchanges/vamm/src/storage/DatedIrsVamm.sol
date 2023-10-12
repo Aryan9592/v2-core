@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { Oracle } from "./Oracle.sol";
 import { PoolConfiguration } from "./PoolConfiguration.sol";
 
@@ -18,9 +17,9 @@ import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservati
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { IMarketConfigurationModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
+import { IMarketConfigurationModule } from
+    "@voltz-protocol/products-dated-irs/src/interfaces/IMarketConfigurationModule.sol";
 import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
-
 
 /**
  * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
@@ -30,7 +29,7 @@ library DatedIrsVamm {
     struct Mutable {
         /// @dev the phi value to use when adjusting a TWAP price for the likely price impact of liquidation
         UD60x18 priceImpactPhi;
-        /// @dev the spread taken by LPs on each trade. 
+        /// @dev the spread taken by LPs on each trade.
         ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
         UD60x18 spread;
         /// @dev minimum seconds between observation entries in the oracle buffer
@@ -63,38 +62,28 @@ library DatedIrsVamm {
 
         // the current price of the pool as a sqrt(trackerBaseToken/trackerQuoteToken) Q64.96 value
         uint160 sqrtPriceX96;
-        
         // the current tick of the vamm, i.e. according to the last tick transition that was run.
         int24 tick;
-        
         // the most-recently updated index of the observations array
         uint16 observationIndex;
-        
         // the current maximum number of observations that are being stored
         uint16 observationCardinality;
-        
         // the next maximum number of observations to store, triggered in observations.write
         uint16 observationCardinalityNext;
-        
         // whether the pool is locked
         bool unlocked;
-
         /// Circular buffer of Oracle Observations. Resizable but no more than type(uint16).max slots in the buffer
-        Oracle.Observation[65535] observations;
-
-        /// @dev Maps from an account address to a list of the position IDs of positions associated with that account address. 
+        Oracle.Observation[65_535] observations;
+        /// @dev Maps from an account address to a list of the position IDs of positions associated with that account
+        /// address.
         ///      Use the `positions` mapping to see full details of any given `LPPosition`.
         mapping(uint128 => SetUtil.UintSet) accountPositions;
-
         /// @notice The currently in range liquidity available to the pool
         /// @dev This value has no relationship to the total liquidity across all ticks
         uint128 liquidity;
-        
         PositionBalances growthGlobalX128;
-        
         /// @dev map from tick to tick info
         mapping(int24 => Tick.Info) ticks;
-        
         /// @dev map from tick to tick bitmap
         mapping(int16 => uint256) tickBitmap;
     }
@@ -103,31 +92,24 @@ library DatedIrsVamm {
     struct Data {
         /// @dev vamm config set at initialization, can't be modified after creation
         Immutable immutableConfig;
-        
         /// @dev configurable vamm config
         Mutable mutableConfig;
-        
         /// @dev vamm state frequently-updated
         State vars;
-        
         /// @dev Equivalent to getSqrtRatioAtTick(minTickAllowed)
         uint160 minSqrtRatioAllowed;
-        
         /// @dev Equivalent to getSqrtRatioAtTick(maxTickAllowed)
         uint160 maxSqrtRatioAllowed;
     }
 
     struct SwapParams {
-        /// @dev The amount of the swap in base tokens, which implicitly configures the swap 
+        /// @dev The amount of the swap in base tokens, which implicitly configures the swap
         ///      as exact input (positive), or exact output (negative)
         int256 amountSpecified;
-        
         /// @dev The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
         uint160 sqrtPriceLimitX96;
-        
         /// @dev Mark price used to compute dynamic price limits
         UD60x18 markPrice;
-        
         /// @dev Fixed Mark Price Band applied to the mark price to compute the dynamic price limits
         UD60x18 markPriceBand;
     }
@@ -138,14 +120,14 @@ library DatedIrsVamm {
         int24[] memory observedTicks,
         Immutable memory config,
         Mutable memory mutableConfig
-    ) internal returns (Data storage) {
+    )
+        internal
+        returns (Data storage)
+    {
         return VammConfiguration.create(sqrtPriceX96, times, observedTicks, config, mutableConfig);
     }
 
-    function configure(
-        DatedIrsVamm.Data storage self,
-        DatedIrsVamm.Mutable memory config
-    ) internal {
+    function configure(DatedIrsVamm.Data storage self, DatedIrsVamm.Mutable memory config) internal {
         VammConfiguration.configure(self, config);
     }
 
@@ -176,7 +158,14 @@ library DatedIrsVamm {
      * @dev Finds the vamm id using market id and maturity and
      * returns the vamm stored at the specified vamm id. Reverts if no such VAMM is found.
      */
-    function loadByMaturityAndMarket(uint128 marketId, uint32 maturityTimestamp) internal view returns (Data storage irsVamm) {
+    function loadByMaturityAndMarket(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    )
+        internal
+        view
+        returns (Data storage irsVamm)
+    {
         uint256 id = uint256(keccak256(abi.encodePacked(marketId, maturityTimestamp)));
         irsVamm = exists(id);
     }
@@ -184,7 +173,10 @@ library DatedIrsVamm {
     function vammSwap(
         DatedIrsVamm.Data storage self,
         DatedIrsVamm.SwapParams memory params
-    ) internal returns (PositionBalances memory /* tokenDeltas */) {
+    )
+        internal
+        returns (PositionBalances memory /* tokenDeltas */ )
+    {
         return Swap.vammSwap(self, params);
     }
 
@@ -202,49 +194,49 @@ library DatedIrsVamm {
         int24 tickUpper,
         int128 liquidityDelta
     )
-    internal {
-        LP.executeDatedMakerOrder(
-            self,
-            accountId,
-            tickLower,
-            tickUpper,
-            liquidityDelta
-        );
+        internal
+    {
+        LP.executeDatedMakerOrder(self, accountId, tickLower, tickUpper, liquidityDelta);
     }
 
     /// @notice For a given LP account, how much liquidity is available to trade in each direction.
     /// @param accountId The LP account. All positions within the account will be considered.
     /// @return unfilled The unfilled base and quote balances
-    function getAccountUnfilledBalances(DatedIrsVamm.Data storage self, uint128 accountId)
-    internal
-    view
-    returns (UnfilledBalances memory) {
+    function getAccountUnfilledBalances(
+        DatedIrsVamm.Data storage self,
+        uint128 accountId
+    )
+        internal
+        view
+        returns (UnfilledBalances memory)
+    {
         return AccountBalances.getAccountUnfilledBalances(self, accountId);
     }
 
-    /// @dev For a given LP posiiton, how much of it is already traded and what are base and 
+    /// @dev For a given LP posiiton, how much of it is already traded and what are base and
     /// quote tokens representing those exiting trades?
-    function getAccountFilledBalances(DatedIrsVamm.Data storage self, uint128 accountId)
-    internal
-    view
-    returns (FilledBalances memory) {
+    function getAccountFilledBalances(
+        DatedIrsVamm.Data storage self,
+        uint128 accountId
+    )
+        internal
+        view
+        returns (FilledBalances memory)
+    {
         return AccountBalances.getAccountFilledBalances(self, accountId);
     }
 
     function getLatestRateIndex(DatedIrsVamm.Data storage self) internal view returns (RateOracleObservation memory) {
         IRateOracleModule rateOracleModule = IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
-        
-        return rateOracleModule.getLatestRateIndex(
-            self.immutableConfig.marketId, 
-            self.immutableConfig.maturityTimestamp
-        );
+
+        return
+            rateOracleModule.getLatestRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
     }
 
     function getExposureFactor(DatedIrsVamm.Data storage self) internal view returns (UD60x18) {
-        IMarketConfigurationModule marketConfigurationModule = IMarketConfigurationModule(
-            PoolConfiguration.load().marketManagerAddress
-        );
-        
+        IMarketConfigurationModule marketConfigurationModule =
+            IMarketConfigurationModule(PoolConfiguration.load().marketManagerAddress);
+
         return marketConfigurationModule.getExposureFactor(self.immutableConfig.marketId);
     }
 }

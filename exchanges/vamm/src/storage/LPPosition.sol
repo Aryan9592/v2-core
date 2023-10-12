@@ -1,12 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { FullMath } from "../libraries/math/FullMath.sol";
 import { FixedPoint128 } from "../libraries/math/FixedPoint128.sol";
 import { LiquidityMath } from "../libraries/math/LiquidityMath.sol";
 import { PositionBalances } from "../libraries/DataTypes.sol";
-
 
 /**
  * @title Tracks LP positions
@@ -17,33 +15,33 @@ library LPPosition {
     error PositionNotFound();
 
     struct Data {
-        /** 
-        * @dev position's account id
-        */
+        /**
+         * @dev position's account id
+         */
         uint128 id;
-        /** 
-        * @dev position's account id
-        */
+        /**
+         * @dev position's account id
+         */
         uint128 accountId;
-        /** 
-        * @dev amount of liquidity per tick in this position
-        */
+        /**
+         * @dev amount of liquidity per tick in this position
+         */
         uint128 liquidity;
-        /** 
-        * @dev lower tick boundary of the position
-        */
+        /**
+         * @dev lower tick boundary of the position
+         */
         int24 tickLower;
-        /** 
-        * @dev upper tick boundary of the position
-        */
+        /**
+         * @dev upper tick boundary of the position
+         */
         int24 tickUpper;
-        /** 
-        * @dev vamm trackers
-        */
+        /**
+         * @dev vamm trackers
+         */
         PositionBalances updatedGrowthTrackers;
-        /** 
-        * @dev trader balances
-        */
+        /**
+         * @dev trader balances
+         */
         PositionBalances traderBalances;
     }
 
@@ -71,11 +69,12 @@ library LPPosition {
         uint32 maturityTimestamp,
         int24 tickLower,
         int24 tickUpper
-    ) internal returns (Data storage position)
+    )
+        internal
+        returns (Data storage position)
     {
-        uint128 positionId = uint128(uint256(keccak256(
-            abi.encodePacked(accountId, marketId, maturityTimestamp, tickLower, tickUpper)
-        )));
+        uint128 positionId =
+            uint128(uint256(keccak256(abi.encodePacked(accountId, marketId, maturityTimestamp, tickLower, tickUpper))));
 
         position = load(positionId);
 
@@ -89,10 +88,7 @@ library LPPosition {
         return position;
     }
 
-    function updateTokenBalances(
-        Data storage self,
-        PositionBalances memory growthInsideX128
-    ) internal {
+    function updateTokenBalances(Data storage self, PositionBalances memory growthInsideX128) internal {
         PositionBalances memory deltas;
         if (self.liquidity > 0) {
             deltas = calculateTrackersDelta(self, growthInsideX128);
@@ -112,13 +108,16 @@ library LPPosition {
     function getUpdatedPositionBalances(
         Data memory self,
         PositionBalances memory growthInsideX128
-    ) internal pure returns (PositionBalances memory) 
+    )
+        internal
+        pure
+        returns (PositionBalances memory)
     {
         PositionBalances memory deltas;
         if (self.liquidity > 0) {
             deltas = calculateTrackersDelta(self, growthInsideX128);
         }
-        
+
         return PositionBalances({
             base: self.traderBalances.base + deltas.base,
             quote: self.traderBalances.quote + deltas.quote,
@@ -135,15 +134,11 @@ library LPPosition {
         returns (PositionBalances memory deltas)
     {
         deltas.base = FullMath.mulDivSigned(
-            growthInsideX128.base - self.updatedGrowthTrackers.base,
-            self.liquidity,
-            FixedPoint128.Q128
+            growthInsideX128.base - self.updatedGrowthTrackers.base, self.liquidity, FixedPoint128.Q128
         );
 
         deltas.quote = FullMath.mulDivSigned(
-            growthInsideX128.quote - self.updatedGrowthTrackers.quote,
-            self.liquidity,
-            FixedPoint128.Q128
+            growthInsideX128.quote - self.updatedGrowthTrackers.quote, self.liquidity, FixedPoint128.Q128
         );
 
         deltas.extraCashflow = FullMath.mulDivSigned(

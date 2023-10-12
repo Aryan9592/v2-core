@@ -36,22 +36,22 @@ contract CoreRouter is
   RiskConfigurationModule
 { }
 
-contract CoreProxy is
-  UUPSProxyWithOwner,
-  CoreRouter
-{
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract CoreProxy is UUPSProxyWithOwner, CoreRouter {
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }
 
-contract AccountNftRouter is AccountTokenModule {}
+contract AccountNftRouter is AccountTokenModule { }
 
-contract AccountNftProxy is 
-  UUPSProxyWithOwner,
-  AccountNftRouter
-{
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract AccountNftProxy is UUPSProxyWithOwner, AccountNftRouter {
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }

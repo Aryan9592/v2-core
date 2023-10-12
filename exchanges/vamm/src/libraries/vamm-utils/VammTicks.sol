@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { Tick } from "../ticks/Tick.sol";
@@ -13,7 +12,6 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { UD60x18, ZERO, ud, UNIT, convert } from "@prb/math/UD60x18.sol";
 
-
 /**
  * @title Tracks configurations for dated irs markets
  */
@@ -22,7 +20,7 @@ library VammTicks {
     using VammTicks for DatedIrsVamm.Data;
 
     /// @dev The default minimum tick of a vamm representing 1000%
-    int24 internal constant DEFAULT_MIN_TICK = -69100;
+    int24 internal constant DEFAULT_MIN_TICK = -69_100;
 
     /// @dev The default minimum tick of a vamm repersenting 0.001%
     int24 internal constant DEFAULT_MAX_TICK = -DEFAULT_MIN_TICK;
@@ -46,9 +44,15 @@ library VammTicks {
     }
 
     // todo: further review during testing
-    function getCurrentTickLimits(DatedIrsVamm.Data storage self, UD60x18 markPrice, UD60x18 markPriceBand) internal view returns (
-        TickLimits memory currentTickLimits
-    ) {
+    function getCurrentTickLimits(
+        DatedIrsVamm.Data storage self,
+        UD60x18 markPrice,
+        UD60x18 markPriceBand
+    )
+        internal
+        view
+        returns (TickLimits memory currentTickLimits)
+    {
         (int24 dynamicMinTick, int24 dynamicMaxTick) = dynamicTickLimits(markPrice, markPriceBand);
 
         if (self.mutableConfig.minTickAllowed < dynamicMinTick) {
@@ -87,33 +91,35 @@ library VammTicks {
     }
 
     function dynamicTickLimits(
-        UD60x18 markPrice, UD60x18 markPriceBand
-    ) internal pure returns (int24 dynamicMinTick, int24 dynamicMaxTick) {
+        UD60x18 markPrice,
+        UD60x18 markPriceBand
+    )
+        internal
+        pure
+        returns (int24 dynamicMinTick, int24 dynamicMaxTick)
+    {
         UD60x18 minPrice = (markPrice.gt(markPriceBand)) ? markPrice.sub(markPriceBand) : ZERO;
         UD60x18 maxPrice = markPrice.add(markPriceBand);
 
-        dynamicMinTick = 
-            getPriceFromTick(DEFAULT_MIN_TICK).gt(maxPrice) 
-                ? getTickFromPrice(maxPrice) 
-                : DEFAULT_MIN_TICK;
-        
-        dynamicMaxTick = 
-            getPriceFromTick(DEFAULT_MAX_TICK).lt(minPrice)
-                ? getTickFromPrice(minPrice)
-                : DEFAULT_MAX_TICK;
+        dynamicMinTick = getPriceFromTick(DEFAULT_MIN_TICK).gt(maxPrice) ? getTickFromPrice(maxPrice) : DEFAULT_MIN_TICK;
+
+        dynamicMaxTick = getPriceFromTick(DEFAULT_MAX_TICK).lt(minPrice) ? getTickFromPrice(minPrice) : DEFAULT_MAX_TICK;
     }
 
-    function getSqrtRatioTargetX96(int256 amountSpecified, uint160 sqrtPriceNextX96, uint160 sqrtPriceLimitX96) 
-        internal pure returns (uint160 sqrtRatioTargetX96) {
+    function getSqrtRatioTargetX96(
+        int256 amountSpecified,
+        uint160 sqrtPriceNextX96,
+        uint160 sqrtPriceLimitX96
+    )
+        internal
+        pure
+        returns (uint160 sqrtRatioTargetX96)
+    {
         // FT
-        sqrtRatioTargetX96 = sqrtPriceNextX96 > sqrtPriceLimitX96
-                ? sqrtPriceLimitX96
-                : sqrtPriceNextX96;
-        // VT 
-        if(!(amountSpecified > 0)) {
-            sqrtRatioTargetX96 = sqrtPriceNextX96 < sqrtPriceLimitX96
-                ? sqrtPriceLimitX96
-                : sqrtPriceNextX96;
+        sqrtRatioTargetX96 = sqrtPriceNextX96 > sqrtPriceLimitX96 ? sqrtPriceLimitX96 : sqrtPriceNextX96;
+        // VT
+        if (!(amountSpecified > 0)) {
+            sqrtRatioTargetX96 = sqrtPriceNextX96 < sqrtPriceLimitX96 ? sqrtPriceLimitX96 : sqrtPriceNextX96;
         }
     }
 }

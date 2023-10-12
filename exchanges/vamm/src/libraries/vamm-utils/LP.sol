@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { AccountBalances } from "./AccountBalances.sol";
 import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
@@ -18,7 +17,6 @@ import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-
 library LP {
     using LPPosition for LPPosition.Data;
     using SetUtil for SetUtil.UintSet;
@@ -33,8 +31,8 @@ library LP {
         int24 tickUpper,
         int128 liquidityDelta
     )
-    internal
-    { 
+        internal
+    {
         uint128 marketId = self.immutableConfig.marketId;
         uint32 maturityTimestamp = self.immutableConfig.maturityTimestamp;
 
@@ -47,7 +45,7 @@ library LP {
             }
         }
 
-        LPPosition.Data storage position = 
+        LPPosition.Data storage position =
             LPPosition.loadOrCreate(accountId, marketId, maturityTimestamp, tickLower, tickUpper);
 
         // Track position and check account positions limit
@@ -65,9 +63,7 @@ library LP {
         }
 
         // this also checks if the position has enough liquidity to burn
-        position.updateTokenBalances(
-            AccountBalances.computeGrowthInside(self, tickLower, tickUpper)
-        );
+        position.updateTokenBalances(AccountBalances.computeGrowthInside(self, tickLower, tickUpper));
 
         position.updateLiquidity(liquidityDelta);
 
@@ -85,33 +81,29 @@ library LP {
         );
     }
 
-    /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`) 
+    /// Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`)
     /// `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
     function updateLiquidity(
         DatedIrsVamm.Data storage self,
         int24 tickLower,
         int24 tickUpper,
         int128 liquidityDelta
-    ) private
-      lock(self)
+    )
+        private
+        lock(self)
     {
         if (liquidityDelta > 0) {
             VammTicks.checkTicksInAllowedRange(self, tickLower, tickUpper);
         } else {
             VammTicks.checkTicksLimits(tickLower, tickUpper);
         }
-        
+
         bool flippedLower;
         bool flippedUpper;
 
         /// @dev update the ticks if necessary
         if (liquidityDelta != 0) {
-            (flippedLower, flippedUpper) = flipTicks(
-                self,
-                tickLower,
-                tickUpper,
-                liquidityDelta
-            );
+            (flippedLower, flippedUpper) = flipTicks(self, tickLower, tickUpper, liquidityDelta);
         }
 
         // clear any tick data that is no longer needed
@@ -129,10 +121,7 @@ library LP {
                 // current tick is inside the passed range
                 uint128 liquidityBefore = self.vars.liquidity; // SLOAD for gas optimization
 
-                self.vars.liquidity = LiquidityMath.addDelta(
-                    liquidityBefore,
-                    liquidityDelta
-                );
+                self.vars.liquidity = LiquidityMath.addDelta(liquidityBefore, liquidityDelta);
             }
         }
     }
@@ -144,10 +133,7 @@ library LP {
         int128 liquidityDelta
     )
         private
-        returns (
-            bool flippedLower,
-            bool flippedUpper
-        )
+        returns (bool flippedLower, bool flippedUpper)
     {
         int24 tickSpacing = self.immutableConfig.tickSpacing;
         uint128 maxLiquidityPerTick = self.immutableConfig.maxLiquidityPerTick;

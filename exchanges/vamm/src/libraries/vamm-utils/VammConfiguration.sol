@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 import { VammTicks } from "./VammTicks.sol";
 
@@ -15,13 +14,12 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 
 import { UNIT } from "@prb/math/UD60x18.sol";
 
-
 /**
  * @title Tracks configurations for dated irs markets
  */
 library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;
-    using Oracle for Oracle.Observation[65535];
+    using Oracle for Oracle.Observation[65_535];
     using VammConfiguration for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
 
@@ -31,7 +29,10 @@ library VammConfiguration {
         int24[] memory observedTicks,
         DatedIrsVamm.Immutable memory config,
         DatedIrsVamm.Mutable memory mutableConfig
-    ) internal returns (DatedIrsVamm.Data storage irsVamm) {
+    )
+        internal
+        returns (DatedIrsVamm.Data storage irsVamm)
+    {
         uint256 id = uint256(keccak256(abi.encodePacked(config.marketId, config.maturityTimestamp)));
         irsVamm = DatedIrsVamm.load(id);
 
@@ -61,7 +62,9 @@ library VammConfiguration {
         uint160 sqrtPriceX96,
         uint32[] memory times,
         int24[] memory observedTicks
-    ) private {
+    )
+        private
+    {
         if (sqrtPriceX96 == 0) {
             revert VammCustomErrors.ExpectedNonZeroSqrtPriceForInit(sqrtPriceX96);
         }
@@ -71,7 +74,7 @@ library VammConfiguration {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        (self.vars.observationCardinality, self.vars.observationCardinalityNext) = 
+        (self.vars.observationCardinality, self.vars.observationCardinalityNext) =
             self.vars.observations.initialize(times, observedTicks);
         self.vars.observationIndex = self.vars.observationCardinality - 1;
         self.vars.unlocked = true;
@@ -79,11 +82,7 @@ library VammConfiguration {
         self.vars.sqrtPriceX96 = sqrtPriceX96;
     }
 
-    function configure(
-        DatedIrsVamm.Data storage self,
-        DatedIrsVamm.Mutable memory config
-    ) internal {
-
+    function configure(DatedIrsVamm.Data storage self, DatedIrsVamm.Mutable memory config) internal {
         if (config.priceImpactPhi.gt(UNIT)) {
             revert VammCustomErrors.PriceImpactOutOfBounds();
         }
@@ -94,23 +93,19 @@ library VammConfiguration {
         setMinAndMaxTicks(self, config.minTickAllowed, config.maxTickAllowed);
     }
 
-    function setMinAndMaxTicks(
-        DatedIrsVamm.Data storage self,
-        int24 minTickAllowed,
-        int24 maxTickAllowed
-    ) private {
+    function setMinAndMaxTicks(DatedIrsVamm.Data storage self, int24 minTickAllowed, int24 maxTickAllowed) private {
         // todo: might be able to remove self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
         // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
         // does not have unwanted consequences
-        if(
-            minTickAllowed < VammTicks.DEFAULT_MIN_TICK || maxTickAllowed > VammTicks.DEFAULT_MAX_TICK ||
-            self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
+        if (
+            minTickAllowed < VammTicks.DEFAULT_MIN_TICK || maxTickAllowed > VammTicks.DEFAULT_MAX_TICK
+                || self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
         ) {
             revert VammCustomErrors.ExceededTickLimits(minTickAllowed, maxTickAllowed);
         }
 
         // todo: can this be removed in the future for better flexibility?
-        if(minTickAllowed + maxTickAllowed != 0) {
+        if (minTickAllowed + maxTickAllowed != 0) {
             revert VammCustomErrors.AsymmetricTicks(minTickAllowed, maxTickAllowed);
         }
 

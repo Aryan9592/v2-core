@@ -7,19 +7,14 @@ import "@voltz-protocol/periphery/src/modules/ConfigurationModule.sol";
 import "@voltz-protocol/periphery/src/modules/ExecutionModule.sol";
 import "@voltz-protocol/periphery/src/modules/OwnerUpgradeModule.sol";
 
-contract PeripheryRouter is
-  ERC721ReceiverModule,
-  ConfigurationModule,
-  ExecutionModule,
-  OwnerUpgradeModule
-{}
+contract PeripheryRouter is ERC721ReceiverModule, ConfigurationModule, ExecutionModule, OwnerUpgradeModule { }
 
-contract PeripheryProxy is
-  UUPSProxyWithOwner,
-  PeripheryRouter
-{ 
-  // solhint-disable-next-line no-empty-blocks
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract PeripheryProxy is UUPSProxyWithOwner, PeripheryRouter {
+    // solhint-disable-next-line no-empty-blocks
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }

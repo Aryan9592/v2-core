@@ -2,7 +2,6 @@
 
 pragma solidity >=0.8.13;
 
-
 import { amountsFromLiquidity, calculatePrice, applySpread } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
@@ -21,7 +20,6 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
-
 
 library AccountBalances {
     using LPPosition for LPPosition.Data;
@@ -52,18 +50,18 @@ library AccountBalances {
             if (position.tickLower == position.tickUpper) {
                 continue;
             }
-            
+
             {
                 (uint256 unfilledBase, uint256 unbalancedQuote) = amountsFromLiquidity(
                     position.liquidity,
                     position.tickLower < self.vars.tick ? position.tickLower : self.vars.tick,
                     position.tickUpper < self.vars.tick ? position.tickUpper : self.vars.tick
                 );
-    
+
                 unfilled.baseLong += unfilledBase;
                 unbalancedQuoteLong += unbalancedQuote;
             }
-            
+
             {
                 (uint256 unfilledBase, uint256 unbalancedQuote) = amountsFromLiquidity(
                     position.liquidity,
@@ -77,21 +75,15 @@ library AccountBalances {
         }
 
         if (unfilled.baseLong > 0) {
-            unfilled.averagePriceLong = applySpread(
-                calculatePrice(unfilled.baseLong, unbalancedQuoteLong),
-                self.mutableConfig.spread,
-                false
-            );
+            unfilled.averagePriceLong =
+                applySpread(calculatePrice(unfilled.baseLong, unbalancedQuoteLong), self.mutableConfig.spread, false);
 
             unfilled.quoteLong = mulUDxUint(exposureFactor.mul(unfilled.averagePriceLong), unfilled.baseLong);
         }
 
         if (unfilled.baseShort > 0) {
-            unfilled.averagePriceShort = applySpread(
-                calculatePrice(unfilled.baseShort, unbalancedQuoteShort),
-                self.mutableConfig.spread,
-                true
-            );
+            unfilled.averagePriceShort =
+                applySpread(calculatePrice(unfilled.baseShort, unbalancedQuoteShort), self.mutableConfig.spread, true);
 
             unfilled.quoteShort = mulUDxUint(exposureFactor.mul(unfilled.averagePriceShort), unfilled.baseShort);
         }
@@ -103,18 +95,17 @@ library AccountBalances {
     )
         internal
         view
-        returns (FilledBalances memory balances) {
-
+        returns (FilledBalances memory balances)
+    {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
         RateOracleObservation memory rateOracleObservation = self.getLatestRateIndex();
-        
+
         for (uint256 i = 0; i < positions.length; i++) {
             LPPosition.Data storage position = LPPosition.exists(positions[i].to128());
 
-            PositionBalances memory it = position.getUpdatedPositionBalances(
-                computeGrowthInside(self, position.tickLower, position.tickUpper)
-            ); 
+            PositionBalances memory it =
+                position.getUpdatedPositionBalances(computeGrowthInside(self, position.tickLower, position.tickUpper));
 
             balances.base += it.base;
             balances.quote += it.quote;
@@ -129,18 +120,18 @@ library AccountBalances {
         int256 growthGlobalX128,
         int256 lowerGrowthOutsideX128,
         int256 upperGrowthOutsideX128
-    ) private pure returns (int256) {
+    )
+        private
+        pure
+        returns (int256)
+    {
         // calculate the growth below
-        int256 growthBelowX128 = 
-            (tickCurrent >= tickLower) 
-                ? lowerGrowthOutsideX128 
-                : growthGlobalX128 - lowerGrowthOutsideX128;
+        int256 growthBelowX128 =
+            (tickCurrent >= tickLower) ? lowerGrowthOutsideX128 : growthGlobalX128 - lowerGrowthOutsideX128;
 
         // calculate the growth above
-        int256 growthAboveX128 = 
-            (tickCurrent < tickUpper) ? 
-                upperGrowthOutsideX128 : 
-                growthGlobalX128 - upperGrowthOutsideX128;
+        int256 growthAboveX128 =
+            (tickCurrent < tickUpper) ? upperGrowthOutsideX128 : growthGlobalX128 - upperGrowthOutsideX128;
 
         return growthGlobalX128 - (growthBelowX128 + growthAboveX128);
     }

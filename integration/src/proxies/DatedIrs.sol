@@ -9,19 +9,19 @@ import "@voltz-protocol/products-dated-irs/src/modules/RateOracleModule.sol";
 import "@voltz-protocol/products-dated-irs/src/modules/FeatureFlagModule.sol";
 
 contract DatedIrsRouter is
-  MarketConfigurationModule, 
-  OwnerUpgradeModule,
-  MarketManagerIRSModule,
-  RateOracleModule,
-  FeatureFlagModule
-{}
+    MarketConfigurationModule,
+    OwnerUpgradeModule,
+    MarketManagerIRSModule,
+    RateOracleModule,
+    FeatureFlagModule
+{ }
 
-contract DatedIrsProxy is
-  UUPSProxyWithOwner,
-  DatedIrsRouter
-{ 
-  // solhint-disable-next-line no-empty-blocks
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract DatedIrsProxy is UUPSProxyWithOwner, DatedIrsRouter {
+    // solhint-disable-next-line no-empty-blocks
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }
