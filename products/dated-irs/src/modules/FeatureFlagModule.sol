@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import {FeatureFlagModule as BaseFeatureFlagModule} from
     "@voltz-protocol/util-modules/src/modules/FeatureFlagModule.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 /**
  * @title Module that allows disabling certain system features.
@@ -16,4 +17,8 @@ import {FeatureFlagModule as BaseFeatureFlagModule} from
  * Users will not be able to interact with certain functions associated to disabled features.
  */
 // solhint-disable-next-line no-empty-blocks
-contract FeatureFlagModule is BaseFeatureFlagModule {}
+contract FeatureFlagModule is BaseFeatureFlagModule {
+    function getMarketEnabledFeatureFlagId(uint128 marketId, uint32 maturityTimestamp) external pure returns(bytes32) {
+        return FeatureFlagSupport.getMarketEnabledFeatureFlagId(marketId, maturityTimestamp);
+    }
+}

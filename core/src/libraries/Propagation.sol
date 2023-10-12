@@ -27,7 +27,6 @@ library Propagation {
     function propagateTakerOrder(
         uint128 accountId,
         uint128 marketId,
-        address collateralType,
         int256 annualizedNotional
     ) internal returns (uint256 fee) {
         Market.Data memory market = Market.exists(marketId);
@@ -35,7 +34,6 @@ library Propagation {
         return propagateOrder(
                 accountId,
                 market,
-                collateralType,
                 annualizedNotional,
                 market.protocolFeeConfig.atomicTakerFee,
                 market.collateralPoolFeeConfig.atomicTakerFee,
@@ -46,7 +44,6 @@ library Propagation {
     function propagateMakerOrder(
         uint128 accountId,
         uint128 marketId,
-        address collateralType,
         int256 annualizedNotional
     ) internal returns (uint256 fee) {
         Market.Data memory market = Market.exists(marketId);
@@ -54,7 +51,6 @@ library Propagation {
         return propagateOrder(
                 accountId,
                 market,
-                collateralType,
                 annualizedNotional,
                 market.protocolFeeConfig.atomicMakerFee,
                 market.collateralPoolFeeConfig.atomicMakerFee,
@@ -89,12 +85,14 @@ library Propagation {
     function propagateOrder(
         uint128 accountId,
         Market.Data memory market,
-        address collateralType,
         int256 annualizedNotional,
         UD60x18 protocolFee, 
         UD60x18 collateralPoolFee, 
         UD60x18 insuranceFundFee
     ) private returns (uint256 /* fee */) {
+        Account.Data storage account = Account.exists(accountId);
+        account.markActiveMarket(market.quoteToken, market.id);
+
         CollateralPool.Data storage collateralPool = 
             market.getCollateralPool();
 
@@ -102,7 +100,7 @@ library Propagation {
             accountId, 
             market.protocolFeeCollectorAccountId, 
             protocolFee, 
-            collateralType, 
+            market.quoteToken, 
             annualizedNotional
         );
 
@@ -110,7 +108,7 @@ library Propagation {
             accountId, 
             collateralPool.feeCollectorAccountId, 
             collateralPoolFee,
-            collateralType, 
+            market.quoteToken, 
             annualizedNotional
         );
 
@@ -118,7 +116,7 @@ library Propagation {
             accountId, 
             collateralPool.insuranceFundConfig.accountId, 
             insuranceFundFee,
-            collateralType, 
+            market.quoteToken, 
             annualizedNotional
         );
 

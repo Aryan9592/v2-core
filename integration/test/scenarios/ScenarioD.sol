@@ -148,7 +148,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         // FEATURE FLAGS
         datedIrsProxy.addToFeatureFlagAllowlist(
-            keccak256(abi.encode(Constants._MARKET_ENABLED_FEATURE_FLAG, marketId)), mockCoreProxy
+            datedIrsProxy.getMarketEnabledFeatureFlagId(marketId, maturityTimestamp), mockCoreProxy
         );
         vammProxy.addToFeatureFlagAllowlist(Constants._PAUSER_FEATURE_FLAG, address(datedIrsProxy));
 

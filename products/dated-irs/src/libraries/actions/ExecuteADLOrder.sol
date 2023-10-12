@@ -9,13 +9,14 @@ pragma solidity >=0.8.19;
 
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
-import {IPool} from "../../interfaces/IPool.sol";
 import {FilledBalances} from "../DataTypes.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
-import {mulUDxInt} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import {mulDiv} from "@prb/math/UD60x18.sol";
 import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
+
+import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
 
 /*
 TODOs
@@ -76,6 +77,15 @@ library ExecuteADLOrder {
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
     ) internal {
+        // pause maturity until adl propagation is done
+        FeatureFlag.Data storage flag = FeatureFlag.load(
+            FeatureFlagSupport.getMarketEnabledFeatureFlagId(
+                accountPortfolio.marketId, 
+                maturityTimestamp
+            )
+        );
+        flag.denyAll = true;
+        
         ExecuteADLOrderVars memory vars;
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);

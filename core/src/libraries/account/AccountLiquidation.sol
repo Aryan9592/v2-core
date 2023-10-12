@@ -9,17 +9,15 @@ pragma solidity >=0.8.19;
 
 /*
 TODOs
-    - adl positons that are in profit at current prices
-    - add reference to quote token of the queue when throwing queue errors
     - implement rank calculation
-    - remove address collateralType from im and lm checks
-    - make sure dutch and ranked liquidation orders can only be executed while below lm and above adl margin req
 */
 
 
+import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
+import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
 import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -36,6 +34,8 @@ import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol
 library AccountLiquidation {
     using Account for Account.Data;
     using AccountLiquidation for Account.Data;
+    using AccountAutoExchange for Account.Data;
+    using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
     using Market for Market.Data;
@@ -48,11 +48,6 @@ library AccountLiquidation {
      * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
      */
     error AccountNotBetweenMmrAndLm(uint128 accountId, Account.MarginInfo marginInfo);
-
-    /**
-     * @dev Thrown when account is not below the liquidation margin requirement
-     */
-    error AccountNotBelowLM(uint128 accountId, Account.MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the adl margin requirement
@@ -68,12 +63,12 @@ library AccountLiquidation {
     /**
     * @dev Thrown when attempting to execute a bid in an expired liquidation bid priority queue
      */
-    error LiquidationBidPriorityQueueExpired(uint256 queueId, uint256 queueEndTimestamp);
+    error LiquidationBidPriorityQueueExpired(address quoteToken, uint256 queueId, uint256 queueEndTimestamp);
 
     /**
       * @dev Thrown when attempting to submit into a queue that is full
      */
-    error LiquidationBidPriorityQueueOverflow(uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
+    error LiquidationBidPriorityQueueOverflow(address quoteToken, uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
 
     /**
       * @dev Thrown when attempting to submit a liquidation bid where number of markets and bytes inputs don't match
@@ -99,7 +94,7 @@ library AccountLiquidation {
     /**
     * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
     */
-    error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, int256 lmDeltaChange);
+    error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, uint256 lmrBefore, uint256 lmrAfter);
 
     /**
     * @dev Thrown if a liquidation bid quote token doesn't match the quote token of the market where
@@ -113,25 +108,14 @@ library AccountLiquidation {
      */
     error IncorrectLiquidationBidHookAddress(LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
 
+    /**
+     * @dev Thrown when solvency is queried across bubbles (collateral type is address(0))
+     */
+    error CannotComputeSolvencyAcrossBubbles();
+
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
-    }
-
-
-    /**
-     * @dev Checks if the account is below the liquidation margin requirement
-     * and reverts if that's not the case (i.e. reverts if the lm requirement is satisfied by the account)
-     */
-    function isBelowLMCheck(Account.Data storage self, address collateralType) private view returns
-    (Account.MarginInfo memory marginInfo) {
-
-        marginInfo = self.getMarginInfoByBubble(collateralType);
-
-        if (marginInfo.liquidationDelta > 0) {
-            revert AccountNotBelowLM(self.id, marginInfo);
-        }
-
     }
 
     /**
@@ -139,9 +123,9 @@ library AccountLiquidation {
      * and returns the shortfall
      */
     function isInsolvent(Account.Data storage self, address collateralType) private view returns (bool) {
-        // todo: note, doing too many redundunt calculations, can be optimized
-        // todo: consider reverting if address(0) is provided as collateralType
-        // consider baking this function into the backstop lp function if it's not used anywhere else
+        if (collateralType == address(0)) {
+            revert CannotComputeSolvencyAcrossBubbles();
+        }
 
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return marginInfo.rawInfo.rawMarginBalance < 0;
@@ -245,6 +229,7 @@ library AccountLiquidation {
         [liquidationBidPriorityQueues.latestQueueId].ranks.length >
             collateralPool.riskConfig.liquidationConfiguration.maxBidsInQueue) {
             revert LiquidationBidPriorityQueueOverflow(
+                liquidationBid.quoteToken,
                 liquidationBidPriorityQueues.latestQueueId,
                 liquidationBidPriorityQueues.latestQueueEndTimestamp,
                 liquidationBidPriorityQueues.priorityQueues
@@ -252,7 +237,7 @@ library AccountLiquidation {
             );
         }
 
-        liquidatorAccount.imCheck(address(0));
+        liquidatorAccount.imCheck();
 
     }
 
@@ -279,17 +264,16 @@ library AccountLiquidation {
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
             address quoteToken = quoteTokens[i];
-            int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(quoteToken).liquidationDelta;
+            uint256 rawLMRBefore = self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement;
             uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
             for (uint256 j = 0; j < markets.length; j++) {
                 uint128 marketId = markets[j].to128();
                 Market.exists(marketId).closeAllUnfilledOrders(self.id);
             }
-            int256 lmDeltaChange = self.getMarginInfoByBubble(quoteToken).liquidationDelta
-            - lmDeltaBeforeLiquidation;
+            uint256 rawLMRAfter = self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
-            if (lmDeltaChange < 0) {
-                revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+            if (rawLMRAfter > rawLMRBefore) {
+                revert LiquidationCausedNegativeLMDeltaChange(self.id, rawLMRBefore, rawLMRAfter);
             }
 
             distributeLiquidationPenalty(
@@ -297,7 +281,7 @@ library AccountLiquidation {
                 liquidatorAccount,
                 mulUDxUint(
                     collateralPool.riskConfig.liquidationConfiguration.unfilledPenaltyParameter,
-                    lmDeltaChange.toUint()
+                    rawLMRBefore - rawLMRAfter
                 ),
                 quoteToken,
                 0);
@@ -344,13 +328,12 @@ library AccountLiquidation {
             liquidationPenalty
         );
 
-        // todo: check whether we should use net deposits or free collateral (ie initialDelta)
-        int256 backstopLpNetDepositsInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).collateralInfo.netDeposits;
+        int256 backstopLpFreeCollateralInUSD = backstopLpAccount.getMarginInfoByBubble(address(0)).initialDelta;
 
         uint256 backstopLPReward = 0;
         if (
-            backstopLpNetDepositsInUSD > 0 && 
-            backstopLpNetDepositsInUSD.toUint() > collateralPool.backstopLPConfig.minNetDepositThresholdInUSD
+            backstopLpFreeCollateralInUSD > 0 && 
+            backstopLpFreeCollateralInUSD.toUint() > collateralPool.backstopLPConfig.minFreeCollateralThresholdInUSD
         ) {
             backstopLPReward = mulUDxUint(
                 collateralPool.backstopLPConfig.liquidationFee,
@@ -413,8 +396,8 @@ library AccountLiquidation {
         // revert if the account has any unfilled orders
         self.hasUnfilledOrders();
 
-        // revert if the account is not below the liquidation margin requirement
-        isBelowLMCheck(self, address(0));
+        // revert if account is not between adl and liquidation margin requirement
+        self.betweenAdlAndLmCheck();
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[queueQuoteToken];
@@ -422,26 +405,31 @@ library AccountLiquidation {
         if (block.timestamp > liquidationBidPriorityQueues.latestQueueEndTimestamp) {
             // the latest queue has expired, hence we cannot execute its top ranked liquidation bid
             revert AccountLiquidation.LiquidationBidPriorityQueueExpired(
+                queueQuoteToken,
                 liquidationBidPriorityQueues.latestQueueId,
                 liquidationBidPriorityQueues.latestQueueEndTimestamp
             );
         }
 
         // extract top ranked order
+        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = 
+            liquidationBidPriorityQueues.priorityQueues[
+                liquidationBidPriorityQueues.latestQueueId
+            ].topBid();
 
-        LiquidationBidPriorityQueue.LiquidationBid memory topRankedLiquidationBid = liquidationBidPriorityQueues
-        .priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
-        ].topBid();
-
-        (bool success, bytes memory reason) = address(this).call(abi.encodeWithSignature(
-            "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
-            self.id, bidSubmissionKeeperId, topRankedLiquidationBid));
+        (bool success, bytes memory reason) = 
+            address(this).call(
+                abi.encodeWithSignature(
+                    "executeLiquidationBid(uint128, uint128, LiquidationBidPriorityQueue.LiquidationBid memory)",
+                    self.id, 
+                    bidSubmissionKeeperId, 
+                    topRankedLiquidationBid
+                )
+            );
 
         // dequeue top bid it's successfully executed or not
-
         liquidationBidPriorityQueues.priorityQueues[
-        liquidationBidPriorityQueues.latestQueueId
+            liquidationBidPriorityQueues.latestQueueId
         ].dequeue();
     }
 
@@ -451,16 +439,11 @@ library AccountLiquidation {
         uint128 marketId,
         bytes memory inputs
     ) internal {
-
-        // todo: consider reverting if the market is paused? (can be implemented in the market manager)
-
         // revert if account has unfilled orders that are not closed yet
         self.hasUnfilledOrders();
 
-        // revert if account is not below liquidation margin requirement
-        isBelowLMCheck(self, address(0));
-
-        // todo: revert if below insolvency
+        // revert if account is not between adl and liquidation margin requirement
+        self.betweenAdlAndLmCheck();
 
         // grab the liquidator account
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
@@ -486,7 +469,7 @@ library AccountLiquidation {
 
         UD60x18 liquidationPenaltyParameter = self.computeDutchLiquidationPenaltyParameter();
 
-        int256 lmDeltaBeforeLiquidation = self.getMarginInfoByBubble(market.quoteToken).liquidationDelta;
+        uint256 rawLMRBefore = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
         market.executeLiquidationOrder(
             self.id,
@@ -494,11 +477,10 @@ library AccountLiquidation {
             inputs
         );
 
-        int256 lmDeltaChange =
-        self.getMarginInfoByBubble(market.quoteToken).liquidationDelta - lmDeltaBeforeLiquidation;
+        uint256 rawLMRAfter = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
-        if (lmDeltaChange < 0) {
-            revert LiquidationCausedNegativeLMDeltaChange(self.id, lmDeltaChange);
+        if (rawLMRAfter > rawLMRBefore) {
+            revert LiquidationCausedNegativeLMDeltaChange(self.id, rawLMRBefore, rawLMRAfter);
         }
 
         distributeLiquidationPenalty(
@@ -506,13 +488,13 @@ library AccountLiquidation {
             liquidatorAccount,
             mulUDxUint(
                 liquidationPenaltyParameter,
-                lmDeltaChange.toUint()
+                rawLMRBefore - rawLMRAfter
             ),
             market.quoteToken,
-            0);
+            0
+        );
 
-        liquidatorAccount.imCheck(address(0));
-
+        liquidatorAccount.imCheck();
     }
 
 
@@ -580,7 +562,7 @@ library AccountLiquidation {
         }
 
         if (leftExposure) {
-            backstopLpAccount.imAndImBufferCheck(address(0));
+            backstopLpAccount.betweenImAndImBufferCheck();
 
             for (uint256 i = 0; i < markets.length; i++) {
                 uint128 marketId = markets[i].to128();
@@ -591,8 +573,6 @@ library AccountLiquidation {
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
-
-                // todo: shouldn't we update trackers here?
             }
         }
     }
@@ -617,8 +597,6 @@ library AccountLiquidation {
                 totalUnrealizedLossQuote: 0,
                 realBalanceAndIF: 0
             });
-
-            // todo: shouldn't we update trackers here?
         }
 
         Account.Data storage insuranceFundAccount = 
@@ -640,29 +618,27 @@ library AccountLiquidation {
                     totalUnrealizedLossQuote: 0,
                     realBalanceAndIF: 0
                 });
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
         } else {
+            int256 realBalanceAndIF = marginInfo.collateralInfo.realBalance;
+
             // note: insuranceFundCoverAvailable should never be negative
             uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
+            realBalanceAndIF += insuranceFundDebit.toInt();
 
-            // todo: handle if auto-exchange was not completed
+            // gather pending funds from auto-exchange
+            realBalanceAndIF += self.getPendingAutoExchangeFunds(quoteToken).toInt();
 
             // compute total unrealized loss
             uint256 totalUnrealizedLossQuote = 0;
             for (uint256 i = 0; i < markets.length; i++) {
-                    uint128 marketId = markets[i].to128();
+                uint128 marketId = markets[i].to128();
                 Market.Data storage market = Market.exists(marketId);
 
                 Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
                 // upnl here is negative since all positive upnl exposures were adl-ed at market price
                 totalUnrealizedLossQuote += (-pnlComponents.unrealizedPnL).toUint();
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
 
             // adl maturities with negative upnl at bankruptcy price
@@ -673,12 +649,34 @@ library AccountLiquidation {
                     adlNegativeUpnl: true,
                     adlPositiveUpnl: false,
                     totalUnrealizedLossQuote: totalUnrealizedLossQuote,
-                    realBalanceAndIF: marginInfo.collateralInfo.realBalance + insuranceFundDebit.toInt()
+                    realBalanceAndIF: realBalanceAndIF
                 });
-
-                // todo: shouldn't we update trackers here?
-                // todo: shall we query active markets again before this loop?
             }
+        }
+    }
+
+    // todo: check function after auto-exchange is addressed
+    function getPendingAutoExchangeFunds(
+        Account.Data storage self,
+        address quoteToken
+    ) internal returns (uint256 pendingAutoExchangeFunds) {
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        // todo: check correctness here after auto-exchange is addressed
+        if (self.isEligibleForAutoExchange(quoteToken)) {
+            address[] memory collateralTokens = 
+                CollateralConfiguration.exists(collateralPool.id, address(0)).childTokens.values();
+
+            for (uint256 i = 0; i < collateralTokens.length; i++) {
+                address collateralType = collateralTokens[i];
+                (, , uint256 quoteDelta) = self.calculateAvailableCollateralToAutoExchange(
+                    collateralType,
+                    quoteToken,
+                    0 // todo: cannot come up with this value here, sync with @arturbeg
+                );
+
+                pendingAutoExchangeFunds += quoteDelta;
+            }                
         }
     }
 }

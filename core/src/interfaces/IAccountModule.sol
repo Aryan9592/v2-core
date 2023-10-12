@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {Account} from "../storage/Account.sol";
+
 /**
  * @title Account Manager Interface.
  * @notice Manages the system's account token NFT. Every user will need to register an account before being able to interact with
@@ -143,4 +145,18 @@ interface IAccountModule {
         external
         view
         returns (bool isAuthorized);
+
+    /**
+     * @notice Get the initial and liquidation margin requirements and highest unrealized loss
+     * (if maker positions were to be filled) along with the flags that specify if the initial or liquidation margin
+     * requirements are satisfied.
+     * @param accountId The id of the account that is being checked
+     * @param collateralType The collateral type for which the margin requirements are checked,
+     * where the collateral type is the centre of a given collateral bubble
+     * @return Margin requirement information object
+     */
+    function getMarginInfoByBubble(uint128 accountId, address collateralType) 
+        external 
+        view 
+        returns (Account.MarginInfo memory);
 }

@@ -20,6 +20,8 @@ import "../interfaces/external/IMarketManager.sol";
  *
  */
 library Market {
+    using Account for Account.Data;
+
     /**
      * @notice Emitted when a market is created or updated
      * @param market The object with the newly updated details.
@@ -242,6 +244,7 @@ library Market {
         uint128 liquidatorAccountId,
         bytes memory inputs
     ) internal {
+        Account.exists(liquidatorAccountId).markActiveMarket(self.quoteToken, self.id);
         IMarketManager(self.marketManagerAddress).executeLiquidationOrder(
             liquidatableAccountId,
             liquidatorAccountId,
