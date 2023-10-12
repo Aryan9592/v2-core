@@ -314,7 +314,7 @@ library ExposureHelpers {
                 maturityTimestamp,
                 -unfilledBalances.baseShort.toInt(),
                 unfilledBalances.quoteShort.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.avgShortPrice, diagonalRiskParameter, false)
+                computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
             );
 
             pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
@@ -327,7 +327,7 @@ library ExposureHelpers {
                 maturityTimestamp,
                 unfilledBalances.baseLong.toInt(),
                 -unfilledBalances.quoteLong.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.avgLongPrice, diagonalRiskParameter, true)
+                computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
             );
 
             pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();

@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-
 import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 
@@ -16,21 +15,20 @@ import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 import { SD59x18, ZERO as ZERO_sd } from "@prb/math/SD59x18.sol";
 
-
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
-    using Oracle for Oracle.Observation[65535];
+    using Oracle for Oracle.Observation[65_535];
     using SafeCastI256 for int256;
 
     /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
     /// @param orderSize The order size to use when adjusting the price for price impact or spread.
-    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters. 
-    /// May return zero if adjustments would take the price to or below zero 
+    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters.
+    /// May return zero if adjustments would take the price to or below zero
     /// - e.g. when anticipated price impact is large because the order size is large.
     function twap(
-        DatedIrsVamm.Data storage self, 
-        uint32 secondsAgo, 
+        DatedIrsVamm.Data storage self,
+        uint32 secondsAgo,
         SD59x18 orderSize
     )
         internal
@@ -44,30 +42,26 @@ library Twap {
         geometricMeanPrice = VammTicks.getPriceFromTick(arithmeticMeanTick).div(convert_ud(100));
 
         // Apply slippage
-        geometricMeanPrice = applySlippage(
-            geometricMeanPrice, 
-            orderSize, 
-            self.mutableConfig.priceImpactPhi
-        );
+        geometricMeanPrice = applySlippage(geometricMeanPrice, orderSize, self.mutableConfig.priceImpactPhi);
 
         // Apply spread
-        geometricMeanPrice = applySpread(
-            geometricMeanPrice,
-            orderSize,
-            self.mutableConfig.spread
-        );
+        geometricMeanPrice = applySpread(geometricMeanPrice, orderSize, self.mutableConfig.spread);
     }
 
     function applySlippage(
-        UD60x18 price, 
-        SD59x18 orderSize, 
+        UD60x18 price,
+        SD59x18 orderSize,
         UD60x18 priceImpactPhi
-    ) private pure returns (UD60x18 /* slippedPrice */) {
+    )
+        private
+        pure
+        returns (UD60x18 /* slippedPrice */ )
+    {
         if (orderSize.eq(ZERO_sd)) {
             return price;
         }
 
-        // note: the beta value is 1/2. if the value is set to something else and the 
+        // note: the beta value is 1/2. if the value is set to something else and the
         // `pow` function must be used, the order size must be limited to 192 bits
         UD60x18 priceImpactAsFraction = priceImpactPhi.mul(orderSize.abs().intoUD60x18().sqrt());
 
@@ -84,10 +78,14 @@ library Twap {
     }
 
     function applySpread(
-        UD60x18 price, 
-        SD59x18 orderSize, 
+        UD60x18 price,
+        SD59x18 orderSize,
         UD60x18 spread
-    ) private pure returns (UD60x18 /* spreadPrice */) {
+    )
+        private
+        pure
+        returns (UD60x18 /* spreadPrice */ )
+    {
         if (orderSize.eq(ZERO_sd)) {
             return price;
         }
@@ -105,7 +103,10 @@ library Twap {
 
     /// @notice Calculates time-weighted arithmetic mean tick
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    function observe(DatedIrsVamm.Data storage self, uint32 secondsAgo)
+    function observe(
+        DatedIrsVamm.Data storage self,
+        uint32 secondsAgo
+    )
         private
         view
         returns (int24 arithmeticMeanTick)
@@ -126,8 +127,10 @@ library Twap {
     }
 
     /// @notice Returns the cumulative tick as of each timestamp `secondsAgo` from the current block timestamp
-    /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one representing
-    /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted average tick,
+    /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one
+    /// representing
+    /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted
+    /// average tick,
     /// you must call it with secondsAgos = [3600, 0].
     /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
     /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
@@ -141,30 +144,30 @@ library Twap {
         view
         returns (int56[] memory tickCumulatives)
     {
-        return
-            self.vars.observations.observe(
-                Time.blockTimestampTruncated(),
-                secondsAgos,
-                self.vars.tick,
-                self.vars.observationIndex,
-                self.vars.observationCardinality
-            );
+        return self.vars.observations.observe(
+            Time.blockTimestampTruncated(),
+            secondsAgos,
+            self.vars.tick,
+            self.vars.observationIndex,
+            self.vars.observationCardinality
+        );
     }
 
     /// @notice Increase the maximum number of price and liquidity observations that this pool will store
     /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
     /// the input observationCardinalityNext.
     /// @param observationCardinalityNext The desired minimum number of observations for the pool to store
-    function increaseObservationCardinalityNext(DatedIrsVamm.Data storage self, uint16 observationCardinalityNext)
+    function increaseObservationCardinalityNext(
+        DatedIrsVamm.Data storage self,
+        uint16 observationCardinalityNext
+    )
         internal
         lock(self)
     {
-        uint16 observationCardinalityNextOld =  self.vars.observationCardinalityNext; // for the event
+        uint16 observationCardinalityNextOld = self.vars.observationCardinalityNext; // for the event
 
-        uint16 observationCardinalityNextNew =  self.vars.observations.grow(
-            observationCardinalityNextOld,
-            observationCardinalityNext
-        );
+        uint16 observationCardinalityNextNew =
+            self.vars.observations.grow(observationCardinalityNextOld, observationCardinalityNext);
 
         self.vars.observationCardinalityNext = observationCardinalityNextNew;
     }

@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: MIT
+
 pragma solidity >=0.8.13;
 
-
-import {FeatureFlagModule as BaseFeatureFlagModule} from "@voltz-protocol/util-modules/src/modules/FeatureFlagModule.sol";
-
+import { FeatureFlagModule as BaseFeatureFlagModule } from
+    "@voltz-protocol/util-modules/src/modules/FeatureFlagModule.sol";
 
 /**
  * @title Module that allows disabling certain system features.

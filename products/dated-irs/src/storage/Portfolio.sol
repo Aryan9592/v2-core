@@ -11,7 +11,6 @@ import { Market } from "./Market.sol";
 import { IPool } from "../interfaces/IPool.sol";
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { ExecuteADLOrder } from "../libraries/actions/ExecuteADLOrder.sol";
-import { MarketRateOracle } from "../libraries/MarketRateOracle.sol";
 import { FilledBalances, UnfilledBalances, PositionBalances } from  "../libraries/DataTypes.sol";
 import { TraderPosition } from "../libraries/TraderPosition.sol";
 

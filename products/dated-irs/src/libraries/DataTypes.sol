@@ -8,8 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 
 pragma solidity >=0.8.19;
 
-import { UD60x18, mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 struct RateOracleObservation {
     uint256 timestamp;
@@ -33,8 +32,8 @@ struct UnfilledBalances {
     uint256 baseShort;
     uint256 quoteLong;
     uint256 quoteShort;
-    UD60x18 avgLongPrice;
-    UD60x18 avgShortPrice;
+    UD60x18 averagePriceLong;
+    UD60x18 averagePriceShort;
 }
 
 struct MakerOrderParams {

@@ -9,22 +9,21 @@ pragma solidity >=0.8.13;
 /// Observations are overwritten when the full length of the oracle array is populated.
 /// The most recent observation is available, independent of the length of the oracle array, by passing 0 to observe()
 library Oracle {
-    uint256 internal constant MAX_BUFFER_LENGTH = 65535;
+    uint256 internal constant MAX_BUFFER_LENGTH = 65_535;
 
     struct Observation {
         // the block timestamp of the observation
         uint32 blockTimestamp;
-
         // the tick accumulator, i.e. tick * time elapsed since the pool was first initialized
         int56 tickCumulative;
-        
         // whether or not the observation is initialized
         bool initialized;
     }
 
-    /// @notice Transforms a previous observation into a new observation, 
+    /// @notice Transforms a previous observation into a new observation,
     // given the passage of time and the current tick values
-    /// @dev blockTimestamp _must_ be chronologically equal to or greater than last.blockTimestamp, safe for 0 or 1 overflows
+    /// @dev blockTimestamp _must_ be chronologically equal to or greater than last.blockTimestamp, safe for 0 or 1
+    /// overflows
     /// @param last The specified observation to be transformed
     /// @param blockTimestamp The timestamp of the new observation
     /// @param tick The active tick at the time of the new observation
@@ -33,24 +32,32 @@ library Oracle {
         Observation memory last,
         uint32 blockTimestamp,
         int24 tick
-    ) private pure returns (Observation memory) {
+    )
+        private
+        pure
+        returns (Observation memory)
+    {
         uint32 delta = blockTimestamp - last.blockTimestamp;
 
-        return
-            Observation({
-                blockTimestamp: blockTimestamp,
-                tickCumulative: last.tickCumulative + int56(tick) * int56(uint56(delta)),
-                initialized: true
-            });
+        return Observation({
+            blockTimestamp: blockTimestamp,
+            tickCumulative: last.tickCumulative + int56(tick) * int56(uint56(delta)),
+            initialized: true
+        });
     }
 
-    /// @notice Initialize the oracle array by writing the first slot. Called once for the lifecycle of the observations array
+    /// @notice Initialize the oracle array by writing the first slot. Called once for the lifecycle of the observations
+    /// array
     /// @param self The stored oracle array
     /// @param times The times to populate in the Oracle buffe (block.timestamps truncated to uint32)
     /// @param observedTicks The observed ticks to populate in the oracle buffer
     /// @return cardinality The number of populated elements in the oracle array
     /// @return cardinalityNext The new length of the oracle array, independent of population
-    function initialize(Observation[MAX_BUFFER_LENGTH] storage self, uint32[] memory times, int24[] memory observedTicks)
+    function initialize(
+        Observation[MAX_BUFFER_LENGTH] storage self,
+        uint32[] memory times,
+        int24[] memory observedTicks
+    )
         internal
         returns (uint16 cardinality, uint16 cardinalityNext)
     {
@@ -59,23 +66,19 @@ library Oracle {
         require(length == observedTicks.length, "Lengths must match");
         require(length > 0, "0T");
 
-        self[0] = Observation({
-            blockTimestamp: times[0],
-            tickCumulative: 0,
-            initialized: true
-        });
+        self[0] = Observation({ blockTimestamp: times[0], tickCumulative: 0, initialized: true });
 
         for (uint16 i = 1; i < length; i++) {
             /// no need to check that times are ordered since
             /// transform() requires them to be orrdered
-            self[i] = transform(self[i-1], times[i], observedTicks[i]);
+            self[i] = transform(self[i - 1], times[i], observedTicks[i]);
         }
 
         return (length, length);
     }
 
     /// @notice Writes an oracle observation to the array
-    /// @dev Writable at most once per block. Index represents the most recently written element. 
+    /// @dev Writable at most once per block. Index represents the most recently written element.
     // cardinality and index must be tracked externally.
     /// If the index is at the end of the allowable array length (according to cardinality), and the next cardinality
     /// is greater than the current one, cardinality may be increased. This restriction is created to preserve ordering.
@@ -95,13 +98,16 @@ library Oracle {
         uint16 cardinality,
         uint16 cardinalityNext,
         uint32 minSecondsBetweenOracleObservations
-    ) internal returns (uint16 indexUpdated, uint16 cardinalityUpdated) {
+    )
+        internal
+        returns (uint16 indexUpdated, uint16 cardinalityUpdated)
+    {
         Observation memory last = self[index];
 
         // todo: review during testing
         // overwrite last observation if it took place in the same block
         if (last.blockTimestamp == blockTimestamp) {
-            Observation memory lastButOne = (index > 0) ? self[index-1] : self[cardinality-1];
+            Observation memory lastButOne = (index > 0) ? self[index - 1] : self[cardinality - 1];
             self[index] = transform(lastButOne, blockTimestamp, tick);
             return (index, cardinality);
         }
@@ -125,21 +131,19 @@ library Oracle {
     /// @param current The current next cardinality of the oracle array
     /// @param next The proposed next cardinality which will be populated in the oracle array
     /// @return next The next cardinality which will be populated in the oracle array
-    function grow(
-        Observation[MAX_BUFFER_LENGTH] storage self,
-        uint16 current,
-        uint16 next
-    ) internal returns (uint16) {
+    function grow(Observation[MAX_BUFFER_LENGTH] storage self, uint16 current, uint16 next) internal returns (uint16) {
         require(current > 0, "I");
 
-        // check against buffer size not needed since next is uint16 
+        // check against buffer size not needed since next is uint16
         // and MAX_BUFFER_LENGTH is 2^16-1
 
         // no-op if the passed next value isn't greater than the current next value
         if (next <= current) return current;
         // store in each slot to prevent fresh SSTOREs in swaps
         // this data will not be used because the initialized boolean is still false
-        for (uint16 i = current; i < next; i++) self[i].blockTimestamp = 1;
+        for (uint16 i = current; i < next; i++) {
+            self[i].blockTimestamp = 1;
+        }
         return next;
     }
 
@@ -149,21 +153,18 @@ library Oracle {
     /// @param a A comparison timestamp from which to determine the relative position of `time`
     /// @param b From which to determine the relative position of `time`
     /// @return bool Whether `a` is chronologically <= `b`
-    function lte(
-        uint32 time,
-        uint32 a,
-        uint32 b
-    ) private pure returns (bool) {
+    function lte(uint32 time, uint32 a, uint32 b) private pure returns (bool) {
         // if there hasn't been overflow, no need to adjust
         if (a <= time && b <= time) return a <= b;
 
-        uint256 aAdjusted = a > time ? a : a + 2**32;
-        uint256 bAdjusted = b > time ? b : b + 2**32;
+        uint256 aAdjusted = a > time ? a : a + 2 ** 32;
+        uint256 bAdjusted = b > time ? b : b + 2 ** 32;
 
         return aAdjusted <= bAdjusted;
     }
 
-    /// @notice Fetches the observations beforeOrAt and atOrAfter a target, i.e. where [beforeOrAt, atOrAfter] is satisfied.
+    /// @notice Fetches the observations beforeOrAt and atOrAfter a target, i.e. where [beforeOrAt, atOrAfter] is
+    /// satisfied.
     /// The result may be the same observation, or adjacent observations.
     /// @dev The answer must be contained in the array, used when the target is located within the stored observation
     /// boundaries: older than the most recent observation and younger, or the same age as, the oldest observation
@@ -180,7 +181,11 @@ library Oracle {
         uint32 target,
         uint16 index,
         uint16 cardinality
-    ) private view returns (Observation memory beforeOrAt, Observation memory atOrAfter) {
+    )
+        private
+        view
+        returns (Observation memory beforeOrAt, Observation memory atOrAfter)
+    {
         uint256 l = (index + 1) % cardinality; // oldest observation
         uint256 r = l + cardinality - 1; // newest observation
         uint256 i;
@@ -207,7 +212,8 @@ library Oracle {
         }
     }
 
-    /// @notice Fetches the observations beforeOrAt and atOrAfter a given target, i.e. where [beforeOrAt, atOrAfter] is satisfied
+    /// @notice Fetches the observations beforeOrAt and atOrAfter a given target, i.e. where [beforeOrAt, atOrAfter] is
+    /// satisfied
     /// @dev Assumes there is at least 1 initialized observation.
     /// Used by observeSingle() to compute the counterfactual accumulator values as of a given block timestamp.
     /// @param self The stored oracle array
@@ -225,7 +231,11 @@ library Oracle {
         int24 tick,
         uint16 index,
         uint16 cardinality
-    ) private view returns (Observation memory beforeOrAt, Observation memory atOrAfter) {
+    )
+        private
+        view
+        returns (Observation memory beforeOrAt, Observation memory atOrAfter)
+    {
         // optimistically set before to the newest observation
         beforeOrAt = self[index];
 
@@ -269,7 +279,11 @@ library Oracle {
         int24 tick,
         uint16 index,
         uint16 cardinality
-    ) private view returns (int56 tickCumulative) {
+    )
+        private
+        view
+        returns (int56 tickCumulative)
+    {
         if (secondsAgo == 0) {
             Observation memory last = self[index];
             if (last.blockTimestamp != time) last = transform(last, time, tick);
@@ -278,14 +292,8 @@ library Oracle {
 
         uint32 target = time - secondsAgo;
 
-        (Observation memory beforeOrAt, Observation memory atOrAfter) = getSurroundingObservations(
-            self,
-            time,
-            target,
-            tick,
-            index,
-            cardinality
-        );
+        (Observation memory beforeOrAt, Observation memory atOrAfter) =
+            getSurroundingObservations(self, time, target, tick, index, cardinality);
 
         if (target == beforeOrAt.blockTimestamp) {
             // we're at the left boundary
@@ -298,14 +306,15 @@ library Oracle {
             uint32 observationTimeDelta = atOrAfter.blockTimestamp - beforeOrAt.blockTimestamp;
             uint32 targetDelta = target - beforeOrAt.blockTimestamp;
             return (
-                beforeOrAt.tickCumulative +
-                    ((atOrAfter.tickCumulative - beforeOrAt.tickCumulative) / int56(uint56(observationTimeDelta))) *
-                    int56(uint56(targetDelta))
+                beforeOrAt.tickCumulative
+                    + ((atOrAfter.tickCumulative - beforeOrAt.tickCumulative) / int56(uint56(observationTimeDelta)))
+                        * int56(uint56(targetDelta))
             );
         }
     }
 
-    /// @notice Returns the accumulator values as of each time seconds ago from the given time in the array of `secondsAgos`
+    /// @notice Returns the accumulator values as of each time seconds ago from the given time in the array of
+    /// `secondsAgos`
     /// @dev Reverts if `secondsAgos` > oldest observation
     /// @param self The stored oracle array
     /// @param time The current block.timestamp
@@ -321,21 +330,16 @@ library Oracle {
         int24 tick,
         uint16 index,
         uint16 cardinality
-    ) internal view returns (
-        int56[] memory tickCumulatives
-    ) {
+    )
+        internal
+        view
+        returns (int56[] memory tickCumulatives)
+    {
         require(cardinality > 0, "I");
 
         tickCumulatives = new int56[](secondsAgos.length);
         for (uint256 i = 0; i < secondsAgos.length; i++) {
-            (tickCumulatives[i]) = observeSingle(
-                self,
-                time,
-                secondsAgos[i],
-                tick,
-                index,
-                cardinality
-            );
+            (tickCumulatives[i]) = observeSingle(self, time, secondsAgos[i], tick, index, cardinality);
         }
     }
 }

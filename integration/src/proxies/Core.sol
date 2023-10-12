@@ -20,38 +20,38 @@ import "@voltz-protocol/core/src/modules/AccessPassConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/AccountTokenModule.sol";
 
 contract CoreRouter is
-  AccessPassConfigurationModule,
-  AccountModule, 
-  AssociatedSystemsModule,
-  CollateralConfigurationModule,
-  CollateralModule,
-  FeatureFlagModule,
-  FeeConfigurationModule,
-  PreLiquidationModule,
-  RankedLiquidationModule,
-  DutchLiquidationModule,
-  BackstopLiquidationModule,
-  OwnerUpgradeModule,
-  MarketManagerModule,
-  RiskConfigurationModule
+    AccessPassConfigurationModule,
+    AccountModule,
+    AssociatedSystemsModule,
+    CollateralConfigurationModule,
+    CollateralModule,
+    FeatureFlagModule,
+    FeeConfigurationModule,
+    PreLiquidationModule,
+    RankedLiquidationModule,
+    DutchLiquidationModule,
+    BackstopLiquidationModule,
+    OwnerUpgradeModule,
+    MarketManagerModule,
+    RiskConfigurationModule
 { }
 
-contract CoreProxy is
-  UUPSProxyWithOwner,
-  CoreRouter
-{
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract CoreProxy is UUPSProxyWithOwner, CoreRouter {
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }
 
-contract AccountNftRouter is AccountTokenModule {}
+contract AccountNftRouter is AccountTokenModule { }
 
-contract AccountNftProxy is 
-  UUPSProxyWithOwner,
-  AccountNftRouter
-{
-  constructor(address firstImplementation, address initialOwner)
-      UUPSProxyWithOwner(firstImplementation, initialOwner)
-  {}
+contract AccountNftProxy is UUPSProxyWithOwner, AccountNftRouter {
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }
