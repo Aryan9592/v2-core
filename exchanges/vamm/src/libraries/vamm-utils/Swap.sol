@@ -20,9 +20,11 @@ import { Oracle } from "../../storage/Oracle.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
-import { UD60x18, ud, convert } from "@prb/math/UD60x18.sol";
+import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
+
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 
 library Swap {
@@ -162,22 +164,27 @@ library Swap {
             if (params.amountSpecified > 0) {
                 // LP is a Variable Taker
                 step.tokenDeltas.base = step.amountIn.toInt(); // this is positive
-                step.averagePrice = ud(step.amountOut).div(ud(step.amountIn)).div(convert(100));
+
+                step.averagePrice = VammHelpers.applySpread(
+                    VammHelpers.calculatePrice(step.amountIn, step.amountOut),
+                    self.mutableConfig.spread,
+                    true
+                );
             } else {
                 // LP is a Fixed Taker
                 step.tokenDeltas.base = -step.amountOut.toInt(); // this is negative
-                step.averagePrice = ud(step.amountIn).div(ud(step.amountOut)).div(convert(100));
+
+                step.averagePrice = VammHelpers.applySpread(
+                    VammHelpers.calculatePrice(step.amountOut, step.amountIn),
+                    self.mutableConfig.spread,
+                    false
+                );
             }
 
             ///// UPDATE TRACKERS /////
             state.amountSpecifiedRemaining -= step.tokenDeltas.base;
             if (state.liquidity > 0) {
-                step.tokenDeltas.quote = VammHelpers.calculateQuoteTokenDelta(
-                    step.tokenDeltas.base,
-                    step.averagePrice,
-                    self.mutableConfig.spread,
-                    exposureFactor
-                );
+                step.tokenDeltas.quote = -mulUDxInt(exposureFactor.mul(step.averagePrice), step.tokenDeltas.base);
 
                 step.tokenDeltas.extraCashflow = TraderPosition.computeCashflow(
                     step.tokenDeltas.base,

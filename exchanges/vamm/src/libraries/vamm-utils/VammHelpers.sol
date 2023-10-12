@@ -11,8 +11,7 @@ import { TickBitmap } from "../ticks/TickBitmap.sol";
 import { FullMath } from "../math/FullMath.sol";
 import { FixedPoint128 } from "../math/FixedPoint128.sol";
 
-import { UD60x18, ZERO } from "@prb/math/UD60x18.sol";
-import { mulUDxInt } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { UD60x18, ZERO, ud, convert } from "@prb/math/UD60x18.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
@@ -129,26 +128,12 @@ library VammHelpers {
         return base > 0 ? absLiquidity.toInt().to128() : -(absLiquidity.toInt().to128());
     }
 
-    function calculateQuoteTokenDelta(
-        int256 baseTokenDelta,
-        UD60x18 averagePrice,
-        UD60x18 spread,
-        UD60x18 exposureFactor
-    ) 
-        internal
-        pure
-        returns (
-            int256 quoteTokenDelta
-        )
-    {
-        UD60x18 averagePriceWithSpread = averagePrice.add(spread);
-        if (baseTokenDelta > 0) {
-            averagePriceWithSpread = averagePrice.lt(spread) ? ZERO : averagePrice.sub(spread);
-        }
+    function calculatePrice(uint256 base, uint256 unbalancedQuote) internal pure returns (UD60x18) {
+        return ud(unbalancedQuote).div(ud(base)).div(convert(100));
+    }
 
-        int256 exposure = mulUDxInt(exposureFactor, baseTokenDelta);
-
-        quoteTokenDelta = mulUDxInt(averagePriceWithSpread, -exposure);
+    function applySpread(UD60x18 price, UD60x18 spread, bool isLPLong) internal pure returns (UD60x18) {
+        return (isLPLong) ? ((price.lt(spread)) ? ZERO : price.sub(spread)) : price.add(spread);
     }
 
     function calculateGlobalTrackerValues(
