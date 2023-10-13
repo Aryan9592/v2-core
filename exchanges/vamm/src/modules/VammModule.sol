@@ -76,8 +76,9 @@ contract VammModule is IVammModule {
         Twap.increaseObservationCardinalityNext(vamm, observationCardinalityNext);
     }
 
-    ////////// GETTERS //////////
-
+    /**
+     * @inheritdoc IVammModule
+     */
     function getVammConfig(
         uint128 marketId,
         uint32 maturityTimestamp
@@ -92,11 +93,17 @@ contract VammModule is IVammModule {
         mutableConfig = vamm.mutableConfig;
     }
 
+    /**
+     * @inheritdoc IVammModule
+     */
     function getVammTick(uint128 marketId, uint32 maturityTimestamp) external view override returns (int24) {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
         return vamm.vars.tick;
     }
 
+    /**
+     * @inheritdoc IVammModule
+     */
     function getVammPositionsInAccount(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -118,6 +125,9 @@ contract VammModule is IVammModule {
         return positionIds;
     }
 
+    /**
+     * @inheritdoc IVammModule
+     */
     function getVammObservationInfo(
         uint128 marketId,
         uint32 maturityTimestamp
@@ -131,6 +141,9 @@ contract VammModule is IVammModule {
         return (vamm.vars.observationIndex, vamm.vars.observationCardinality, vamm.vars.observationCardinalityNext);
     }
 
+    /**
+     * @inheritdoc IVammModule
+     */
     function getVammPosition(uint128 positionId) external view override returns (LPPosition.Data memory) {
         LPPosition.Data storage position = LPPosition.exists(positionId);
         return position;

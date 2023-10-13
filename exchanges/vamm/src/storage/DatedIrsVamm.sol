@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13;
 
-import { Oracle } from "./Oracle.sol";
+import { Oracle } from "../libraries/vamm-utils/Oracle.sol";
 import { PoolConfiguration } from "./PoolConfiguration.sol";
 
 import { Tick } from "../libraries/ticks/Tick.sol";

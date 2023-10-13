@@ -43,7 +43,6 @@ library VammTicks {
         return TickMath.getTickAtSqrtRatio(sqrtPriceX96);
     }
 
-    // todo: further review during testing
     function getCurrentTickLimits(
         DatedIrsVamm.Data storage self,
         UD60x18 markPrice,
