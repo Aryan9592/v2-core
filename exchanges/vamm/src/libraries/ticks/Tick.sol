@@ -52,7 +52,7 @@ library Tick {
 
         uint128 liquidityGrossBefore = info.liquidityGross;
         require(int128(info.liquidityGross) + liquidityDelta >= 0, "not enough liquidity to burn");
-        
+
         uint128 liquidityGrossAfter = LiquidityMath.addDelta(liquidityGrossBefore, liquidityDelta);
         require(liquidityGrossAfter <= maxLiquidity, "LO");
 

@@ -140,22 +140,12 @@ library LP {
 
         /// @dev isUpper = false
         flippedLower = self.vars.ticks.update(
-            tickLower,
-            self.vars.tick,
-            liquidityDelta,
-            self.vars.growthGlobalX128,
-            false,
-            maxLiquidityPerTick
+            tickLower, self.vars.tick, liquidityDelta, self.vars.growthGlobalX128, false, maxLiquidityPerTick
         );
 
         /// @dev isUpper = true
         flippedUpper = self.vars.ticks.update(
-            tickUpper,
-            self.vars.tick,
-            liquidityDelta,
-            self.vars.growthGlobalX128,
-            true,
-            maxLiquidityPerTick
+            tickUpper, self.vars.tick, liquidityDelta, self.vars.growthGlobalX128, true, maxLiquidityPerTick
         );
 
         if (flippedLower) {
