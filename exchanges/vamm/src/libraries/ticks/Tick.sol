@@ -31,9 +31,7 @@ library Tick {
     /// @param tickCurrent The current tick
     /// @param liquidityDelta A new amount of liquidity to be added (subtracted)
     ///     when tick is crossed from left to right (right to left)
-    /// @param quoteTokenGrowthGlobalX128 The quote token growth accumulated per unit of liquidity for the entire life
-    /// of the vamm
-    /// @param baseTokenGrowthGlobalX128 The variable token growth accumulated per unit of liquidity for the entire life
+    /// @param growthGlobalX128 The token growths accumulated per unit of liquidity for the entire life
     /// of the vamm
     /// @param upper true for updating a position's upper tick, or false for updating a position's lower tick
     /// @param maxLiquidity The maximum liquidity allocation for a single tick
@@ -43,8 +41,7 @@ library Tick {
         int24 tick,
         int24 tickCurrent,
         int128 liquidityDelta,
-        int256 quoteTokenGrowthGlobalX128,
-        int256 baseTokenGrowthGlobalX128,
+        PositionBalances memory growthGlobalX128,
         bool upper,
         uint128 maxLiquidity
     )
@@ -55,8 +52,8 @@ library Tick {
 
         uint128 liquidityGrossBefore = info.liquidityGross;
         require(int128(info.liquidityGross) + liquidityDelta >= 0, "not enough liquidity to burn");
+        
         uint128 liquidityGrossAfter = LiquidityMath.addDelta(liquidityGrossBefore, liquidityDelta);
-
         require(liquidityGrossAfter <= maxLiquidity, "LO");
 
         flipped = (liquidityGrossAfter == 0) != (liquidityGrossBefore == 0);
@@ -64,8 +61,7 @@ library Tick {
         if (liquidityGrossBefore == 0) {
             // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
             if (tick <= tickCurrent) {
-                info.growthOutsideX128.quote = quoteTokenGrowthGlobalX128;
-                info.growthOutsideX128.base = baseTokenGrowthGlobalX128;
+                info.growthOutsideX128 = growthGlobalX128;
             }
 
             info.initialized = true;
