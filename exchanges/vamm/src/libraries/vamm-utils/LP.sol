@@ -22,7 +22,6 @@ library LP {
     using SetUtil for SetUtil.UintSet;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
-    using DatedIrsVamm for DatedIrsVamm.Data;
 
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,

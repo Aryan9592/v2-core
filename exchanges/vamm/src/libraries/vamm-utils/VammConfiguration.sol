@@ -7,7 +7,7 @@ import { VammTicks } from "./VammTicks.sol";
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 
-import { Oracle } from "../../storage/Oracle.sol";
+import { Oracle } from "./Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -15,7 +15,7 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 import { UNIT } from "@prb/math/UD60x18.sol";
 
 /**
- * @title Tracks configurations for dated irs markets
+ * @title Sets configurations for dated irs markets
  */
 library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;

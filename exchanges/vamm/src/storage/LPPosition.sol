@@ -12,7 +12,7 @@ import { PositionBalances } from "../libraries/DataTypes.sol";
 library LPPosition {
     using LPPosition for LPPosition.Data;
 
-    error PositionNotFound();
+    error LPPositionNotFound();
 
     struct Data {
         /**
@@ -59,7 +59,7 @@ library LPPosition {
         position = load(id);
 
         if (position.id == 0) {
-            revert PositionNotFound();
+            revert LPPositionNotFound();
         }
     }
 

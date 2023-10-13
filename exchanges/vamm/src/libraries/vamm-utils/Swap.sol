@@ -18,7 +18,7 @@ import { FixedPoint128 } from "../math/FixedPoint128.sol";
 import { FullMath } from "../math/FullMath.sol";
 
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
-import { Oracle } from "../../storage/Oracle.sol";
+import { Oracle } from "./Oracle.sol";
 
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";

@@ -212,7 +212,7 @@ contract PoolModule is IPoolModule {
 
         return false;
     }
-
+    
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(IPool).interfaceId || interfaceId == this.supportsInterface.selector;
     }

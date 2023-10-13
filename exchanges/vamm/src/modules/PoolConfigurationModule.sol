@@ -11,6 +11,9 @@ contract PoolConfigurationModule is IPoolConfigurationModule {
         PoolConfiguration.set(config);
     }
 
+  /**
+    * @inheritdoc IPoolConfigurationModule
+    */
     function getPoolConfiguration() external pure override returns (PoolConfiguration.Data memory) {
         return PoolConfiguration.load();
     }
