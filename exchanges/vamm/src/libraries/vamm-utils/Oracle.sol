@@ -2,7 +2,6 @@
 pragma solidity >=0.8.13;
 
 /// @title Oracle
-/// @notice Provides price useful for a wide variety of system designs
 /// @dev Instances of stored oracle data, "observations", are collected in the oracle array
 /// Every pool is initialized with an oracle array length of 1. Anyone can pay the SSTOREs to increase the
 /// maximum length of the oracle array. New slots will be added when the array is fully populated.
@@ -88,6 +87,7 @@ library Oracle {
     /// @param tick The active tick at the time of the new observation
     /// @param cardinality The number of populated elements in the oracle array
     /// @param cardinalityNext The new length of the oracle array, independent of population
+    /// @param minSecondsBetweenOracleObservations Minimum buffer between stored observations
     /// @return indexUpdated The new index of the most recently written element in the oracle array
     /// @return cardinalityUpdated The new cardinality of the oracle array
     function write(
@@ -104,7 +104,6 @@ library Oracle {
     {
         Observation memory last = self[index];
 
-        // todo: review during testing
         // overwrite last observation if it took place in the same block
         if (last.blockTimestamp == blockTimestamp) {
             Observation memory lastButOne = (index > 0) ? self[index - 1] : self[cardinality - 1];

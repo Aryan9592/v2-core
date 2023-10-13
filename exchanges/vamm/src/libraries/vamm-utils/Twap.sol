@@ -6,7 +6,7 @@ import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
-import { Oracle } from "../../storage/Oracle.sol";
+import { Oracle } from "./Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";

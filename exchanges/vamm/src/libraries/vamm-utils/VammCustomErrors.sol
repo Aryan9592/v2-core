@@ -42,11 +42,6 @@ interface VammCustomErrors {
     error IRSVammNotFound(uint256 vammId);
 
     /**
-     * @dev Thrown when Twap order size is 0 and it tries to adjust for spread or price impact
-     */
-    error TwapNotAdjustable();
-
-    /**
      * @dev Thrown when price impact configuration is larger than 1 in wad
      */
     error PriceImpactOutOfBounds();
@@ -56,11 +51,6 @@ interface VammCustomErrors {
      * or the current tick is outside of the range
      */
     error ExceededTickLimits(int24 minTick, int24 maxTick);
-
-    /**
-     * @dev Thrown when specified ticks are not symmetric around 0
-     */
-    error AsymmetricTicks(int24 minTick, int24 maxTick);
 
     /**
      * @dev Thrown when the number of positions per account exceeded the limit.

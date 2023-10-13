@@ -7,6 +7,7 @@ import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
 import { LPPosition } from "../storage/LPPosition.sol";
 
+import { amountsFromLiquidity } from "../libraries/vamm-utils/VammHelpers.sol";
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
 import { liquidityFromBase } from "../libraries/vamm-utils/VammHelpers.sol";
@@ -109,7 +110,7 @@ contract PoolModule is IPoolModule {
     )
         external
         override
-        returns (int256 closedUnfilledBasePool)
+        returns (uint256 closedUnfilledBasePool)
     {
         if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "closeUnfilledBase");
@@ -126,8 +127,9 @@ contract PoolModule is IPoolModule {
 
             vamm.executeDatedMakerOrder(accountId, position.tickLower, position.tickUpper, -position.liquidity.toInt());
 
-            // todo: shouldn't we convert liquidity to base here?
-            closedUnfilledBasePool += position.liquidity.toInt();
+            (uint256 absClosedBase,) = amountsFromLiquidity(position.liquidity, position.tickLower, position.tickUpper);
+
+            closedUnfilledBasePool += absClosedBase;
         }
     }
 

@@ -93,7 +93,7 @@ interface IPool is IERC165 {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external returns (int256 closedUnfilledBase);
+    ) external returns (uint256 closedUnfilledBase);
 
     function hasUnfilledOrders(
         uint128 marketId,

@@ -7,7 +7,7 @@ import { VammTicks } from "./VammTicks.sol";
 import { Tick } from "../ticks/Tick.sol";
 import { TickMath } from "../ticks/TickMath.sol";
 
-import { Oracle } from "../../storage/Oracle.sol";
+import { Oracle } from "./Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -15,7 +15,7 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 import { UNIT } from "@prb/math/UD60x18.sol";
 
 /**
- * @title Tracks configurations for dated irs markets
+ * @title Sets configurations for dated irs markets
  */
 library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;
@@ -94,19 +94,11 @@ library VammConfiguration {
     }
 
     function setMinAndMaxTicks(DatedIrsVamm.Data storage self, int24 minTickAllowed, int24 maxTickAllowed) private {
-        // todo: might be able to remove self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
-        // need to make sure the currently-held invariant that "current tick is always within the allowed tick range"
-        // does not have unwanted consequences
         if (
             minTickAllowed < VammTicks.DEFAULT_MIN_TICK || maxTickAllowed > VammTicks.DEFAULT_MAX_TICK
                 || self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
         ) {
             revert VammCustomErrors.ExceededTickLimits(minTickAllowed, maxTickAllowed);
-        }
-
-        // todo: can this be removed in the future for better flexibility?
-        if (minTickAllowed + maxTickAllowed != 0) {
-            revert VammCustomErrors.AsymmetricTicks(minTickAllowed, maxTickAllowed);
         }
 
         self.mutableConfig.minTickAllowed = minTickAllowed;

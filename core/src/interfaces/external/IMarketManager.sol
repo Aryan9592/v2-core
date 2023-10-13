@@ -46,7 +46,7 @@ interface IMarketManager is IERC165 {
     function closeAllUnfilledOrders(
         uint128 marketId, 
         uint128 accountId
-    ) external returns (int256 /* closedUnfilledBasePool */);
+    ) external returns (uint256 /* closedUnfilledBasePool */);
 
     /// @notice returns true if the account has unfilled on-chain orders in the market
     function hasUnfilledOrders(uint128 marketId, uint128 accountId) external view returns (bool);
