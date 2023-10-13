@@ -127,11 +127,7 @@ contract PoolModule is IPoolModule {
 
             vamm.executeDatedMakerOrder(accountId, position.tickLower, position.tickUpper, -position.liquidity.toInt());
 
-            (uint256 absClosedBase, ) = amountsFromLiquidity(
-                position.liquidity,
-                position.tickLower,
-                position.tickUpper
-            );
+            (uint256 absClosedBase,) = amountsFromLiquidity(position.liquidity, position.tickLower, position.tickUpper);
 
             closedUnfilledBasePool += absClosedBase.toInt();
         }
@@ -213,7 +209,7 @@ contract PoolModule is IPoolModule {
 
         return false;
     }
-    
+
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(IPool).interfaceId || interfaceId == this.supportsInterface.selector;
     }

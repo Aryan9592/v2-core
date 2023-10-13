@@ -6,7 +6,6 @@ import { PoolConfiguration } from "../storage/PoolConfiguration.sol";
 import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 contract PoolConfigurationModule is IPoolConfigurationModule {
-
     /**
      * @inheritdoc IPoolConfigurationModule
      */
