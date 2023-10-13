@@ -461,7 +461,7 @@ library Portfolio {
         return false;
     }
 
-    function closeAllUnfilledOrders(Data storage self) internal returns (int256 closedUnfilledBasePool) {
+    function closeAllUnfilledOrders(Data storage self) internal returns (uint256 closedUnfilledBasePool) {
         Market.Data storage market = Market.exists(self.marketId);
 
         uint256[] memory activeMaturities = self.activeMaturities.values();

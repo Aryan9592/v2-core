@@ -107,10 +107,10 @@ abstract contract Actions is Test {
         return settlementCashflowInQuote;
     }
 
-    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) internal returns (int256) {
+    function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) internal returns (uint256) {
         vm.startPrank(getCoreProxyAddress());
 
-        int256 closedUnfilledBasePool = getDatedIrsProxy().closeAllUnfilledOrders(marketId, accountId);
+        uint256 closedUnfilledBasePool = getDatedIrsProxy().closeAllUnfilledOrders(marketId, accountId);
 
         vm.stopPrank();
 

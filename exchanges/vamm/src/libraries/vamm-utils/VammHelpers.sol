@@ -10,8 +10,6 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 
 import { UD60x18, ZERO, ud, convert } from "@prb/math/UD60x18.sol";
 
-import { UD60x18, ZERO, ud, convert } from "@prb/math/UD60x18.sol";
-
 using SafeCastU256 for uint256;
 using SafeCastI256 for int256;
 

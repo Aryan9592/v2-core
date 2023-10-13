@@ -110,7 +110,7 @@ contract PoolModule is IPoolModule {
     )
         external
         override
-        returns (int256 closedUnfilledBasePool)
+        returns (uint256 closedUnfilledBasePool)
     {
         if (msg.sender != PoolConfiguration.load().marketManagerAddress) {
             revert NotAuthorized(msg.sender, "closeUnfilledBase");
@@ -129,7 +129,7 @@ contract PoolModule is IPoolModule {
 
             (uint256 absClosedBase,) = amountsFromLiquidity(position.liquidity, position.tickLower, position.tickUpper);
 
-            closedUnfilledBasePool += absClosedBase.toInt();
+            closedUnfilledBasePool += absClosedBase;
         }
     }
 

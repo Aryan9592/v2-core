@@ -109,7 +109,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function closeAllUnfilledOrders(
         uint128 marketId, 
         uint128 accountId
-    ) external override returns (int256 /* closedUnfilledBasePool */) {
+    ) external override returns (uint256 /* closedUnfilledBasePool */) {
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         uint256[] memory activeMaturities = portfolio.activeMaturities.values();
         for (uint256 i = 0; i < activeMaturities.length; i++) {
