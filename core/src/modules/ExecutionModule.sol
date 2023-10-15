@@ -30,7 +30,7 @@ contract ExecutionModule is IExecutionModule {
         for (uint256 i = 0; i < commands.length; i++) {
 
             if (commands[i].marketId == 0) {
-                // todo: why no outputs for core commands?
+                // do we need outputs for core commands?
                 executeCoreCommand(
                     accountId,
                     commands[i].commandType,
@@ -80,6 +80,8 @@ contract ExecutionModule is IExecutionModule {
         }
         Market.Data storage market = Market.exists(command.marketId);
 
+        // todo: mark active market
+
         // todo: fee propagation
 
         if (command.commandType == CommandType.OnChainTakerOrder) {
@@ -87,7 +89,7 @@ contract ExecutionModule is IExecutionModule {
         } else if (command.commandType == CommandType.OnChainMakerOrder) {
             (output,,) = market.executeMakerOrder(accountId, command.inputs);
         } else if (command.commandType == CommandType.BatchMatchOrder) {
-            // todo: add validation, fee propagation
+            // todo: add validation
             (
                 uint128[] memory makerAccountIds,
                 bytes memory orderInputs,

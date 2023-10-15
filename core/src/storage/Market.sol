@@ -34,23 +34,10 @@ library Market {
      */
     error MarketNotFound(uint128 marketId);
 
-    struct FeeConfiguration {
-        /**
-         * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
-         * @dev to derive the maker fee charged by the protocol.
-         */
-        UD60x18 atomicMakerFee;
-        /**
-         * @dev Atomic Taker Fee is multiplied by the annualised notional traded
-         * @dev to derive the taker fee charged by the protocol.
-         */
-        UD60x18 atomicTakerFee;
-    }
-
     struct Data {
         /**
          * @dev Numeric identifier for the market. Must be unique.
-         * @dev There cannot be a market with id zero (See MarketCreator.create()). Id zero is used as a null market reference.
+         * @dev There cannot be a market with id zero (See MarketStore.create()). Id zero is used as a null market reference.
          */
         uint128 id;
 
@@ -74,22 +61,6 @@ library Market {
          * Not required to be unique.
          */
         string name;
-        /**
-         * @dev Market fee configurations for collateral pool
-         */
-        FeeConfiguration collateralPoolFeeConfig;
-        /**
-         * @dev Market fee configurations for insurance fund
-         */
-        FeeConfiguration insuranceFundFeeConfig;
-        /**
-         * @dev Market fee configurations for protocol
-         */
-        FeeConfiguration protocolFeeConfig;
-        /**
-         * @dev Address of fee collector
-         */
-        uint128 protocolFeeCollectorAccountId;
 
         /**
          * @dev Id of the risk matrix which hosts the parameters for this market
@@ -187,44 +158,11 @@ library Market {
         return IMarketManager(self.marketManagerAddress).getAccountPnLComponents(self.id, accountId);
     }
 
-    /**
-     * @dev Sets the protocol fee configuration for a given market
-     * @param config The FeeConfiguration object with all the fee parameters
-     */
-    function setProtocolFeeConfiguration(Data storage self, FeeConfiguration memory config, uint128 accountId) internal {
-        // check if fee collector account exists
-        Account.exists(accountId);
-
-        self.protocolFeeCollectorAccountId = accountId;
-        self.protocolFeeConfig = config;
-
-        emit MarketUpdated(self, block.timestamp);
-    }
-
-    /**
-     * @dev Sets the insurance fund fee configuration for a given market
-     * @param config The FeeConfiguration object with all the insurance fund fee parameters
-     */
-    function setInsuranceFundFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
-        self.insuranceFundFeeConfig = config;
-
-        emit MarketUpdated(self, block.timestamp);
-    }
 
     // todo: add natspect and expose
     function setRiskBlockId(Data storage self, uint256 riskBlockId) internal {
         self.riskBlockId = riskBlockId;
         // todo add event
-    }
-
-    /**
-     * @dev Sets the collateral pool fee configuration for a given market
-     * @param config The FeeConfiguration object with all the fee parameters
-     */
-    function setCollateralPoolFeeConfiguration(Data storage self, FeeConfiguration memory config) internal {
-        self.collateralPoolFeeConfig = config;
-
-        emit MarketUpdated(self, block.timestamp);
     }
 
     /**

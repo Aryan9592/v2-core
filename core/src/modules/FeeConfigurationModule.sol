@@ -15,27 +15,7 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
 
-    /**
-     * @inheritdoc IFeeConfigurationModule
-     */
-    function configureProtocolMarketFee(
-        uint128 marketId,
-        Market.FeeConfiguration memory config,
-        uint128 feeCollectorAccountId
-    ) external override {
-        OwnableStorage.onlyOwner();
-        Market.exists(marketId).setProtocolFeeConfiguration(config, feeCollectorAccountId);
-    }
-
-    /**
-     * @inheritdoc IFeeConfigurationModule
-     */
-    function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.getCollateralPool().onlyOwner();
-        market.setCollateralPoolFeeConfiguration(config);
-    }
-
+    // consider introducing an insurance fund config module?
     /**
      * @inheritdoc IFeeConfigurationModule
      */
@@ -46,39 +26,6 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
         CollateralPool.Data storage collateralPool = CollateralPool.exists(collateralPoolId);
         collateralPool.onlyOwner();
         collateralPool.setInsuranceFundConfig(config);
-    }
-
-    /**
-     * @inheritdoc IFeeConfigurationModule
-     */
-    function configureInsuranceFundMarketFee(uint128 marketId, Market.FeeConfiguration memory config) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.getCollateralPool().onlyOwner();
-        market.setInsuranceFundFeeConfiguration(config);
-    }
-
-    /**
-     * @inheritdoc IFeeConfigurationModule
-     */
-    function getProtocolMarketFeeConfiguration(uint128 marketId)
-        external
-        view
-        override
-        returns (Market.FeeConfiguration memory config)
-    {
-        return Market.exists(marketId).protocolFeeConfig;
-    }
-
-    /**
-     * @inheritdoc IFeeConfigurationModule
-     */
-    function getCollateralPoolMarketFeeConfiguration(uint128 marketId)
-        external
-        view
-        override
-        returns (Market.FeeConfiguration memory config)
-    {
-        return Market.exists(marketId).collateralPoolFeeConfig;
     }
 
     /**
