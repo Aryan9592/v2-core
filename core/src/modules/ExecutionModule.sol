@@ -91,10 +91,14 @@ contract ExecutionModule is IExecutionModule {
             (
                 uint128[] memory makerAccountIds,
                 bytes memory orderInputs,
-                uint256 takerFeesToExchange,
-                uint256[] memory makerFeesToExchange
-            ) = abi.decode(command.inputs, (uint128[], bytes, uint256, uint256[]));
-            (output,,,,) = market.executeBatchMatchOrder(accountId, makerAccountIds, orderInputs);
+                uint256[] memory exchangeFees // first is account id, the remaining ones are from counterparties
+            ) = abi.decode(command.inputs, (uint128[], bytes, uint256[]));
+            (output,) = market.executeBatchMatchOrder(accountId, makerAccountIds, orderInputs);
+
+            for (uint256 i = 0; i < makerAccountIds.length; i++) {
+                Account.exists(makerAccountIds[i]).imCheck();
+            }
+
         } else if (command.commandType == CommandType.PropagateCashflow) {
             (bytes memory result, int256 cashflowAmount) = market.executePropagateCashflow(accountId, command.inputs);
             account.updateNetCollateralDeposits(market.quoteToken, cashflowAmount);

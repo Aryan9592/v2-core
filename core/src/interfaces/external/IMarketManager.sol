@@ -87,16 +87,13 @@ interface IMarketManager is IERC165 {
 
     // todo: natspec
     function executeBatchMatchOrder(
-        uint128 takerAccountId,
-        uint128[] memory makerAccountIds,
+        uint128 accountId,
+        uint128[] memory counterpartyAccountIds,
         uint128 marketId,
         bytes calldata inputs
     ) external returns (
         bytes memory output,
-        uint256 exchangeFeesFromRebate,
-        uint256 protocolFees,
-        uint256 takerFeesToProtocol,
-        uint256[] memory makerFeesToProtocol
+        uint256[] memory protocolFees // first is account id, the remaining ones are from counterparties
     );
 
     /**
