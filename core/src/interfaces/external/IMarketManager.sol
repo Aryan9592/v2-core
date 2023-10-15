@@ -66,7 +66,7 @@ interface IMarketManager is IERC165 {
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external returns (bytes memory output, int256 annualizedNotional);
+    ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
 
     /**
      * @notice Decoded inputs and execute maker order
@@ -83,7 +83,21 @@ interface IMarketManager is IERC165 {
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external returns (bytes memory output, int256 annualizedNotional);
+    ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
+
+    // todo: natspec
+    function executeBatchMatchOrder(
+        uint128 takerAccountId,
+        uint128[] memory makerAccountIds,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (
+        bytes memory output,
+        uint256 exchangeFeesFromRebate,
+        uint256 protocolFees,
+        uint256 takerFeesToProtocol,
+        uint256[] memory makerFeesToProtocol
+    );
 
     /**
      * @notice Decoded inputs and execute liquidation order
@@ -123,7 +137,7 @@ interface IMarketManager is IERC165 {
     ) external;
 
     /**
-     * @notice Decoded inputs and completes a position
+     * @notice Decoded inputs and propagates position cashflows
      * @param accountId Id of the account that wants to complete a position
      * @param marketId Id of the market in which the account wants to complete a position
      * @param inputs The extra inputs required by the maker order
@@ -133,7 +147,7 @@ interface IMarketManager is IERC165 {
      * - `msg.sender` must be Core.
      *
      */
-    function completeOrder(
+    function executePropagateCashflow(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs

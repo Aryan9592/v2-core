@@ -283,4 +283,73 @@ library Market {
         );
     }
 
+    function executeTakerOrder(
+        Data storage self,
+        uint128 accountId,
+        bytes memory inputs
+    ) internal returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees) {
+
+        return IMarketManager(self.marketManagerAddress).executeTakerOrder(
+            accountId,
+            self.id,
+            inputs
+        );
+
+    }
+
+    function executeMakerOrder(
+        Data storage self,
+        uint128 accountId,
+        bytes memory inputs
+    ) internal returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees) {
+
+        return IMarketManager(self.marketManagerAddress).executeMakerOrder(
+            accountId,
+            self.id,
+            inputs
+        );
+
+    }
+
+
+    // todo: double check after aligning
+    function executeBatchMatchOrder(
+        Data storage self,
+        uint128 takerAccountId,
+        uint128[] memory makerAccountIds,
+        bytes memory inputs
+    ) internal returns (
+        bytes memory output,
+        uint256 exchangeFeesFromRebate,
+        uint256 protocolFees,
+        uint256 takerFeesToProtocol,
+        uint256[] memory makerFeesToProtocol
+    )
+    {
+
+        return IMarketManager(self.marketManagerAddress).executeBatchMatchOrder(
+            takerAccountId,
+            makerAccountIds,
+            self.id,
+            inputs
+        );
+
+    }
+
+    function executePropagateCashflow(
+        Data storage self,
+        uint128 accountId,
+        bytes memory inputs
+    ) internal returns (bytes memory output, int256 cashflowAmount) {
+
+        return IMarketManager(self.marketManagerAddress).executePropagateCashflow(
+            accountId,
+            self.id,
+            inputs
+        );
+
+    }
+
+
+
 }
