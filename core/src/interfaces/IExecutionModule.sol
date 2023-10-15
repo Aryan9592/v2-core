@@ -48,6 +48,11 @@ interface IExecutionModule {
          * this command. If zero, the command will be sent to core.
          */
         uint128 marketId;
+        /**
+         * @dev Exchange id that identifies the exchange that executes
+         * this command. If zero, the command does not involve an exchange (e.g. propagate cashflow)
+         */
+        uint128 exchangeId;
     }
 
     function execute(

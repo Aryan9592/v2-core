@@ -65,6 +65,7 @@ interface IMarketManager is IERC165 {
     function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
 
@@ -82,6 +83,7 @@ interface IMarketManager is IERC165 {
     function executeMakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
 

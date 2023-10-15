@@ -278,6 +278,8 @@ library CollateralPool {
          * @dev Collateral pool wide backstop lp configuration
          */
         BackstopLPConfig backstopLPConfig;
+
+        // todo: remove
         /**
          * @dev Account id for the collector of protocol fees
          */

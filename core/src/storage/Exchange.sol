@@ -43,6 +43,7 @@ library Exchange {
         exchange = load(id);
         exchange.id = id;
         exchange.exchangeFeeCollectorAccountId = exchangeFeeCollectorAccountId;
+        // todo: is it worth checking if account with id exchangeFeeCollectorAccountId exists?
 
         emit ExchangeUpdated(exchange, block.timestamp);
 

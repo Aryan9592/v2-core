@@ -224,11 +224,13 @@ library Market {
     function executeTakerOrder(
         Data storage self,
         uint128 accountId,
+        uint128 exchangeId,
         bytes memory inputs
-    ) internal returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees) {
+    ) internal returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee) {
 
         return IMarketManager(self.marketManagerAddress).executeTakerOrder(
             accountId,
+            exchangeId,
             self.id,
             inputs
         );
@@ -238,11 +240,13 @@ library Market {
     function executeMakerOrder(
         Data storage self,
         uint128 accountId,
+        uint128 exchangeId,
         bytes memory inputs
-    ) internal returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees) {
+    ) internal returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee) {
 
         return IMarketManager(self.marketManagerAddress).executeMakerOrder(
             accountId,
+            exchangeId,
             self.id,
             inputs
         );

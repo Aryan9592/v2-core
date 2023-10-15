@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {IExecutionModule} from "../interfaces/IExecutionModule.sol";
 // todo: consider abstracting Account.MarginInfo to a datatype lib
 import {Account} from "../storage/Account.sol";
+import {Exchange} from "../storage/Exchange.sol";
 import {CreateAccount} from "../libraries/actions/CreateAccount.sol";
 import {EditCollateral} from "../libraries/actions/EditCollateral.sol";
 import {Market} from "../storage/Market.sol";
@@ -85,9 +86,17 @@ contract ExecutionModule is IExecutionModule {
         // todo: fee propagation
 
         if (command.commandType == CommandType.OnChainTakerOrder) {
-            (output,,) = market.executeTakerOrder(accountId, command.inputs);
+            (bytes memory result, uint256 exchangeFee, uint256 protocolFee) = market.executeTakerOrder(
+                accountId,
+                command.exchangeId,
+                command.inputs
+            );
         } else if (command.commandType == CommandType.OnChainMakerOrder) {
-            (output,,) = market.executeMakerOrder(accountId, command.inputs);
+            (bytes memory result, uint256 exchangeFee, uint256 protocolFee) = market.executeMakerOrder(
+                accountId,
+                command.exchangeId,
+                command.inputs
+            );
         } else if (command.commandType == CommandType.BatchMatchOrder) {
             // todo: add validation
             (
