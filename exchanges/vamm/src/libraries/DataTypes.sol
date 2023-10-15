@@ -31,6 +31,8 @@ struct SwapStepComputations {
     uint256 amountIn;
     /// @dev how much is being swapped out
     uint256 amountOut;
+    /// @dev average price given by swap step
     UD60x18 averagePrice;
+    /// @dev token deltas accumulated after the swap step
     PositionBalances tokenDeltas;
 }

@@ -17,6 +17,8 @@ import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.s
 
 import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
+/// @title Twap library
+/// @notice Libary that supports the calculation the time-weighted average price
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65_535];

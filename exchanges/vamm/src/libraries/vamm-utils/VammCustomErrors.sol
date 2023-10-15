@@ -2,7 +2,9 @@
 
 pragma solidity >=0.8.13;
 
-interface VammCustomErrors {
+/// @title Vamm Custom Errors
+/// @notice Contains VAMM custom error 
+library VammCustomErrors {
     /**
      * @dev Only one VAMM can exist for any given {market, maturity}
      */

@@ -12,6 +12,9 @@ library PoolConfiguration {
         uint256 makerPositionsPerAccountLimit;
     }
 
+    /**
+     * @dev Loads the pool configuration object
+     */
     function load() internal pure returns (Data storage config) {
         bytes32 s = keccak256(abi.encode("xyz.voltz.PoolConfiguration"));
         assembly {
@@ -19,6 +22,9 @@ library PoolConfiguration {
         }
     }
 
+    /**
+     * @dev Sets the pool configuration
+     */
     function set(Data memory config) internal {
         Data storage storedConfig = load();
 
@@ -26,6 +32,9 @@ library PoolConfiguration {
         storedConfig.makerPositionsPerAccountLimit = config.makerPositionsPerAccountLimit;
     }
 
+    /**
+     * @dev Reverts id the pool is paused
+     */
     function whenNotPaused() internal view {
         FeatureFlag.ensureAccessToFeature(_PAUSER_FEATURE_FLAG);
     }

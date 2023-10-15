@@ -5,6 +5,8 @@ pragma solidity >=0.8.13;
 import { PositionBalances } from "./DataTypes.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 
+/// @title Vamm Events
+/// @notice Contains events emitted by the Vamm
 library Events {
     /// @dev emitted when vamm configurations are updated
     event VammConfigUpdated(
@@ -39,6 +41,7 @@ library Events {
         uint256 blockTimestamp
     );
 
+    /// @dev emitted after the current VAMM price changes
     event VAMMPriceChange(
         uint128 indexed marketId, uint32 indexed maturityTimestamp, int24 tick, uint256 blockTimestamp
     );

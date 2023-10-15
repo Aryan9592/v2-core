@@ -7,6 +7,8 @@ import { Tick } from "../libraries/ticks/Tick.sol";
 import { LPPosition } from "../storage/LPPosition.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 
+/// @title The interface for the VAMM module
+/// @notice Interface that manages a VAMM's configuration
 interface IVammModule {
     /**
      * @notice registers a new vamm with the specified configurationsa and initializes the price

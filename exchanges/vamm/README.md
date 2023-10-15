@@ -1,5 +1,7 @@
 # Voltz V2 - VAMM
 
+This package contains the smart contracts for the Voltz V2 VAMM. It is an exchange layer powered by a concentrated liquidity virtual AMM used for price discovery.
+
 ## Prerequistes
 
 - Install Node v18 and `yarn` (or `pnpm`)
@@ -16,7 +18,12 @@
 
 ## Testing
 
-Run: `forge test`. E.g.
+Run: `forge test`
 
-- `forge test -vvv --no-match-test "SlowFuzz"` will run all of the tests except some exceptionally slow fuzzing tests.
-- `forge test -vvv"` will run all of the tests
+## Deployment
+
+This project uses Cannon for deployments. For more details, go [here](https://github.com/usecannon/cannon).
+
+## License
+
+The license for Voltz V2 VAMM is detailed in [`LICENSE`](./LICENSE).

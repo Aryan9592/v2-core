@@ -54,8 +54,11 @@ library LPPosition {
         assembly {
             position.slot := s
         }
-    }
+    }  
 
+    /**
+     * @dev Returns the position stored at the specified id. Reverts if no such position is found.
+     */
     function exists(uint128 id) internal view returns (Data storage position) {
         position = load(id);
 
@@ -64,6 +67,9 @@ library LPPosition {
         }
     }
 
+    /**
+     * @dev Loads the LPPosition object for the given position Id or it creates one if it doesn't exist
+     */
     function loadOrCreate(
         uint128 accountId,
         uint128 marketId,
@@ -89,6 +95,9 @@ library LPPosition {
         return position;
     }
 
+    /**
+     * @dev Upadtes the position's trader balances
+     */
     function updateTokenBalances(Data storage self, PositionBalances memory growthInsideX128) internal {
         PositionBalances memory deltas;
         if (self.liquidity > 0) {
@@ -102,10 +111,16 @@ library LPPosition {
         self.updatedGrowthTrackers = growthInsideX128;
     }
 
+    /**
+     * @dev Upadtes the position's liquidity
+     */
     function updateLiquidity(Data storage self, int128 liquidityDelta) internal {
         self.liquidity = LiquidityMath.addDelta(self.liquidity, liquidityDelta);
     }
 
+    /**
+     * @dev Returns the most up-to-date trader balances
+     */
     function getUpdatedPositionBalances(
         Data memory self,
         PositionBalances memory growthInsideX128
@@ -126,6 +141,9 @@ library LPPosition {
         });
     }
 
+    /**
+     * @dev Computes the position balances delta based on the trackers
+     */
     function calculateTrackersDelta(
         Data memory self,
         PositionBalances memory growthInsideX128

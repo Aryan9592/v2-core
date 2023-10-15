@@ -13,15 +13,25 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-/**
- * @title Sets configurations for dated irs markets
- */
+import { UNIT } from "@prb/math/UD60x18.sol";
+
+/// @title VammConfiguration
+/// @notice Contains methods to set the vamm configuration
 library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65_535];
     using VammConfiguration for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;
 
+    /**
+     * @notice Registers a new Dated IRS VAMM in storage along with the initial configuration
+     * @param sqrtPriceX96 The sqrt ratio for which to compute the intital tick as a Q64.96
+     * @param times List of observation timestamps for past prices
+     * @param observedTicks List of observed ticks at the above timestamps
+     * @param config Immutable configuration of the VAMM
+     * @param mutableConfig Initial mutable configuration of the VAMM
+     * @return irsVamm The VAMM state
+     */
     function create(
         uint160 sqrtPriceX96,
         uint32[] memory times,
@@ -81,6 +91,11 @@ library VammConfiguration {
         self.vars.sqrtPriceX96 = sqrtPriceX96;
     }
 
+    /**
+     * @notice Configures an existing Dated IRS VAMM
+     * @param self The VAMM state
+     * @param config New mutable configuration to be set
+     */
     function configure(DatedIrsVamm.Data storage self, DatedIrsVamm.Mutable memory config) internal {
         self.mutableConfig = config;
         propagateMinAndMaxTicks(self, config.minTickAllowed, config.maxTickAllowed);
