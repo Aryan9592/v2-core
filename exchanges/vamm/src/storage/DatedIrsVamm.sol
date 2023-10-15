@@ -111,7 +111,7 @@ library DatedIrsVamm {
     }
 
     /**
-     * @dev Parameters required by the swap frunction 
+     * @dev Parameters required by the swap frunction
      */
     struct SwapParams {
         /// @dev The amount of the swap in base tokens, which implicitly configures the swap

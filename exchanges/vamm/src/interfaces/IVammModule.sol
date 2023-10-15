@@ -7,11 +7,13 @@ import { Tick } from "../libraries/ticks/Tick.sol";
 import { LPPosition } from "../storage/LPPosition.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 
-/// @title The interface for the VAMM module
-/// @notice Interface that manages a VAMM's configuration
+/**
+ * @title The interface for the VAMM module
+ * @notice Interface that manages a VAMM's configuration
+ */
 interface IVammModule {
     /**
-     * @notice registers a new vamm with the specified configurationsa and initializes the price
+     * @notice Registers a new VAMM with the specified configurations and initializes the price
      */
     function createVamm(
         uint160 sqrtPriceX96,
@@ -23,8 +25,8 @@ interface IVammModule {
         external;
 
     /**
-     * @notice Configures an existing vamm
-     * @dev Only configures mutable vamm variables
+     * @notice Configures an existing VAMM
+     * @dev Only configures mutable VAMM variables
      */
     function configureVamm(uint128 marketId, uint32 maturityTimestamp, DatedIrsVamm.Mutable calldata config) external;
 

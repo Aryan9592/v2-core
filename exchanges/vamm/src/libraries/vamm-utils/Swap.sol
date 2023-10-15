@@ -30,9 +30,10 @@ import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
-
-/// @title Taker oders library
-/// @notice Libary that supports executing a swap
+/**
+ * @title Taker oders library
+ * @notice Libary that supports executing a swap
+ */
 library Swap {
     using TickBitmap for mapping(int16 => uint256);
     using SafeCastU256 for uint256;
@@ -42,19 +43,19 @@ library Swap {
 
     /**
      * @dev Stores fixed values required in each swap step
-     */ 
+     */
     struct SwapFixedValues {
         uint256 secondsTillMaturity;
         VammTicks.TickLimits tickLimits;
         UD60x18 liquidityIndex;
     }
 
-    /** 
+    /**
      * @notice Initiate a Dated Interest Rate Swap
      * @param self The current VAMM state
      * @param params SwapParams necessary to initiate an Interest Rate Swap
      * @return tokenDeltas The change in posiion balances after the swap
-    */
+     */
     function vammSwap(
         DatedIrsVamm.Data storage self,
         DatedIrsVamm.SwapParams memory params
@@ -267,7 +268,7 @@ library Swap {
      * @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
      * to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
      * we use balance checks to determine the payment status of interactions such as mint, swap and flash.
-     */ 
+     */
     modifier lock(DatedIrsVamm.Data storage self) {
         if (!self.vars.unlocked) {
             revert VammCustomErrors.Lock(true);

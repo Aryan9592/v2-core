@@ -54,7 +54,7 @@ library LPPosition {
         assembly {
             position.slot := s
         }
-    }  
+    }
 
     /**
      * @dev Returns the position stored at the specified id. Reverts if no such position is found.

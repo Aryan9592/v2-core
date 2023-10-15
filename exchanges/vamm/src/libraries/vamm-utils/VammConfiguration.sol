@@ -15,8 +15,10 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 
 import { UNIT } from "@prb/math/UD60x18.sol";
 
-/// @title VammConfiguration
-/// @notice Contains methods to set the vamm configuration
+/**
+ * @title Library for managing VAMM configuration
+ * @notice Contains methods to set the vamm configuration
+ */
 library VammConfiguration {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65_535];
@@ -65,7 +67,9 @@ library VammConfiguration {
         configure(irsVamm, mutableConfig);
     }
 
-    /// @dev not locked because it initializes unlocked
+    /**
+     * @dev Not locked because it initializes unlocked
+     */
     function initialize(
         DatedIrsVamm.Data storage self,
         uint160 sqrtPriceX96,

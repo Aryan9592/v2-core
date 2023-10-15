@@ -18,8 +18,10 @@ import { PoolConfiguration } from "../../storage/PoolConfiguration.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-/// @title Liquidity provisioning library
-/// @notice Libary that supports minting or burning of liquidity
+/**
+ * @title Liquidity provisioning library
+ * @notice Libary that supports minting or burning of liquidity
+ */
 library LP {
     using LPPosition for LPPosition.Data;
     using SetUtil for SetUtil.UintSet;
@@ -90,7 +92,8 @@ library LP {
         );
     }
 
-    /**  @dev Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`)
+    /**
+     * @dev Mints (`liquidityDelta > 0`) or burns (`liquidityDelta < 0`)
      * `liquidityDelta` liquidity for the specified `accountId`, uniformly between the specified ticks.
      * @param tickLower Lower tick of the range order
      * @param tickUpper Upper tick of the range order
@@ -170,9 +173,11 @@ library LP {
         }
     }
 
-    /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
-    /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
-    /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
+    /**
+     * @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
+     * to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
+     * we use balance checks to determine the payment status of interactions such as mint, swap and flash.
+     */
     modifier lock(DatedIrsVamm.Data storage self) {
         if (!self.vars.unlocked) {
             revert VammCustomErrors.Lock(true);

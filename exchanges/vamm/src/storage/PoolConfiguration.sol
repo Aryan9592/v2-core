@@ -3,7 +3,9 @@ pragma solidity >=0.8.13;
 
 import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 
-/// @title Pool configuration
+/**
+ * @title Pool configuration
+ */
 library PoolConfiguration {
     bytes32 private constant _PAUSER_FEATURE_FLAG = "pauser";
 

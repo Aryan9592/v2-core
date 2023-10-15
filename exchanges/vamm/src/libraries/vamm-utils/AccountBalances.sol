@@ -21,8 +21,10 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 
 import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
-/// @title Account balances library
-/// @notice Libary that helps calculate the filled and unfilled balances of an account
+/**
+ * @title Account balances library
+ * @notice Libary that helps calculate the filled and unfilled balances of an account
+ */
 library AccountBalances {
     using LPPosition for LPPosition.Data;
     using SafeCastU256 for uint256;
@@ -32,10 +34,12 @@ library AccountBalances {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Tick for mapping(int24 => Tick.Info);
 
-    /// @notice For a given LP account, returns how much liquidity is available to trade in each direction.
-    /// @param self VAMM state
-    /// @param accountId The LP account. All positions within the account will be considered.
-    /// @return unfilled The unfilled base and quote balances
+    /**
+     * @notice For a given LP account, returns how much liquidity is available to trade in each direction.
+     * @param self VAMM state
+     * @param accountId The LP account. All positions within the account will be considered
+     * @return unfilled The unfilled base and quote balances
+     */
     function getAccountUnfilledBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
@@ -95,11 +99,13 @@ library AccountBalances {
         }
     }
 
-    /// @notice For a given LP posiiton, returns how much of it is already traded and what are base and
-    /// quote tokens representing those exiting trades
-    /// @param self VAMM state
-    /// @param accountId The LP account. All positions within the account will be considered.
-    /// @return balances The filled balances of the given account in the VAMM
+    /**
+     * @notice For a given LP posiiton, returns how much of it is already traded and what are base and
+     * quote tokens representing those exiting trades
+     * @param self VAMM state
+     * @param accountId The LP account. All positions within the account will be considered
+     * @return balances The filled balances of the given account in the VAMM
+     */
     function getAccountFilledBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
@@ -124,13 +130,15 @@ library AccountBalances {
         }
     }
 
-    /// @notice Computes the growth inside a given tick range given the current tick in the vamm
-    /// @param tickLower The lower tick of the range
-    /// @param tickUpper The upper tick of the range
-    /// @param growthGlobalX128 Global growth
-    /// @param lowerGrowthOutsideX128 Growth outside the range, on the lower side
-    /// @param upperGrowthOutsideX128 Growth outside the range, on the upper side
-    /// @return growthInside Growth inside the range
+    /**
+     * @notice Computes the growth inside a given tick range given the current tick in the VAMM
+     * @param tickLower The lower tick of the range
+     * @param tickUpper The upper tick of the range
+     * @param growthGlobalX128 Global growth
+     * @param lowerGrowthOutsideX128 Growth outside the range, on the lower side
+     * @param upperGrowthOutsideX128 Growth outside the range, on the upper side
+     * @return growthInside Growth inside the range
+     */
     function growthInside(
         int24 tickLower,
         int24 tickUpper,
@@ -154,11 +162,14 @@ library AccountBalances {
         return growthGlobalX128 - (growthBelowX128 + growthAboveX128);
     }
 
-    /// @notice Computes the current growth inside of the base, quote and cashflow for a given tick range given the current tick in the VAMM
-    /// @param self The VAMM state
-    /// @param tickLower The lower tick of the position
-    /// @param tickUpper The upper tick of the position
-    /// @return growthInsideX128 Growth Inside given tick range
+    /**
+     * @notice Computes the current growth inside of the base, quote and cashflow for a given tick range
+     * given the current tick in the VAMM
+     * @param self The VAMM state
+     * @param tickLower The lower tick of the position
+     * @param tickUpper The upper tick of the position
+     * @return growthInsideX128 Growth Inside given tick range
+     */
     function computeGrowthInside(
         DatedIrsVamm.Data storage self,
         int24 tickLower,
