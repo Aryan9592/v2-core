@@ -258,7 +258,7 @@ library Market {
     function executeBatchMatchOrder(
         Data storage self,
         uint128 takerAccountId,
-        uint128[] memory makerAccountIds,
+        uint128[] memory counterpartyAccountIds,
         bytes memory inputs
     ) internal returns (
         bytes memory output,
@@ -268,7 +268,7 @@ library Market {
 
         return IMarketManager(self.marketManagerAddress).executeBatchMatchOrder(
             takerAccountId,
-            makerAccountIds,
+            counterpartyAccountIds,
             self.id,
             inputs
         );

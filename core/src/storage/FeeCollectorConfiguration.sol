@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import "./Account.sol";
+
 library FeeCollectorConfiguration {
 
     /**
@@ -29,6 +31,12 @@ library FeeCollectorConfiguration {
         assembly {
             feeCollectorConfiguration.slot := s
         }
+    }
+
+    function loadAccount() internal view returns (Account.Data storage account) {
+        Data storage feeCollectorConfig = load();
+        account = Account.exists(feeCollectorConfig.feeCollectorAccountId);
+        return account;
     }
 
     function exists() internal view returns (Data storage feeCollectorConfiguration) {

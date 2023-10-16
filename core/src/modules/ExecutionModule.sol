@@ -14,12 +14,17 @@ import {Exchange} from "../storage/Exchange.sol";
 import {CreateAccount} from "../libraries/actions/CreateAccount.sol";
 import {EditCollateral} from "../libraries/actions/EditCollateral.sol";
 import {Market} from "../storage/Market.sol";
+import {FeeCollectorConfiguration} from "../storage/FeeCollectorConfiguration.sol";
+import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 
 contract ExecutionModule is IExecutionModule {
 
     using Market for Market.Data;
     using Account for Account.Data;
+    using SafeCastU256 for uint256;
 
     function execute(
         uint128 accountId,
@@ -91,23 +96,45 @@ contract ExecutionModule is IExecutionModule {
                 command.exchangeId,
                 command.inputs
             );
+            distributeOnChainFees(
+                account,
+                market.quoteToken,
+                command.exchangeId,
+                exchangeFee,
+                protocolFee,
+                market.marketManagerAddress
+            );
+            output = result;
         } else if (command.commandType == CommandType.OnChainMakerOrder) {
             (bytes memory result, uint256 exchangeFee, uint256 protocolFee) = market.executeMakerOrder(
                 accountId,
                 command.exchangeId,
                 command.inputs
             );
+            distributeOnChainFees(
+                account,
+                market.quoteToken,
+                command.exchangeId,
+                exchangeFee,
+                protocolFee,
+                market.marketManagerAddress
+            );
+            output = result;
         } else if (command.commandType == CommandType.BatchMatchOrder) {
             // todo: add validation
             (
-                uint128[] memory makerAccountIds,
+                uint128[] memory counterpartyAccountIds,
                 bytes memory orderInputs,
                 uint256[] memory exchangeFees // first is account id, the remaining ones are from counterparties
             ) = abi.decode(command.inputs, (uint128[], bytes, uint256[]));
-            (output,) = market.executeBatchMatchOrder(accountId, makerAccountIds, orderInputs);
+            (bytes memory result, uint256[] memory protocolFees) = market.executeBatchMatchOrder(
+                accountId,
+                counterpartyAccountIds,
+                orderInputs
+            );
 
-            for (uint256 i = 0; i < makerAccountIds.length; i++) {
-                Account.exists(makerAccountIds[i]).imCheck();
+            for (uint256 i = 0; i < counterpartyAccountIds.length; i++) {
+                Account.exists(counterpartyAccountIds[i]).imCheck();
             }
 
         } else if (command.commandType == CommandType.PropagateCashflow) {
@@ -122,6 +149,33 @@ contract ExecutionModule is IExecutionModule {
 
     }
 
+    function distributeOnChainFees(
+        Account.Data storage account,
+        address collateralType,
+        uint128 exchangeId,
+        uint256 exchangeFee,
+        uint256 protocolFee,
+        address instrumentAddress
+    ) internal {
+
+        Exchange.Data storage exchange = Exchange.exists(exchangeId);
+
+        Account.Data storage exchangeAccount = Account.exists(exchange.exchangeFeeCollectorAccountId);
+        Account.Data storage treasuryAccount = FeeCollectorConfiguration.loadAccount();
+
+        UD60x18 feeRebate = exchange.feeRebatesPerInstrument[instrumentAddress];
+
+        if (unwrap(feeRebate) != 0) {
+            uint256 rebateAmount = mulUDxUint(feeRebate, protocolFee);
+            exchangeFee += rebateAmount;
+            protocolFee -= rebateAmount;
+        }
+
+        account.updateNetCollateralDeposits(collateralType, -(exchangeFee+protocolFee).toInt());
+        treasuryAccount.updateNetCollateralDeposits(collateralType, protocolFee.toInt());
+        exchangeAccount.updateNetCollateralDeposits(collateralType, exchangeFee.toInt());
+
+    }
 
 
 }

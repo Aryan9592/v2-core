@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "./ExchangeStore.sol";
+import "./Account.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 library Exchange {
@@ -72,6 +73,7 @@ library Exchange {
         UD60x18 rebateParameter
     ) internal {
 
+        // todo: validation to make sure rebateParameter is between zero and 1
         self.feeRebatesPerInstrument[instrumentAddress] = rebateParameter;
         // todo: add event
     }
