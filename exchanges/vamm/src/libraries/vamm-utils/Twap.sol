@@ -13,8 +13,9 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
+import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
 import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
-import { SD59x18, ZERO as ZERO_sd } from "@prb/math/SD59x18.sol";
 
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
@@ -23,14 +24,16 @@ library Twap {
 
     /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
     /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderSize The order size to use when adjusting the price for price impact or spread.
+    /// @param orderDirection Whether the order is long, short, or zero (used when adjusting for price impact or
+    /// spread).
     /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters.
     /// May return zero if adjustments would take the price to or below zero
     /// - e.g. when anticipated price impact is large because the order size is large.
     function twap(
         DatedIrsVamm.Data storage self,
         uint32 secondsAgo,
-        SD59x18 orderSize
+        IPool.OrderDirection orderDirection,
+        UD60x18 pSlippage
     )
         internal
         view
@@ -43,55 +46,51 @@ library Twap {
         geometricMeanPrice = VammTicks.getPriceFromTick(arithmeticMeanTick).div(convert_ud(100));
 
         // Apply slippage
-        geometricMeanPrice = applySlippage(geometricMeanPrice, orderSize, self.mutableConfig.priceImpactPhi);
+        geometricMeanPrice = applySlippage(geometricMeanPrice, orderDirection, pSlippage);
 
         // Apply spread
-        geometricMeanPrice = applySpread(geometricMeanPrice, orderSize, self.mutableConfig.spread);
+        geometricMeanPrice = applySpread(geometricMeanPrice, orderDirection, self.mutableConfig.spread);
     }
 
     function applySlippage(
         UD60x18 price,
-        SD59x18 orderSize,
-        UD60x18 priceImpactPhi
+        IPool.OrderDirection orderDirection,
+        UD60x18 pSlippage
     )
         private
         pure
         returns (UD60x18 /* slippedPrice */ )
     {
-        if (orderSize.eq(ZERO_sd)) {
+        if (orderDirection == IPool.OrderDirection.Zero) {
             return price;
         }
 
-        // note: the beta value is 1/2. if the value is set to something else and the
-        // `pow` function must be used, the order size must be limited to 192 bits
-        UD60x18 priceImpactAsFraction = priceImpactPhi.mul(orderSize.abs().intoUD60x18().sqrt());
-
-        if (orderSize.gt(ZERO_sd)) {
-            return price.mul(UNIT_ud.add(priceImpactAsFraction));
+        if (orderDirection == IPool.OrderDirection.Long) {
+            return price.mul(UNIT_ud.add(pSlippage));
         }
 
-        if (priceImpactAsFraction.gte(UNIT_ud)) {
+        if (pSlippage.gte(UNIT_ud)) {
             // The model suggests that the price will drop below zero after price impact
             return ZERO_ud;
         }
 
-        return price.mul(UNIT_ud.sub(priceImpactAsFraction));
+        return price.mul(UNIT_ud.sub(pSlippage));
     }
 
     function applySpread(
         UD60x18 price,
-        SD59x18 orderSize,
+        IPool.OrderDirection orderDirection,
         UD60x18 spread
     )
         private
         pure
         returns (UD60x18 /* spreadPrice */ )
     {
-        if (orderSize.eq(ZERO_sd)) {
+        if (orderDirection == IPool.OrderDirection.Zero) {
             return price;
         }
 
-        if (orderSize.gt(ZERO_sd)) {
+        if (orderDirection == IPool.OrderDirection.Long) {
             return price.add(spread);
         }
 

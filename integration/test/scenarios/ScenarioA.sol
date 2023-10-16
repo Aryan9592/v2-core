@@ -20,7 +20,7 @@ import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfi
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
-import { ud60x18, wrap, unwrap } from "@prb/math/UD60x18.sol";
+import { ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
 
 contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
@@ -71,7 +71,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             Market.MarketConfiguration({
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
-                markPriceBand: ud60x18(0.01e18), // 1%
+                markPriceBand: ud(0.01e18), // 1%
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -96,6 +96,10 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
+        datedIrsProxy.setPhi({ marketId: marketId, maturityTimestamp: maturityTimestamp, phi: ud(0) });
+
+        datedIrsProxy.setBeta({ marketId: marketId, maturityTimestamp: maturityTimestamp, beta: ud(0) });
+
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestamp,
             maxLiquidityPerTick: type(uint128).max,
@@ -104,8 +108,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         });
 
         DatedIrsVamm.Mutable memory mutableConfig = DatedIrsVamm.Mutable({
-            priceImpactPhi: ud60x18(0), // 1
-            spread: ud60x18(0), // 0%
+            spread: ud(0), // 0%
             minSecondsBetweenOracleObservations: 10,
             minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
             maxTickAllowed: VammTicks.DEFAULT_MAX_TICK,

@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import "../../storage/Account.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface a Market Manager needs to adhere.
 interface IMarketManager is IERC165 {
@@ -111,6 +112,11 @@ interface IMarketManager is IERC165 {
         uint128 marketId,
         bytes calldata inputs
     ) external view;
+
+    function getAnnualizedExposureWadAndPSlippage(
+        uint128 marketId,
+        bytes calldata inputs
+    ) external view returns (int256 annualizedExposureWad, UD60x18 pSlippage);
 
     // todo: add natspec
     function executeADLOrder(

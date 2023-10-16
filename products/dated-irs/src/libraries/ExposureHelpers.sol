@@ -20,7 +20,7 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT as UNIT_ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT as UNIT_ud, ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 import {IRiskConfigurationModule} from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import "../storage/MarketManagerConfiguration.sol";
@@ -40,6 +40,18 @@ library ExposureHelpers {
 
     uint256 internal constant SECONDS_IN_DAY = 86400;
 
+    function getPercentualSlippage(uint128 marketId, uint32 maturityTimestamp, int256 annualizedExposureWad) internal view returns (UD60x18) {
+        Market.Data storage market = Market.exists(marketId);
+        UD60x18 phi = market.getPhi(maturityTimestamp);
+        UD60x18 beta = market.getBeta(maturityTimestamp);
+
+        uint256 absAnnualizedExposureWad = SignedMath.abs(annualizedExposureWad);
+        UD60x18 absAnnualizedExposure = ud(absAnnualizedExposureWad);
+
+        // power operation is performed on signed values since annualizedAbsOrderSize can be < UNIT
+        return phi.mul(absAnnualizedExposure.intoSD59x18().pow(beta.intoSD59x18()).intoUD60x18());
+    }
+
     function computeTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -51,17 +63,31 @@ library ExposureHelpers {
 
         Market.Data storage market = Market.exists(marketId);
 
-        int256 orderSizeWad = DecimalMath.changeDecimals(
-            -baseBalance,
+        int256 annualizedExposureWad = DecimalMath.changeDecimals(
+            baseToAnnualizedExposure(-baseBalance, marketId, maturityTimestamp),
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
 
+        IPool.OrderDirection orderDirection;
+        if (annualizedExposureWad > 0) {
+            orderDirection = IPool.OrderDirection.Long;
+        } else if (annualizedExposureWad < 0) {
+            orderDirection = IPool.OrderDirection.Short;
+        } else {
+            orderDirection = IPool.OrderDirection.Zero;
+        }
+
         return IPool(poolAddress).getAdjustedTwap(
             marketId,
             maturityTimestamp,
-            orderSizeWad,
-            market.marketConfig.twapLookbackWindow
+            orderDirection,
+            market.marketConfig.twapLookbackWindow,
+            getPercentualSlippage(
+                marketId, 
+                maturityTimestamp, 
+                annualizedExposureWad
+            )
         );
 
     }

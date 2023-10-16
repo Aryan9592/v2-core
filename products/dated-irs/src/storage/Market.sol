@@ -59,6 +59,16 @@ library Market {
     error InvalidVariableOracleAddress(address oracleAddress);
 
     /**
+     * @notice Thrown when attempting to set a phi that is out of bounds.
+     */
+    error PhiOutOfBounds(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi);
+
+    /**
+     * @notice Thrown when attempting to set a beta that is out of bounds.
+     */
+    error BetaOutOfBounds(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta);
+
+    /**
      * @notice Emitted when a market is created
      * @param id The market id
      * @param quoteToken The quote token of the market
@@ -182,6 +192,14 @@ library Market {
          */
         mapping(uint32 maturityTimestamp => uint256 notional) notionalTracker;
 
+        /**
+         * The phi value used to compute percentual slippage
+         */
+        mapping(uint32 maturityTimestamp => UD60x18 phi) phis;
+        /**
+         * The beta value used to compute percentual slippage
+         */
+        mapping(uint32 maturityTimestamp => UD60x18 beta) betas;
     }
 
     /**
@@ -301,5 +319,29 @@ library Market {
         }
 
         revert UnsupportedMarketType(self.marketType);
+    }
+
+    function setPhi(Data storage self, uint32 maturityTimestamp, UD60x18 phi) internal {
+        if (phi.gt(UNIT)) {
+            revert PhiOutOfBounds(self.id, maturityTimestamp, phi);
+        }
+
+        self.phis[maturityTimestamp] = phi;
+    }
+
+    function getPhi(Data storage self, uint32 maturityTimestamp) internal view returns(UD60x18) {
+        return self.phis[maturityTimestamp];
+    }
+
+    function setBeta(Data storage self, uint32 maturityTimestamp, UD60x18 beta) internal {
+        if (beta.gt(UNIT)) {
+            revert BetaOutOfBounds(self.id, maturityTimestamp, beta);
+        }
+
+        self.betas[maturityTimestamp] = beta;
+    }
+
+    function getBeta(Data storage self, uint32 maturityTimestamp) internal view returns(UD60x18) {
+        return self.betas[maturityTimestamp];
     }
 }

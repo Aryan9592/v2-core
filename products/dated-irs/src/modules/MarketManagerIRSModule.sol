@@ -11,6 +11,7 @@ import {IMarketManagerIRSModule, IMarketManager} from "../interfaces/IMarketMana
 import {IPool} from "../interfaces/IPool.sol";
 import {Portfolio} from "../storage/Portfolio.sol";
 import {Market} from "../storage/Market.sol";
+import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
 import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams, TakerOrderParams } from "../libraries/DataTypes.sol";
@@ -27,6 +28,11 @@ import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
 import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import {PropagateADLOrder} from "../libraries/actions/PropagateADLOrder.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 
 /*
@@ -166,6 +172,35 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             marketId,
             maturityTimestamp,
             baseAmountToBeLiquidated
+        );
+    }
+
+    function getAnnualizedExposureWadAndPSlippage(
+        uint128 marketId,
+        bytes calldata inputs
+    ) external override view returns (int256 annualizedExposureWad, UD60x18 pSlippage) {
+        ( 
+            uint32 maturityTimestamp,
+            int256 baseToBeLiquidated
+        ) = abi.decode(inputs, (uint32, int256));
+
+        int256 annualizedExposure = ExposureHelpers.baseToAnnualizedExposure(
+            baseToBeLiquidated,
+            marketId,
+            maturityTimestamp
+        );
+
+        Market.Data storage market = Market.exists(marketId);
+        annualizedExposureWad = DecimalMath.changeDecimals(
+            annualizedExposure,
+            IERC20(market.quoteToken).decimals(),
+            DecimalMath.WAD_DECIMALS
+        );
+
+        pSlippage = ExposureHelpers.getPercentualSlippage(
+            marketId,
+            maturityTimestamp,
+            annualizedExposure
         );
     }
 
@@ -349,6 +384,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             marketId, 
             maturityTimestamp, 
             accountId
+        );
+    }
+
+    function getPercentualSlippage(
+        uint128 marketId, 
+        uint32 maturityTimestamp, 
+        int256 annualizedExposureWad
+    ) external override view returns (UD60x18) {
+        return ExposureHelpers.getPercentualSlippage(
+            marketId,
+            maturityTimestamp,
+            annualizedExposureWad
         );
     }
 }

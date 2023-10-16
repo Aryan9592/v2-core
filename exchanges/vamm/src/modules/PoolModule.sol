@@ -174,8 +174,9 @@ contract PoolModule is IPoolModule {
     function getAdjustedTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 orderSizeWad,
-        uint32 lookbackWindow
+        IPool.OrderDirection orderDirection,
+        uint32 lookbackWindow,
+        UD60x18 pSlippage
     )
         external
         view
@@ -183,7 +184,7 @@ contract PoolModule is IPoolModule {
         returns (UD60x18)
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return Twap.twap(vamm, lookbackWindow, SD59x18.wrap(orderSizeWad));
+        return Twap.twap(vamm, lookbackWindow, orderDirection, pSlippage);
     }
 
     /**

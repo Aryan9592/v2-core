@@ -69,4 +69,36 @@ interface IMarketConfigurationModule {
      * @return The exposure factor
      */
     function getExposureFactor(uint128 marketId) external view returns (UD60x18);
+
+    /**
+     * @notice Sets the phi parameter used for slippage
+     * @param marketId The market id
+     * @param maturityTimestamp The maturity timestamp
+     * @param phi The new value of phi set.
+     */
+    function setPhi(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi) external;
+
+    /**
+     * @notice Returns the phi parameter set for the given market and maturity
+     * @param marketId The market id
+     * @param maturityTimestamp The maturity timestamp
+     * @return The value of phi
+     */
+    function getPhi(uint128 marketId, uint32 maturityTimestamp) external view returns (UD60x18);
+
+    /**
+     * @notice Sets the beta parameter used for slippage
+     * @param marketId The market id
+     * @param maturityTimestamp The maturity timestamp
+     * @param beta The new value of beta set.
+     */
+    function setBeta(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta) external;
+
+    /**
+     * @notice Returns the beta parameter set for the given market and maturity
+     * @param marketId The market id
+     * @param maturityTimestamp The maturity timestamp
+     * @return The value of beta
+     */
+    function getBeta(uint128 marketId, uint32 maturityTimestamp) external view returns (UD60x18);
 }

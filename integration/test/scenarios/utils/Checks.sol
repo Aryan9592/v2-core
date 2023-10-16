@@ -8,6 +8,10 @@ import { unwrap } from "@prb/math/UD60x18.sol";
 
 import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+
+import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
 /// @title Storage checks
 abstract contract Checks is AssertionHelpers {
     struct PositionInfo {
@@ -114,7 +118,8 @@ abstract contract Checks is AssertionHelpers {
     function getAdjustedTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 orderSize
+        IPool.OrderDirection orderDirection,
+        UD60x18 pSlippage
     )
         internal
         view
@@ -122,7 +127,7 @@ abstract contract Checks is AssertionHelpers {
     {
         twap = unwrap(
             getVammProxy().getAdjustedTwap(
-                marketId, maturityTimestamp, orderSize, twapLookbackWindow(marketId, maturityTimestamp)
+                marketId, maturityTimestamp, orderDirection, twapLookbackWindow(marketId, maturityTimestamp), pSlippage
             )
         );
     }
