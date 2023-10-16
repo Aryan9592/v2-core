@@ -89,7 +89,6 @@ library CollateralPool {
         RiskConfiguration riskConfig,
         InsuranceFundConfig insuranceFundConfig,
         BackstopLPConfig backstopLPConfig,
-        uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
     
@@ -278,12 +277,6 @@ library CollateralPool {
          * @dev Collateral pool wide backstop lp configuration
          */
         BackstopLPConfig backstopLPConfig;
-
-        // todo: remove
-        /**
-         * @dev Account id for the collector of protocol fees
-         */
-        uint128 feeCollectorAccountId;
     }
 
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
@@ -317,7 +310,6 @@ library CollateralPool {
             collateralPool.riskConfig,
             collateralPool.insuranceFundConfig,
             collateralPool.backstopLPConfig,
-            collateralPool.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -379,7 +371,6 @@ library CollateralPool {
             child.riskConfig,
             child.insuranceFundConfig,
             child.backstopLPConfig,
-            child.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -545,7 +536,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -567,7 +557,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -591,26 +580,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
-            block.timestamp
-        );
-    }
-
-    function setFeeCollectorAccountId(Data storage self, uint128 accountId) internal {
-        self.checkRoot();
-
-        // ensure the given account exists
-        Account.exists(accountId);
-
-        self.feeCollectorAccountId = accountId;
-
-        emit CollateralPoolUpdated(
-            self.id,
-            self.rootId,
-            self.riskConfig,
-            self.insuranceFundConfig,
-            self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
