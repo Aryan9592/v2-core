@@ -25,7 +25,6 @@ interface IExecutionModule {
 
     // Enum representing command type
     enum CommandType {
-        Create, // create account in core
         Deposit,  // deposit tokens
         Withdraw, // withdraw tokens
         OnChainTakerOrder, // on-chain taker order (against lps in an on-chain exchange)

@@ -18,6 +18,7 @@ import {FeeCollectorConfiguration} from "../storage/FeeCollectorConfiguration.so
 import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import {SafeCastU256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 
 contract ExecutionModule is IExecutionModule {
@@ -30,6 +31,8 @@ contract ExecutionModule is IExecutionModule {
         uint128 accountId,
         Command[] calldata commands
     ) external override returns (bytes[] memory outputs, Account.MarginInfo memory marginInfo) {
+
+        preExecuteCheck(accountId);
 
         outputs = new bytes[](commands.length);
 
@@ -60,10 +63,7 @@ contract ExecutionModule is IExecutionModule {
         bytes calldata inputs
     ) internal {
 
-        if (commandType == CommandType.Create) {
-            (address accountOwner) = abi.decode(inputs, (address));
-            CreateAccount.createAccount(accountId, accountOwner);
-        } else if (commandType == CommandType.Deposit) {
+        if (commandType == CommandType.Deposit) {
             (address collateralType, uint256 tokenAmount) = abi.decode(inputs, (address, uint256));
             EditCollateral.deposit(accountId, collateralType, tokenAmount);
         } else if (commandType == CommandType.Withdraw) {
@@ -235,6 +235,14 @@ contract ExecutionModule is IExecutionModule {
         treasuryAccount.updateNetCollateralDeposits(collateralType, protocolFee.toInt());
         exchangeAccount.updateNetCollateralDeposits(collateralType, exchangeFee.toInt());
 
+    }
+
+    /// @notice checks to be ran before starting the batch execution
+    function preExecuteCheck(uint128 accountId) internal view {
+        FeatureFlagSupport.ensureGlobalAccess();
+        Account.Data storage account =
+        Account.loadAccountAndValidatePermission(accountId, Account.ADMIN_PERMISSION, msg.sender);
+        account.ensureEnabledCollateralPool();
     }
 
 

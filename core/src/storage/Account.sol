@@ -295,16 +295,6 @@ library Account {
     }
 
     /**
-     * @dev Returns false if the account does not exist with appropriate error. Otherwise, returns true.
-     */
-    function doesExist(uint128 id) internal view returns (bool) {
-        Data storage a = load(id);
-
-        // if the account id is zero, it means that the account has not been created yet
-        return a.id != 0;
-    }
-
-    /**
      * @dev Loads the Account object for the specified accountId,
      * and validates that sender has the specified permission.
      */
