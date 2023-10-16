@@ -95,7 +95,8 @@ interface IMarketManager is IERC165 {
         bytes calldata inputs
     ) external returns (
         bytes memory output,
-        uint256[] memory protocolFees // first is account id, the remaining ones are from counterparties
+        uint256 accountProtocolFees,
+        uint256[] memory counterpartyProtocolFees
     );
 
     /**

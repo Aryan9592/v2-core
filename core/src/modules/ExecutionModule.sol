@@ -121,22 +121,33 @@ contract ExecutionModule is IExecutionModule {
             );
             output = result;
         } else if (command.commandType == CommandType.BatchMatchOrder) {
-            // todo: add validation
+            // todo: lists can fit into bytes memory?
             (
                 uint128[] memory counterpartyAccountIds,
                 bytes memory orderInputs,
-                uint256[] memory exchangeFees // first is account id, the remaining ones are from counterparties
-            ) = abi.decode(command.inputs, (uint128[], bytes, uint256[]));
-            (bytes memory result, uint256[] memory protocolFees) = market.executeBatchMatchOrder(
+                uint256 accountExchangeFee,
+                uint256[] memory counterpartyExchangeFees
+            ) = abi.decode(command.inputs, (uint128[], bytes, uint256, uint256[]));
+            (bytes memory result, uint256 accountProtocolFee, uint256[] memory counterpartyProtocolFees) =
+            market.executeBatchMatchOrder(
                 accountId,
                 counterpartyAccountIds,
                 orderInputs
             );
-
-            for (uint256 i = 0; i < counterpartyAccountIds.length; i++) {
-                Account.exists(counterpartyAccountIds[i]).imCheck();
-            }
-
+            distributeMatchFeesCheckCounterpartyIM(
+                account,
+                DistributeMatchFeesCheckCounterpartyIMVars(
+                    counterpartyAccountIds,
+                    market.quoteToken,
+                    command.exchangeId,
+                    accountExchangeFee,
+                    accountProtocolFee,
+                    counterpartyExchangeFees,
+                    counterpartyProtocolFees,
+                    market.marketManagerAddress
+                )
+            );
+            output = result;
         } else if (command.commandType == CommandType.PropagateCashflow) {
             (bytes memory result, int256 cashflowAmount) = market.executePropagateCashflow(accountId, command.inputs);
             account.updateNetCollateralDeposits(market.quoteToken, cashflowAmount);
@@ -146,6 +157,57 @@ contract ExecutionModule is IExecutionModule {
         }
 
         return output;
+
+    }
+
+    struct DistributeMatchFeesCheckCounterpartyIMVars {
+        uint128[] counterpartyAccountIds;
+        address collateralType;
+        uint128 exchangeId;
+        uint256 accountExchangeFee;
+        uint256 accountProtocolFee;
+        uint256[] counterpartyExchangeFees;
+        uint256[] counterpartyProtocolFees;
+        address instrumentAddress;
+    }
+
+    function distributeMatchFeesCheckCounterpartyIM(
+        Account.Data storage account,
+        DistributeMatchFeesCheckCounterpartyIMVars memory vars
+    ) internal {
+
+        // todo: list lengths validation
+
+        Exchange.Data storage exchange = Exchange.exists(vars.exchangeId);
+
+        Account.Data storage exchangeAccount = Account.exists(exchange.exchangeFeeCollectorAccountId);
+        Account.Data storage treasuryAccount = FeeCollectorConfiguration.loadAccount();
+
+        uint256 overallExchangeFee = vars.accountExchangeFee;
+        uint256 overallProtocolFee = vars.accountProtocolFee;
+        account.updateNetCollateralDeposits(vars.collateralType, -(vars.accountExchangeFee+vars.accountProtocolFee).toInt());
+
+        for (uint256 i = 0; i < vars.counterpartyAccountIds.length; i++) {
+            Account.Data storage counterpartyAccount = Account.exists(vars.counterpartyAccountIds[i]);
+            counterpartyAccount.updateNetCollateralDeposits(
+                vars.collateralType,
+                -(vars.counterpartyExchangeFees[i]+vars.counterpartyProtocolFees[i]).toInt()
+            );
+            overallExchangeFee += vars.counterpartyExchangeFees[i];
+            overallProtocolFee += vars.counterpartyProtocolFees[i];
+            counterpartyAccount.imCheck();
+        }
+
+        UD60x18 feeRebate = exchange.feeRebatesPerInstrument[vars.instrumentAddress];
+
+        if (unwrap(feeRebate) != 0) {
+            uint256 rebateAmount = mulUDxUint(feeRebate, overallProtocolFee);
+            overallExchangeFee += rebateAmount;
+            overallProtocolFee -= rebateAmount;
+        }
+
+        treasuryAccount.updateNetCollateralDeposits(vars.collateralType, overallProtocolFee.toInt());
+        exchangeAccount.updateNetCollateralDeposits(vars.collateralType, overallExchangeFee.toInt());
 
     }
 
@@ -163,6 +225,8 @@ contract ExecutionModule is IExecutionModule {
         Account.Data storage exchangeAccount = Account.exists(exchange.exchangeFeeCollectorAccountId);
         Account.Data storage treasuryAccount = FeeCollectorConfiguration.loadAccount();
 
+        account.updateNetCollateralDeposits(collateralType, -(exchangeFee+protocolFee).toInt());
+
         UD60x18 feeRebate = exchange.feeRebatesPerInstrument[instrumentAddress];
 
         if (unwrap(feeRebate) != 0) {
@@ -171,7 +235,6 @@ contract ExecutionModule is IExecutionModule {
             protocolFee -= rebateAmount;
         }
 
-        account.updateNetCollateralDeposits(collateralType, -(exchangeFee+protocolFee).toInt());
         treasuryAccount.updateNetCollateralDeposits(collateralType, protocolFee.toInt());
         exchangeAccount.updateNetCollateralDeposits(collateralType, exchangeFee.toInt());
 

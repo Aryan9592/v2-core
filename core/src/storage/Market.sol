@@ -257,17 +257,18 @@ library Market {
     // todo: double check after aligning
     function executeBatchMatchOrder(
         Data storage self,
-        uint128 takerAccountId,
+        uint128 accountId,
         uint128[] memory counterpartyAccountIds,
         bytes memory inputs
     ) internal returns (
         bytes memory output,
-        uint256[] memory protocolFees
+        uint256 accountProtocolFees,
+        uint256[] memory counterpartyProtocolFees
     )
     {
 
         return IMarketManager(self.marketManagerAddress).executeBatchMatchOrder(
-            takerAccountId,
+            accountId,
             counterpartyAccountIds,
             self.id,
             inputs
