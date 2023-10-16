@@ -131,9 +131,9 @@ contract ExecutionModule is IExecutionModule {
                 counterpartyAccountIds,
                 orderInputs
             );
-            distributeMatchFeesCheckCounterpartyIM(
+            propagateMatchOrders(
                 account,
-                DistributeMatchFeesCheckCounterpartyIMVars(
+                PropagateMatchOrdersVars(
                     counterpartyAccountIds,
                     market.quoteToken,
                     command.exchangeId,
@@ -141,7 +141,8 @@ contract ExecutionModule is IExecutionModule {
                     accountProtocolFee,
                     counterpartyExchangeFees,
                     counterpartyProtocolFees,
-                    market.marketManagerAddress
+                    market.marketManagerAddress,
+                    market.id
                 )
             );
             output = result;
@@ -157,7 +158,7 @@ contract ExecutionModule is IExecutionModule {
 
     }
 
-    struct DistributeMatchFeesCheckCounterpartyIMVars {
+    struct PropagateMatchOrdersVars {
         uint128[] counterpartyAccountIds;
         address collateralType;
         uint128 exchangeId;
@@ -166,11 +167,12 @@ contract ExecutionModule is IExecutionModule {
         uint256[] counterpartyExchangeFees;
         uint256[] counterpartyProtocolFees;
         address instrumentAddress;
+        uint128 marketId;
     }
 
-    function distributeMatchFeesCheckCounterpartyIM(
+    function propagateMatchOrders(
         Account.Data storage account,
-        DistributeMatchFeesCheckCounterpartyIMVars memory vars
+        PropagateMatchOrdersVars memory vars
     ) internal {
 
         // todo: list lengths validation
@@ -186,6 +188,15 @@ contract ExecutionModule is IExecutionModule {
 
         for (uint256 i = 0; i < vars.counterpartyAccountIds.length; i++) {
             Account.Data storage counterpartyAccount = Account.exists(vars.counterpartyAccountIds[i]);
+            counterpartyAccount.markActiveMarket(vars.collateralType, vars.marketId);
+
+            uint128 accountCollateralPoolId = account.getCollateralPool().id;
+            uint128 counterpartyCollateralPoolId = counterpartyAccount.getCollateralPool().id;
+
+            if (accountCollateralPoolId != counterpartyCollateralPoolId) {
+                revert Account.CollateralPoolMismatch(accountCollateralPoolId, counterpartyCollateralPoolId);
+            }
+
             counterpartyAccount.updateNetCollateralDeposits(
                 vars.collateralType,
                 -(vars.counterpartyExchangeFees[i]+vars.counterpartyProtocolFees[i]).toInt()
