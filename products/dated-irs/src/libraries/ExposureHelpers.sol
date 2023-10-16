@@ -40,10 +40,14 @@ library ExposureHelpers {
 
     uint256 internal constant SECONDS_IN_DAY = 86400;
 
-    function getPercentualSlippage(uint128 marketId, uint32 maturityTimestamp, int256 annualizedExposureWad) internal view returns (UD60x18) {
+    function getPercentualSlippage(
+        uint128 marketId, 
+        uint32 maturityTimestamp, 
+        int256 annualizedExposureWad
+    ) internal view returns (UD60x18) {
         Market.Data storage market = Market.exists(marketId);
-        UD60x18 phi = market.getPhi(maturityTimestamp);
-        UD60x18 beta = market.getBeta(maturityTimestamp);
+        UD60x18 phi = market.marketMaturityConfigs[maturityTimestamp].phi;
+        UD60x18 beta = market.marketMaturityConfigs[maturityTimestamp].beta;
 
         uint256 absAnnualizedExposureWad = SignedMath.abs(annualizedExposureWad);
         UD60x18 absAnnualizedExposure = ud(absAnnualizedExposureWad);

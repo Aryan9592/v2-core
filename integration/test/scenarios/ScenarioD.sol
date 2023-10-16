@@ -23,8 +23,6 @@ import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.s
 
 import { UD60x18, ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
 
-import { console2 } from "forge-std/Test.sol";
-
 contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
     uint32 public maturityTimestamp;
@@ -98,9 +96,16 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
-        datedIrsProxy.setPhi({ marketId: marketId, maturityTimestamp: maturityTimestamp, phi: priceImpactPhi });
-
-        datedIrsProxy.setBeta({ marketId: marketId, maturityTimestamp: maturityTimestamp, beta: ud(0.5e18) });
+        datedIrsProxy.setMarketMaturityConfiguration(
+            marketId,
+            maturityTimestamp,
+            Market.MarketMaturityConfiguration({
+                riskMatrixRowId: 0,
+                tenorInSeconds: 0,
+                phi: priceImpactPhi,
+                beta: ud(0.5e18)
+            })
+        );
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestamp,
@@ -325,8 +330,6 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
             assertEq(currentTick, -15_227, "tick after 10 days");
         }
-
-        console2.log(datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0).unwrap());
 
         {
             uint256 twap = getAdjustedTwap(

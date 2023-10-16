@@ -259,7 +259,7 @@ library Portfolio {
 
             // handle filled exposures
 
-            uint256 riskMatrixRowId = market.riskMatrixRowIds[maturityTimestamp];
+            uint256 riskMatrixRowId = market.marketMaturityConfigs[maturityTimestamp].riskMatrixRowId;
 
             (
                 int256 shortRateFilledExposureMaturity,
@@ -268,7 +268,7 @@ library Portfolio {
                 filledBalances.base,
                 vars.exposureFactor,
                 maturityTimestamp,
-                market.tenors[maturityTimestamp]
+                market.marketMaturityConfigs[maturityTimestamp].tenorInSeconds
             );
 
             vars.shortRateExposure += shortRateFilledExposureMaturity;
@@ -283,9 +283,10 @@ library Portfolio {
                     unfilledBalances.baseShort,
                     vars.exposureFactor,
                     maturityTimestamp,
-                    market.tenors[maturityTimestamp]
+                    market.marketMaturityConfigs[maturityTimestamp].tenorInSeconds
                 );
-                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] = market.riskMatrixRowIds[0];
+                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] = 
+                    market.marketMaturityConfigs[0].riskMatrixRowId;
                 unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
 
                 unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents = ExposureHelpers.getPVMRComponents(
@@ -300,7 +301,7 @@ library Portfolio {
 
         }
 
-        filledExposures[market.riskMatrixRowIds[0]] = vars.shortRateExposure;
+        filledExposures[market.marketMaturityConfigs[0].riskMatrixRowId] = vars.shortRateExposure;
 
         return (filledExposures, unfilledExposures);
     }

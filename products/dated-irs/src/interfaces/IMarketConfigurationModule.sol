@@ -46,17 +46,39 @@ interface IMarketConfigurationModule {
      */
     function setMarketConfiguration(uint128 marketId, Market.MarketConfiguration memory marketConfig) external;
 
-    // todo: add natspec
-    function setRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp, uint256 rowId) external;
-
     /**
      * @notice Returns the market configuration
      * @return config The market configuration
      */
     function getMarketConfiguration(uint128 marketId) external view returns (Market.MarketConfiguration memory);
 
-    // todo: add natspec
-    function getRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp) external view returns (uint256);
+    /**
+     * @notice Sets the market configuration
+     * @param marketId The market id
+     * @param maturityTimestamp The maturity timestamp
+     * @param marketMaturityConfig The new market configuration
+     *
+     * Requirements:
+     *
+     * - `msg.sender` must be the owner of the dated irs instrument.
+     *
+     * Emits a {MarketMaturityConfigUpdated} event.
+     *
+     */
+    function setMarketMaturityConfiguration(
+        uint128 marketId, 
+        uint32 maturityTimestamp, 
+        Market.MarketMaturityConfiguration memory marketMaturityConfig
+    ) external;
+
+    /**
+     * @notice Returns the market maturity configuration
+     * @return config The market maturity configuration
+     */
+    function getMarketMaturityConfiguration(
+        uint128 marketId, 
+        uint32 maturityTimestap
+    ) external view returns (Market.MarketMaturityConfiguration memory);
 
     /**
      * @notice Returns the market type
@@ -70,35 +92,4 @@ interface IMarketConfigurationModule {
      */
     function getExposureFactor(uint128 marketId) external view returns (UD60x18);
 
-    /**
-     * @notice Sets the phi parameter used for slippage
-     * @param marketId The market id
-     * @param maturityTimestamp The maturity timestamp
-     * @param phi The new value of phi set.
-     */
-    function setPhi(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi) external;
-
-    /**
-     * @notice Returns the phi parameter set for the given market and maturity
-     * @param marketId The market id
-     * @param maturityTimestamp The maturity timestamp
-     * @return The value of phi
-     */
-    function getPhi(uint128 marketId, uint32 maturityTimestamp) external view returns (UD60x18);
-
-    /**
-     * @notice Sets the beta parameter used for slippage
-     * @param marketId The market id
-     * @param maturityTimestamp The maturity timestamp
-     * @param beta The new value of beta set.
-     */
-    function setBeta(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta) external;
-
-    /**
-     * @notice Returns the beta parameter set for the given market and maturity
-     * @param marketId The market id
-     * @param maturityTimestamp The maturity timestamp
-     * @return The value of beta
-     */
-    function getBeta(uint128 marketId, uint32 maturityTimestamp) external view returns (UD60x18);
 }

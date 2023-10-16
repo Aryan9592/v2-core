@@ -97,10 +97,11 @@ contract ScenarioC is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
-        datedIrsProxy.setPhi({ marketId: marketId, maturityTimestamp: maturityTimestamp, phi: ud(0) });
-
-        datedIrsProxy.setBeta({ marketId: marketId, maturityTimestamp: maturityTimestamp, beta: ud(0) });
-
+        datedIrsProxy.setMarketMaturityConfiguration(
+            marketId,
+            maturityTimestamp,
+            Market.MarketMaturityConfiguration({ riskMatrixRowId: 0, tenorInSeconds: 0, phi: ud(0), beta: ud(0.5e18) })
+        );
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestamp,
             maxLiquidityPerTick: type(uint128).max,

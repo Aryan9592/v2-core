@@ -38,10 +38,25 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     /**
      * @inheritdoc IMarketConfigurationModule
      */
-    function setRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp, uint256 rowId) external {
+    function setMarketMaturityConfiguration(
+        uint128 marketId, 
+        uint32 maturityTimestamp, 
+        Market.MarketMaturityConfiguration memory marketMaturityConfig
+    ) external override {
         OwnableStorage.onlyOwner();
         Market.Data storage market = Market.exists(marketId);
-        market.setRiskMatrixRowId(maturityTimestamp, rowId);
+        market.setMarketMaturityConfiguration(maturityTimestamp, marketMaturityConfig);
+    }
+
+    /**
+     * @inheritdoc IMarketConfigurationModule
+     */
+    function getMarketMaturityConfiguration(
+        uint128 marketId, 
+        uint32 maturityTimestamp
+    ) external override view returns (Market.MarketMaturityConfiguration memory) {
+        Market.Data storage market = Market.exists(marketId);
+        return market.marketMaturityConfigs[maturityTimestamp];
     }
 
     /**
@@ -52,15 +67,6 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
         return market.marketConfig;
     }
 
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function getRiskMatrixRowId(uint128 marketId, uint32 maturityTimestamp) external view returns (uint256) {
-        Market.Data storage market = Market.exists(marketId);
-        return market.riskMatrixRowIds[maturityTimestamp];
-    }
-
-    
     function getMarketType(uint128 marketId) external view override returns (bytes32 marketType) {
         Market.Data storage market = Market.exists(marketId);
         return market.marketType;
@@ -69,37 +75,5 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     function getExposureFactor(uint128 marketId) external view override returns (UD60x18) {
         Market.Data storage market = Market.exists(marketId);
         return market.exposureFactor();
-    }
-
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function setPhi(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.setPhi(maturityTimestamp, phi);
-    }
-
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function getPhi(uint128 marketId, uint32 maturityTimestamp) external view override returns (UD60x18) {
-        Market.Data storage market = Market.exists(marketId);
-        return market.getPhi(maturityTimestamp);
-    }
-
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function setBeta(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta) external override {
-        Market.Data storage market = Market.exists(marketId);
-        market.setBeta(maturityTimestamp, beta);
-    }
-
-    /**
-     * @inheritdoc IMarketConfigurationModule
-     */
-    function getBeta(uint128 marketId, uint32 maturityTimestamp) external view override returns (UD60x18) {
-        Market.Data storage market = Market.exists(marketId);
-        return market.getBeta(maturityTimestamp);
     }
 }

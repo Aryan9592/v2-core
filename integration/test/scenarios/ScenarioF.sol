@@ -99,13 +99,16 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
-        datedIrsProxy.setPhi({
-            marketId: marketIdAave,
-            maturityTimestamp: maturityTimestampAave,
-            phi: ud(0.0001e18) // vol / volume = 0.01
-         });
-
-        datedIrsProxy.setBeta({ marketId: marketIdAave, maturityTimestamp: maturityTimestampAave, beta: ud(0.5e18) });
+        datedIrsProxy.setMarketMaturityConfiguration(
+            marketIdAave,
+            maturityTimestampAave,
+            Market.MarketMaturityConfiguration({
+                riskMatrixRowId: 0,
+                tenorInSeconds: 0,
+                phi: ud(0.0001e18),
+                beta: ud(0.5e18)
+            })
+        );
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestampAave,
@@ -185,13 +188,16 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
-        datedIrsProxy.setPhi({
-            marketId: marketIdGlp,
-            maturityTimestamp: maturityTimestampGlp,
-            phi: ud(0.0001e18) // vol / volume = 0.01
-         });
-
-        datedIrsProxy.setBeta({ marketId: marketIdGlp, maturityTimestamp: maturityTimestampGlp, beta: ud(0.5e18) });
+        datedIrsProxy.setMarketMaturityConfiguration(
+            marketIdGlp,
+            maturityTimestampGlp,
+            Market.MarketMaturityConfiguration({
+                riskMatrixRowId: 0,
+                tenorInSeconds: 0,
+                phi: ud(0.0001e18), // vol / volume = 0.01
+                beta: ud(0.5e18)
+            })
+        );
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestampGlp,

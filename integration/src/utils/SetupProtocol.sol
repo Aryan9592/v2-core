@@ -252,9 +252,26 @@ contract SetupProtocol is BatchScript {
         );
     }
 
-    function configureMaturity(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi, UD60x18 beta) public {
-        setPhi(marketId, maturityTimestamp, phi);
-        setBeta(marketId, maturityTimestamp, beta);
+    function configureMarketMaturity(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint256 riskMatrixRowId,
+        uint256 tenorInSeconds,
+        UD60x18 phi,
+        UD60x18 beta
+    )
+        public
+    {
+        setMarketMaturityConfiguration(
+            marketId,
+            maturityTimestamp,
+            DatedIrsMarket.MarketMaturityConfiguration({
+                riskMatrixRowId: riskMatrixRowId,
+                tenorInSeconds: tenorInSeconds,
+                phi: phi,
+                beta: beta
+            })
+        );
     }
 
     function deployPool(
@@ -607,26 +624,23 @@ contract SetupProtocol is BatchScript {
         }
     }
 
-    function setPhi(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi) public {
+    function setMarketMaturityConfiguration(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        DatedIrsMarket.MarketMaturityConfiguration memory marketMaturityConfig
+    )
+        public
+    {
         if (!settings.multisig) {
             broadcastOrPrank();
-            contracts.datedIrsProxy.setPhi(marketId, maturityTimestamp, phi);
+            contracts.datedIrsProxy.setMarketMaturityConfiguration(marketId, maturityTimestamp, marketMaturityConfig);
         } else {
             addToBatch(
                 address(contracts.datedIrsProxy),
-                abi.encodeCall(contracts.datedIrsProxy.setPhi, (marketId, maturityTimestamp, phi))
-            );
-        }
-    }
-
-    function setBeta(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta) public {
-        if (!settings.multisig) {
-            broadcastOrPrank();
-            contracts.datedIrsProxy.setBeta(marketId, maturityTimestamp, beta);
-        } else {
-            addToBatch(
-                address(contracts.datedIrsProxy),
-                abi.encodeCall(contracts.datedIrsProxy.setBeta, (marketId, maturityTimestamp, beta))
+                abi.encodeCall(
+                    contracts.datedIrsProxy.setMarketMaturityConfiguration,
+                    (marketId, maturityTimestamp, marketMaturityConfig)
+                )
             );
         }
     }

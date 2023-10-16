@@ -91,7 +91,14 @@ contract ConfigProtocol is SetupProtocol {
         int24[] memory observedTicks = new int24[](2);
         observedTicks[0] = -13_860;
         observedTicks[1] = -13_860;
-        configureMaturity({ marketId: 1, maturityTimestamp: 1_688_990_400, phi: ud(0.1e18), beta: ud(0.5e18) });
+        configureMarketMaturity({
+            marketId: 1,
+            maturityTimestamp: 1_688_990_400,
+            riskMatrixRowId: 0, // todo
+            tenorInSeconds: 0, // todo
+            phi: ud(0.1e18),
+            beta: ud(0.5e18)
+        });
         deployPool({
             immutableConfig: DatedIrsVamm.Immutable({
                 maturityTimestamp: 1_688_990_400,
