@@ -8,6 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "./ExchangeStore.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 library Exchange {
 
@@ -15,13 +16,6 @@ library Exchange {
      * @dev Thrown when an exchange cannot be found.
      */
     error ExchangeNotFound(uint128 exchangeId);
-
-    /**
-     * @notice Emitted when a exchange is created or updated
-     * @param exchange The object with the newly updated details.
-     * @param blockTimestamp The current block timestamp.
-     */
-    event ExchangeUpdated(Exchange.Data exchange, uint256 blockTimestamp);
 
     struct Data {
 
@@ -36,6 +30,8 @@ library Exchange {
          */
         uint128 exchangeFeeCollectorAccountId;
 
+        mapping(address => UD60x18) feeRebatesPerInstrument;
+
     }
 
     function create(uint128 exchangeFeeCollectorAccountId) internal returns (Data storage exchange) {
@@ -45,7 +41,7 @@ library Exchange {
         exchange.exchangeFeeCollectorAccountId = exchangeFeeCollectorAccountId;
         // todo: check if account with id exchangeFeeCollectorAccountId exists?
 
-        emit ExchangeUpdated(exchange, block.timestamp);
+        // todo: add event
 
     }
 
@@ -68,6 +64,16 @@ library Exchange {
         if (id == 0 || exchange.id != id) {
             revert ExchangeNotFound(id);
         }
+    }
+
+    function setFeeRebate(
+        Data storage self,
+        address instrumentAddress,
+        UD60x18 rebateParameter
+    ) internal {
+
+        self.feeRebatesPerInstrument[instrumentAddress] = rebateParameter;
+        // todo: add event
     }
 
 
