@@ -187,7 +187,11 @@ contract ExecutionModule is IExecutionModule {
         account.updateNetCollateralDeposits(vars.collateralType, -(vars.accountExchangeFee+vars.accountProtocolFee).toInt());
 
         for (uint256 i = 0; i < vars.counterpartyAccountIds.length; i++) {
-            Account.Data storage counterpartyAccount = Account.exists(vars.counterpartyAccountIds[i]);
+            Account.Data storage counterpartyAccount = Account.loadAccountAndValidatePermission(
+                vars.counterpartyAccountIds[i],
+                Account.ADMIN_PERMISSION,
+                msg.sender
+            );
             counterpartyAccount.markActiveMarket(vars.collateralType, vars.marketId);
 
             uint128 accountCollateralPoolId = account.getCollateralPool().id;
