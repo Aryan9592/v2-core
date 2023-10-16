@@ -85,10 +85,7 @@ contract ExecutionModule is IExecutionModule {
             revert CollateralPoolMismatch(accountId, command.marketId);
         }
         Market.Data storage market = Market.exists(command.marketId);
-
-        // todo: mark active market
-
-        // todo: fee propagation
+        account.markActiveMarket(market.quoteToken, market.id);
 
         if (command.commandType == CommandType.OnChainTakerOrder) {
             (bytes memory result, uint256 exchangeFee, uint256 protocolFee) = market.executeTakerOrder(
