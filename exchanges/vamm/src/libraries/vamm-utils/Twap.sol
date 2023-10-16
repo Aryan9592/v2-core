@@ -66,15 +66,15 @@ library Twap {
         }
 
         if (orderDirection == IPool.OrderDirection.Long) {
-            return price.mul(UNIT_ud.add(pSlippage));
+            return price.add(pSlippage);
         }
 
-        if (pSlippage.gte(UNIT_ud)) {
+        if (pSlippage.gte(price)) {
             // The model suggests that the price will drop below zero after price impact
             return ZERO_ud;
         }
 
-        return price.mul(UNIT_ud.sub(pSlippage));
+        return price.sub(pSlippage);
     }
 
     function applySpread(
