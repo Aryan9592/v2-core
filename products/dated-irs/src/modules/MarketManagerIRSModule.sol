@@ -330,7 +330,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function completeOrder(
+    function executePropagateCashflow(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
