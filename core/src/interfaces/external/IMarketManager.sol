@@ -109,6 +109,7 @@ interface IMarketManager is IERC165 {
     // todo: add natspec
     function validateLiquidationOrder(
         uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
     ) external view;

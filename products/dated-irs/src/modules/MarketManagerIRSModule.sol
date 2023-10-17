@@ -14,13 +14,7 @@ import { Market } from "../storage/Market.sol";
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
 import { FeatureFlagSupport } from "../libraries/FeatureFlagSupport.sol";
-import {
-    FilledBalances,
-    UnfilledBalances,
-    PositionBalances,
-    MakerOrderParams,
-    TakerOrderParams
-} from "../libraries/DataTypes.sol";
+import "../libraries/DataTypes.sol";
 
 import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
@@ -156,7 +150,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         executionPreCheck(marketId, maturityTimestamp);
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
-            ExecuteLiquidationOrder.LiquidationOrderParams({
+            LiquidationOrderParams({
                 liquidatableAccountId: liquidatableAccountId,
                 liquidatorAccountId: liquidatorAccountId,
                 marketId: marketId,
@@ -172,6 +166,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     function validateLiquidationOrder(
         uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
     )
@@ -179,10 +174,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         view
         override
     {
-        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated) = abi.decode(inputs, (uint32, int256));
+        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) = 
+            abi.decode(inputs, (uint32, int256, uint160));
 
         ExecuteLiquidationOrder.validateLiquidationOrder(
-            liquidatableAccountId, marketId, maturityTimestamp, baseAmountToBeLiquidated
+            LiquidationOrderParams({
+                liquidatableAccountId: liquidatableAccountId,
+                liquidatorAccountId: liquidatorAccountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseAmountToBeLiquidated: baseAmountToBeLiquidated,
+                priceLimit: priceLimit
+            })
         );
     }
 

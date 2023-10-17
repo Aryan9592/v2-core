@@ -256,10 +256,12 @@ library Market {
     function validateLiquidationOrder(
         Data storage self,
         uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
         bytes memory inputs
     ) internal view {
         IMarketManager(self.marketManagerAddress).validateLiquidationOrder(
             liquidatableAccountId,
+            liquidatorAccountId,
             self.id,
             inputs
         );

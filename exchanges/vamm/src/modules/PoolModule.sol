@@ -20,7 +20,6 @@ import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.s
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import { SD59x18 } from "@prb/math/SD59x18.sol";
 
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;

@@ -12,6 +12,7 @@ import { Market } from "../../storage/Market.sol";
 import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 import "../ExposureHelpers.sol";
+import { LiquidationOrderParams} from "../DataTypes.sol";
 
 /*
 TODOs
@@ -32,44 +33,14 @@ library ExecuteLiquidationOrder {
     using SignedMath for int256;
 
     /**
-     * @dev Thrown if liquidation order is in the wrong direction
+     * @dev Thrown if liquidation order is invalid
      */
-    error WrongLiquidationDirection(
-        uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp, int256 baseAmountLiquidatableAccount
-    );
-
-    /**
-     * @dev Thrown if liquidation order is too big
-     */
-    error LiquidationOrderTooBig(
-        uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp, int256 baseAmountLiquidatableAccount
-    );
-
-    /**
-     * @dev Thrown if liquidation order size is zero
-     */
-    error LiquidationOrderZero(uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp);
-
-    /**
-     * @dev Thrown if filled balance of liquidatable account is zero
-     */
-    error FilledBalanceZero(uint128 liquidatableAccountId, uint128 marketId, uint32 maturityTimestamp);
+    error InvalidLiquidationOrder(LiquidationOrderParams params, bytes32 reason);
 
     /**
      * @dev Thrown if liquidation order hits the price limit set by the liquidator
      */
-    error PriceLimitBreached(
-        uint128 liquidatableAccountId, uint128 liquidatorAccountId, uint128 marketId, uint32 maturityTimestamp
-    );
-
-    struct LiquidationOrderParams {
-        uint128 liquidatableAccountId;
-        uint128 liquidatorAccountId;
-        uint128 marketId;
-        uint32 maturityTimestamp;
-        int256 baseAmountToBeLiquidated;
-        uint256 priceLimit;
-    }
+    error PriceLimitBreached(LiquidationOrderParams params);
 
     function isPriceLimitBreached(
         bool isLiquidationLong,
@@ -93,58 +64,53 @@ library ExecuteLiquidationOrder {
         return false;
     }
 
-    function validateLiquidationOrder(
-        uint128 liquidatableAccountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        int256 baseAmountToBeLiquidated
-    )
+    function validateLiquidationOrder(LiquidationOrderParams memory params)
         internal
         view
-        returns (int256 baseAmountLiquidatableAccount)
+        returns (int256 accountBase)
     {
         // revert if liquidation order size is 0
-        if (baseAmountToBeLiquidated == 0) {
-            revert LiquidationOrderZero(liquidatableAccountId, marketId, maturityTimestamp);
+        if (params.baseAmountToBeLiquidated == 0) {
+            revert InvalidLiquidationOrder(params, "LiquidationOrderZero");
         }
 
-        Portfolio.Data storage portfolio = Portfolio.exists(liquidatableAccountId, marketId);
-
-        Market.Data storage market = Market.exists(marketId);
-        address poolAddress = market.marketConfig.poolAddress;
+        address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
 
         // retrieve base amount filled by the liquidatable account
-        baseAmountLiquidatableAccount = portfolio.getAccountFilledBalances(maturityTimestamp, poolAddress).base;
+        accountBase = Portfolio.exists(params.liquidatableAccountId, params.marketId)
+            .getAccountFilledBalances(params.maturityTimestamp, poolAddress).base;
 
         // revert if base amount filled is zero
-        if (baseAmountLiquidatableAccount == 0) {
-            revert FilledBalanceZero(liquidatableAccountId, marketId, maturityTimestamp);
+        if (accountBase == 0) {
+            revert InvalidLiquidationOrder(params, "AccountFilledBaseZero");
         }
 
-        // revert if liquidation order direction is wrong
-        if (
-            (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
-                || (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0)
-        ) {
-            revert WrongLiquidationDirection(
-                liquidatableAccountId, marketId, maturityTimestamp, baseAmountLiquidatableAccount
-            );
-        }
+        // revert if the liquidation order size is too big or is in the wrong direction
+        if (accountBase > 0) {
+            if (params.baseAmountToBeLiquidated > 0) {
+                revert InvalidLiquidationOrder(params, "WrongLiquidationDirection");
+            }
 
-        if (
-            (baseAmountLiquidatableAccount > 0 && baseAmountLiquidatableAccount + baseAmountToBeLiquidated < 0)
-                || (baseAmountLiquidatableAccount < 0 && baseAmountLiquidatableAccount + baseAmountToBeLiquidated > 0)
-        ) {
-            revert LiquidationOrderTooBig(
-                liquidatableAccountId, marketId, maturityTimestamp, baseAmountLiquidatableAccount
-            );
+            if (accountBase + params.baseAmountToBeLiquidated < 0) {
+                revert InvalidLiquidationOrder(params, "LiquidationOrderTooBig");
+            }
+        }
+        else {
+            if (params.baseAmountToBeLiquidated < 0) {
+                revert InvalidLiquidationOrder(params, "WrongLiquidationDirection");
+            }
+
+            if (accountBase + params.baseAmountToBeLiquidated > 0) {
+                revert InvalidLiquidationOrder(params, "LiquidationOrderTooBig");
+            }
         }
     }
 
     function executeLiquidationOrder(LiquidationOrderParams memory params) internal {
-        int256 baseAmountLiquidatable = validateLiquidationOrder(
-            params.liquidatableAccountId, params.marketId, params.maturityTimestamp, params.baseAmountToBeLiquidated
-        );
+        // todo: this is support for partial orders but we block them in the validation
+        // decide which option to keep: allow or deny partial liquidation orders
+        
+        int256 baseAmountLiquidatable = validateLiquidationOrder(params);
 
         int256 baseAmountToBeLiquidated = params.baseAmountToBeLiquidated;
 
@@ -152,27 +118,21 @@ library ExecuteLiquidationOrder {
             baseAmountToBeLiquidated = -baseAmountLiquidatable;
         }
 
-        Market.Data storage market = Market.exists(params.marketId);
+        address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
 
         UD60x18 liquidationPrice =
-            ExposureHelpers.computeTwap(params.marketId, params.maturityTimestamp, market.marketConfig.poolAddress, 0);
+            ExposureHelpers.computeTwap(params.marketId, params.maturityTimestamp, poolAddress, 0);
 
         if (isPriceLimitBreached(baseAmountToBeLiquidated > 0, liquidationPrice, ud(params.priceLimit))) {
-            revert PriceLimitBreached(
-                params.liquidatableAccountId, params.liquidatorAccountId, params.marketId, params.maturityTimestamp
-            );
+            revert PriceLimitBreached(params);
         }
 
         int256 quoteDeltaFromLiquidation =
             ExposureHelpers.computeQuoteDelta(baseAmountToBeLiquidated, liquidationPrice, params.marketId);
 
-        Portfolio.Data storage portfolioLiquidatable = Portfolio.exists(params.liquidatableAccountId, params.marketId);
-
-        Portfolio.Data storage portfolioLiquidator = Portfolio.loadOrCreate(params.liquidatorAccountId, params.marketId);
-
         Portfolio.propagateMatchedOrder(
-            portfolioLiquidatable,
-            portfolioLiquidator,
+            Portfolio.exists(params.liquidatableAccountId, params.marketId),
+            Portfolio.loadOrCreate(params.liquidatorAccountId, params.marketId),
             baseAmountToBeLiquidated,
             quoteDeltaFromLiquidation,
             params.maturityTimestamp
