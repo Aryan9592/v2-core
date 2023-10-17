@@ -26,12 +26,12 @@ contract BackstopLiquidationModule is IBackstopLiquidationModule {
      */
     function executeBackstopLiquidation(
         uint128 liquidatableAccountId,
-        uint128 liquidatorAccountId,
+        uint128 keeperAccountId,
         address quoteToken,
         AccountLiquidation.LiquidationOrder[] memory backstopLPLiquidationOrders
     ) external override {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
-        account.executeBackstopLiquidation(liquidatorAccountId, quoteToken, backstopLPLiquidationOrders);
+        account.executeBackstopLiquidation(keeperAccountId, quoteToken, backstopLPLiquidationOrders);
     }
 }

@@ -23,7 +23,7 @@ import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
 import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {UD60x18, UNIT, ud} from "@prb/math/UD60x18.sol";
+import {UD60x18, UNIT, ud, ZERO} from "@prb/math/UD60x18.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
@@ -401,6 +401,34 @@ library AccountLiquidation {
         }
     }
 
+    function distributeBackstopAdlRewards(
+        Account.Data storage self,
+        Account.Data storage keeperAccount,
+        address token,
+        uint256 deltaLMR,
+        UD60x18 backstopRewardFee,
+        UD60x18 keeperRewardFee
+    ) internal {
+        uint256 totalReward;
+
+        if (backstopRewardFee.gt(ZERO)) {
+            CollateralPool.Data storage collateralPool = self.getCollateralPool();
+            Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
+
+            uint256 backstopReward = mulUDxUint(backstopRewardFee, deltaLMR);
+            backstopLpAccount.updateNetCollateralDeposits(token, backstopReward.toInt());
+            totalReward += backstopReward;
+        }
+
+        if (keeperRewardFee.gt(ZERO)) {
+            uint256 keeperReward = mulUDxUint(keeperRewardFee, deltaLMR);
+            keeperAccount.updateNetCollateralDeposits(token, keeperReward.toInt());
+            totalReward += keeperReward;
+        }
+        
+        self.updateNetCollateralDeposits(token, -totalReward.toInt());
+    }
+
     function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
         // adl health info values are in USD (and therefore represented with 18 decimals)
@@ -539,7 +567,7 @@ library AccountLiquidation {
 
     function executeBackstopLiquidation(
         Account.Data storage self,
-        uint128 liquidatorAccountId,
+        uint128 keeperAccountId,
         address quoteToken,
         LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
@@ -555,21 +583,31 @@ library AccountLiquidation {
 
         bool _isInsolvent = isInsolvent(self, quoteToken);
         if (!_isInsolvent) {
-            executeSolventBackstopLiquidation(self, liquidatorAccountId, quoteToken, backstopLPLiquidationOrders);
+            executeSolventBackstopLiquidation(self, keeperAccountId, quoteToken, backstopLPLiquidationOrders);
         } else {
-            executeInsolventADLLiquidation(self, liquidatorAccountId, quoteToken, marginInfo);
+            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken);
         }
+    }
+
+    struct SolventBackstopLiquidationVars {
+        uint256 rawLMRBeforeBackstop;
+        uint256 rawLMRAfterBackstop;
+        uint256 rawLMRAfterAdl;
     }
 
     function executeSolventBackstopLiquidation(
         Account.Data storage self,
-        uint128 liquidatorAccountId,
+        uint128 keeperAccountId,
         address quoteToken,
         LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
+        SolventBackstopLiquidationVars memory vars;
+
+        vars.rawLMRBeforeBackstop = self.getMarginInfoByBubble(
+            quoteToken
+        ).rawInfo.rawLiquidationMarginRequirement;
 
         // execute backstop lp liquidation orders
         for (uint256 i = 0; i < backstopLPLiquidationOrders.length; i++) {
@@ -581,6 +619,21 @@ library AccountLiquidation {
                 liquidationOrder.inputs
             );
         }
+
+        vars.rawLMRAfterBackstop = self.getMarginInfoByBubble(
+            quoteToken
+        ).rawInfo.rawLiquidationMarginRequirement;
+        if (vars.rawLMRAfterBackstop > vars.rawLMRBeforeBackstop) {
+            revert LiquidationCausedNegativeLMDeltaChange(self.id, vars.rawLMRBeforeBackstop, vars.rawLMRAfterBackstop);
+        }
+
+        self.distributeBackstopAdlRewards({
+            keeperAccount: Account.exists(keeperAccountId),
+            token: quoteToken,
+            deltaLMR: vars.rawLMRBeforeBackstop - vars.rawLMRAfterBackstop,
+            backstopRewardFee: UNIT.sub(collateralPool.riskConfig.liquidationConfiguration.backstopKeeperFee),
+            keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.backstopKeeperFee
+        });
 
         bool leftExposure = false;
 
@@ -601,6 +654,7 @@ library AccountLiquidation {
         }
 
         if (leftExposure) {
+            Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
             backstopLpAccount.betweenImAndImBufferCheck();
 
             for (uint256 i = 0; i < markets.length; i++) {
@@ -613,17 +667,44 @@ library AccountLiquidation {
                     realBalanceAndIF: 0
                 });
             }
+
+            vars.rawLMRAfterAdl = self.getMarginInfoByBubble(
+                quoteToken
+            ).rawInfo.rawLiquidationMarginRequirement;
+            if (vars.rawLMRAfterAdl > vars.rawLMRAfterBackstop) {
+                revert LiquidationCausedNegativeLMDeltaChange(self.id, vars.rawLMRAfterBackstop, vars.rawLMRAfterAdl);
+            }
+
+            self.distributeBackstopAdlRewards({
+                keeperAccount: Account.exists(keeperAccountId),
+                token: quoteToken,
+                deltaLMR: vars.rawLMRAfterBackstop - vars.rawLMRAfterAdl,
+                backstopRewardFee: ZERO,
+                keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlKeeperFee
+            });
         }
     }
 
 
     function executeInsolventADLLiquidation(
         Account.Data storage self,
-        uint128 liquidatorAccountId,
-        address quoteToken,
-        Account.MarginInfo memory marginInfo
+        uint128 keeperAccountId,
+        address quoteToken
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
+
+        // Account is insolvent, so LMR after ADL will be 0
+        self.distributeBackstopAdlRewards({
+            keeperAccount: Account.exists(keeperAccountId),
+            token: quoteToken,
+            deltaLMR: self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement,
+            backstopRewardFee: ZERO,
+            keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlKeeperFee
+        });
+
+        // Need to fetch margin info after rewards distribution for correct
+        // insurance fund underwriting and bankruptcy price calculation
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
 
         // adl maturities with positive upnl at market price
         uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();

@@ -161,6 +161,17 @@ library CollateralPool {
          * @dev Weight Parameter used in the liquidation scoring/rank function
          */
         UD60x18 wRank;
+
+        /**
+         * @dev Proportion of LMR delta that is awarded to the keeper for backstop LP liquidations. 
+         * The rest is awarded to the backstop LP.
+         */
+        UD60x18 backstopKeeperFee;
+
+        /**
+         * @dev Proportion of LMR delta that is awarded to the keeper for adl liquidations
+         */
+        UD60x18 adlKeeperFee;
     }
 
     struct DutchConfiguration {
