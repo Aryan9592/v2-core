@@ -161,6 +161,11 @@ library CollateralPool {
          * @dev Maximum number of liquidations bids that can be submitted to a single liquidation bid priority queue
          */
         uint256 maxBidsInQueue;
+
+        /**
+         * @dev Weight Parameter used in the liquidation scoring/rank function
+         */
+        UD60x18 wRank;
     }
 
     struct DutchConfiguration {

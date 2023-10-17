@@ -14,6 +14,11 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface a Pool needs to adhere.
 interface IPool is IERC165 {
+    enum OrderDirection {
+        Short,
+        Zero,
+        Long
+    }
 
     /// @notice returns a human-readable name for a given pool
     function name() external view returns (string memory);
@@ -71,15 +76,17 @@ interface IPool is IERC165 {
      * @param marketId Id of the market for which we want to retrieve the dated irs twap
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param lookbackWindow Number of seconds in the past from which to calculate the time-weighted means
-     * @param orderSizeWad The order size to use when adjusting the price for price impact or spread.
+     * @param orderDirection Whether the order is long, short, or zero (to be used when adjusting for price and spread).
      * Function will revert if `abs(orderSize)` overflows when cast to a `U60x18`. Must have 18 decimals precision.
+     * @param pSlippage The percentual slippage value
      * @return Geometric Time Weighted Average Fixed Rate
      */
     function getAdjustedTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 orderSizeWad,
-        uint32 lookbackWindow
+        OrderDirection orderDirection,
+        uint32 lookbackWindow,
+        UD60x18 pSlippage
     ) external view returns (UD60x18);
 
     /**

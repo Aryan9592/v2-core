@@ -32,12 +32,11 @@ import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol
 
 import { UUPSImplementation } from "@voltz-protocol/util-contracts/src/proxy/UUPSImplementation.sol";
 
-import { UD60x18, ud60x18 } from "@prb/math/UD60x18.sol";
-import { SD59x18, sd59x18 } from "@prb/math/SD59x18.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { sd } from "@prb/math/SD59x18.sol";
 
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { DatedIrsVamm } from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
-import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
 import { Commands } from "@voltz-protocol/periphery/src/libraries/Commands.sol";
 import { IWETH9 } from "@voltz-protocol/periphery/src/interfaces/external/IWETH9.sol";
@@ -253,6 +252,28 @@ contract SetupProtocol is BatchScript {
         );
     }
 
+    function configureMarketMaturity(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        uint256 riskMatrixRowId,
+        uint256 tenorInSeconds,
+        UD60x18 phi,
+        UD60x18 beta
+    )
+        public
+    {
+        setMarketMaturityConfiguration(
+            marketId,
+            maturityTimestamp,
+            DatedIrsMarket.MarketMaturityConfiguration({
+                riskMatrixRowId: riskMatrixRowId,
+                tenorInSeconds: tenorInSeconds,
+                phi: phi,
+                beta: beta
+            })
+        );
+    }
+
     function deployPool(
         DatedIrsVamm.Immutable memory immutableConfig,
         DatedIrsVamm.Mutable memory mutableConfig,
@@ -309,7 +330,7 @@ contract SetupProtocol is BatchScript {
     function mintOrBurn(MintOrBurnParams memory params) public returns (bytes memory) {
         IRateOracle rateOracle = IRateOracle(params.rateOracleAddress);
 
-        int256 baseAmount = sd59x18(params.notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
+        int256 baseAmount = sd(params.notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
         erc20_approve(IERC20(params.tokenAddress), address(contracts.peripheryProxy), params.marginAmount);
 
@@ -357,7 +378,7 @@ contract SetupProtocol is BatchScript {
     {
         IRateOracle rateOracle = IRateOracle(rateOracleAddress);
 
-        int256 baseAmount = sd59x18(notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
+        int256 baseAmount = sd(notionalAmount).div(rateOracle.getCurrentIndex().intoSD59x18()).unwrap();
 
         erc20_approve(IERC20(tokenAddress), address(contracts.peripheryProxy), marginAmount);
 
@@ -599,6 +620,27 @@ contract SetupProtocol is BatchScript {
             addToBatch(
                 address(contracts.datedIrsProxy),
                 abi.encodeCall(contracts.datedIrsProxy.setMarketConfiguration, (marketId, marketConfig))
+            );
+        }
+    }
+
+    function setMarketMaturityConfiguration(
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        DatedIrsMarket.MarketMaturityConfiguration memory marketMaturityConfig
+    )
+        public
+    {
+        if (!settings.multisig) {
+            broadcastOrPrank();
+            contracts.datedIrsProxy.setMarketMaturityConfiguration(marketId, maturityTimestamp, marketMaturityConfig);
+        } else {
+            addToBatch(
+                address(contracts.datedIrsProxy),
+                abi.encodeCall(
+                    contracts.datedIrsProxy.setMarketMaturityConfiguration,
+                    (marketId, maturityTimestamp, marketMaturityConfig)
+                )
             );
         }
     }

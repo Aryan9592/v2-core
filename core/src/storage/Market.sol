@@ -203,6 +203,18 @@ library Market {
         );
     }
 
+    function getAnnualizedExposureWadAndPSlippage(
+        Data storage self,
+        uint128 marketId,
+        bytes memory inputs
+    ) internal view returns (int256 annualizedExposureWad, UD60x18 pSlippage) {
+        return IMarketManager(self.marketManagerAddress).getAnnualizedExposureWadAndPSlippage(
+            marketId,
+            inputs
+        );
+    }
+
+
     function executeADLOrder(
         Data storage self,
         uint128 liquidatableAccountId,

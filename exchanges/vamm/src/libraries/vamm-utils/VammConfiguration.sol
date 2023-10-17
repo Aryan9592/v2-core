@@ -13,8 +13,6 @@ import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import { UNIT } from "@prb/math/UD60x18.sol";
-
 /**
  * @title Sets configurations for dated irs markets
  */
@@ -84,17 +82,17 @@ library VammConfiguration {
     }
 
     function configure(DatedIrsVamm.Data storage self, DatedIrsVamm.Mutable memory config) internal {
-        if (config.priceImpactPhi.gt(UNIT)) {
-            revert VammCustomErrors.PriceImpactOutOfBounds();
-        }
-
-        self.mutableConfig.priceImpactPhi = config.priceImpactPhi;
-        self.mutableConfig.spread = config.spread;
-
-        setMinAndMaxTicks(self, config.minTickAllowed, config.maxTickAllowed);
+        self.mutableConfig = config;
+        propagateMinAndMaxTicks(self, config.minTickAllowed, config.maxTickAllowed);
     }
 
-    function setMinAndMaxTicks(DatedIrsVamm.Data storage self, int24 minTickAllowed, int24 maxTickAllowed) private {
+    function propagateMinAndMaxTicks(
+        DatedIrsVamm.Data storage self,
+        int24 minTickAllowed,
+        int24 maxTickAllowed
+    )
+        private
+    {
         if (
             minTickAllowed < VammTicks.DEFAULT_MIN_TICK || maxTickAllowed > VammTicks.DEFAULT_MAX_TICK
                 || self.vars.tick < minTickAllowed || self.vars.tick > maxTickAllowed
@@ -102,8 +100,6 @@ library VammConfiguration {
             revert VammCustomErrors.ExceededTickLimits(minTickAllowed, maxTickAllowed);
         }
 
-        self.mutableConfig.minTickAllowed = minTickAllowed;
-        self.mutableConfig.maxTickAllowed = maxTickAllowed;
         self.minSqrtRatioAllowed = TickMath.getSqrtRatioAtTick(minTickAllowed);
         self.maxSqrtRatioAllowed = TickMath.getSqrtRatioAtTick(maxTickAllowed);
     }

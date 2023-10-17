@@ -28,8 +28,6 @@ import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interf
  */
 library DatedIrsVamm {
     struct Mutable {
-        /// @dev the phi value to use when adjusting a TWAP price for the likely price impact of liquidation
-        UD60x18 priceImpactPhi;
         /// @dev the spread taken by LPs on each trade.
         ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
         UD60x18 spread;
