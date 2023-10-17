@@ -314,6 +314,22 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
+    function executeBatchMatchOrder(
+        uint128 accountId,
+        uint128[] memory counterpartyAccountIds,
+        uint128 marketId,
+        bytes calldata inputs
+    ) external returns (
+        bytes memory output,
+        uint256 accountProtocolFees,
+        uint256[] memory counterpartyProtocolFees
+    ) {
+        revert MissingBatchMatchOrderImplementation();
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
     function completeOrder(
         uint128 accountId,
         uint128 marketId,
