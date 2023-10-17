@@ -12,11 +12,12 @@ import {Market} from "../../storage/Market.sol";
 import {FilledBalances} from "../DataTypes.sol";
 import {ExposureHelpers} from "../ExposureHelpers.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import {mulDiv} from "@prb/math/UD60x18.sol";
+import {mulDiv} from "@prb/math/SD59x18.sol";
 import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
 import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
+import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /*
 TODOs
@@ -37,6 +38,8 @@ library ExecuteADLOrder {
     using Timer for Timer.Data;
     using Portfolio for Portfolio.Data;
     using Market for Market.Data;
+    using SafeCastU256 for uint256;
+    using SafeCastI256 for int256;
 
     /**
      * @notice Thrown when an ADL order comes in during propagation of a
@@ -47,20 +50,26 @@ library ExecuteADLOrder {
      */
     error CannotBlendADLDuringPropagation(uint128 marketId, uint128 accountId, int256 baseDelta);
 
-
     function computeBankruptcyPrice(
-        int256 baseDelta,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseBalance,
+        int256 quoteBalance,
         uint256 positionUnrealizedLoss,
         uint256 totalUnrealizedLoss,
         int256 realBalanceAndIF
     ) private view returns (UD60x18 bankruptcyPrice) {
+        uint256 absRealBalanceAndIF = (realBalanceAndIF > 0) ? realBalanceAndIF.toUint() : (-realBalanceAndIF).toUint();
+        uint256 absCover = mulDiv(absRealBalanceAndIF, positionUnrealizedLoss, totalUnrealizedLoss);
+        int256 cover = (realBalanceAndIF > 0) ? absCover.toInt() : -absCover.toInt();
 
-        // todo: finish implementation once pnl calc is fixed
-
-        //  uint256 cover = mulDiv(positionUnrealizedLoss, realBalanceAndIF, totalUnrealizedLoss);
-        // todo: compute unrealized loss here (make sure the calc in exposure helpers is correct)
-
-        return bankruptcyPrice;
+        bankruptcyPrice = ExposureHelpers.computeUnwindPriceForGivenUPnL({
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
+            baseBalance: baseBalance,
+            quoteBalance: quoteBalance,
+            uPnL: cover
+        }).intoUD60x18();   // todo: need to check this with @0xZenus @arturbeg, we do not want to revert adl
     }
 
     struct ExecuteADLOrderVars {
@@ -95,18 +104,20 @@ library ExecuteADLOrder {
             maturityTimestamp,
             vars.poolAddress
         );
-        vars.baseDelta = filledBalances.base;
 
         if (totalUnrealizedLossQuote > 0) {
             // todo: (AB) link this to uPnL functions
             uint256 positionUnrealizedLoss = 0;
             
-            vars.markPrice = computeBankruptcyPrice(
-                vars.baseDelta,
-                positionUnrealizedLoss,
-                totalUnrealizedLossQuote,
-                realBalanceAndIF
-            );
+            vars.markPrice = computeBankruptcyPrice({
+                marketId: accountPortfolio.marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseBalance: filledBalances.base,
+                quoteBalance: filledBalances.quote,
+                positionUnrealizedLoss: positionUnrealizedLoss,
+                totalUnrealizedLoss: totalUnrealizedLossQuote,
+                realBalanceAndIF: realBalanceAndIF
+            });
         } else {
 
             vars.markPrice = ExposureHelpers.computeTwap(
@@ -118,7 +129,12 @@ library ExecuteADLOrder {
 
         }
 
-        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
+        vars.baseDelta = filledBalances.base;
+        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(
+            vars.baseDelta, 
+            vars.markPrice, 
+            accountPortfolio.marketId
+        );
 
         vars.isLong = vars.baseDelta > 0;
 

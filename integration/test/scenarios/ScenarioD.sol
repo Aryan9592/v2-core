@@ -19,7 +19,9 @@ import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfi
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
-import { UD60x18, ud60x18, wrap, unwrap } from "@prb/math/UD60x18.sol";
+import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
+import { UD60x18, ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
 
 contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
@@ -69,7 +71,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             Market.MarketConfiguration({
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
-                markPriceBand: ud60x18(0.045e18), // 4.5%
+                markPriceBand: ud(0.045e18), // 4.5%
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -94,6 +96,17 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
              })
         );
 
+        datedIrsProxy.setMarketMaturityConfiguration(
+            marketId,
+            maturityTimestamp,
+            Market.MarketMaturityConfiguration({
+                riskMatrixRowId: 0,
+                tenorInSeconds: 0,
+                phi: priceImpactPhi,
+                beta: ud(0.5e18)
+            })
+        );
+
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
             maturityTimestamp: maturityTimestamp,
             maxLiquidityPerTick: type(uint128).max,
@@ -102,7 +115,6 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         });
 
         DatedIrsVamm.Mutable memory mutableConfig = DatedIrsVamm.Mutable({
-            priceImpactPhi: priceImpactPhi,
             spread: spread,
             minSecondsBetweenOracleObservations: 10,
             minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
@@ -139,7 +151,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
     }
 
     function test_scenario_D_no_slippage_no_price_impact() public {
-        setConfigs(ud60x18(0), ud60x18(0));
+        setConfigs(ud(0), ud(0));
         uint256 start = block.timestamp;
 
         vm.mockCall(mockUsdc, abi.encodeWithSelector(IERC20.decimals.selector), abi.encode(6));
@@ -177,12 +189,22 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 100");
         }
 
@@ -209,12 +231,22 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 100");
         }
 
@@ -241,18 +273,28 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 100");
         }
     }
 
     function test_scenario_D_slippage_no_price_impact() public {
-        setConfigs(ud60x18(0), ud60x18(0.003e18));
+        setConfigs(ud(0), ud(0.003e18));
         uint256 start = block.timestamp;
 
         vm.mockCall(mockUsdc, abi.encodeWithSelector(IERC20.decimals.selector), abi.encode(6));
@@ -290,17 +332,32 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 50_446_712_689_052_953, "twap after 10 days when order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
             assertEq(twap, 44_446_712_689_052_953, "twap after 10 days when order = -100");
         }
 
@@ -327,17 +384,32 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 51_279_467_813_104_117, "twap after 20 days with order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
             assertEq(twap, 45_279_467_813_104_117, "twap after 20 days with order = -100");
         }
 
@@ -364,23 +436,38 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
             assertEq(twap, 55_783_672_690_232_108, "twap after 30 days with order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
             assertEq(twap, 49_783_672_690_232_108, "twap after 30 days with order = -100");
         }
     }
 
     function test_scenario_D_slippage_price_impact() public {
-        setConfigs(ud60x18(0.0001e18), ud60x18(0.003e18));
+        setConfigs(ud(0.0001e18), ud(0.003e18));
         uint256 start = block.timestamp;
 
         vm.mockCall(mockUsdc, abi.encodeWithSelector(IERC20.decimals.selector), abi.encode(6));
@@ -418,18 +505,33 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
-            assertEq(twap, 50_494_159_401_742_005, "twap after 10 days when order = 100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
+            assertEq(twap, 51_446_712_689_052_952, "twap after 10 days when order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
-            assertEq(twap, 44_399_265_976_363_900, "twap after 10 days when order = -100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
+            assertEq(twap, 43_446_712_689_052_954, "twap after 10 days when order = -100");
         }
 
         for (uint256 i = 10; i < 20; i++) {
@@ -455,18 +557,33 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
-            assertEq(twap, 51_327_747_280_917_221, "twap after 20 days with order = 100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
+            assertEq(twap, 52_279_467_813_104_116, "twap after 20 days with order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
-            assertEq(twap, 45_231_188_345_291_012, "twap after 20 days with order = -100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
+            assertEq(twap, 44_279_467_813_104_118, "twap after 20 days with order = -100");
         }
 
         for (uint256 i = 20; i < 30; i++) {
@@ -492,18 +609,33 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, 100e18);
-            assertEq(twap, 55_836_456_362_922_340, "twap after 30 days with order = 100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Long,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
+            );
+            assertEq(twap, 56_783_672_690_232_107, "twap after 30 days with order = 100");
         }
 
         {
-            uint256 twap = getAdjustedTwap(marketId, maturityTimestamp, -100e18);
-            assertEq(twap, 49_730_889_017_541_875, "twap after 30 days with order = -100");
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Short,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
+            );
+            assertEq(twap, 48_783_672_690_232_109, "twap after 30 days with order = -100");
         }
     }
 }

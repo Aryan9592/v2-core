@@ -2,8 +2,12 @@ pragma solidity >=0.8.19;
 
 import "../src/utils/SetupProtocol.sol";
 
-import { Merkle } from "murky/Merkle.sol";
+import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
+
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+
+import { Merkle } from "murky/Merkle.sol";
+import { ud } from "@prb/math/UD60x18.sol";
 
 contract ConfigProtocol is SetupProtocol {
     using SetUtil for SetUtil.Bytes32Set;
@@ -51,9 +55,9 @@ contract ConfigProtocol is SetupProtocol {
         enableFeatureFlags({ pausers: pausers });
         configureCollateralPool({
             collateralPoolId: 1,
-            imMultiplier: ud60x18(2e18),
-            mmrMultiplier: ud60x18(1.5e18),
-            liquidatorRewardParameter: ud60x18(5e16),
+            imMultiplier: ud(2e18),
+            mmrMultiplier: ud(1.5e18),
+            liquidatorRewardParameter: ud(5e16),
             liquidationBidPriorityQueueDurationInSeconds: 3600,
             maxNumberOfOrdersInLiquidationBid: 5,
             maxNumberOfBidsInLiquidationBidPriorityQueue: 10,
@@ -66,15 +70,15 @@ contract ConfigProtocol is SetupProtocol {
             marketType: "compounding",
             feeCollectorAccountId: 999,
             cap: 1000e6,
-            atomicMakerFee: ud60x18(1e16),
-            atomicTakerFee: ud60x18(5e16),
-            riskParameter: ud60x18(1e18),
+            atomicMakerFee: ud(1e16),
+            atomicTakerFee: ud(5e16),
+            riskParameter: ud(1e18),
             maturityIndexCachingWindowInSeconds: 3600,
             rateOracleAddress: address(contracts.aaveV3RateOracle),
             config: DatedIrsMarket.MarketConfiguration({
                 poolAddress: address(contracts.vammProxy),
                 twapLookbackWindow: 120,
-                markPriceBand: ud60x18(0.005e18),
+                markPriceBand: ud(0.005e18),
                 takerPositionsPerAccountLimit: 1,
                 positionSizeLowerLimit: 1e6,
                 positionSizeUpperLimit: 1e6 * 1e6,
@@ -87,6 +91,14 @@ contract ConfigProtocol is SetupProtocol {
         int24[] memory observedTicks = new int24[](2);
         observedTicks[0] = -13_860;
         observedTicks[1] = -13_860;
+        configureMarketMaturity({
+            marketId: 1,
+            maturityTimestamp: 1_688_990_400,
+            riskMatrixRowId: 0, // todo
+            tenorInSeconds: 0, // todo
+            phi: ud(0.1e18),
+            beta: ud(0.5e18)
+        });
         deployPool({
             immutableConfig: DatedIrsVamm.Immutable({
                 maturityTimestamp: 1_688_990_400,
@@ -95,8 +107,7 @@ contract ConfigProtocol is SetupProtocol {
                 marketId: 1
             }),
             mutableConfig: DatedIrsVamm.Mutable({
-                priceImpactPhi: ud60x18(1e17), // 0.1
-                spread: ud60x18(3e15), // 0.3%
+                spread: ud(3e15), // 0.3%
                 minSecondsBetweenOracleObservations: 3600,
                 minTickAllowed: VammTicks.DEFAULT_MIN_TICK,
                 maxTickAllowed: VammTicks.DEFAULT_MAX_TICK,
