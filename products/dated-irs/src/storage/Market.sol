@@ -59,6 +59,16 @@ library Market {
     error InvalidVariableOracleAddress(address oracleAddress);
 
     /**
+     * @notice Thrown when attempting to set a phi that is out of bounds.
+     */
+    error PhiOutOfBounds(uint128 marketId, uint32 maturityTimestamp, UD60x18 phi);
+
+    /**
+     * @notice Thrown when attempting to set a beta that is out of bounds.
+     */
+    error BetaOutOfBounds(uint128 marketId, uint32 maturityTimestamp, UD60x18 beta);
+
+    /**
      * @notice Emitted when a market is created
      * @param id The market id
      * @param quoteToken The quote token of the market
@@ -81,6 +91,20 @@ library Market {
      * @param blockTimestamp The current block timestamp.
      */
     event MarketRateOracleConfigUpdated(uint128 id, RateOracleConfiguration rateOracleConfiguration, uint256 blockTimestamp);
+
+    /**
+     * @notice Emitted when a new market configuration is set
+     * @param id The market id
+     * @param maturityTimestamp The maturityTimestamp
+     * @param marketMaturityConfiguration The new market maturity configuration
+     * @param blockTimestamp The current block timestamp
+     */
+    event MarketMaturityConfigUpdated(
+        uint128 id, 
+        uint32 maturityTimestamp, 
+        MarketMaturityConfiguration marketMaturityConfiguration, 
+        uint256 blockTimestamp
+    );
 
     struct MarketConfiguration {
          /**
@@ -130,6 +154,25 @@ library Market {
         uint256 maturityIndexCachingWindowInSeconds;
     }
 
+    struct MarketMaturityConfiguration {
+        /**
+         * @dev Risk matrix row id
+         */
+        uint256 riskMatrixRowId;
+        /**
+         * @dev Original tenor in seconds
+         */
+        uint256 tenorInSeconds;
+        /**
+         * @dev The phi value used to compute percentual slippage
+         */
+        UD60x18 phi;
+        /**
+         * @dev The beta value used to compute percentual slippage
+         */
+        UD60x18 beta;
+    }
+
     struct Data {
         /**
          * @dev Id fo a given interest rate swap market
@@ -158,14 +201,12 @@ library Market {
         RateOracleConfiguration rateOracleConfig;
 
         /**
-        * Mapping of maturities to the risk matrix row id
-        */
-        mapping(uint32 maturityTimestamp => uint256 riskMatrixRowId) riskMatrixRowIds;
-
-        /**
-        * Mapping of maturities to their original tenor in seconds
-        */
-        mapping(uint32 maturityTimestamp => uint256 tenorInSeconds) tenors;
+         * @dev Market Maturity configuration
+         */
+        mapping(
+            uint32 maturityTimestamp => 
+            MarketMaturityConfiguration marketMaturityConfig
+        ) marketMaturityConfigs;
 
         /**
          * @dev Duration of ADL blendin period, in seconds
@@ -181,7 +222,6 @@ library Market {
          * Cache with maturity index values.
          */
         mapping(uint32 maturityTimestamp => uint256 notional) notionalTracker;
-
     }
 
     /**
@@ -252,6 +292,15 @@ library Market {
         emit MarketRateOracleConfigUpdated(self.id, rateOracleConfig, block.timestamp);
     }
 
+    function setMarketMaturityConfiguration(
+        Data storage self, 
+        uint32 maturityTimestamp, 
+        MarketMaturityConfiguration memory marketMaturityConfig
+    ) internal {
+        self.marketMaturityConfigs[maturityTimestamp] = marketMaturityConfig;
+        emit MarketMaturityConfigUpdated(self.id, maturityTimestamp, marketMaturityConfig, block.timestamp);
+    }
+
     function backfillRateIndexAtMaturityCache(Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {
         MarketRateOracle.backfillRateIndexAtMaturityCache(self, maturityTimestamp, rateIndexAtMaturity);
     }
@@ -274,20 +323,6 @@ library Market {
 
     function updateOracleStateIfNeeded(Data storage self) internal {
         MarketRateOracle.updateOracleStateIfNeeded(self);
-    }
-
-    function setRiskMatrixRowId(Data storage self, uint32 maturityTimestamp, uint256 rowId) internal {
-        self.riskMatrixRowIds[maturityTimestamp] = rowId;
-        // todo: add event
-    }
-
-    function setMaturityTenor(Data storage self, uint32 maturityTimestamp, uint256 tenorInSeconds) internal {
-        self.tenors[maturityTimestamp] = tenorInSeconds;
-        // todo: add event
-    }
-
-    function getRiskMatrixRowId(Data storage self, uint32 maturityTimestamp) internal view returns (uint256) {
-        return self.riskMatrixRowIds[maturityTimestamp];
     }
     
     function exposureFactor(Data storage self) internal view returns (UD60x18 factor) {

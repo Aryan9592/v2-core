@@ -24,7 +24,7 @@ import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {UD60x18, UNIT, ud} from "@prb/math/UD60x18.sol";
-
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
@@ -61,45 +61,50 @@ library AccountLiquidation {
 
 
     /**
-    * @dev Thrown when attempting to execute a bid in an expired liquidation bid priority queue
+     * @dev Thrown when attempting to execute a bid in an expired liquidation bid priority queue
      */
     error LiquidationBidPriorityQueueExpired(address quoteToken, uint256 queueId, uint256 queueEndTimestamp);
 
     /**
-      * @dev Thrown when attempting to submit into a queue that is full
+     * @dev Thrown when attempting to submit into a queue that is full
      */
     error LiquidationBidPriorityQueueOverflow(address quoteToken, uint256 queueId, uint256 queueEndTimestamp, uint256 queueLength);
 
     /**
-      * @dev Thrown when attempting to submit a liquidation bid where number of markets and bytes inputs don't match
+     * @dev Thrown when attempting to submit a liquidation bid where number of markets and bytes inputs don't match
      */
     error LiquidationBidMarketIdsAndInputsLengthMismatch(uint256 marketIdsLength, uint256 inputsLength);
 
     /**
-      * @dev Thrown when attempting to submit a liquidation bid where the number of orders exceeds the maximum allowed
+     * @dev Thrown when attempting to submit a liquidation bid which contains an order for a non-active market
+     */
+    error NonActiveMarketInLiquidationBid(uint128 liquidatableAccountId, LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
+
+    /**
+     * @dev Thrown when attempting to submit a liquidation bid where the number of orders exceeds the maximum allowed
      */
     error LiquidationBidOrdersOverflow(uint256 ordersLength, uint256 maxOrders);
 
     /**
      * @dev Thrown if an account has unfilled orders in any of its active markets
-    */
+     */
     error AccountHasUnfilledOrders(uint128 accountId);
 
     /**
-    * @dev Thrown if attempting to perform a dutch liquidation while the account is above the dutch
-    * margin requirement threshold and the liquidation bid queue is not empty
-    */
+     * @dev Thrown if attempting to perform a dutch liquidation while the account is above the dutch
+     * margin requirement threshold and the liquidation bid queue is not empty
+     */
     error AccountIsAboveDutchAndLiquidationBidQueueIsNotEmpty(uint128 accountId);
 
     /**
-    * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
-    */
+     * @dev Thrown if a liquidation causes the lm delta to get even more negative than it was before the liquidation
+     */
     error LiquidationCausedNegativeLMDeltaChange(uint128 accountId, uint256 lmrBefore, uint256 lmrAfter);
 
     /**
-    * @dev Thrown if a liquidation bid quote token doesn't match the quote token of the market where
-    * a liquidation order should be executed
-    */
+     * @dev Thrown if a liquidation bid quote token doesn't match the quote token of the market where
+     * a liquidation order should be executed
+     */
     error LiquidationBidQuoteTokenMismatch(address liquidationBidQuoteToken, address marketQuoteToken);
 
     /**
@@ -112,6 +117,11 @@ library AccountLiquidation {
      * @dev Thrown when solvency is queried across bubbles (collateral type is address(0))
      */
     error CannotComputeSolvencyAcrossBubbles();
+
+    /**
+     * Thrown when a liquidation bid is submitted with a liquidator reward higher than 1
+     */
+    error LiquidationBidRewardOverflow(uint128 liquidatableAccountId, LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
 
     struct LiquidationOrder {
         uint128 marketId;
@@ -160,11 +170,18 @@ library AccountLiquidation {
             revert IncorrectLiquidationBidHookAddress(liquidationBid);
         }
 
+        if (liquidationBid.liquidatorRewardParameter.gt(UNIT)) {
+            revert LiquidationBidRewardOverflow(self.id, liquidationBid);
+        }
+
         for (uint256 i = 0; i < marketIdsLength; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
             Market.Data storage market = Market.exists(marketId);
             if (market.quoteToken != liquidationBid.quoteToken) {
                 revert LiquidationBidQuoteTokenMismatch(liquidationBid.quoteToken, market.quoteToken);
+            }
+            if (!self.activeMarketsPerQuoteToken[liquidationBid.quoteToken].contains(marketId)) {
+                revert NonActiveMarketInLiquidationBid(self.id, liquidationBid);
             }
             market.validateLiquidationOrder(
                 self.id,
@@ -175,13 +192,35 @@ library AccountLiquidation {
     }
 
     function computeLiquidationBidRank(
+        Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) private returns (uint256) {
-        // implement
-        // note, the ranking function should revert if the liquidation bid is attempting to liquidate more exposure
-        // than the user has
-        // also note, the ranking function should revert if the liquidation bid is attempting to touch non-active markets
-        return 0;
+        UD60x18 accPSlippageNumerator;
+        UD60x18 accPSlippageDenominator;
+        for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
+            uint128 marketId = liquidationBid.marketIds[i];
+            if (!self.activeMarketsPerQuoteToken[liquidationBid.quoteToken].contains(marketId)) {
+                revert NonActiveMarketInLiquidationBid(self.id, liquidationBid);
+            }
+
+            Market.Data storage market = Market.exists(marketId);
+            (int256 annualizedExposureWad, UD60x18 pSlippage) 
+                = market.getAnnualizedExposureWadAndPSlippage(marketId, liquidationBid.inputs[i]);
+
+            UD60x18 absAnnualizedExposure = ud(SignedMath.abs(annualizedExposureWad));
+            accPSlippageNumerator = accPSlippageNumerator.add(absAnnualizedExposure.mul(pSlippage));
+            accPSlippageDenominator = accPSlippageDenominator.add(absAnnualizedExposure);
+        }
+
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        UD60x18 wRank = collateralPool.riskConfig.liquidationConfiguration.wRank;
+
+        // rank = w * (1 - d) + (1 - w) * accPSlippageNumerator / accPSlippageDenominator;
+        UD60x18 rank = wRank.mul(UNIT.sub(liquidationBid.liquidatorRewardParameter)).add(
+            UNIT.sub(wRank).mul(accPSlippageNumerator.div(accPSlippageDenominator))
+        );
+
+        return rank.unwrap();
     }
 
     function submitLiquidationBid(
@@ -202,7 +241,7 @@ library AccountLiquidation {
         );
 
         validateLiquidationBid(self, liquidatorAccount, liquidationBid);
-        uint256 liquidationBidRank = computeLiquidationBidRank(liquidationBid);
+        uint256 liquidationBidRank = computeLiquidationBidRank(self, liquidationBid);
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =

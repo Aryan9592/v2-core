@@ -40,7 +40,18 @@ library ExecuteLiquidationOrder {
         uint128 liquidatableAccountId,
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 baseAmountLiquidatableAccount);
+        int256 baseAmountLiquidatableAccount
+    );
+
+    /**
+     * @dev Thrown if liquidation order is too big
+     */
+    error LiquidationOrderTooBig(
+        uint128 liquidatableAccountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseAmountLiquidatableAccount
+    );
 
     /**
      * @dev Thrown if liquidation order size is zero
@@ -119,9 +130,23 @@ library ExecuteLiquidationOrder {
         }
 
         // revert if liquidation order direction is wrong
-        if ( (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0)
-            || (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0) ) {
+        if (
+            (baseAmountToBeLiquidated > 0 && baseAmountLiquidatableAccount > 0) || 
+            (baseAmountToBeLiquidated < 0 && baseAmountLiquidatableAccount < 0)
+        ) {
             revert WrongLiquidationDirection(
+                liquidatableAccountId,
+                marketId,
+                maturityTimestamp,
+                baseAmountLiquidatableAccount
+            );
+        }
+
+        if (
+            (baseAmountLiquidatableAccount > 0 && baseAmountLiquidatableAccount + baseAmountToBeLiquidated < 0) ||
+            (baseAmountLiquidatableAccount < 0 && baseAmountLiquidatableAccount + baseAmountToBeLiquidated > 0)
+        ) {
+            revert LiquidationOrderTooBig(
                 liquidatableAccountId,
                 marketId,
                 maturityTimestamp,
