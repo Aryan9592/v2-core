@@ -16,10 +16,6 @@ import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/Ownab
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
-/**
- * @title Module for configuring a market
- * @dev See IMarketConfigurationModule.
- */
 contract VammModule is IVammModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using SetUtil for SetUtil.UintSet;

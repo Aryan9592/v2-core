@@ -5,18 +5,28 @@ pragma solidity >=0.8.13;
 import { PositionBalances } from "./DataTypes.sol";
 import { DatedIrsVamm } from "../storage/DatedIrsVamm.sol";
 
+/**
+ * @title VAMM Events
+ * @notice Contains events emitted by the Vamm
+ */
 library Events {
-    /// @dev emitted when vamm configurations are updated
+    /**
+     * @dev emitted when vamm configurations are updated
+     */
     event VammConfigUpdated(
         uint128 marketId, uint32 maturityTimestamp, DatedIrsVamm.Mutable config, uint256 blockTimestamp
     );
 
-    /// @dev emitted when a new vamm is created and initialized
+    /**
+     * @dev emitted when a new vamm is created and initialized
+     */
     event VammCreated(
         int24 tick, DatedIrsVamm.Immutable config, DatedIrsVamm.Mutable mutableConfig, uint256 blockTimestamp
     );
 
-    /// @dev emitted after a successful swap transaction
+    /**
+     * @dev emitted after a successful swap transaction
+     */
     event Swap(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -27,7 +37,9 @@ library Events {
         uint256 blockTimestamp
     );
 
-    /// @dev emitted after a successful mint or burn of liquidity on a given LP position
+    /**
+     * @dev emitted after a successful mint or burn of liquidity on a given LP position
+     */
     event LiquidityChange(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -39,6 +51,9 @@ library Events {
         uint256 blockTimestamp
     );
 
+    /**
+     * @dev emitted after the current VAMM price changes
+     */
     event VAMMPriceChange(
         uint128 indexed marketId, uint32 indexed maturityTimestamp, int24 tick, uint256 blockTimestamp
     );

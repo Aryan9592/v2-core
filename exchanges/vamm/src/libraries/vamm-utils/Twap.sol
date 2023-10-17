@@ -17,18 +17,24 @@ import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.s
 
 import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
+/**
+ * @title Twap library
+ * @notice Libary that supports the calculation the time-weighted average price
+ */
 library Twap {
     using DatedIrsVamm for DatedIrsVamm.Data;
     using Oracle for Oracle.Observation[65_535];
     using SafeCastI256 for int256;
 
-    /// @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
-    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
-    /// @param orderDirection Whether the order is long, short, or zero (used when adjusting for price impact or
-    /// spread).
-    /// @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters.
-    /// May return zero if adjustments would take the price to or below zero
-    /// - e.g. when anticipated price impact is large because the order size is large.
+    /**
+     * @notice Calculates time-weighted geometric mean price based on the past `secondsAgo` seconds
+     * @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
+     * @param orderDirection Whether the order is long, short, or zero (used when adjusting for price impact or spread).
+     * @param pSlippage Slippage to apply.
+     * @return geometricMeanPrice The geometric mean price, which might be adjusted according to input parameters
+     * May return zero if adjustments would take the price to or below zero
+     * - e.g. when anticipated price impact is large because the order size is large.
+     */
     function twap(
         DatedIrsVamm.Data storage self,
         uint32 secondsAgo,
@@ -101,8 +107,10 @@ library Twap {
         return price.sub(spread);
     }
 
-    /// @notice Calculates time-weighted arithmetic mean tick
-    /// @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
+    /**
+     * @notice Calculates time-weighted arithmetic mean tick
+     * @param secondsAgo Number of seconds in the past from which to calculate the time-weighted means
+     */
     function observe(
         DatedIrsVamm.Data storage self,
         uint32 secondsAgo
@@ -126,16 +134,18 @@ library Twap {
         }
     }
 
-    /// @notice Returns the cumulative tick as of each timestamp `secondsAgo` from the current block timestamp
-    /// @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one
-    /// representing
-    /// the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted
-    /// average tick,
-    /// you must call it with secondsAgos = [3600, 0].
-    /// @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
-    /// log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
-    /// @param secondsAgos From how long ago each cumulative tick value should be returned
-    /// @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
+    /**
+     * @notice Returns the cumulative tick as of each timestamp `secondsAgo` from the current block timestamp
+     * @dev To get a time weighted average tick or liquidity-in-range, you must call this with two values, one
+     * representing
+     * the beginning of the period and another for the end of the period. E.g., to get the last hour time-weighted
+     * average tick,
+     * you must call it with secondsAgos = [3600, 0].
+     * @dev The time weighted average tick represents the geometric time weighted average price of the pool, in
+     * log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go from a tick value to a ratio.
+     * @param secondsAgos From how long ago each cumulative tick value should be returned
+     * @return tickCumulatives Cumulative tick values as of each `secondsAgos` from the current block timestamp
+     */
     function observe(
         DatedIrsVamm.Data storage self,
         uint32[] memory secondsAgos
@@ -153,10 +163,12 @@ library Twap {
         );
     }
 
-    /// @notice Increase the maximum number of price and liquidity observations that this pool will store
-    /// @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
-    /// the input observationCardinalityNext.
-    /// @param observationCardinalityNext The desired minimum number of observations for the pool to store
+    /**
+     * @notice Increase the maximum number of price and liquidity observations that this pool will store
+     * @dev This method is no-op if the pool already has an observationCardinalityNext greater than or equal to
+     * the input observationCardinalityNext.
+     * @param observationCardinalityNext The desired minimum number of observations for the pool to store
+     */
     function increaseObservationCardinalityNext(
         DatedIrsVamm.Data storage self,
         uint16 observationCardinalityNext
@@ -172,9 +184,11 @@ library Twap {
         self.vars.observationCardinalityNext = observationCardinalityNextNew;
     }
 
-    /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
-    /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
-    /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
+    /**
+     * @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
+     * to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
+     * we use balance checks to determine the payment status of interactions such as mint, swap and flash.
+     */
     modifier lock(DatedIrsVamm.Data storage self) {
         if (!self.vars.unlocked) {
             revert VammCustomErrors.Lock(true);
