@@ -7,10 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 contract MockERC20 is IERC20 {
-    
     function name() external pure virtual returns (string memory) {
         return "name";
     }
@@ -54,5 +53,4 @@ contract MockERC20 is IERC20 {
     function transferFrom(address from, address to, uint256 amount) external pure virtual returns (bool) {
         return false;
     }
-
 }

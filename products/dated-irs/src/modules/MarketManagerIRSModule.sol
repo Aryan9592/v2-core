@@ -7,33 +7,38 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IMarketManagerIRSModule, IMarketManager} from "../interfaces/IMarketManagerIRSModule.sol";
-import {IPool} from "../interfaces/IPool.sol";
-import {Portfolio} from "../storage/Portfolio.sol";
-import {Market} from "../storage/Market.sol";
-import {ExposureHelpers} from "../libraries/ExposureHelpers.sol";
-import {MarketManagerConfiguration} from "../storage/MarketManagerConfiguration.sol";
-import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams, TakerOrderParams } from "../libraries/DataTypes.sol";
+import { IMarketManagerIRSModule, IMarketManager } from "../interfaces/IMarketManagerIRSModule.sol";
+import { IPool } from "../interfaces/IPool.sol";
+import { Portfolio } from "../storage/Portfolio.sol";
+import { Market } from "../storage/Market.sol";
+import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
+import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
+import { FeatureFlagSupport } from "../libraries/FeatureFlagSupport.sol";
+import {
+    FilledBalances,
+    UnfilledBalances,
+    PositionBalances,
+    MakerOrderParams,
+    TakerOrderParams
+} from "../libraries/DataTypes.sol";
 
-import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
+import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
-import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
-import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
-import {Settlement} from "../libraries/actions/Settlement.sol";
-import {InitiateMakerOrder} from "../libraries/actions/InitiateMakerOrder.sol";
-import {InitiateTakerOrder} from "../libraries/actions/InitiateTakerOrder.sol";
-import {ExecuteLiquidationOrder} from "../libraries/actions/ExecuteLiquidationOrder.sol";
-import {PropagateADLOrder} from "../libraries/actions/PropagateADLOrder.sol";
+import { Settlement } from "../libraries/actions/Settlement.sol";
+import { InitiateMakerOrder } from "../libraries/actions/InitiateMakerOrder.sol";
+import { InitiateTakerOrder } from "../libraries/actions/InitiateTakerOrder.sol";
+import { ExecuteLiquidationOrder } from "../libraries/actions/ExecuteLiquidationOrder.sol";
+import { PropagateADLOrder } from "../libraries/actions/PropagateADLOrder.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
-import {DecimalMath} from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-
 
 /*
 TODOs
@@ -91,10 +96,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (
-            int256[] memory filledExposures,
-            Account.UnfilledExposure[] memory unfilledExposures
-        )
+        returns (int256[] memory filledExposures, Account.UnfilledExposure[] memory unfilledExposures)
     {
         return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures(riskMatrixDim);
     }
@@ -105,24 +107,33 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function getAccountPnLComponents(
         uint128 marketId,
         uint128 accountId
-    ) external view override returns (Account.PnLComponents memory pnlComponents) {
-        return Portfolio.exists( accountId, marketId).getAccountPnLComponents();
+    )
+        external
+        view
+        override
+        returns (Account.PnLComponents memory pnlComponents)
+    {
+        return Portfolio.exists(accountId, marketId).getAccountPnLComponents();
     }
 
     /**
      * @inheritdoc IMarketManager
      */
     function closeAllUnfilledOrders(
-        uint128 marketId, 
+        uint128 marketId,
         uint128 accountId
-    ) external override returns (uint256 /* closedUnfilledBasePool */) {
+    )
+        external
+        override
+        returns (uint256 /* closedUnfilledBasePool */ )
+    {
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         uint256[] memory activeMaturities = portfolio.activeMaturities.values();
         for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
             executionPreCheck(marketId, maturityTimestamp);
         }
-        
+
         return Portfolio.exists(accountId, marketId).closeAllUnfilledOrders();
     }
 
@@ -134,12 +145,14 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override returns (bytes memory output) { /// todo: @arturbeg populate output?
-        ( 
-            uint32 maturityTimestamp,
-            int256 baseAmountToBeLiquidated,
-            uint160 priceLimit
-        ) = abi.decode(inputs, (uint32, int256, uint160));
+    )
+        external
+        override
+        returns (bytes memory output)
+    {
+        /// todo: @arturbeg populate output?
+        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) =
+            abi.decode(inputs, (uint32, int256, uint160));
         executionPreCheck(marketId, maturityTimestamp);
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
@@ -161,47 +174,38 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 liquidatableAccountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override view {
-        ( 
-            uint32 maturityTimestamp,
-            int256 baseAmountToBeLiquidated
-        ) = abi.decode(inputs, (uint32, int256));
+    )
+        external
+        view
+        override
+    {
+        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
         ExecuteLiquidationOrder.validateLiquidationOrder(
-            liquidatableAccountId,
-            marketId,
-            maturityTimestamp,
-            baseAmountToBeLiquidated
+            liquidatableAccountId, marketId, maturityTimestamp, baseAmountToBeLiquidated
         );
     }
 
     function getAnnualizedExposureWadAndPSlippage(
         uint128 marketId,
         bytes calldata inputs
-    ) external override view returns (int256 annualizedExposureWad, UD60x18 pSlippage) {
-        ( 
-            uint32 maturityTimestamp,
-            int256 baseToBeLiquidated
-        ) = abi.decode(inputs, (uint32, int256));
+    )
+        external
+        view
+        override
+        returns (int256 annualizedExposureWad, UD60x18 pSlippage)
+    {
+        (uint32 maturityTimestamp, int256 baseToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
-        int256 annualizedExposure = ExposureHelpers.baseToAnnualizedExposure(
-            baseToBeLiquidated,
-            marketId,
-            maturityTimestamp
-        );
+        int256 annualizedExposure =
+            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, marketId, maturityTimestamp);
 
         Market.Data storage market = Market.exists(marketId);
         annualizedExposureWad = DecimalMath.changeDecimals(
-            annualizedExposure,
-            IERC20(market.quoteToken).decimals(),
-            DecimalMath.WAD_DECIMALS
+            annualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
 
-        pSlippage = ExposureHelpers.getPercentualSlippage(
-            marketId,
-            maturityTimestamp,
-            annualizedExposure
-        );
+        pSlippage = ExposureHelpers.getPercentualSlippage(marketId, maturityTimestamp, annualizedExposure);
     }
 
     /**
@@ -214,10 +218,13 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         bool adlPositiveUpnl,
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
-    ) external override {
-        Portfolio.exists(
-            liquidatableAccountId, marketId
-        ).executeADLOrder(adlNegativeUpnl, adlPositiveUpnl, totalUnrealizedLossQuote, realBalanceAndIF);
+    )
+        external
+        override
+    {
+        Portfolio.exists(liquidatableAccountId, marketId).executeADLOrder(
+            adlNegativeUpnl, adlPositiveUpnl, totalUnrealizedLossQuote, realBalanceAndIF
+        );
     }
 
     /**
@@ -234,31 +241,26 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) external pure override(IERC165) returns (bool) {
-        return interfaceId == type(IMarketManagerIRSModule).interfaceId || interfaceId == this.supportsInterface.selector;
+        return
+            interfaceId == type(IMarketManagerIRSModule).interfaceId || interfaceId == this.supportsInterface.selector;
     }
 
-     /**
+    /**
      * @inheritdoc IMarketManager
      */
     function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override returns (
-        bytes memory output,
-        int256 annualizedNotional
-    ) {
-        ( 
-            uint32 maturityTimestamp,
-            int256 baseDelta,
-            uint160 priceLimit
-        ) = abi.decode(inputs, (uint32, int256, uint160));
+    )
+        external
+        override
+        returns (bytes memory output, int256 annualizedNotional)
+    {
+        (uint32 maturityTimestamp, int256 baseDelta, uint160 priceLimit) = abi.decode(inputs, (uint32, int256, uint160));
         executionPreCheck(marketId, maturityTimestamp);
 
-        (
-            PositionBalances memory tokenDeltas,
-            int256 annualizedNotionalTraded
-        ) = InitiateTakerOrder.initiateTakerOrder(
+        (PositionBalances memory tokenDeltas, int256 annualizedNotionalTraded) = InitiateTakerOrder.initiateTakerOrder(
             TakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,
@@ -278,16 +280,13 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override returns (
-        bytes memory output, 
-        int256 annualizedNotional
-    ) {
-        ( 
-            uint32 maturityTimestamp,
-            int24 tickLower,
-            int24 tickUpper,
-            int256 baseDelta
-        ) = abi.decode(inputs, (uint32, int24, int24, int256));
+    )
+        external
+        override
+        returns (bytes memory output, int256 annualizedNotional)
+    {
+        (uint32 maturityTimestamp, int24 tickLower, int24 tickUpper, int256 baseDelta) =
+            abi.decode(inputs, (uint32, int24, int24, int256));
 
         output = abi.encode();
         annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
@@ -309,10 +308,11 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs
-    ) external override returns (
-        bytes memory output,
-        int256 cashflowAmount
-    ) {
+    )
+        external
+        override
+        returns (bytes memory output, int256 cashflowAmount)
+    {
         uint32 maturityTimestamp = abi.decode(inputs, (uint32));
         executionPreCheck(marketId, maturityTimestamp);
 
@@ -346,57 +346,54 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 marketId,
         uint32 maturityTimestamp,
         bool isLong
-    ) external override {
-
-        PropagateADLOrder.propagateADLOrder(
-            accountId,
-            marketId,
-            maturityTimestamp,
-            isLong
-        );
-
+    )
+        external
+        override
+    {
+        PropagateADLOrder.propagateADLOrder(accountId, marketId, maturityTimestamp, isLong);
     }
 
     function getAccountFilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (FilledBalances memory) {
+    )
+        external
+        view
+        returns (FilledBalances memory)
+    {
         Portfolio.Data storage position = Portfolio.exists(accountId, marketId);
         Market.Data storage market = Market.exists(marketId);
         address poolAddress = market.marketConfig.poolAddress;
 
-        return Portfolio.getAccountFilledBalances(
-            position,
-            maturityTimestamp,
-            poolAddress
-        );
+        return Portfolio.getAccountFilledBalances(position, maturityTimestamp, poolAddress);
     }
 
     function getAccountUnfilledBaseAndQuote(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (UnfilledBalances memory) {
+    )
+        external
+        view
+        returns (UnfilledBalances memory)
+    {
         Market.Data storage market = Market.exists(marketId);
         address poolAddress = market.marketConfig.poolAddress;
 
-        return IPool(poolAddress).getAccountUnfilledBaseAndQuote(
-            marketId, 
-            maturityTimestamp, 
-            accountId
-        );
+        return IPool(poolAddress).getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, accountId);
     }
 
     function getPercentualSlippage(
-        uint128 marketId, 
-        uint32 maturityTimestamp, 
+        uint128 marketId,
+        uint32 maturityTimestamp,
         int256 annualizedExposureWad
-    ) external override view returns (UD60x18) {
-        return ExposureHelpers.getPercentualSlippage(
-            marketId,
-            maturityTimestamp,
-            annualizedExposureWad
-        );
+    )
+        external
+        view
+        override
+        returns (UD60x18)
+    {
+        return ExposureHelpers.getPercentualSlippage(marketId, maturityTimestamp, annualizedExposureWad);
     }
 }

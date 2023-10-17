@@ -25,17 +25,17 @@ contract AaveV3RateOracle is IRateOracle {
     }
 
     /// @inheritdoc IRateOracle
-    function hasState() external override pure returns (bool) {
+    function hasState() external pure override returns (bool) {
         return false;
     }
 
     /// @inheritdoc IRateOracle
-    function earliestStateUpdate() external override pure returns (uint256) {
+    function earliestStateUpdate() external pure override returns (uint256) {
         revert NoState();
     }
-    
+
     /// @inheritdoc IRateOracle
-    function updateState() external override pure {
+    function updateState() external pure override {
         revert NoState();
     }
 

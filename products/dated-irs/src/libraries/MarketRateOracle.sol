@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
-import { RateOracleObservation } from  "../libraries/DataTypes.sol";
+import { RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { UD60x18, ZERO, unwrap } from "@prb/math/UD60x18.sol";
@@ -23,13 +23,11 @@ library MarketRateOracle {
 
     error MaturityNotReached();
 
-
     /**
      * @dev Thrown if more than maturityIndexCachingWindowInSeconds has elapsed since the maturity timestamp
      */
 
     error MaturityIndexCachingWindowElapsed();
-
 
     /**
      * @dev Thrown if the maturity index caching window is ongoing in context of maturity index backfill
@@ -40,7 +38,6 @@ library MarketRateOracle {
      * @dev Thrown if the maturity index is requested but it has not been cached yet
      */
     error MaturityIndexNotCached();
-
 
     /**
      * @notice Emitted when new maturity rate is cached
@@ -55,15 +52,20 @@ library MarketRateOracle {
     );
 
     function backfillRateIndexAtMaturityCache(
-        Market.Data storage self, 
-        uint32 maturityTimestamp, 
+        Market.Data storage self,
+        uint32 maturityTimestamp,
         UD60x18 rateIndexAtMaturity
-    ) internal {
+    )
+        internal
+    {
         if (Time.blockTimestampTruncated() < maturityTimestamp) {
             revert MaturityNotReached();
         }
 
-        if (Time.blockTimestampTruncated() < maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds) {
+        if (
+            Time.blockTimestampTruncated()
+                < maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds
+        ) {
             revert MaturityIndexCachingWindowOngoing();
         }
 
@@ -79,18 +81,20 @@ library MarketRateOracle {
     }
 
     function updateRateIndexAtMaturityCache(Market.Data storage self, uint32 maturityTimestamp) internal {
-
         if (self.rateIndexAtMaturity[maturityTimestamp].unwrap() == 0) {
-
             if (Time.blockTimestampTruncated() < maturityTimestamp) {
                 revert MaturityNotReached();
             }
 
-            if (Time.blockTimestampTruncated() > maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds) {
+            if (
+                Time.blockTimestampTruncated()
+                    > maturityTimestamp + self.rateOracleConfig.maturityIndexCachingWindowInSeconds
+            ) {
                 revert MaturityIndexCachingWindowElapsed();
             }
 
-            self.rateIndexAtMaturity[maturityTimestamp] = IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
+            self.rateIndexAtMaturity[maturityTimestamp] =
+                IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
 
             emit RateOracleCacheUpdated(
                 self.id,
@@ -100,23 +104,27 @@ library MarketRateOracle {
                 block.timestamp
             );
         }
-
     }
 
     function getRateIndexCurrent(Market.Data storage self) internal view returns (UD60x18 rateIndexCurrent) {
         /*
-            Note, need thoughts here for protocols where current index does not correspond to the current timestamp (block.timestamp)
+        Note, need thoughts here for protocols where current index does not correspond to the current timestamp
+        (block.timestamp)
             ref. Lido and Rocket
         */
         return IRateOracle(self.rateOracleConfig.oracleAddress).getCurrentIndex();
     }
 
     function getRateIndexMaturity(
-        Market.Data storage self, 
+        Market.Data storage self,
         uint32 maturityTimestamp
-    ) internal view returns (UD60x18 rateIndexMaturity) {
+    )
+        internal
+        view
+        returns (UD60x18 rateIndexMaturity)
+    {
         /*
-            Note, for some period of time (until cache is captured) post maturity, the rate index cached for the maturity
+        Note, for some period of time (until cache is captured) post maturity, the rate index cached for the maturity
             will be zero
         */
 
@@ -135,8 +143,8 @@ library MarketRateOracle {
 
     function updateOracleStateIfNeeded(Market.Data storage self) internal {
         if (
-            IRateOracle(self.rateOracleConfig.oracleAddress).hasState() && 
-            IRateOracle(self.rateOracleConfig.oracleAddress).earliestStateUpdate() <= block.timestamp
+            IRateOracle(self.rateOracleConfig.oracleAddress).hasState()
+                && IRateOracle(self.rateOracleConfig.oracleAddress).earliestStateUpdate() <= block.timestamp
         ) {
             IRateOracle(self.rateOracleConfig.oracleAddress).updateState();
         }
@@ -145,7 +153,11 @@ library MarketRateOracle {
     function getLatestRateIndex(
         Market.Data storage self,
         uint32 maturityTimestamp
-    ) internal view returns (RateOracleObservation memory observation) {
+    )
+        internal
+        view
+        returns (RateOracleObservation memory observation)
+    {
         if (block.timestamp < maturityTimestamp) {
             observation.timestamp = block.timestamp;
             observation.rateIndex = self.getRateIndexCurrent();

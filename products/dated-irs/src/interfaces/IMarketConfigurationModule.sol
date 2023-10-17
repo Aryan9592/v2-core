@@ -66,19 +66,23 @@ interface IMarketConfigurationModule {
      *
      */
     function setMarketMaturityConfiguration(
-        uint128 marketId, 
-        uint32 maturityTimestamp, 
+        uint128 marketId,
+        uint32 maturityTimestamp,
         Market.MarketMaturityConfiguration memory marketMaturityConfig
-    ) external;
+    )
+        external;
 
     /**
      * @notice Returns the market maturity configuration
      * @return config The market maturity configuration
      */
     function getMarketMaturityConfiguration(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestap
-    ) external view returns (Market.MarketMaturityConfiguration memory);
+    )
+        external
+        view
+        returns (Market.MarketMaturityConfiguration memory);
 
     /**
      * @notice Returns the market type
@@ -91,5 +95,4 @@ interface IMarketConfigurationModule {
      * @return The exposure factor
      */
     function getExposureFactor(uint128 marketId) external view returns (UD60x18);
-
 }

@@ -7,12 +7,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IGlpManager} from "../../src/interfaces/external/glp/IGlpManager.sol";
-import {IVault} from "../../src/interfaces/external/glp/IVault.sol";
-import {MockERC20} from "./MockERC20.sol";
+import { IGlpManager } from "../../src/interfaces/external/glp/IGlpManager.sol";
+import { IVault } from "../../src/interfaces/external/glp/IVault.sol";
+import { MockERC20 } from "./MockERC20.sol";
 
 contract MockGlpManager is IGlpManager {
-
     IVault public vaultContract;
     address public glpAddress;
 

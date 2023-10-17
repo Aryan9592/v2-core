@@ -17,16 +17,15 @@ interface IRateOracleModule {
     /**
      * @notice Requests a rate index snapshot at a maturity timestamp of a given interest rate market (e.g. aUSDC lend)
      * @param marketId Id of the market (e.g. aUSDC lend) for which we're requesting a rate index value
-     * @param maturityTimestamp Maturity Timestamp of a given irs market that's requesting the index value for settlement purposes
+     * @param maturityTimestamp Maturity Timestamp of a given irs market that's requesting the index value for
+     * settlement purposes
      * @return Rate index at the requested maturityTimestamp
      */
-    function getRateIndexMaturity(
-        uint128 marketId, 
-        uint32 maturityTimestamp
-    ) external view returns (UD60x18);
+    function getRateIndexMaturity(uint128 marketId, uint32 maturityTimestamp) external view returns (UD60x18);
 
     /**
-     * @notice Requests the current rate index, or the index at maturity if we are past maturity, of a given interest rate market
+     * @notice Requests the current rate index, or the index at maturity if we are past maturity, of a given interest
+     * rate market
      * (e.g. aUSDC borrow)
      * @param marketId Id of the market (e.g. aUSDC lend) for which we're requesting the current rate index value
      * @return Rate index at the current timestamp or at maturity time (whichever comes earlier)
@@ -34,18 +33,22 @@ interface IRateOracleModule {
     function getRateIndexCurrent(uint128 marketId) external view returns (UD60x18);
 
     function getLatestRateIndex(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestamp
-    ) external view returns (RateOracleObservation memory);
+    )
+        external
+        view
+        returns (RateOracleObservation memory);
 
     /**
      * @notice Get the rate oracle configuration for a given market
      * @param marketId Market Id
      * @return rateOracleConfig The rate oracle configuration
      */
-    function getRateOracleConfiguration(
-        uint128 marketId
-    ) external view returns (Market.RateOracleConfiguration memory);
+    function getRateOracleConfiguration(uint128 marketId)
+        external
+        view
+        returns (Market.RateOracleConfiguration memory);
 
     /**
      * @notice Set rate oracle configuration for a given market
@@ -53,9 +56,10 @@ interface IRateOracleModule {
      * @param rateOracleConfig Rate Oracle Configuration
      */
     function setRateOracleConfiguration(
-        uint128 marketId, 
+        uint128 marketId,
         Market.RateOracleConfiguration memory rateOracleConfig
-    ) external;
+    )
+        external;
 
     /**
      * @notice Update the rate index at maturity cache for a given marketId & maturity timestamp
@@ -68,11 +72,13 @@ interface IRateOracleModule {
      * @notice Backfill the rate index at maturity cache for a given marketId & maturity timestamp
      * @param marketId market id
      * @param maturityTimestamp maturity timestamp for which we want to backfill cached variable liquidity index
-     * @param rateIndexAtMaturity rate index at maturity that is being backfilled for a given marketId & maturity timestamp
+     * @param rateIndexAtMaturity rate index at maturity that is being backfilled for a given marketId & maturity
+     * timestamp
      */
     function backfillRateIndexAtMaturityCache(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestamp,
         UD60x18 rateIndexAtMaturity
-    ) external;
+    )
+        external;
 }

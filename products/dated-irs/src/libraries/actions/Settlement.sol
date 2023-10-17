@@ -7,9 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Account} from "@voltz-protocol/core/src/storage/Account.sol";
-import {Portfolio} from "../../storage/Portfolio.sol";
-import {Market} from "../../storage/Market.sol";
+import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+import { Portfolio } from "../../storage/Portfolio.sol";
+import { Market } from "../../storage/Market.sol";
 
 /**
  * @title Library for settlement logic.
@@ -41,8 +41,12 @@ library Settlement {
      * @param marketId Id of the market in which the account wants to settle (e.g. 1 for aUSDC lend)
      * @param maturityTimestamp Maturity timestamp of the market in which the account wants to settle
      */
-    function settle(uint128 accountId, uint128 marketId, uint32 maturityTimestamp) 
-        internal 
+    function settle(
+        uint128 accountId,
+        uint128 marketId,
+        uint32 maturityTimestamp
+    )
+        internal
         returns (int256 settlementCashflowInQuote)
     {
         Market.Data storage market = Market.exists(marketId);

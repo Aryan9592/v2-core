@@ -12,7 +12,14 @@ import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 library FeatureFlagSupport {
     bytes32 private constant _MARKET_MATURITY_ENABLED_FEATURE_FLAG = "marketEnabled";
 
-    function getMarketEnabledFeatureFlagId(uint128 marketId, uint32 maturityTimestamp) internal pure returns(bytes32) {
+    function getMarketEnabledFeatureFlagId(
+        uint128 marketId,
+        uint32 maturityTimestamp
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(_MARKET_MATURITY_ENABLED_FEATURE_FLAG, marketId, maturityTimestamp));
     }
 
