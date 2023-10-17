@@ -183,6 +183,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
         }
 
+        checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
+
         vm.warp(start + 86_400 * 365 / 2);
         // liquidity index 1.010
 
@@ -229,6 +231,9 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         invariantCheck();
 
+        checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
+        checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
+
         currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         assertEq(currentTick, -17_005, "current tick");
 
@@ -256,6 +261,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 52_851_278,
                 expectedAccruedInterest: 8_212_817
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -272,6 +279,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 48_356_576,
                 expectedAccruedInterest: 7_089_144
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // check account 3
@@ -288,6 +297,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -101_207_855,
                 expectedAccruedInterest: -15_301_963
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 3, 0, 0);
         }
 
         invariantCheck();

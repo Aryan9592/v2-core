@@ -191,6 +191,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
 
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -206,6 +208,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkZeroFilledBalances(
                 datedIrsProxy, PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp })
             );
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // advance time
@@ -273,6 +277,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 16_067_554,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -293,6 +299,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 35_150_137,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // check account 3
@@ -304,6 +312,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 49_810_161,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 3, 0, 0);
         }
 
         // check account 4
@@ -315,6 +325,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -101_027_853,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 4, 0, 0);
         }
 
         // t = 0.5: account 1 (LP - unwind)
@@ -345,6 +357,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 16_067_554,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // t = 0.5: account 3 (FT)
@@ -409,6 +423,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 16_067_554,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -429,6 +445,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 88_183_298,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // check account 3
@@ -440,6 +458,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 100_703_735,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 3, 0, 0);
         }
 
         // check account 4
@@ -451,6 +471,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -204_954_588,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 4, 0, 0);
         }
 
         invariantCheck();
@@ -476,6 +498,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 16_067_554,
                 expectedAccruedInterest: 2_448_333
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -496,6 +520,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 88_183_298,
                 expectedAccruedInterest: 13_614_379
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // check account 3
@@ -512,6 +538,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 100_703_735,
                 expectedAccruedInterest: 15_175_933
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 3, 0, 0);
         }
 
         // check account 4
@@ -528,6 +556,8 @@ contract ScenarioE is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -204_954_588,
                 expectedAccruedInterest: -31_238_647
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 4, 0, 0);
         }
 
         invariantCheck();

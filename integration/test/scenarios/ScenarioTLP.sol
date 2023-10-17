@@ -178,6 +178,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
 
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         vm.warp(start + 86_400 * 365 * 1 / 4);
@@ -218,6 +220,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
 
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         vm.warp(start + 86_400 * 365 * 2 / 4);
@@ -246,6 +250,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp })
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -263,6 +269,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp })
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         invariantCheck();
@@ -308,6 +316,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -107_798_885,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
         }
 
         // check account 2
@@ -328,6 +338,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: 107_798_884,
                 expectedAccruedInterest: 0
             });
+
+            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         invariantCheck();

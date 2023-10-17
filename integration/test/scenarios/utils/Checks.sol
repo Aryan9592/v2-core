@@ -3,6 +3,7 @@ pragma solidity >=0.8.19;
 import { AssertionHelpers } from "./AssertionHelpers.sol";
 import { VammProxy } from "../../../src/proxies/Vamm.sol";
 import { DatedIrsProxy } from "../../../src/proxies/DatedIrs.sol";
+import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
 import { unwrap } from "@prb/math/UD60x18.sol";
 
@@ -130,6 +131,22 @@ abstract contract Checks is AssertionHelpers {
                 marketId, maturityTimestamp, orderDirection, twapLookbackWindow(marketId, maturityTimestamp), pSlippage
             )
         );
+    }
+
+    function checkPnLComponents(
+        DatedIrsProxy datedIrsProxy,
+        uint128 marketId,
+        uint128 accountId,
+        int256 expectedRealizedPnL,
+        int256 expectedUnrealizedPnL
+    )
+        internal
+    {
+        Account.PnLComponents memory pnlComponents = 
+            datedIrsProxy.getAccountPnLComponents(marketId, accountId);
+
+        assertAlmostEq(expectedRealizedPnL, pnlComponents.realizedPnL, EPSILON, "realizedPnL");
+        assertAlmostEq(expectedUnrealizedPnL, pnlComponents.unrealizedPnL, EPSILON, "unrealizedPnL");
     }
 
     function getVammProxy() internal view virtual returns (VammProxy);
