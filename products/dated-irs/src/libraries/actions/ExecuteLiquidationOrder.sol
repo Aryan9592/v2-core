@@ -67,7 +67,6 @@ library ExecuteLiquidationOrder {
     function validateLiquidationOrder(LiquidationOrderParams memory params)
         internal
         view
-        returns (int256 accountBase)
     {
         // revert if liquidation order size is 0
         if (params.baseAmountToBeLiquidated == 0) {
@@ -77,7 +76,7 @@ library ExecuteLiquidationOrder {
         address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
 
         // retrieve base amount filled by the liquidatable account
-        accountBase = Portfolio.exists(params.liquidatableAccountId, params.marketId)
+        int256 accountBase = Portfolio.exists(params.liquidatableAccountId, params.marketId)
             .getAccountFilledBalances(params.maturityTimestamp, poolAddress).base;
 
         // revert if base amount filled is zero
@@ -109,31 +108,25 @@ library ExecuteLiquidationOrder {
     function executeLiquidationOrder(LiquidationOrderParams memory params) internal {
         // todo: this is support for partial orders but we block them in the validation
         // decide which option to keep: allow or deny partial liquidation orders
-        
-        int256 baseAmountLiquidatable = validateLiquidationOrder(params);
 
-        int256 baseAmountToBeLiquidated = params.baseAmountToBeLiquidated;
-
-        if (baseAmountLiquidatable.abs() < params.baseAmountToBeLiquidated.abs()) {
-            baseAmountToBeLiquidated = -baseAmountLiquidatable;
-        }
+        validateLiquidationOrder(params);
 
         address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
 
         UD60x18 liquidationPrice =
             ExposureHelpers.computeTwap(params.marketId, params.maturityTimestamp, poolAddress, 0);
 
-        if (isPriceLimitBreached(baseAmountToBeLiquidated > 0, liquidationPrice, ud(params.priceLimit))) {
+        if (isPriceLimitBreached(params.baseAmountToBeLiquidated > 0, liquidationPrice, ud(params.priceLimit))) {
             revert PriceLimitBreached(params);
         }
 
         int256 quoteDeltaFromLiquidation =
-            ExposureHelpers.computeQuoteDelta(baseAmountToBeLiquidated, liquidationPrice, params.marketId);
+            ExposureHelpers.computeQuoteDelta(params.baseAmountToBeLiquidated, liquidationPrice, params.marketId);
 
         Portfolio.propagateMatchedOrder(
             Portfolio.exists(params.liquidatableAccountId, params.marketId),
             Portfolio.loadOrCreate(params.liquidatorAccountId, params.marketId),
-            baseAmountToBeLiquidated,
+            params.baseAmountToBeLiquidated,
             quoteDeltaFromLiquidation,
             params.maturityTimestamp
         );
