@@ -19,7 +19,7 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 
 
 /**
- * @title Object for managing account auto-echange utilities.
+ * @title Object for managing account auto-exchange utilities.
  */
 library AccountAutoExchange {
     using AccountAutoExchange for Account.Data;
