@@ -14,12 +14,14 @@ import {MarketStore} from "../storage/MarketStore.sol";
 import {IMarketManager} from "../interfaces/external/IMarketManager.sol";
 import {IMarketManagerModule} from "../interfaces/IMarketManagerModule.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
+import {InstrumentRegistrar} from "../storage/InstrumentRegistrar.sol";
 
 import {ERC165Helper} from "@voltz-protocol/util-contracts/src/helpers/ERC165Helper.sol";
 
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { mulUDxUint, UD60x18 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 
 /**
  * @title Protocol-wide entry point for the management of markets connected to the protocol.
@@ -68,6 +70,8 @@ contract MarketManagerModule is IMarketManagerModule {
         if (!ERC165Helper.safeSupportsInterface(marketManager, type(IMarketManager).interfaceId)) {
             revert IncorrectMarketInterface(marketManager);
         }
+
+        InstrumentRegistrar.exists(marketManager);
 
         marketId = Market.create(marketManager, quoteToken, name, msg.sender).id;
 

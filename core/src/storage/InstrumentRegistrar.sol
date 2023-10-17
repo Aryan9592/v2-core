@@ -39,7 +39,7 @@ library InstrumentRegistrar {
         // todo: emit event
     }
 
-    function isRegisteredCheck(address instrumentAddress) internal view {
+    function exists(address instrumentAddress) internal view {
         Data storage instrumentRegistrar = load();
         if (!instrumentRegistrar.registeredInstruments[instrumentAddress]) {
             revert InstrumentNotFound(instrumentAddress);
