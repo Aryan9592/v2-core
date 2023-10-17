@@ -7,12 +7,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IVault} from "../../src/interfaces/external/glp/IVault.sol";
+import { IVault } from "../../src/interfaces/external/glp/IVault.sol";
 
 contract MockGlpVault is IVault {
     function getMinPrice(address _token) external pure override returns (uint256) {
         return 1e30;
     }
+
     function getMaxPrice(address _token) external pure override returns (uint256) {
         return 1e30;
     }

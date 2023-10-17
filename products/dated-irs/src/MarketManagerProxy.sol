@@ -14,5 +14,10 @@ import "@voltz-protocol/util-contracts/src/proxy/UUPSProxyWithOwner.sol";
  */
 contract MarketManagerProxy is UUPSProxyWithOwner {
     // solhint-disable-next-line no-empty-blocks
-    constructor(address firstImplementation, address initialOwner) UUPSProxyWithOwner(firstImplementation, initialOwner) { }
+    constructor(
+        address firstImplementation,
+        address initialOwner
+    )
+        UUPSProxyWithOwner(firstImplementation, initialOwner)
+    { }
 }

@@ -11,7 +11,7 @@ import { Market } from "./Market.sol";
 import { IPool } from "../interfaces/IPool.sol";
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { ExecuteADLOrder } from "../libraries/actions/ExecuteADLOrder.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances } from  "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
 import { TraderPosition } from "../libraries/TraderPosition.sol";
 
 import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
@@ -20,7 +20,6 @@ import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol"
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -55,11 +54,7 @@ library Portfolio {
      * @param marketId The market id of the new portfolio
      * @param blockTimestamp The current block timestamp
      */
-    event PortfolioCreated(
-        uint128 indexed accountId,
-        uint128 indexed marketId,
-        uint256 blockTimestamp
-    );
+    event PortfolioCreated(uint128 indexed accountId, uint128 indexed marketId, uint256 blockTimestamp);
 
     /**
      * @notice Emitted when a position in updated.
@@ -85,10 +80,7 @@ library Portfolio {
      * @param blockTimestamp The current block timestamp.
      */
     event MarketMaturityActivated(
-        uint128 indexed accountId,
-        uint128 indexed marketId,
-        uint32 maturityTimestamp,
-        uint256 blockTimestamp
+        uint128 indexed accountId, uint128 indexed marketId, uint32 maturityTimestamp, uint256 blockTimestamp
     );
 
     /**
@@ -99,10 +91,7 @@ library Portfolio {
      * @param blockTimestamp The current block timestamp.
      */
     event MarketMaturityDeactivated(
-        uint128 indexed accountId,
-        uint128 indexed marketId,
-        uint32 maturityTimestamp,
-        uint256 blockTimestamp
+        uint128 indexed accountId, uint128 indexed marketId, uint32 maturityTimestamp, uint256 blockTimestamp
     );
 
     struct Data {
@@ -113,14 +102,11 @@ library Portfolio {
          * @dev There cannot be an account and hence dated portfolio with id zero
          */
         uint128 accountId;
-
         uint128 marketId;
-
         /**
          * @dev maturityTimestamp (e.g. 31st Dec 2023) --> Position object with filled balances
          */
-        mapping(uint32 => PositionBalances) positions;
-
+        mapping(uint32 maturityTimestamp => PositionBalances) positions;
         /**
          * @dev Mapping from settlementToken to an
          * array of marketId (e.g. aUSDC lend) and activeMaturities (e.g. 31st Dec 2023)
@@ -143,7 +129,7 @@ library Portfolio {
     function loadOrCreate(uint128 accountId, uint128 marketId) internal returns (Data storage portfolio) {
         portfolio = load(accountId, marketId);
 
-        if (portfolio.accountId == 0)  {
+        if (portfolio.accountId == 0) {
             portfolio.accountId = accountId;
             portfolio.marketId = marketId;
             emit PortfolioCreated(accountId, marketId, block.timestamp);
@@ -161,32 +147,25 @@ library Portfolio {
         }
     }
 
-    function getAccountPnLComponents(Data storage self) internal view
+    function getAccountPnLComponents(Data storage self)
+        internal
+        view
         returns (Account.PnLComponents memory pnlComponents)
     {
-
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
         uint256 activeMaturitiesCount = self.activeMaturities.length();
 
         for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
-
-            FilledBalances memory filledBalances = getAccountFilledBalances(
-                self,
-                self.activeMaturities.valueAt(i).to32(),
-                poolAddress
-            );
+            FilledBalances memory filledBalances =
+                getAccountFilledBalances(self, self.activeMaturities.valueAt(i).to32(), poolAddress);
 
             Account.PnLComponents memory maturityPnLComponents = ExposureHelpers.getPnLComponents(
-                market.id,
-                self.activeMaturities.valueAt(i).to32(),
-                filledBalances,
-                poolAddress
+                market.id, self.activeMaturities.valueAt(i).to32(), filledBalances, poolAddress
             );
 
             pnlComponents.realizedPnL += maturityPnLComponents.realizedPnL;
             pnlComponents.unrealizedPnL += maturityPnLComponents.unrealizedPnL;
-
         }
 
         return pnlComponents;
@@ -196,17 +175,17 @@ library Portfolio {
         Data storage self,
         uint32 maturityTimestamp,
         address poolAddress
-    ) internal view returns (FilledBalances memory) {
-        FilledBalances memory poolBalances = IPool(poolAddress).getAccountFilledBalances(
-            self.marketId, 
-            maturityTimestamp, 
-            self.accountId
-        );
-        
+    )
+        internal
+        view
+        returns (FilledBalances memory)
+    {
+        FilledBalances memory poolBalances =
+            IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
+
         PositionBalances storage position = self.positions[maturityTimestamp];
         int256 accruedInterest = TraderPosition.getAccruedInterest(
-            position,
-            Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
+            position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         return FilledBalances({
@@ -229,12 +208,8 @@ library Portfolio {
     )
         internal
         view
-        returns (
-            int256[] memory filledExposures,
-            Account.UnfilledExposure[] memory unfilledExposures
-        )
+        returns (int256[] memory filledExposures, Account.UnfilledExposure[] memory unfilledExposures)
     {
-
         Market.Data storage market = Market.exists(self.marketId);
         GetAccountTakerAndMakerExposuresVars memory vars;
         vars.poolAddress = market.marketConfig.poolAddress;
@@ -242,29 +217,19 @@ library Portfolio {
         vars.exposureFactor = market.exposureFactor();
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
-
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
-            FilledBalances memory filledBalances = getAccountFilledBalances(
-                self,
-                maturityTimestamp,
-                vars.poolAddress
-            );
+            FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, vars.poolAddress);
 
-            UnfilledBalances memory unfilledBalances = IPool(vars.poolAddress).getAccountUnfilledBaseAndQuote(
-                market.id,
-                maturityTimestamp,
-                self.accountId
-            );
+            UnfilledBalances memory unfilledBalances =
+                IPool(vars.poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
 
             // handle filled exposures
 
             uint256 riskMatrixRowId = market.marketMaturityConfigs[maturityTimestamp].riskMatrixRowId;
 
-            (
-                int256 shortRateFilledExposureMaturity,
-                int256 swapRateFilledExposureMaturity
-            ) = ExposureHelpers.getFilledExposures(
+            (int256 shortRateFilledExposureMaturity, int256 swapRateFilledExposureMaturity) = ExposureHelpers
+                .getFilledExposures(
                 filledBalances.base,
                 vars.exposureFactor,
                 maturityTimestamp,
@@ -277,28 +242,23 @@ library Portfolio {
             // handle unfilled exposures
 
             if ((unfilledBalances.baseLong != 0) || (unfilledBalances.baseShort != 0)) {
-                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr =
-                ExposureHelpers.getUnfilledExposureComponents(
+                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr = ExposureHelpers
+                    .getUnfilledExposureComponents(
                     unfilledBalances.baseLong,
                     unfilledBalances.baseShort,
                     vars.exposureFactor,
                     maturityTimestamp,
                     market.marketMaturityConfigs[maturityTimestamp].tenorInSeconds
                 );
-                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] = 
+                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] =
                     market.marketMaturityConfigs[0].riskMatrixRowId;
                 unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
 
                 unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents = ExposureHelpers.getPVMRComponents(
-                    unfilledBalances,
-                    market.id,
-                    maturityTimestamp,
-                    vars.poolAddress,
-                    riskMatrixRowId
+                    unfilledBalances, market.id, maturityTimestamp, vars.poolAddress, riskMatrixRowId
                 );
                 vars.unfilledExposuresCounter += 1;
             }
-
         }
 
         filledExposures[market.marketMaturityConfigs[0].riskMatrixRowId] = vars.shortRateExposure;
@@ -312,45 +272,37 @@ library Portfolio {
         int256 base,
         int256 quote,
         uint32 maturityTimestamp
-    ) internal {
-        
+    )
+        internal
+    {
         int256 extraCashflow = TraderPosition.computeCashflow(
-            base,
-            quote,
-            Market.exists(taker.marketId).getLatestRateIndex(maturityTimestamp)
+            base, quote, Market.exists(taker.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         taker.updatePosition(
-            maturityTimestamp, 
-            PositionBalances({
-                base: base,
-                quote: quote,
-                extraCashflow: extraCashflow
-            }));
+            maturityTimestamp, PositionBalances({ base: base, quote: quote, extraCashflow: extraCashflow })
+        );
 
         maker.updatePosition(
-            maturityTimestamp, 
-            PositionBalances({
-                base: -base,
-                quote: -quote,
-                extraCashflow: -extraCashflow
-            }));
+            maturityTimestamp, PositionBalances({ base: -base, quote: -quote, extraCashflow: -extraCashflow })
+        );
     }
 
     /**
-     * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st Dec 2023)
+     * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st
+     * Dec 2023)
      */
     function updatePosition(
         Data storage self,
         uint32 maturityTimestamp,
         PositionBalances memory tokenDeltas
-    ) internal {
+    )
+        internal
+    {
         PositionBalances storage position = self.positions[maturityTimestamp];
 
         // register active market
-        if (position.base == 0 && position.quote == 0 && position.extraCashflow == 0) {
-            activateMarketMaturity(self, maturityTimestamp);
-        }
+        activateMarketMaturity(self, maturityTimestamp);
 
         position.base += tokenDeltas.base;
         position.quote += tokenDeltas.quote;
@@ -360,7 +312,8 @@ library Portfolio {
     }
 
     /**
-     * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st Dec 2023)
+     * @dev create, edit or close an irs position for a given marketId (e.g. aUSDC lend) and maturityTimestamp (e.g. 31st
+     * Dec 2023)
      */
     function settle(
         Data storage self,
@@ -376,16 +329,15 @@ library Portfolio {
 
         PositionBalances storage position = self.positions[maturityTimestamp];
         int256 accruedInterest = TraderPosition.getAccruedInterest(
-            position,
-            Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
+            position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
         /// @dev reverts if not active
-        self.deactivateMarketMaturity(maturityTimestamp);
-        
-        FilledBalances memory filledBalances = 
+        deactivateMarketMaturity(self, maturityTimestamp);
+
+        FilledBalances memory filledBalances =
             IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
-        
+
         settlementCashflow = filledBalances.accruedInterest + accruedInterest;
 
         emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, position, block.timestamp);
@@ -396,48 +348,26 @@ library Portfolio {
      * note this can also be called by the pool when a position is intitalised
      */
     function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
-        // check if market/maturity exists
-        Market.Data storage market = Market.exists(self.marketId);
-
-        address collateralType = market.quoteToken;
-
-        if (collateralType == address(0)) {
-            revert UnknownMarket(self.marketId);
-        }
-
         if (self.activeMaturities.contains(maturityTimestamp)) {
             return;
         }
-        
-        if (
-            self.activeMaturities.length() >= 
-            market.marketConfig.takerPositionsPerAccountLimit
-        ) {
+
+        if (self.activeMaturities.length() >= Market.exists(self.marketId).marketConfig.takerPositionsPerAccountLimit) {
             revert TooManyTakerPositions(self.accountId, self.marketId);
         }
 
         self.activeMaturities.add(maturityTimestamp);
-        
-        emit MarketMaturityActivated(
-            self.accountId,
-            self.marketId,
-            maturityTimestamp,
-            block.timestamp
-        );
+
+        emit MarketMaturityActivated(self.accountId, self.marketId, maturityTimestamp, block.timestamp);
     }
 
     /**
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
         self.activeMaturities.remove(maturityTimestamp);
-        emit MarketMaturityDeactivated(
-            self.accountId,
-            self.marketId,
-            maturityTimestamp,
-            block.timestamp
-        );
+        emit MarketMaturityDeactivated(self.accountId, self.marketId, maturityTimestamp, block.timestamp);
     }
 
     function hasUnfilledOrders(Data storage self) internal view returns (bool) {
@@ -450,9 +380,7 @@ library Portfolio {
 
             if (
                 IPool(market.marketConfig.poolAddress).hasUnfilledOrders(
-                    self.marketId,
-                    maturityTimestamp,
-                    self.accountId
+                    self.marketId, maturityTimestamp, self.accountId
                 )
             ) {
                 return true;
@@ -471,20 +399,20 @@ library Portfolio {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
             closedUnfilledBasePool += IPool(market.marketConfig.poolAddress).closeUnfilledBase(
-                self.marketId,
-                maturityTimestamp,
-                self.accountId
+                self.marketId, maturityTimestamp, self.accountId
             );
         }
     }
 
     function executeADLOrder(
-        Data storage self, 
-        bool adlNegativeUpnl, 
-        bool adlPositiveUpnl, 
-        uint256 totalUnrealizedLossQuote, 
+        Data storage self,
+        bool adlNegativeUpnl,
+        bool adlPositiveUpnl,
+        uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
-    ) internal {
+    )
+        internal
+    {
         Market.Data storage market = Market.exists(self.marketId);
         address poolAddress = market.marketConfig.poolAddress;
 
@@ -493,32 +421,17 @@ library Portfolio {
         for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
-            FilledBalances memory filledBalances = getAccountFilledBalances(
-                self,
-                maturityTimestamp,
-                poolAddress
-            );
+            FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, poolAddress);
 
-            Account.PnLComponents memory pnlComponents = ExposureHelpers.getPnLComponents(
-                market.id,
-                maturityTimestamp,
-                filledBalances,
-                poolAddress
-            );
+            Account.PnLComponents memory pnlComponents =
+                ExposureHelpers.getPnLComponents(market.id, maturityTimestamp, filledBalances, poolAddress);
 
             // lower and upper exposures are the same, since no unfilled orders should be present at this poin
-            bool executeADL = 
-                (adlNegativeUpnl && pnlComponents.unrealizedPnL < 0) ||
-                (adlPositiveUpnl && pnlComponents.unrealizedPnL > 0);
+            bool executeADL = (adlNegativeUpnl && pnlComponents.unrealizedPnL < 0)
+                || (adlPositiveUpnl && pnlComponents.unrealizedPnL > 0);
             if (executeADL) {
-                ExecuteADLOrder.executeADLOrder(
-                    self,
-                    maturityTimestamp,
-                    totalUnrealizedLossQuote,
-                    realBalanceAndIF
-                );
+                ExecuteADLOrder.executeADLOrder(self, maturityTimestamp, totalUnrealizedLossQuote, realBalanceAndIF);
             }
         }
-
     }
 }

@@ -7,13 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../storage/MarketManagerConfiguration.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "../../interfaces/IPool.sol";
 import "../../storage/Portfolio.sol";
 import "../ExposureHelpers.sol";
-import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import { MakerOrderParams } from "../DataTypes.sol";
 
 /**
@@ -33,19 +29,13 @@ library InitiateMakerOrder {
      * @param params The parameters of the maker order transaction
      * @param blockTimestamp The current block timestamp.
      */
-    event MakerOrder(
-        MakerOrderParams params,
-        uint256 blockTimestamp
-    );
+    event MakerOrder(MakerOrderParams params, uint256 blockTimestamp);
 
     /**
      * @notice Initiates a maker order for a given account by providing or burining liquidity in the given tick range
      * @param params Parameters of the maker order
      */
-    function initiateMakerOrder(MakerOrderParams memory params)
-        internal
-        returns (int256 annualizedNotionalAmount)
-    {
+    function initiateMakerOrder(MakerOrderParams memory params) internal returns (int256 annualizedNotionalAmount) {
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
@@ -53,30 +43,18 @@ library InitiateMakerOrder {
         pool.executeDatedMakerOrder(params);
 
         Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
-            params.maturityTimestamp,
-            PositionBalances({
-                base: 0,
-                quote: 0,
-                extraCashflow: 0
-            })
+            params.maturityTimestamp, PositionBalances({ base: 0, quote: 0, extraCashflow: 0 })
         );
-        
+
         market.updateOracleStateIfNeeded();
 
-        annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
-            params.baseDelta, 
-            params.marketId, 
-            params.maturityTimestamp
-        );
-        
+        annualizedNotionalAmount =
+            ExposureHelpers.baseToAnnualizedExposure(params.baseDelta, params.marketId, params.maturityTimestamp);
+
         // todo: consider having a separate position size limit check for makers which only considers unfilled
         // orders
-        
-        ExposureHelpers.checkPositionSizeLimit(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp
-        );
+
+        ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 
         // todo: don't think it makes sense to perform an open interest check with a maker order
         // by definition it should not affect open interest since it's only created one orders actually get filled
@@ -88,5 +66,4 @@ library InitiateMakerOrder {
 
         emit MakerOrder(params, block.timestamp);
     }
-
 }

@@ -9,9 +9,9 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "../../src/interfaces/external/IAaveV3LendingPool.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { UD60x18, ud, unwrap, UNIT, ud60x18 } from "@prb/math/UD60x18.sol";
-import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 /// @notice This Mock Aave pool can be used in 3 ways
 /// - change the rate to a fixed value (`setReserveNormalizedIncome`)
@@ -23,14 +23,16 @@ contract MockAaveLendingPool is IAaveV3LendingPool {
     mapping(address => UD60x18) internal reserveNormalizedVariableDebt;
     // mapping(IERC20 => uint256) internal reserveNormalizedVariableDebt;
     mapping(address => uint32) internal startTime;
-    mapping(address => UD60x18) internal factorPerSecond; // E.g. 1000000001000000000 for 0.0000001% per second = ~3.2% APY
+    mapping(address => UD60x18) internal factorPerSecond; // E.g. 1000000001000000000 for 0.0000001% per second = ~3.2%
+        // APY
 
     function getReserveNormalizedVariableDebt(address _underlyingAsset) public view override returns (uint256) {
         UD60x18 factor = factorPerSecond[_underlyingAsset];
         UD60x18 currentIndex = reserveNormalizedVariableDebt[_underlyingAsset];
         if (factor.unwrap() > 0) {
             uint256 secondsSinceNormalizedVariableDebtSet = Time.blockTimestampTruncated() - startTime[_underlyingAsset];
-            currentIndex = reserveNormalizedVariableDebt[_underlyingAsset].mul(factor.powu(secondsSinceNormalizedVariableDebtSet));
+            currentIndex =
+                reserveNormalizedVariableDebt[_underlyingAsset].mul(factor.powu(secondsSinceNormalizedVariableDebtSet));
         }
 
         // Convert from UD60x18 to Aave's "Ray" (decmimal scaled by 10^27) to confrom to Aave interface
@@ -54,7 +56,12 @@ contract MockAaveLendingPool is IAaveV3LendingPool {
         startTime[address(_underlyingAsset)] = Time.blockTimestampTruncated();
     }
 
-    function setReserveNormalizedVariableDebt(IERC20 _underlyingAsset, UD60x18 _reserveNormalizedVariableDebInWeiNotRay) public {
+    function setReserveNormalizedVariableDebt(
+        IERC20 _underlyingAsset,
+        UD60x18 _reserveNormalizedVariableDebInWeiNotRay
+    )
+        public
+    {
         reserveNormalizedVariableDebt[address(_underlyingAsset)] = _reserveNormalizedVariableDebInWeiNotRay;
         startTime[address(_underlyingAsset)] = Time.blockTimestampTruncated();
     }
@@ -67,11 +74,8 @@ contract MockAaveLendingPool is IAaveV3LendingPool {
     /// @param apyWad Value of the APY we want to set (e.g. 4e16 for 4% apy)
     /// @param lastUpdateTimestamp Last time the mock pool's index was updated
     function refreshAaveApy(IERC20 _underlyingAsset, uint256 apyWad, uint32 lastUpdateTimestamp) public {
-      UD60x18 lastIndex = reserveNormalizedIncome[address(_underlyingAsset)];
-      UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(lastUpdateTimestamp, Time.blockTimestampTruncated());
-      setReserveNormalizedIncome(
-          _underlyingAsset,
-          lastIndex.mul(timeDeltaAnnualized.mul(ud60x18(apyWad)).add(UNIT))
-      );
+        UD60x18 lastIndex = reserveNormalizedIncome[address(_underlyingAsset)];
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(lastUpdateTimestamp, Time.blockTimestampTruncated());
+        setReserveNormalizedIncome(_underlyingAsset, lastIndex.mul(timeDeltaAnnualized.mul(ud60x18(apyWad)).add(UNIT)));
     }
 }

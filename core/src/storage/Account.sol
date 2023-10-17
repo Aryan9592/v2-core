@@ -14,7 +14,6 @@ import {CollateralPool} from "./CollateralPool.sol";
 import {Market} from "./Market.sol";
 
 import {AccountActiveMarket} from "../libraries/account/AccountActiveMarket.sol";
-import {AccountAutoExchange} from "../libraries/account/AccountAutoExchange.sol";
 import {AccountCollateral} from "../libraries/account/AccountCollateral.sol";
 import {AccountExposure} from "../libraries/account/AccountExposure.sol";
 import {AccountRBAC} from "../libraries/account/AccountRBAC.sol";
@@ -22,7 +21,6 @@ import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 import {LiquidationBidPriorityQueue} from "../libraries/LiquidationBidPriorityQueue.sol";
 
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 /*
 TODOs
@@ -100,6 +98,7 @@ library Account {
 
     struct PnLComponents {
         int256 realizedPnL;
+        
         /// @notice Unrealized PnL is the valued accumulated in an open position when that position 
         /// is priced at market values (’mark to market’). As opposed to the previous components of PnL, 
         /// this component changes with time, as market prices change. Strictly speaking, then, unrealized PnL 

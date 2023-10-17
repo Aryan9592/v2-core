@@ -7,12 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IPool} from "../interfaces/IPool.sol";
-import {IRateOracle} from "../interfaces/IRateOracle.sol";
-import {MarketRateOracle} from "../libraries/MarketRateOracle.sol"; 
+import { IPool } from "../interfaces/IPool.sol";
+import { IRateOracle } from "../interfaces/IRateOracle.sol";
+import { MarketRateOracle } from "../libraries/MarketRateOracle.sol";
 import { RateOracleObservation } from "../libraries/DataTypes.sol";
 
-import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 import { UD60x18, UNIT } from "@prb/math/UD60x18.sol";
 
@@ -27,7 +27,7 @@ library Market {
     bytes32 internal constant COMPOUNDING_MARKET = "compounding";
 
     /**
-     * @dev Thrown when a market is created with an unsupported market type 
+     * @dev Thrown when a market is created with an unsupported market type
      */
     error UnsupportedMarketType(bytes32 marketType);
 
@@ -90,7 +90,9 @@ library Market {
      * @param rateOracleConfiguration The new rate oracle configuration
      * @param blockTimestamp The current block timestamp.
      */
-    event MarketRateOracleConfigUpdated(uint128 id, RateOracleConfiguration rateOracleConfiguration, uint256 blockTimestamp);
+    event MarketRateOracleConfigUpdated(
+        uint128 id, RateOracleConfiguration rateOracleConfiguration, uint256 blockTimestamp
+    );
 
     /**
      * @notice Emitted when a new market configuration is set
@@ -100,30 +102,28 @@ library Market {
      * @param blockTimestamp The current block timestamp
      */
     event MarketMaturityConfigUpdated(
-        uint128 id, 
-        uint32 maturityTimestamp, 
-        MarketMaturityConfiguration marketMaturityConfiguration, 
+        uint128 id,
+        uint32 maturityTimestamp,
+        MarketMaturityConfiguration marketMaturityConfiguration,
         uint256 blockTimestamp
     );
 
     struct MarketConfiguration {
-         /**
+        /**
          * @dev Address of the pool address the market is linked to
          */
         address poolAddress;
-
         // todo: will there be a single twap value used for marking to market and for computing dynamic price bands?
         // or shall there be multiple values?
         /**
-         * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average = geometric mean)
+         * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average =
+         * geometric mean)
          */
         uint32 twapLookbackWindow;
-
         /**
          * Mark price band used to compute dynamic price limits
          */
         UD60x18 markPriceBand;
-
         /**
          * @dev Maximum number of positions of an account in this market
          */
@@ -147,7 +147,6 @@ library Market {
          * @dev The address of the rate oracle
          */
         address oracleAddress;
-
         /**
          * @dev Maximum number of seconds that can elapse after maturity to cache the maturity index value
          */
@@ -184,36 +183,27 @@ library Market {
          * i.e. settlement cashflows and unrealized pnls are in quote token terms
          */
         address quoteToken;
-
         /**
          * @dev Market type, either linear or compounding.
          */
         bytes32 marketType;
-
         /**
          * @dev Market configuration
          */
         MarketConfiguration marketConfig;
-
         /**
          * @dev Rate Oracle configuration
          */
         RateOracleConfiguration rateOracleConfig;
-
         /**
          * @dev Market Maturity configuration
          */
-        mapping(
-            uint32 maturityTimestamp => 
-            MarketMaturityConfiguration marketMaturityConfig
-        ) marketMaturityConfigs;
-
+        mapping(uint32 maturityTimestamp => MarketMaturityConfiguration marketMaturityConfig) marketMaturityConfigs;
         /**
          * @dev Duration of ADL blendin period, in seconds
          */
         // todo: setter and getter?
         uint256 adlBlendingDurationInSeconds;
-
         /**
          * Cache with maturity index values.
          */
@@ -293,15 +283,23 @@ library Market {
     }
 
     function setMarketMaturityConfiguration(
-        Data storage self, 
-        uint32 maturityTimestamp, 
+        Data storage self,
+        uint32 maturityTimestamp,
         MarketMaturityConfiguration memory marketMaturityConfig
-    ) internal {
+    )
+        internal
+    {
         self.marketMaturityConfigs[maturityTimestamp] = marketMaturityConfig;
         emit MarketMaturityConfigUpdated(self.id, maturityTimestamp, marketMaturityConfig, block.timestamp);
     }
 
-    function backfillRateIndexAtMaturityCache(Data storage self, uint32 maturityTimestamp, UD60x18 rateIndexAtMaturity) internal {
+    function backfillRateIndexAtMaturityCache(
+        Data storage self,
+        uint32 maturityTimestamp,
+        UD60x18 rateIndexAtMaturity
+    )
+        internal
+    {
         MarketRateOracle.backfillRateIndexAtMaturityCache(self, maturityTimestamp, rateIndexAtMaturity);
     }
 
@@ -317,19 +315,26 @@ library Market {
         return MarketRateOracle.getRateIndexMaturity(self, maturityTimestamp);
     }
 
-    function getLatestRateIndex(Data storage self, uint32 maturityTimestamp) internal view returns (RateOracleObservation memory) {
+    function getLatestRateIndex(
+        Data storage self,
+        uint32 maturityTimestamp
+    )
+        internal
+        view
+        returns (RateOracleObservation memory)
+    {
         return MarketRateOracle.getLatestRateIndex(self, maturityTimestamp);
     }
 
     function updateOracleStateIfNeeded(Data storage self) internal {
         MarketRateOracle.updateOracleStateIfNeeded(self);
     }
-    
+
     function exposureFactor(Data storage self) internal view returns (UD60x18 factor) {
         if (self.marketType == LINEAR_MARKET) {
             return UNIT;
-        } 
-        
+        }
+
         if (self.marketType == COMPOUNDING_MARKET) {
             UD60x18 currentLiquidityIndex = self.getRateIndexCurrent();
             return currentLiquidityIndex;

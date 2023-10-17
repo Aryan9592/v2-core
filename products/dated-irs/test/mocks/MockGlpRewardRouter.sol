@@ -8,8 +8,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import {IRewardRouter} from "../../src/interfaces/external/glp/IRewardRouter.sol";
-import {MockGlpRewardTracker} from "./MockGlpRewardTracker.sol";
+import { IRewardRouter } from "../../src/interfaces/external/glp/IRewardRouter.sol";
+import { MockGlpRewardTracker } from "./MockGlpRewardTracker.sol";
 
 contract MockGlpRewardRouter is IRewardRouter {
     address public rewardTracker;
@@ -19,7 +19,7 @@ contract MockGlpRewardRouter is IRewardRouter {
         rewardTracker = _rewardTracker;
         manager = _manager;
     }
-    
+
     function feeGlpTracker() external view override returns (address) {
         return rewardTracker;
     }

@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
 import "../storage/MarketManagerConfiguration.sol";
-import {FilledBalances, UnfilledBalances} from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /// @title Interface of a dated irs market
 interface IMarketManagerIRSModule is IMarketManager {
@@ -32,20 +32,29 @@ interface IMarketManagerIRSModule is IMarketManager {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (FilledBalances memory);
+    )
+        external
+        view
+        returns (FilledBalances memory);
 
     function getAccountUnfilledBaseAndQuote(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (UnfilledBalances memory);
+    )
+        external
+        view
+        returns (UnfilledBalances memory);
 
     // todo: add natspec
     function propagateADLOrder(uint128 accountId, uint128 marketId, uint32 maturityTimestamp, bool isLong) external;
 
     function getPercentualSlippage(
-        uint128 marketId, 
-        uint32 maturityTimestamp, 
+        uint128 marketId,
+        uint32 maturityTimestamp,
         int256 annualizedExposureWad
-    ) external view returns (UD60x18);
+    )
+        external
+        view
+        returns (UD60x18);
 }

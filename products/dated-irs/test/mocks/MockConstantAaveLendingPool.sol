@@ -9,9 +9,9 @@ pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import "../../src/interfaces/external/IAaveV3LendingPool.sol";
-import {IERC20} from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { UD60x18, ud, unwrap, UNIT } from "@prb/math/UD60x18.sol";
-import {Time} from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 // import "forge-std/console2.sol";
 
@@ -29,11 +29,7 @@ contract MockConstantAaveLendingPool is IAaveV3LendingPool {
     }
 
     function getReserveNormalizedIncome(address _underlyingAsset) public view override returns (uint256) {
-        UD60x18 currentIndex = UNIT.add(
-            apy.mul(
-                Time.timeDeltaAnnualized(startTime, Time.blockTimestampTruncated())
-            )
-        );
+        UD60x18 currentIndex = UNIT.add(apy.mul(Time.timeDeltaAnnualized(startTime, Time.blockTimestampTruncated())));
         // Convert from UD60x18 to Aave's "Ray" (decmimal scaled by 10^27) to confrom to Aave interface
         return currentIndex.unwrap() * 1e9;
     }
