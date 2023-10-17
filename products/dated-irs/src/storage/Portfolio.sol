@@ -119,7 +119,7 @@ library Portfolio {
         /**
          * @dev maturityTimestamp (e.g. 31st Dec 2023) --> Position object with filled balances
          */
-        mapping(uint32 => PositionBalances) positions;
+        mapping(uint32 maturityTimestamp => PositionBalances) positions;
 
         /**
          * @dev Mapping from settlementToken to an

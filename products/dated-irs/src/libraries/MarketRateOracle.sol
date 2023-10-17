@@ -14,8 +14,6 @@ import { RateOracleObservation } from  "../libraries/DataTypes.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { UD60x18, ZERO, unwrap } from "@prb/math/UD60x18.sol";
 
-import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
-
 library MarketRateOracle {
     using Market for Market.Data;
     using { unwrap } for UD60x18;

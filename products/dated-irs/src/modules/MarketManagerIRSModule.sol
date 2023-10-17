@@ -326,6 +326,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         if (msg.sender != MarketManagerConfiguration.getCoreProxyAddress()) {
             revert NotAuthorized(msg.sender, "execute");
         }
+
         // ensure market is enabled
         FeatureFlagSupport.ensureEnabledMarket(marketId, maturityTimestamp);
     }
