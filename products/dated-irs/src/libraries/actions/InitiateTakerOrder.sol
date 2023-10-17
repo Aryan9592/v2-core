@@ -15,6 +15,8 @@ import {Market} from "../../storage/Market.sol";
 import "../../interfaces/IPool.sol";
 import "../FeatureFlagSupport.sol";
 import "../ExposureHelpers.sol";
+import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { TakerOrderParams } from "../DataTypes.sol";
 
@@ -52,8 +54,8 @@ library InitiateTakerOrder {
      */
     function initiateTakerOrder(TakerOrderParams memory params) internal returns (
         PositionBalances memory tokenDeltas,
-        uint256 exchangeFees,
-        uint256 protocolFees
+        uint256 exchangeFee,
+        uint256 protocolFee
     ) {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
@@ -108,7 +110,13 @@ library InitiateTakerOrder {
 
         market.updateOracleStateIfNeeded();
 
-        // todo: calculate fees in here
+        protocolFee = mulUDxUint(
+            market.marketConfig.protocolFeeConfig.atomicTakerFee,
+            SignedMath.abs(annualizedNotionalAmount)
+        );
+
+        // todo: calculate exchange fee in the vamm?
+        exchangeFee = 0;
 
         emit TakerOrder(
             params,

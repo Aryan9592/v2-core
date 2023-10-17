@@ -44,7 +44,10 @@ library InitiateMakerOrder {
      */
     function initiateMakerOrder(MakerOrderParams memory params)
         internal
-        returns (int256 annualizedNotionalAmount)
+        returns (
+        uint256 exchangeFee,
+        uint256 protocolFee
+    )
     {
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         Market.Data storage market = Market.exists(params.marketId);
@@ -62,12 +65,6 @@ library InitiateMakerOrder {
         );
         
         market.updateOracleStateIfNeeded();
-
-        annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
-            params.baseDelta, 
-            params.marketId, 
-            params.maturityTimestamp
-        );
         
         // todo: consider having a separate position size limit check for makers which only considers unfilled
         // orders
@@ -78,13 +75,23 @@ library InitiateMakerOrder {
             params.maturityTimestamp
         );
 
-        // todo: don't think it makes sense to perform an open interest check with a maker order
-        // by definition it should not affect open interest since it's only created one orders actually get filled
-        ExposureHelpers.checkOpenInterestLimit(
-            params.marketId,
-            params.maturityTimestamp,
-            annualizedNotionalAmount // inherits the sign of liquidity delta
-        );
+        if (params.baseDelta > 0) {
+
+            int256 annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
+                params.baseDelta,
+                params.marketId,
+                params.maturityTimestamp
+            );
+
+            protocolFee = mulUDxUint(
+                market.marketConfig.protocolFeeConfig.atomicMakerFee,
+                SignedMath.abs(annualizedNotionalAmount)
+            );
+
+            // todo: calculate exchange fee in the vamm?
+            exchangeFee = 0;
+
+        }
 
         emit MakerOrder(params, block.timestamp);
     }

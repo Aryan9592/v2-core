@@ -247,8 +247,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         bytes calldata inputs
     ) external override returns (
         bytes memory output,
-        uint256 exchangeFees,
-        uint256 protocolFees
+        uint256 exchangeFee,
+        uint256 protocolFee
     ) {
 
         // note, since dated irs instrument has only one exchange, we don't need to use the exchangeId for routing
@@ -264,8 +264,8 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
 
         (
             tokenDeltas,
-            exchangeFees,
-            protocolFees
+            exchangeFee,
+            protocolFee
         ) = InitiateTakerOrder.initiateTakerOrder(
             TakerOrderParams({
                 accountId: accountId,
@@ -284,10 +284,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeMakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     ) external override returns (
-        bytes memory output, 
-        int256 annualizedNotional
+        bytes memory output,
+        uint256 exchangeFee,
+        uint256 protocolFee
     ) {
         ( 
             uint32 maturityTimestamp,
@@ -297,7 +299,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         ) = abi.decode(inputs, (uint32, int24, int24, int256));
 
         output = abi.encode();
-        annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
+        (exchangeFee, protocolFee) = InitiateMakerOrder.initiateMakerOrder(
             MakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,

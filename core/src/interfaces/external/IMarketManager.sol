@@ -68,7 +68,7 @@ interface IMarketManager is IERC165 {
         uint128 marketId,
         uint128 exchangeId,
         bytes calldata inputs
-    ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
+    ) external returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee);
 
     /**
      * @notice Decoded inputs and execute maker order
@@ -86,7 +86,7 @@ interface IMarketManager is IERC165 {
         uint128 marketId,
         uint128 exchangeId,
         bytes calldata inputs
-    ) external returns (bytes memory output, uint256 exchangeFees, uint256 protocolFees);
+    ) external returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee);
 
     // todo: natspec
     function executeBatchMatchOrder(
