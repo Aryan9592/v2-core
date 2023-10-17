@@ -10,7 +10,6 @@ pragma solidity >=0.8.19;
 
 import {Portfolio} from "../../storage/Portfolio.sol";
 import {Market} from "../../storage/Market.sol";
-import {IPool} from "../../interfaces/IPool.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 import "../ExposureHelpers.sol";

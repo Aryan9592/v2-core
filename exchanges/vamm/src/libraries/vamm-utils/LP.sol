@@ -73,9 +73,9 @@ library LP {
             }
         }
 
-        // this also checks if the position has enough liquidity to burn
         position.updateTokenBalances(AccountBalances.computeGrowthInside(self, tickLower, tickUpper));
 
+        // this also checks if the position has enough liquidity to burn
         position.updateLiquidity(liquidityDelta);
 
         updateLiquidity(self, tickLower, tickUpper, liquidityDelta);

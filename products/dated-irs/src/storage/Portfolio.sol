@@ -348,9 +348,7 @@ library Portfolio {
         PositionBalances storage position = self.positions[maturityTimestamp];
 
         // register active market
-        if (position.base == 0 && position.quote == 0 && position.extraCashflow == 0) {
-            activateMarketMaturity(self, maturityTimestamp);
-        }
+        activateMarketMaturity(self, maturityTimestamp);
 
         position.base += tokenDeltas.base;
         position.quote += tokenDeltas.quote;
@@ -381,7 +379,7 @@ library Portfolio {
         );
 
         /// @dev reverts if not active
-        self.deactivateMarketMaturity(maturityTimestamp);
+        deactivateMarketMaturity(self, maturityTimestamp);
         
         FilledBalances memory filledBalances = 
             IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
@@ -396,22 +394,13 @@ library Portfolio {
      * note this can also be called by the pool when a position is intitalised
      */
     function activateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
-        // check if market/maturity exists
-        Market.Data storage market = Market.exists(self.marketId);
-
-        address collateralType = market.quoteToken;
-
-        if (collateralType == address(0)) {
-            revert UnknownMarket(self.marketId);
-        }
-
         if (self.activeMaturities.contains(maturityTimestamp)) {
             return;
         }
-        
+
         if (
             self.activeMaturities.length() >= 
-            market.marketConfig.takerPositionsPerAccountLimit
+            Market.exists(self.marketId).marketConfig.takerPositionsPerAccountLimit
         ) {
             revert TooManyTakerPositions(self.accountId, self.marketId);
         }
@@ -430,7 +419,7 @@ library Portfolio {
      * @dev set market and maturity as inactive
      * note this can also be called by the pool when a position is settled
      */
-    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) internal {
+    function deactivateMarketMaturity(Data storage self, uint32 maturityTimestamp) private {
         self.activeMaturities.remove(maturityTimestamp);
         emit MarketMaturityDeactivated(
             self.accountId,

@@ -7,13 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../storage/MarketManagerConfiguration.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "../../interfaces/IPool.sol";
 import "../../storage/Portfolio.sol";
 import "../ExposureHelpers.sol";
-import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import { MakerOrderParams } from "../DataTypes.sol";
 
 /**
