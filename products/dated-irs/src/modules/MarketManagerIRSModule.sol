@@ -38,7 +38,7 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 /*
 TODOs
     - rename executeADLOrder to executeADLOrders
-    - pause maturity or the whole market if just a single maturity is getting adl'd? should market = maturity?
+    - pause maturity or the whole market if just a single maturity is getting adl'd?
 */
 
 /**
@@ -243,11 +243,16 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     ) external override returns (
         bytes memory output,
-        int256 annualizedNotional
+        uint256 exchangeFees,
+        uint256 protocolFees
     ) {
+
+        // note, since dated irs instrument has only one exchange, we don't need to use the exchangeId for routing
+
         ( 
             uint32 maturityTimestamp,
             int256 baseDelta,
@@ -255,9 +260,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         ) = abi.decode(inputs, (uint32, int256, uint160));
         executionPreCheck(marketId, maturityTimestamp);
 
+        PositionBalances memory tokenDeltas;
+
         (
-            PositionBalances memory tokenDeltas,
-            int256 annualizedNotionalTraded
+            tokenDeltas,
+            exchangeFees,
+            protocolFees
         ) = InitiateTakerOrder.initiateTakerOrder(
             TakerOrderParams({
                 accountId: accountId,
@@ -268,7 +276,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             })
         );
         output = abi.encode(tokenDeltas);
-        annualizedNotional = annualizedNotionalTraded;
     }
 
     /**

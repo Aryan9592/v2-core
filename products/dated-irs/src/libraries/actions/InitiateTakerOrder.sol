@@ -52,7 +52,8 @@ library InitiateTakerOrder {
      */
     function initiateTakerOrder(TakerOrderParams memory params) internal returns (
         PositionBalances memory tokenDeltas,
-        int256 annualizedNotionalAmount
+        uint256 exchangeFees,
+        uint256 protocolFees
     ) {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
@@ -76,7 +77,7 @@ library InitiateTakerOrder {
         Portfolio.Data storage portfolio = Portfolio.loadOrCreate(params.accountId, params.marketId);
         portfolio.updatePosition(params.maturityTimestamp, tokenDeltas);
 
-        annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
+        int256 annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
             tokenDeltas.base, params.marketId, params.maturityTimestamp
         );
 
@@ -106,6 +107,8 @@ library InitiateTakerOrder {
         );
 
         market.updateOracleStateIfNeeded();
+
+        // todo: calculate fees in here
 
         emit TakerOrder(
             params,
