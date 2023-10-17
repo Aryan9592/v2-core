@@ -76,6 +76,10 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketIdAave, maturityTimestampGlp), // 7 days
                 markPriceBand: ud(0.045e18), // 1%
+                protocolFeeConfig: Market.FeeConfiguration({
+                    atomicMakerFee: ud(1e16),
+                    atomicTakerFee: ud(5e16)
+                }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -165,6 +169,10 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketIdGlp, maturityTimestampGlp), // 7 days
                 markPriceBand: ud(0.045e18), // 4.5%
+                protocolFeeConfig: Market.FeeConfiguration({
+                    atomicMakerFee: ud(1e16),
+                    atomicTakerFee: ud(5e16)
+                }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -316,7 +324,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // t = 0.25: account 2 (FT) Aave
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
+            (int256 executedBase, int256 executedQuote) =
             executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdAave,
                 maturityTimestamp: maturityTimestampAave,
@@ -328,14 +336,13 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, -1000 * 1e6, "executedBase");
                 assertEq(executedQuote, int256(45_102_186), "executedQuote");
-                assertEq(annualizedNotional, -753_750_000, "annualizedNotional");
             }
         }
 
         // t = 0.25: account 3 (VT) Aave
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
+            (int256 executedBase, int256 executedQuote) =
             executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdAave,
                 maturityTimestamp: maturityTimestampAave,
@@ -347,14 +354,13 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, 2000 * 1e6, "executedBase");
                 assertAlmostEq(executedQuote, int256(-106_736_826), 1e6, "executedQuote");
-                assertEq(annualizedNotional, 1_507_500_000, "annualizedNotional");
             }
         }
 
         // t = 0.25: account 3 (FT) GLP
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
+            (int256 executedBase, int256 executedQuote) =
             executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdGlp,
                 maturityTimestamp: maturityTimestampGlp,
@@ -366,14 +372,13 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, -200 * 1e18, "executedBase");
                 assertEq(executedQuote, int256(15_869_560_501_219_547_400), "executedQuote");
-                assertEq(annualizedNotional, -50e18, "annualizedNotional");
             }
         }
 
         // t = 0.25: account 2 (VT) GLP
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
+            (int256 executedBase, int256 executedQuote) =
             executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdGlp,
                 maturityTimestamp: maturityTimestampGlp,
@@ -385,7 +390,6 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, 400 * 1e18, "executedBase");
                 assertAlmostEq(executedQuote, int256(-44_576_739_076_981_875_600), 1e6, "executedQuote");
-                assertEq(annualizedNotional, 100e18, "annualizedNotional");
             }
         }
 

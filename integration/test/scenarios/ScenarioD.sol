@@ -72,6 +72,10 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
                 markPriceBand: ud(0.045e18), // 4.5%
+                protocolFeeConfig: Market.FeeConfiguration({
+                    atomicMakerFee: ud(1e16),
+                    atomicTakerFee: ud(5e16)
+                }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -170,7 +174,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (FT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -212,7 +216,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -254,7 +258,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -313,7 +317,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (FT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -365,7 +369,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -417,7 +421,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -486,7 +490,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (FT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -538,7 +542,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -590,7 +594,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             vm.warp(start + 86_400 * 365 * 3 / 4 + 86_400 * i);
 
             // account 2 (VT)
-            (int256 executedBase,,) = executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase,) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,

@@ -17,17 +17,15 @@ abstract contract Actions is Test {
         int24 tickUpper
     )
         internal
-        returns (int256)
     {
         vm.startPrank(getCoreProxyAddress());
 
         bytes memory inputs = abi.encode(maturityTimestamp, tickLower, tickUpper, baseAmount);
 
-        (, int256 annualizedNotional) = getDatedIrsProxy().executeMakerOrder(accountId, marketId, inputs);
+        // todo: return fees and check fees in scenarios
+        getDatedIrsProxy().executeMakerOrder(accountId, marketId, 0, inputs);
 
         vm.stopPrank();
-
-        return annualizedNotional;
     }
 
     function executeDatedIrsTakerOrder(
@@ -38,21 +36,22 @@ abstract contract Actions is Test {
         int24 tickLimit
     )
         internal
-        returns (int256, int256, int256)
+        returns (int256, int256)
     {
         vm.startPrank(getCoreProxyAddress());
 
         uint160 priceLimit = TickMath.getSqrtRatioAtTick(tickLimit);
 
         bytes memory inputs = abi.encode(maturityTimestamp, baseAmount, priceLimit);
-        (bytes memory output, int256 annualizedNotional) =
-            getDatedIrsProxy().executeTakerOrder(accountId, marketId, inputs);
+        // todo: return fees and check fees in scenarios
+        (bytes memory output,,) =
+            getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
 
         (int256 executedBaseAmount, int256 executedQuoteAmount) = abi.decode(output, (int256, int256));
 
         vm.stopPrank();
 
-        return (executedBaseAmount, executedQuoteAmount, annualizedNotional);
+        return (executedBaseAmount, executedQuoteAmount);
     }
 
     function executeDatedIrsTakerOrder_noPriceLimit(
@@ -62,19 +61,20 @@ abstract contract Actions is Test {
         int256 baseAmount
     )
         internal
-        returns (int256, int256, int256)
+        returns (int256, int256)
     {
         vm.startPrank(getCoreProxyAddress());
 
         bytes memory inputs = abi.encode(maturityTimestamp, baseAmount, 0);
-        (bytes memory output, int256 annualizedNotional) =
-            getDatedIrsProxy().executeTakerOrder(accountId, marketId, inputs);
+        // todo: return fees and check fees in scenarios
+        (bytes memory output,,) =
+            getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
 
         (int256 executedBaseAmount, int256 executedQuoteAmount) = abi.decode(output, (int256, int256));
 
         vm.stopPrank();
 
-        return (executedBaseAmount, executedQuoteAmount, annualizedNotional);
+        return (executedBaseAmount, executedQuoteAmount);
     }
 
     function executeDatedIrsTakerOrder(
@@ -100,7 +100,7 @@ abstract contract Actions is Test {
         vm.startPrank(getCoreProxyAddress());
 
         bytes memory inputs = abi.encode(maturityTimestamp);
-        (, int256 settlementCashflowInQuote) = getDatedIrsProxy().completeOrder(accountId, marketId, inputs);
+        (, int256 settlementCashflowInQuote) = getDatedIrsProxy().executePropagateCashflow(accountId, marketId, inputs);
 
         vm.stopPrank();
 
