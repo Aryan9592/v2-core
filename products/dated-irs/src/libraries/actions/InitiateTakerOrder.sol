@@ -12,7 +12,7 @@ import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
 import "../../interfaces/IPool.sol";
 import "../ExposureHelpers.sol";
-import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
 import { TakerOrderParams } from "../DataTypes.sol";
@@ -71,9 +71,8 @@ library InitiateTakerOrder {
         Portfolio.Data storage portfolio = Portfolio.loadOrCreate(params.accountId, params.marketId);
         portfolio.updatePosition(params.maturityTimestamp, tokenDeltas);
 
-        int256 annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
-            tokenDeltas.base, params.marketId, params.maturityTimestamp
-        );
+        int256 annualizedNotionalAmount =
+            ExposureHelpers.baseToAnnualizedExposure(tokenDeltas.base, params.marketId, params.maturityTimestamp);
 
         ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 
@@ -93,10 +92,8 @@ library InitiateTakerOrder {
 
         market.updateOracleStateIfNeeded();
 
-        protocolFee = mulUDxUint(
-            market.marketConfig.protocolFeeConfig.atomicTakerFee,
-            SignedMath.abs(annualizedNotionalAmount)
-        );
+        protocolFee =
+            mulUDxUint(market.marketConfig.protocolFeeConfig.atomicTakerFee, SignedMath.abs(annualizedNotionalAmount));
 
         // todo: calculate exchange fee in the vamm?
         exchangeFee = 0;

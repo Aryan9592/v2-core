@@ -13,7 +13,6 @@ import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /// @title Interface of a dated irs market
 interface IMarketManagerIRSModule is IMarketManager {
-
     error MissingBatchMatchOrderImplementation();
 
     event MarketManagerConfigured(MarketManagerConfiguration.Data config, uint256 blockTimestamp);

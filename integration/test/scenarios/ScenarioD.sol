@@ -72,10 +72,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
                 markPriceBand: ud(0.045e18), // 4.5%
-                protocolFeeConfig: Market.FeeConfiguration({
-                    atomicMakerFee: ud(1e16),
-                    atomicTakerFee: ud(5e16)
-                }),
+                protocolFeeConfig: Market.FeeConfiguration({ atomicMakerFee: ud(1e16), atomicTakerFee: ud(5e16) }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,

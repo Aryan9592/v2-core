@@ -312,11 +312,10 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128[] memory counterpartyAccountIds,
         uint128 marketId,
         bytes calldata inputs
-    ) external returns (
-        bytes memory output,
-        uint256 accountProtocolFees,
-        uint256[] memory counterpartyProtocolFees
-    ) {
+    )
+        external
+        returns (bytes memory output, uint256 accountProtocolFees, uint256[] memory counterpartyProtocolFees)
+    {
         revert MissingBatchMatchOrderImplementation();
     }
 

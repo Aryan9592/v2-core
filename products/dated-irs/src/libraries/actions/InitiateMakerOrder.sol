@@ -36,10 +36,9 @@ library InitiateMakerOrder {
      * @param params Parameters of the maker order
      */
 
-    function initiateMakerOrder(MakerOrderParams memory params) internal returns (
-        uint256 exchangeFee,
-        uint256 protocolFee
-    )
+    function initiateMakerOrder(MakerOrderParams memory params)
+        internal
+        returns (uint256 exchangeFee, uint256 protocolFee)
     {
         // check if market id is valid + check there is an active pool with maturityTimestamp requested
         Market.Data storage market = Market.exists(params.marketId);
@@ -58,21 +57,15 @@ library InitiateMakerOrder {
         ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 
         if (params.baseDelta > 0) {
-
-            int256 annualizedNotionalAmount = ExposureHelpers.baseToAnnualizedExposure(
-                params.baseDelta,
-                params.marketId,
-                params.maturityTimestamp
-            );
+            int256 annualizedNotionalAmount =
+                ExposureHelpers.baseToAnnualizedExposure(params.baseDelta, params.marketId, params.maturityTimestamp);
 
             protocolFee = mulUDxUint(
-                market.marketConfig.protocolFeeConfig.atomicMakerFee,
-                SignedMath.abs(annualizedNotionalAmount)
+                market.marketConfig.protocolFeeConfig.atomicMakerFee, SignedMath.abs(annualizedNotionalAmount)
             );
 
             // todo: calculate exchange fee in the vamm?
             exchangeFee = 0;
-
         }
 
         emit MakerOrder(params, block.timestamp);

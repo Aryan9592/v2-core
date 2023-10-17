@@ -80,10 +80,7 @@ contract ConfigProtocol is SetupProtocol {
                 poolAddress: address(contracts.vammProxy),
                 twapLookbackWindow: 120,
                 markPriceBand: ud(0.005e18),
-                protocolFeeConfig: DatedIrsMarket.FeeConfiguration({
-                    atomicMakerFee: ud(1e16),
-                    atomicTakerFee: ud(5e16)
-                }),
+                protocolFeeConfig: DatedIrsMarket.FeeConfiguration({ atomicMakerFee: ud(1e16), atomicTakerFee: ud(5e16) }),
                 takerPositionsPerAccountLimit: 1,
                 positionSizeLowerLimit: 1e6,
                 positionSizeUpperLimit: 1e6 * 1e6,

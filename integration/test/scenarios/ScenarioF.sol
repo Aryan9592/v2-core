@@ -76,10 +76,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketIdAave, maturityTimestampGlp), // 7 days
                 markPriceBand: ud(0.045e18), // 1%
-                protocolFeeConfig: Market.FeeConfiguration({
-                    atomicMakerFee: ud(1e16),
-                    atomicTakerFee: ud(5e16)
-                }),
+                protocolFeeConfig: Market.FeeConfiguration({ atomicMakerFee: ud(1e16), atomicTakerFee: ud(5e16) }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -169,10 +166,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketIdGlp, maturityTimestampGlp), // 7 days
                 markPriceBand: ud(0.045e18), // 4.5%
-                protocolFeeConfig: Market.FeeConfiguration({
-                    atomicMakerFee: ud(1e16),
-                    atomicTakerFee: ud(5e16)
-                }),
+                protocolFeeConfig: Market.FeeConfiguration({ atomicMakerFee: ud(1e16), atomicTakerFee: ud(5e16) }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -324,8 +318,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // t = 0.25: account 2 (FT) Aave
         {
             // action
-            (int256 executedBase, int256 executedQuote) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdAave,
                 maturityTimestamp: maturityTimestampAave,
                 accountId: 2,
@@ -342,8 +335,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // t = 0.25: account 3 (VT) Aave
         {
             // action
-            (int256 executedBase, int256 executedQuote) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdAave,
                 maturityTimestamp: maturityTimestampAave,
                 accountId: 3,
@@ -360,8 +352,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // t = 0.25: account 3 (FT) GLP
         {
             // action
-            (int256 executedBase, int256 executedQuote) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdGlp,
                 maturityTimestamp: maturityTimestampGlp,
                 accountId: 3,
@@ -378,8 +369,7 @@ contract ScenarioF is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // t = 0.25: account 2 (VT) GLP
         {
             // action
-            (int256 executedBase, int256 executedQuote) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketIdGlp,
                 maturityTimestamp: maturityTimestampGlp,
                 accountId: 2,

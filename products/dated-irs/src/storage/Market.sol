@@ -139,7 +139,6 @@ library Market {
          * @dev Market fee configurations for protocol
          */
         FeeConfiguration protocolFeeConfig;
-
         /**
          * @dev Maximum number of positions of an account in this market
          */

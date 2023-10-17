@@ -44,8 +44,7 @@ abstract contract Actions is Test {
 
         bytes memory inputs = abi.encode(maturityTimestamp, baseAmount, priceLimit);
         // todo: return fees and check fees in scenarios
-        (bytes memory output,,) =
-            getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
+        (bytes memory output,,) = getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
 
         (int256 executedBaseAmount, int256 executedQuoteAmount) = abi.decode(output, (int256, int256));
 
@@ -67,8 +66,7 @@ abstract contract Actions is Test {
 
         bytes memory inputs = abi.encode(maturityTimestamp, baseAmount, 0);
         // todo: return fees and check fees in scenarios
-        (bytes memory output,,) =
-            getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
+        (bytes memory output,,) = getDatedIrsProxy().executeTakerOrder(accountId, marketId, 0, inputs);
 
         (int256 executedBaseAmount, int256 executedQuoteAmount) = abi.decode(output, (int256, int256));
 
