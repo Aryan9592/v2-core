@@ -124,12 +124,14 @@ library AccountAutoExchange {
                 );
             
             if (deltas.collateralInfo.marginBalance < 0) {
-                // todo: layer in the haircut in here (via a helper?)
-                UD60x18 price = 
-                    CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0)).price;
+
+                CollateralConfiguration.ExchangeInfo memory exchangeInfo =
+                CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0));
+
+                UD60x18 haircutPrice = exchangeInfo.price.mul(UNIT.add(exchangeInfo.priceHaircut));
 
                 sumOfNegativeAccountValuesInUSD += 
-                    mulUDxUint(price, (-deltas.collateralInfo.marginBalance).toUint());
+                    mulUDxUint(haircutPrice, (-deltas.collateralInfo.marginBalance).toUint());
             }
         }
         
