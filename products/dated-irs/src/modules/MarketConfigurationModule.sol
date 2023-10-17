@@ -7,10 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IMarketConfigurationModule} from "../interfaces/IMarketConfigurationModule.sol";
-import {Market} from "../storage/Market.sol";
+import { IMarketConfigurationModule } from "../interfaces/IMarketConfigurationModule.sol";
+import { Market } from "../storage/Market.sol";
 
-import {OwnableStorage} from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -29,7 +29,13 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     /**
      * @inheritdoc IMarketConfigurationModule
      */
-    function setMarketConfiguration(uint128 marketId, Market.MarketConfiguration memory marketConfig) external override {
+    function setMarketConfiguration(
+        uint128 marketId,
+        Market.MarketConfiguration memory marketConfig
+    )
+        external
+        override
+    {
         OwnableStorage.onlyOwner();
         Market.Data storage market = Market.exists(marketId);
         market.setMarketConfiguration(marketConfig);
@@ -39,10 +45,13 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
      * @inheritdoc IMarketConfigurationModule
      */
     function setMarketMaturityConfiguration(
-        uint128 marketId, 
-        uint32 maturityTimestamp, 
+        uint128 marketId,
+        uint32 maturityTimestamp,
         Market.MarketMaturityConfiguration memory marketMaturityConfig
-    ) external override {
+    )
+        external
+        override
+    {
         OwnableStorage.onlyOwner();
         Market.Data storage market = Market.exists(marketId);
         market.setMarketMaturityConfiguration(maturityTimestamp, marketMaturityConfig);
@@ -52,9 +61,14 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
      * @inheritdoc IMarketConfigurationModule
      */
     function getMarketMaturityConfiguration(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestamp
-    ) external override view returns (Market.MarketMaturityConfiguration memory) {
+    )
+        external
+        view
+        override
+        returns (Market.MarketMaturityConfiguration memory)
+    {
         Market.Data storage market = Market.exists(marketId);
         return market.marketMaturityConfigs[maturityTimestamp];
     }
@@ -62,7 +76,12 @@ contract MarketConfigurationModule is IMarketConfigurationModule {
     /**
      * @inheritdoc IMarketConfigurationModule
      */
-    function getMarketConfiguration(uint128 marketId) external view override returns (Market.MarketConfiguration memory) {
+    function getMarketConfiguration(uint128 marketId)
+        external
+        view
+        override
+        returns (Market.MarketConfiguration memory)
+    {
         Market.Data storage market = Market.exists(marketId);
         return market.marketConfig;
     }

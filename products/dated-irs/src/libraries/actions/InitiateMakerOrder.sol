@@ -7,13 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../storage/MarketManagerConfiguration.sol";
-import "@voltz-protocol/core/src/interfaces/IAccountModule.sol";
 import "../../interfaces/IPool.sol";
 import "../../storage/Portfolio.sol";
 import "../ExposureHelpers.sol";
-import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
-import {IMarketManagerModule} from "@voltz-protocol/core/src/interfaces/IMarketManagerModule.sol";
 import { MakerOrderParams } from "../DataTypes.sol";
 
 /**
@@ -33,18 +29,14 @@ library InitiateMakerOrder {
      * @param params The parameters of the maker order transaction
      * @param blockTimestamp The current block timestamp.
      */
-    event MakerOrder(
-        MakerOrderParams params,
-        uint256 blockTimestamp
-    );
+    event MakerOrder(MakerOrderParams params, uint256 blockTimestamp);
 
     /**
      * @notice Initiates a maker order for a given account by providing or burining liquidity in the given tick range
      * @param params Parameters of the maker order
      */
-    function initiateMakerOrder(MakerOrderParams memory params)
-        internal
-        returns (
+
+    function initiateMakerOrder(MakerOrderParams memory params) internal returns (
         uint256 exchangeFee,
         uint256 protocolFee
     )
@@ -56,24 +48,14 @@ library InitiateMakerOrder {
         pool.executeDatedMakerOrder(params);
 
         Portfolio.loadOrCreate(params.accountId, params.marketId).updatePosition(
-            params.maturityTimestamp,
-            PositionBalances({
-                base: 0,
-                quote: 0,
-                extraCashflow: 0
-            })
+            params.maturityTimestamp, PositionBalances({ base: 0, quote: 0, extraCashflow: 0 })
         );
-        
+
         market.updateOracleStateIfNeeded();
-        
         // todo: consider having a separate position size limit check for makers which only considers unfilled
         // orders
-        
-        ExposureHelpers.checkPositionSizeLimit(
-            params.accountId,
-            params.marketId,
-            params.maturityTimestamp
-        );
+
+        ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 
         if (params.baseDelta > 0) {
 
@@ -95,5 +77,4 @@ library InitiateMakerOrder {
 
         emit MakerOrder(params, block.timestamp);
     }
-
 }

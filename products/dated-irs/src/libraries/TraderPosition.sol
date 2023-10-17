@@ -8,7 +8,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 
 pragma solidity >=0.8.19;
 
-
 import { PositionBalances, RateOracleObservation } from "./DataTypes.sol";
 
 import { mulUDxInt, mulSDxInt, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
@@ -25,15 +24,23 @@ library TraderPosition {
         int256 base,
         int256 quote,
         RateOracleObservation memory newObservation
-    ) internal pure returns (int256) {
-        return mulUDxInt(newObservation.rateIndex, base) + 
-            divIntUD(mulSDxInt(convert_sd(newObservation.timestamp.toInt()), quote), convert_ud(Time.SECONDS_IN_YEAR));
+    )
+        internal
+        pure
+        returns (int256)
+    {
+        return mulUDxInt(newObservation.rateIndex, base)
+            + divIntUD(mulSDxInt(convert_sd(newObservation.timestamp.toInt()), quote), convert_ud(Time.SECONDS_IN_YEAR));
     }
 
     function getAccruedInterest(
-        PositionBalances memory balances, 
+        PositionBalances memory balances,
         RateOracleObservation memory newObservation
-    ) internal pure returns (int256) {
+    )
+        internal
+        pure
+        returns (int256)
+    {
         return computeCashflow(balances.base, balances.quote, newObservation) - balances.extraCashflow;
     }
 }

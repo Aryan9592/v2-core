@@ -12,7 +12,8 @@ pragma solidity >=0.8.19;
  * note Enables the owner of the MarketManagerProxy to configure the pool address the market manager is linked to
  */
 library MarketManagerConfiguration {
-    bytes32 private constant _SLOT_MARKET_MANAGER_CONFIGURATION = keccak256(abi.encode("xyz.voltz.MarketManagerConfiguration"));
+    bytes32 private constant _SLOT_MARKET_MANAGER_CONFIGURATION =
+        keccak256(abi.encode("xyz.voltz.MarketManagerConfiguration"));
 
     /**
      * @notice Emitted when the market manager is (re-)configured
@@ -41,7 +42,8 @@ library MarketManagerConfiguration {
 
     /**
      * @dev Configures a market manager
-     * @param config The MarketManagerConfiguration object with all the settings for the market manager being configured.
+     * @param config The MarketManagerConfiguration object with all the settings for the market manager being
+     * configured.
      */
     function set(Data memory config) internal {
         Data storage storedConfig = load();

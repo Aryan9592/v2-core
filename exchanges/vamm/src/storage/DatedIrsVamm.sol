@@ -23,10 +23,12 @@ import { IMarketConfigurationModule } from
 import { IRateOracleModule } from "@voltz-protocol/products-dated-irs/src/interfaces/IRateOracleModule.sol";
 
 /**
- * @title Connects external contracts that implement the `IVAMM` interface to the protocol.
- *
+ * @title Defines the storage and main capabilities of a dated IRS VAMM
  */
 library DatedIrsVamm {
+    /**
+     * @dev Mutable configuration of the VAMM
+     */
     struct Mutable {
         /// @dev the spread taken by LPs on each trade.
         ///     As decimal number where 1 = 100%. E.g. 0.003 means that the spread is 0.3% of notional
@@ -41,6 +43,9 @@ library DatedIrsVamm {
         uint32 inactiveWindowBeforeMaturity;
     }
 
+    /**
+     * @dev Immutable configuration of the VAMM
+     */
     struct Immutable {
         /// @dev UNIX timestamp in seconds marking swap maturity
         uint32 maturityTimestamp;
@@ -52,7 +57,9 @@ library DatedIrsVamm {
         uint128 marketId;
     }
 
-    /// @dev frequently-updated state of the VAMM
+    /**
+     * @dev frequently-updated state of the VAMM
+     */
     struct State {
         /**
          * @dev do not rearrange storage from sqrtPriceX96 to unlocked including.
@@ -87,7 +94,9 @@ library DatedIrsVamm {
         mapping(int16 => uint256) tickBitmap;
     }
 
-    /// @dev Internal, frequently-updated state of the VAMM, which is compressed into one storage slot.
+    /**
+     * @dev Internal, frequently-updated state of the VAMM, which is compressed into one storage slot.
+     */
     struct Data {
         /// @dev vamm config set at initialization, can't be modified after creation
         Immutable immutableConfig;
@@ -101,6 +110,9 @@ library DatedIrsVamm {
         uint160 maxSqrtRatioAllowed;
     }
 
+    /**
+     * @dev Parameters required by the swap frunction
+     */
     struct SwapParams {
         /// @dev The amount of the swap in base tokens, which implicitly configures the swap
         ///      as exact input (positive), or exact output (negative)
@@ -113,6 +125,9 @@ library DatedIrsVamm {
         UD60x18 markPriceBand;
     }
 
+    /**
+     * @dev Calls the VammConfiguration.create() function with the given parameters
+     */
     function create(
         uint160 sqrtPriceX96,
         uint32[] memory times,
@@ -126,6 +141,9 @@ library DatedIrsVamm {
         return VammConfiguration.create(sqrtPriceX96, times, observedTicks, config, mutableConfig);
     }
 
+    /**
+     * @dev Calls the VammConfiguration.configure() function with the given parameters
+     */
     function configure(DatedIrsVamm.Data storage self, DatedIrsVamm.Mutable memory config) internal {
         VammConfiguration.configure(self, config);
     }
@@ -169,6 +187,9 @@ library DatedIrsVamm {
         irsVamm = exists(id);
     }
 
+    /**
+     * @dev Calls the Swap.vammSwap() function with the given parameters
+     */
     function vammSwap(
         DatedIrsVamm.Data storage self,
         DatedIrsVamm.SwapParams memory params
@@ -180,11 +201,7 @@ library DatedIrsVamm {
     }
 
     /**
-     * @notice Executes a dated maker order that provides liquidity to (or removes liquidty from) this VAMM
-     * @param accountId Id of the `Account` with which the lp wants to provide liqudiity
-     * @param tickLower Lower tick of the range order
-     * @param tickUpper Upper tick of the range order
-     * @param liquidityDelta Liquidity to add (positive values) or remove (negative values) witin the tick range
+     * @dev Calls the LP.executeDatedMakerOrder() function with the given parameters
      */
     function executeDatedMakerOrder(
         DatedIrsVamm.Data storage self,
@@ -198,9 +215,9 @@ library DatedIrsVamm {
         LP.executeDatedMakerOrder(self, accountId, tickLower, tickUpper, liquidityDelta);
     }
 
-    /// @notice For a given LP account, how much liquidity is available to trade in each direction.
-    /// @param accountId The LP account. All positions within the account will be considered.
-    /// @return unfilled The unfilled base and quote balances
+    /**
+     * @dev Calls the AccountBalances.getAccountUnfilledBalances() function with the given parameters
+     */
     function getAccountUnfilledBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
@@ -212,8 +229,9 @@ library DatedIrsVamm {
         return AccountBalances.getAccountUnfilledBalances(self, accountId);
     }
 
-    /// @dev For a given LP posiiton, how much of it is already traded and what are base and
-    /// quote tokens representing those exiting trades?
+    /**
+     * @dev Calls the AccountBalances.getAccountFilledBalances() function with the given parameters
+     */
     function getAccountFilledBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
@@ -225,6 +243,9 @@ library DatedIrsVamm {
         return AccountBalances.getAccountFilledBalances(self, accountId);
     }
 
+    /**
+     * @dev Calls the RateOracleModule.getLatestRateIndex() function with the given parameters
+     */
     function getLatestRateIndex(DatedIrsVamm.Data storage self) internal view returns (RateOracleObservation memory) {
         IRateOracleModule rateOracleModule = IRateOracleModule(PoolConfiguration.load().marketManagerAddress);
 
@@ -232,6 +253,9 @@ library DatedIrsVamm {
             rateOracleModule.getLatestRateIndex(self.immutableConfig.marketId, self.immutableConfig.maturityTimestamp);
     }
 
+    /**
+     * @dev Calls the IMarketConfigurationModule.getExposureFactor() function with the given parameters
+     */
     function getExposureFactor(DatedIrsVamm.Data storage self) internal view returns (UD60x18) {
         IMarketConfigurationModule marketConfigurationModule =
             IMarketConfigurationModule(PoolConfiguration.load().marketManagerAddress);

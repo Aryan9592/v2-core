@@ -4,7 +4,9 @@ pragma solidity >=0.8.13;
 
 import "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
-/// @dev the top level state of the swap, the results of which are recorded in storage at the end
+/**
+ * @dev The top level state of the swap, the results of which are recorded in storage at the end
+ */
 struct SwapState {
     /// @dev the amount remaining to be swapped in/out of the input/output asset
     int256 amountSpecifiedRemaining;
@@ -18,6 +20,9 @@ struct SwapState {
     uint128 liquidity;
 }
 
+/**
+ * @dev Information of a single swap step, result of one while loop iteration
+ */
 struct SwapStepComputations {
     /// @dev the price at the beginning of the step
     uint160 sqrtPriceStartX96;
@@ -31,6 +36,8 @@ struct SwapStepComputations {
     uint256 amountIn;
     /// @dev how much is being swapped out
     uint256 amountOut;
+    /// @dev average price given by swap step
     UD60x18 averagePrice;
+    /// @dev token deltas accumulated after the swap step
     PositionBalances tokenDeltas;
 }

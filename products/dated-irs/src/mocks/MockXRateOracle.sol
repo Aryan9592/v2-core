@@ -24,17 +24,17 @@ contract MockXRateOracle is IRateOracle, IMockXRateOracle {
     }
 
     /// @inheritdoc IRateOracle
-    function hasState() external override pure returns (bool) {
+    function hasState() external pure override returns (bool) {
         return false;
     }
 
     /// @inheritdoc IRateOracle
-    function earliestStateUpdate() external override pure returns (uint256) {
+    function earliestStateUpdate() external pure override returns (uint256) {
         revert NoState();
     }
-    
+
     /// @inheritdoc IRateOracle
-    function updateState() external override pure {
+    function updateState() external pure override {
         revert NoState();
     }
 
@@ -52,7 +52,6 @@ contract MockXRateOracle is IRateOracle, IMockXRateOracle {
     function operator() external view override returns (address) {
         return _operator;
     }
-
 
     /// @inheritdoc IMockXRateOracle
     function mockIndex(UD60x18 __liquidityIndex) external {

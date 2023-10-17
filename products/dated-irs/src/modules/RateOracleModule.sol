@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import "../interfaces/IRateOracleModule.sol";
-import {Market} from "../storage/Market.sol";
+import { Market } from "../storage/Market.sol";
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -22,14 +22,7 @@ contract RateOracleModule is IRateOracleModule {
     /**
      * @inheritdoc IRateOracleModule
      */
-    function getRateIndexCurrent(
-        uint128 marketId
-    )
-        external
-        view
-        override
-        returns (UD60x18 rateIndexCurrent)
-    {
+    function getRateIndexCurrent(uint128 marketId) external view override returns (UD60x18 rateIndexCurrent) {
         return Market.exists(marketId).getRateIndexCurrent();
     }
 
@@ -52,24 +45,38 @@ contract RateOracleModule is IRateOracleModule {
      * @inheritdoc IRateOracleModule
      */
     function getLatestRateIndex(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestamp
-    ) external view returns (RateOracleObservation memory) {
+    )
+        external
+        view
+        returns (RateOracleObservation memory)
+    {
         return Market.exists(marketId).getLatestRateIndex(maturityTimestamp);
     }
 
     /**
-    * @inheritdoc IRateOracleModule
+     * @inheritdoc IRateOracleModule
      */
-    function getRateOracleConfiguration(uint128 marketId) external view override returns (Market.RateOracleConfiguration memory) {
+    function getRateOracleConfiguration(uint128 marketId)
+        external
+        view
+        override
+        returns (Market.RateOracleConfiguration memory)
+    {
         return Market.exists(marketId).rateOracleConfig;
     }
 
     /**
      * @inheritdoc IRateOracleModule
      */
-    function setRateOracleConfiguration(uint128 marketId, Market.RateOracleConfiguration memory rateOracleConfig)
-    external override {
+    function setRateOracleConfiguration(
+        uint128 marketId,
+        Market.RateOracleConfiguration memory rateOracleConfig
+    )
+        external
+        override
+    {
         OwnableStorage.onlyOwner();
         Market.exists(marketId).setRateOracleConfiguration(rateOracleConfig);
     }
@@ -85,10 +92,13 @@ contract RateOracleModule is IRateOracleModule {
      * @inheritdoc IRateOracleModule
      */
     function backfillRateIndexAtMaturityCache(
-        uint128 marketId, 
+        uint128 marketId,
         uint32 maturityTimestamp,
         UD60x18 rateIndexAtMaturity
-    ) external override {
+    )
+        external
+        override
+    {
         OwnableStorage.onlyOwner();
         Market.exists(marketId).backfillRateIndexAtMaturityCache(maturityTimestamp, rateIndexAtMaturity);
     }

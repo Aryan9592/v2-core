@@ -7,17 +7,17 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Portfolio} from "../../storage/Portfolio.sol";
-import {Market} from "../../storage/Market.sol";
-import {FilledBalances} from "../DataTypes.sol";
-import {ExposureHelpers} from "../ExposureHelpers.sol";
+import { Portfolio } from "../../storage/Portfolio.sol";
+import { Market } from "../../storage/Market.sol";
+import { FilledBalances } from "../DataTypes.sol";
+import { ExposureHelpers } from "../ExposureHelpers.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import {mulDiv} from "@prb/math/SD59x18.sol";
-import {Timer} from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
+import { mulDiv } from "@prb/math/SD59x18.sol";
+import { Timer } from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
-import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
-import {FeatureFlagSupport} from "../FeatureFlagSupport.sol";
-import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
+import { FeatureFlagSupport } from "../FeatureFlagSupport.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 
 /*
 TODOs
@@ -33,7 +33,7 @@ TODOs
 
 /**
  * @title Library for adl order execution
-*/
+ */
 library ExecuteADLOrder {
     using Timer for Timer.Data;
     using Portfolio for Portfolio.Data;
@@ -58,7 +58,11 @@ library ExecuteADLOrder {
         uint256 positionUnrealizedLoss,
         uint256 totalUnrealizedLoss,
         int256 realBalanceAndIF
-    ) private view returns (UD60x18 bankruptcyPrice) {
+    )
+        private
+        view
+        returns (UD60x18 bankruptcyPrice)
+    {
         uint256 absRealBalanceAndIF = (realBalanceAndIF > 0) ? realBalanceAndIF.toUint() : (-realBalanceAndIF).toUint();
         uint256 absCover = mulDiv(absRealBalanceAndIF, positionUnrealizedLoss, totalUnrealizedLoss);
         int256 cover = (realBalanceAndIF > 0) ? absCover.toInt() : -absCover.toInt();
@@ -69,7 +73,7 @@ library ExecuteADLOrder {
             baseBalance: baseBalance,
             quoteBalance: quoteBalance,
             uPnL: cover
-        }).intoUD60x18();   // todo: need to check this with @0xZenus @arturbeg, we do not want to revert adl
+        }).intoUD60x18(); // todo: need to check this with @0xZenus @arturbeg, we do not want to revert adl
     }
 
     struct ExecuteADLOrderVars {
@@ -85,30 +89,27 @@ library ExecuteADLOrder {
         uint32 maturityTimestamp,
         uint256 totalUnrealizedLossQuote,
         int256 realBalanceAndIF
-    ) internal {
+    )
+        internal
+    {
         // pause maturity until adl propagation is done
         FeatureFlag.Data storage flag = FeatureFlag.load(
-            FeatureFlagSupport.getMarketEnabledFeatureFlagId(
-                accountPortfolio.marketId, 
-                maturityTimestamp
-            )
+            FeatureFlagSupport.getMarketEnabledFeatureFlagId(accountPortfolio.marketId, maturityTimestamp)
         );
         flag.denyAll = true;
-        
+
         ExecuteADLOrderVars memory vars;
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);
         vars.poolAddress = market.marketConfig.poolAddress;
 
-        FilledBalances memory filledBalances = accountPortfolio.getAccountFilledBalances(
-            maturityTimestamp,
-            vars.poolAddress
-        );
+        FilledBalances memory filledBalances =
+            accountPortfolio.getAccountFilledBalances(maturityTimestamp, vars.poolAddress);
 
         if (totalUnrealizedLossQuote > 0) {
             // todo: (AB) link this to uPnL functions
             uint256 positionUnrealizedLoss = 0;
-            
+
             vars.markPrice = computeBankruptcyPrice({
                 marketId: accountPortfolio.marketId,
                 maturityTimestamp: maturityTimestamp,
@@ -119,47 +120,33 @@ library ExecuteADLOrder {
                 realBalanceAndIF: realBalanceAndIF
             });
         } else {
-
-            vars.markPrice = ExposureHelpers.computeTwap(
-                market.id,
-                maturityTimestamp,
-                vars.poolAddress,
-                0
-            );
-
+            vars.markPrice = ExposureHelpers.computeTwap(market.id, maturityTimestamp, vars.poolAddress, 0);
         }
 
         vars.baseDelta = filledBalances.base;
-        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(
-            vars.baseDelta, 
-            vars.markPrice, 
-            accountPortfolio.marketId
-        );
+        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
 
         vars.isLong = vars.baseDelta > 0;
 
-        Portfolio.Data storage adlPortfolio = vars.isLong ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
+        Portfolio.Data storage adlPortfolio = vars.isLong
+            ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
             : Portfolio.loadOrCreate(type(uint128).max - 2, market.id);
-        
+
         Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(adlOrderTimerId(vars.isLong));
         /// todo: need to think how propagation can achieve exactly 0 in base & quote balances,
         /// given numerical errors
         if (adlPortfolio.positions[maturityTimestamp].base == 0) {
-            adlPortfolioTimer.start(
-                market.adlBlendingDurationInSeconds
-            );
+            adlPortfolioTimer.start(market.adlBlendingDurationInSeconds);
         } else {
             if (!adlPortfolioTimer.isActive()) {
-                revert CannotBlendADLDuringPropagation(accountPortfolio.marketId, accountPortfolio.accountId, vars.baseDelta);
+                revert CannotBlendADLDuringPropagation(
+                    accountPortfolio.marketId, accountPortfolio.accountId, vars.baseDelta
+                );
             }
         }
 
         Portfolio.propagateMatchedOrder(
-            adlPortfolio,
-            accountPortfolio,
-            vars.baseDelta,
-            vars.quoteDelta,
-            maturityTimestamp
+            adlPortfolio, accountPortfolio, vars.baseDelta, vars.quoteDelta, maturityTimestamp
         );
     }
 

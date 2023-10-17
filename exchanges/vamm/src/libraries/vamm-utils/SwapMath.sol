@@ -4,8 +4,10 @@ pragma solidity >=0.8.13;
 
 import { SqrtPriceMath } from "../math/SqrtPriceMath.sol";
 
-/// @title Computes the result of a swap within ticks
-/// @notice Contains methods for computing the result of a swap within a single tick price range, i.e., a single tick.
+/**
+ * @title Computes the result of a swap within ticks
+ * @notice Contains methods for computing the result of a swap within a single tick price range, i.e., a single tick.
+ */
 library SwapMath {
     struct SwapStepParams {
         uint160 sqrtRatioCurrentX96;
@@ -15,17 +17,20 @@ library SwapMath {
         uint256 timeToMaturityInSeconds;
     }
 
-    /// @notice Computes the result of swapping some amount in, or amount out, given the parameters of the swap
-    /// @dev The fee, plus the amount in, will never exceed the amount remaining if the swap's `amountSpecified` is
-    /// positive
-    /// @param params.sqrtRatioCurrentX96 The current sqrt price of the pool
-    /// @param params.sqrtRatioTargetX96 The price that cannot be exceeded, from which the direction of the swap is
-    /// inferred
-    /// @param params.liquidity The usable params.liquidity
-    /// @param params.amountRemaining How much input or output amount is remaining to be swapped in/out
-    /// @return sqrtRatioNextX96 The price after swapping the amount in/out, not to exceed the price target
-    /// @return amountIn The amount to be swapped in, of either token0 or token1, based on the direction of the swap
-    /// @return amountOut The amount to be received, of either token0 or token1, based on the direction of the swa
+    /**
+     * @notice Computes the result of swapping some amount in, or amount out, given the parameters of the swap
+     * @dev The fee, plus the amount in, will never exceed the amount remaining if the swap's `amountSpecified` is
+     * positive
+     * @param params.sqrtRatioCurrentX96 The current sqrt price of the pool
+     * @param params.sqrtRatioTargetX96 The price that cannot be exceeded, from which the direction of the swap is
+     * inferred
+     * @param params.liquidity The usable params.liquidity
+     * @param params.amountRemaining How much input or output amount is remaining to be swapped in/out
+     * @return sqrtRatioNextX96 The price after swapping the amount in/out, not to exceed the price target
+     * @return amountIn The amount to be swapped in, of either token0 or token1, based on the direction of the swap
+     * @return amountOut The amount to be received, of either token0 or token1, based on the direction of the swap
+     */
+
     function computeSwapStep(SwapStepParams memory params)
         internal
         pure

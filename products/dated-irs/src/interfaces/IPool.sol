@@ -28,7 +28,8 @@ interface IPool is IERC165 {
      * @dev It also enables account closures initiated by the Market Manager
      * @param marketId Id of the market in which the account wants to initiate a taker order (e.g. 1 for aUSDC lend)
      * @param maturityTimestamp Maturity timestamp of the market in which the account wants to initiate a taker order
-     * @param baseAmount Amount of notional that the account wants to trade in either long (+) or short (-) direction depending on
+     * @param baseAmount Amount of notional that the account wants to trade in either long (+) or short (-) direction
+     * depending on
      * @param sqrtPriceLimitX96 The Q64.96 sqrt price limit. If !isFT, the price cannot be less than this
      */
     function executeDatedTakerOrder(
@@ -38,7 +39,9 @@ interface IPool is IERC165 {
         uint160 sqrtPriceLimitX96,
         UD60x18 markPrice,
         UD60x18 markPriceBand
-    ) external returns (PositionBalances memory /* tokenDeltas */);
+    )
+        external
+        returns (PositionBalances memory); /* tokenDeltas */
 
     /**
      * @notice Provides liquidity to (or removes liquidty from) a given marketId & maturityTimestamp pair
@@ -49,27 +52,33 @@ interface IPool is IERC165 {
     /**
      * @notice Calculates base and quote token balances of all LP positions in the account.
      * @notice They represent the amount that has been locked in swaps
-     * @param marketId Id of the market to look at 
+     * @param marketId Id of the market to look at
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param accountId Id of the `Account` to look at
-    */
+     */
     function getAccountFilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (FilledBalances memory);
+    )
+        external
+        view
+        returns (FilledBalances memory);
 
     /**
      * @notice Returns the base amount minted by an account but not used in a swap.
-     * @param marketId Id of the market to look at 
+     * @param marketId Id of the market to look at
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param accountId Id of the `Account` to look at
-    */
+     */
     function getAccountUnfilledBaseAndQuote(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (UnfilledBalances memory);
+    )
+        external
+        view
+        returns (UnfilledBalances memory);
 
     /**
      * @notice Get dated irs twap, adjusted for price impact and spread
@@ -87,7 +96,10 @@ interface IPool is IERC165 {
         OrderDirection orderDirection,
         uint32 lookbackWindow,
         UD60x18 pSlippage
-    ) external view returns (UD60x18);
+    )
+        external
+        view
+        returns (UD60x18);
 
     /**
      * @notice Attempts to close all the unfilled and filled positions of a given account in the specified market
@@ -100,11 +112,16 @@ interface IPool is IERC165 {
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external returns (uint256 closedUnfilledBase);
+    )
+        external
+        returns (uint256 closedUnfilledBase);
 
     function hasUnfilledOrders(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
-    ) external view returns (bool);
+    )
+        external
+        view
+        returns (bool);
 }
