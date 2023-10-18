@@ -76,20 +76,6 @@ library InitiateTakerOrder {
 
         ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 
-        /// @dev if base balance and executed base have the same sign
-        /// it means the exposure grew and the delta should be positive.
-        /// otherwise, the exposure was reduced and the delta is negative.
-        int256 annualizedNotionalDelta =
-            annualizedNotionalAmount > 0 ? -annualizedNotionalAmount : annualizedNotionalAmount;
-        if (
-            Portfolio.exists(params.accountId, params.marketId).positions[params.maturityTimestamp].base
-                * tokenDeltas.base > 0
-        ) {
-            annualizedNotionalDelta = -annualizedNotionalDelta;
-        }
-
-        ExposureHelpers.checkOpenInterestLimit(params.marketId, params.maturityTimestamp, annualizedNotionalDelta);
-
         market.updateOracleStateIfNeeded();
 
         protocolFee =
