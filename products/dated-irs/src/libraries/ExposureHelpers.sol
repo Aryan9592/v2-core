@@ -22,11 +22,11 @@ import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT as UNIT_ud, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import "../storage/MarketManagerConfiguration.sol";
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+import { UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -103,20 +103,24 @@ library ExposureHelpers {
     function computeUnrealizedPnL(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 baseBalance,
-        int256 quoteBalance,
+        int256 base,
+        int256 quote,
         UD60x18 unwindPrice
     )
         internal
         view
-        returns (int256 unrealizedPnL)
+        returns (int256 uPnL)
     {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        uint32 timestamp = Time.blockTimestampTruncated();
 
-        int256 exposure = baseToExposure(baseBalance, marketId);
-        int256 unwindQuote = mulUDxInt(unwindPrice.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
+        if (maturityTimestamp <= timestamp) {
+            return 0;
+        }
 
-        return quoteBalance + unwindQuote;
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(timestamp, maturityTimestamp);
+
+        int256 unwindQuote = mulUDxInt(unwindPrice, baseToExposure(base, marketId));
+        uPnL = mulUDxInt(timeDeltaAnnualized, quote + unwindQuote);
     }
 
     function computeUnwindPriceForGivenUPnL(
@@ -172,33 +176,13 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function getPnLComponents(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        FilledBalances memory filledBalances,
-        address poolAddress
-    )
-        internal
-        view
-        returns (Account.PnLComponents memory pnlComponents)
-    {
-        UD60x18 twap = computeTwap(marketId, maturityTimestamp, poolAddress, filledBalances.base);
-
-        pnlComponents.unrealizedPnL =
-            computeUnrealizedPnL(marketId, maturityTimestamp, filledBalances.base, filledBalances.quote, twap);
-
-        pnlComponents.realizedPnL = filledBalances.accruedInterest;
-
-        return pnlComponents;
-    }
-
     function decoupleExposures(
         int256 notional,
         uint256 tenorInSeconds,
         uint256 timeToMaturityInSeconds
     )
         private
-        view
+        pure
         returns (int256 shortRateExposure, int256 swapRateExposure)
     {
         // todo: division by zero checks, etc

@@ -8,6 +8,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 
 pragma solidity >=0.8.19;
 
+import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 struct RateOracleObservation {
@@ -24,7 +26,7 @@ struct PositionBalances {
 struct FilledBalances {
     int256 base;
     int256 quote;
-    int256 accruedInterest;
+    Account.PnLComponents pnl;
 }
 
 struct UnfilledBalances {
