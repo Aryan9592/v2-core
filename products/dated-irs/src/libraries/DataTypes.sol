@@ -54,3 +54,12 @@ struct TakerOrderParams {
     int256 baseDelta;
     uint160 priceLimit;
 }
+
+struct LiquidationOrderParams {
+    uint128 liquidatableAccountId;
+    uint128 liquidatorAccountId;
+    uint128 marketId;
+    uint32 maturityTimestamp;
+    int256 baseAmountToBeLiquidated;
+    uint256 priceLimit;
+}
