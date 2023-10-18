@@ -176,6 +176,7 @@ contract ExecutionModule is IExecutionModule {
     ) internal {
 
         // todo: list lengths validation
+        // todo: there's some overlap between this function and distributeOnChainFees, consider tidying up
 
         Exchange.Data storage exchange = Exchange.exists(vars.exchangeId);
 
