@@ -20,11 +20,7 @@ import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfi
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
-import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
-
 import { ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
-
-import "forge-std/console2.sol";
 
 contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
@@ -253,22 +249,14 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 308_410_032
             });
 
-            checkFilledBalancesWithoutUPnL({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 52_851_278,
-                expectedRealizedPnL: 8_212_817
+                expectedRealizedPnL: 8_212_817,
+                expectedUnrealizedPnL: -683_077
             });
-
-            uint256 twap = getAdjustedTwap(
-                marketId,
-                maturityTimestamp,
-                IPool.OrderDirection.Zero,
-                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
-            );
-
-            console2.log("twap", twap);
         }
 
         // check account 2
@@ -278,12 +266,13 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalancesWithoutUPnL({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 48_356_576,
-                expectedRealizedPnL: 7_089_144
+                expectedRealizedPnL: 7_089_144,
+                expectedUnrealizedPnL: -1_806_752
             });
         }
 
@@ -294,12 +283,13 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalancesWithoutUPnL({
+            checkFilledBalances({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: 2_000_000_000,
                 expectedQuoteBalance: -101_207_855,
-                expectedRealizedPnL: -15_301_963
+                expectedRealizedPnL: -15_301_963,
+                expectedUnrealizedPnL: 2_489_839
             });
         }
 
