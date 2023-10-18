@@ -238,7 +238,9 @@ library AccountAutoExchange {
         address quoteToken,
         uint256 amountToAutoExchangeQuote
     ) internal view returns (
-        uint256 /* collateralAmountToLiquidator */, uint256 /* quoteAmountToIF */, uint256 /* quoteAmountToAcc */
+        uint256 /* collateralAmountToLiquidator */,
+        uint256 /* quoteAmountToInsuranceFund */,
+        uint256 /* quoteAmountToAcc */
     ) {
 
         CalculateAvailableCollateralToAutoExchangeVars memory vars;
