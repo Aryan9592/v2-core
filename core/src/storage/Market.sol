@@ -233,6 +233,20 @@ library Market {
         );
     }
 
+    function propagateADLOrder(
+        Data storage self,
+        uint128 accountId,
+        uint32 maturityTimestamp, 
+        bool isLong
+    ) internal {
+        IMarketManager(self.marketManagerAddress).propagateADLOrder(
+            accountId,
+            self.id,
+            maturityTimestamp,
+            isLong
+        );
+    }
+
     function executeTakerOrder(
         Data storage self,
         uint128 accountId,
@@ -301,7 +315,4 @@ library Market {
         );
 
     }
-
-
-
 }

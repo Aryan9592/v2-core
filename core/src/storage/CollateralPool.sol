@@ -23,6 +23,7 @@ import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.
  * @title Object for tracking aggregate collateral pool balances
  */
 library CollateralPool {
+    using Account for Account.Data;
     using CollateralPool for CollateralPool.Data;
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
@@ -171,7 +172,12 @@ library CollateralPool {
         /**
          * @dev Proportion of LMR delta that is awarded to the keeper for adl liquidations
          */
-        UD60x18 adlKeeperFee;
+        UD60x18 adlExecutionKeeperFee;
+
+        /**
+         * @dev Flat fee that is awarded to the keeper for adl propagations, taken from IF
+         */
+        uint256 adlPropagationKeeperFee;
     }
 
     struct DutchConfiguration {
@@ -197,6 +203,11 @@ library CollateralPool {
          * @dev Pool's insurance fund account ID
          */
         uint128 accountId;
+        /**
+         * @dev Minimum funds threshold that must be left in insurance fund
+         * for covering keeper rewards for adl propagation.
+         */
+        uint256 minInsuranceFundThreshold;
         /**
          * @dev Percentage of liquidation penalty that goes towards the insurance fund
          */
@@ -284,6 +295,25 @@ library CollateralPool {
          * @dev Collateral pool wide backstop lp configuration
          */
         BackstopLPConfig backstopLPConfig;
+    }
+
+    function getAvailableInsuranceFundCover(
+        Data storage self, 
+        address quoteToken,
+        bool preserveMinThreshold
+    ) internal view returns (uint256) {
+        Account.Data storage insuranceFundAccount = Account.exists(self.insuranceFundConfig.accountId);
+        int256 insuranceFundBalance = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken);
+
+        insuranceFundBalance -= self.insuranceFundUnderwritings[quoteToken].toInt();
+        if (preserveMinThreshold) {
+            insuranceFundBalance -= self.insuranceFundConfig.minInsuranceFundThreshold.toInt();
+        }
+
+        if (insuranceFundBalance < 0) {
+            return 0;
+        }
+        return insuranceFundBalance.toUint();
     }
 
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {

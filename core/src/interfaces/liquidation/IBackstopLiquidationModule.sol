@@ -20,4 +20,13 @@ interface IBackstopLiquidationModule {
         address quoteToken,
         AccountLiquidation.LiquidationOrder[] memory backstopLPLiquidationOrders
     ) external;
+
+    // todo: add natspec
+    function propagateADLOrder(
+        uint128 marketId,
+        uint128 accountId, 
+        uint128 keeperAccountId,
+        uint32 maturityTimestamp, 
+        bool isLong
+    ) external;
 }

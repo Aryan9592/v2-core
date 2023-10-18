@@ -357,7 +357,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     /**
-     * @inheritdoc IMarketManagerIRSModule
+     * @inheritdoc IMarketManager
      */
     function propagateADLOrder(
         uint128 accountId,

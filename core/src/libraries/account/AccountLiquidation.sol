@@ -123,6 +123,18 @@ library AccountLiquidation {
      */
     error LiquidationBidRewardOverflow(uint128 liquidatableAccountId, LiquidationBidPriorityQueue.LiquidationBid liquidationBid);
 
+    /**
+     * Thrown when an ADL propagation is attempted but the insurance fund is unable to cover the keeper fee,
+     * @param accountId The account id for which the ADL propagation was attempted
+     * @param insuranceFundCoverAvailable The available IF cover
+     * @param keeperFee The flat keeper fee that must be awarded.
+     */
+    error InsufficientInsuranceFundToCoverADLPropagationReward(
+        uint128 accountId,
+        uint256 insuranceFundCoverAvailable, 
+        uint256 keeperFee
+    );
+
     struct LiquidationOrder {
         uint128 marketId;
         bytes inputs;
@@ -680,7 +692,7 @@ library AccountLiquidation {
                 token: quoteToken,
                 deltaLMR: vars.rawLMRAfterBackstop - vars.rawLMRAfterAdl,
                 backstopRewardFee: ZERO,
-                keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlKeeperFee
+                keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
             });
         }
     }
@@ -699,7 +711,7 @@ library AccountLiquidation {
             token: quoteToken,
             deltaLMR: self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement,
             backstopRewardFee: ZERO,
-            keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlKeeperFee
+            keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
         });
 
         // Need to fetch margin info after rewards distribution for correct
@@ -719,13 +731,11 @@ library AccountLiquidation {
             });
         }
 
-        Account.Data storage insuranceFundAccount = 
-            Account.exists(collateralPool.insuranceFundConfig.accountId);
-        int256 insuranceFundCoverAvailable = 
-            insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken) - 
-                collateralPool.insuranceFundUnderwritings[quoteToken].toInt();
-
-        if (insuranceFundCoverAvailable + marginInfo.collateralInfo.marginBalance > 0) {
+        uint256 insuranceFundCoverAvailable = collateralPool.getAvailableInsuranceFundCover({
+            quoteToken: quoteToken, 
+            preserveMinThreshold: true
+        });
+        if (insuranceFundCoverAvailable.toInt() + marginInfo.collateralInfo.marginBalance > 0) {
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-marginInfo.collateralInfo.marginBalance).toUint());
             
             // adl maturities with negative upnl at market price
@@ -742,10 +752,8 @@ library AccountLiquidation {
         } else {
             int256 realBalanceAndIF = marginInfo.collateralInfo.realBalance;
 
-            // note: insuranceFundCoverAvailable should never be negative
-            uint256 insuranceFundDebit = insuranceFundCoverAvailable > 0 ? (-insuranceFundCoverAvailable).toUint() : 0;
-            collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundDebit);
-            realBalanceAndIF += insuranceFundDebit.toInt();
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundCoverAvailable);
+            realBalanceAndIF += insuranceFundCoverAvailable.toInt();
 
             // gather pending funds from auto-exchange
             realBalanceAndIF += self.getPendingAutoExchangeFunds(quoteToken).toInt();
@@ -798,6 +806,47 @@ library AccountLiquidation {
                 pendingAutoExchangeFunds += quoteDelta;
             }                
         }
+    }
+
+    function propagateADLOrder(
+        Account.Data storage self,
+        uint128 marketId, 
+        uint128 keeperAccountId, 
+        uint32 maturityTimestamp, 
+        bool isLong
+    ) internal {
+        CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        Market.Data storage market = Market.exists(marketId);
+
+        uint256 insuranceFundCoverAvailable = collateralPool.getAvailableInsuranceFundCover({
+            quoteToken: market.quoteToken, 
+            preserveMinThreshold: false
+        });
+
+        if (insuranceFundCoverAvailable < collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee) {
+            revert InsufficientInsuranceFundToCoverADLPropagationReward(
+                self.id,
+                insuranceFundCoverAvailable, 
+                collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee
+            );
+        }
+
+        market.propagateADLOrder(
+            self.id,
+            maturityTimestamp, 
+            isLong
+        );
+
+        collateralPool.updateInsuranceFundUnderwritings(
+            market.quoteToken, 
+            collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee
+        );
+
+        Account.Data storage keeperAccount = Account.exists(keeperAccountId);
+        keeperAccount.updateNetCollateralDeposits(
+            market.quoteToken,
+            collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee.toInt()
+        );
     }
 }
 
