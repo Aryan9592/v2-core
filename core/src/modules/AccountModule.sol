@@ -17,6 +17,7 @@ import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {AssociatedSystem} from "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
+import {Signature} from "../storage/Signature.sol";
 
 /**
  * @title Account Manager.
@@ -109,17 +110,26 @@ contract AccountModule is IAccountModule {
     /**
      * @inheritdoc IAccountModule
      */
-    function grantPermission(uint128 accountId, bytes32 permission, address user) public override {
+    function grantPermission(uint128 accountId, bytes32 permission, address user) external override {
         FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 
         account.grantPermission(permission, user);
     }
 
+    function grantPermissionBySig(
+        uint128 accountId,
+        bytes32 permission,
+        address user,
+        Signature.EIP712Signature memory sig
+    ) external override {
+        FeatureFlagSupport.ensureGlobalAccess();
+    }
+
     /**
      * @inheritdoc IAccountModule
      */
-    function revokePermission(uint128 accountId, bytes32 permission, address user) public override {
+    function revokePermission(uint128 accountId, bytes32 permission, address user) external override {
         FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.loadAccountAndValidateOwnership(accountId, msg.sender);
 

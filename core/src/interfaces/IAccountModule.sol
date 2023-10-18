@@ -8,6 +8,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
+import {Signature} from "../storage/Signature.sol";
+
 
 /**
  * @title Account Manager Interface.
@@ -85,6 +87,14 @@ interface IAccountModule {
      * Emits a {AccountPermissionGranted} event.
      */
     function grantPermission(uint128 accountId, bytes32 permission, address user) external;
+
+    // todo: add natspec
+    function grantPermissionBySig(
+        uint128 accountId,
+        bytes32 permission,
+        address user,
+        Signature.EIP712Signature memory sig
+    ) external;
 
     /**
      * @notice Revokes `permission` from `user` for account `accountId`.
