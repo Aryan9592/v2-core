@@ -44,10 +44,9 @@ contract BackstopLiquidationModule is IBackstopLiquidationModule {
         uint128 marketId, 
         uint128 accountId,
         uint128 keeperAccountId, 
-        uint32 maturityTimestamp, 
-        bool isLong
+        bytes calldata inputs
     ) external override {
         Account.Data storage account = Account.exists(accountId);
-        account.propagateADLOrder(marketId, keeperAccountId, maturityTimestamp, isLong);
+        account.propagateADLOrder(marketId, keeperAccountId, inputs);
     }
 }

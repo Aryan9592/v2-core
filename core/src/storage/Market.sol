@@ -236,14 +236,12 @@ library Market {
     function propagateADLOrder(
         Data storage self,
         uint128 accountId,
-        uint32 maturityTimestamp, 
-        bool isLong
+        bytes memory inputs
     ) internal {
         IMarketManager(self.marketManagerAddress).propagateADLOrder(
             accountId,
             self.id,
-            maturityTimestamp,
-            isLong
+            inputs
         );
     }
 

@@ -26,7 +26,6 @@ interface IBackstopLiquidationModule {
         uint128 marketId,
         uint128 accountId, 
         uint128 keeperAccountId,
-        uint32 maturityTimestamp, 
-        bool isLong
+        bytes calldata inputs
     ) external;
 }

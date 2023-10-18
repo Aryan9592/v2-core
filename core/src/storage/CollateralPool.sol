@@ -173,11 +173,6 @@ library CollateralPool {
          * @dev Proportion of LMR delta that is awarded to the keeper for adl liquidations
          */
         UD60x18 adlExecutionKeeperFee;
-
-        /**
-         * @dev Flat fee that is awarded to the keeper for adl propagations, taken from IF
-         */
-        uint256 adlPropagationKeeperFee;
     }
 
     struct DutchConfiguration {
@@ -203,11 +198,6 @@ library CollateralPool {
          * @dev Pool's insurance fund account ID
          */
         uint128 accountId;
-        /**
-         * @dev Minimum funds threshold that must be left in insurance fund
-         * for covering keeper rewards for adl propagation.
-         */
-        uint256 minInsuranceFundThreshold;
         /**
          * @dev Percentage of liquidation penalty that goes towards the insurance fund
          */
@@ -302,12 +292,14 @@ library CollateralPool {
         address quoteToken,
         bool preserveMinThreshold
     ) internal view returns (uint256) {
+        CollateralConfiguration.Data storage collateralConfig = CollateralConfiguration.exists(self.id, quoteToken);
+
         Account.Data storage insuranceFundAccount = Account.exists(self.insuranceFundConfig.accountId);
         int256 insuranceFundBalance = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken);
 
         insuranceFundBalance -= self.insuranceFundUnderwritings[quoteToken].toInt();
         if (preserveMinThreshold) {
-            insuranceFundBalance -= self.insuranceFundConfig.minInsuranceFundThreshold.toInt();
+            insuranceFundBalance -= collateralConfig.baseConfig.minInsuranceFundThreshold.toInt();
         }
 
         if (insuranceFundBalance < 0) {

@@ -145,9 +145,8 @@ interface IMarketManager is IERC165 {
     // todo: add natspec
     function propagateADLOrder(
         uint128 accountId, 
-        uint128 marketId, 
-        uint32 maturityTimestamp, 
-        bool isLong
+        uint128 marketId,
+        bytes calldata inputs
     ) external;
 
     /**

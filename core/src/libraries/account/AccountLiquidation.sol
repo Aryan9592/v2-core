@@ -16,7 +16,6 @@ TODOs
 import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
-import {EditCollateral} from "../actions/EditCollateral.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
@@ -260,10 +259,9 @@ library AccountLiquidation {
             liquidationBid.quoteToken
         );
 
-        EditCollateral.deposit({
-            accountId: self.id,
-            collateralType: liquidationBid.quoteToken,
-            tokenAmount: collateralConfig.baseConfig.bidSubmissionFee
+        self.updateNetCollateralDeposits({
+            collateralType: liquidationBid.quoteToken, 
+            amount: collateralConfig.baseConfig.bidSubmissionFee.toInt()
         });
         collateralPool.updateInsuranceFundBalance(
             liquidationBid.quoteToken, 
@@ -604,7 +602,7 @@ library AccountLiquidation {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
 
-        // todo: layer in backstop lp & keeper rewards
+        Account.collateralPoolsCheck(self.getCollateralPool().id, Account.exists(keeperAccountId));
 
         bool _isInsolvent = isInsolvent(self, quoteToken);
         if (!_isInsolvent) {
@@ -727,9 +725,12 @@ library AccountLiquidation {
             keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
         });
 
+        // todo: I think this call can be avoided if we use the old marginInfo fetched for 
+        // distributeBackstopAdlRewards above and we subtract the fees awarded from real balance
+
         // Need to fetch margin info after rewards distribution for correct
         // insurance fund underwriting and bankruptcy price calculation
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        Account.MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
 
         // adl maturities with positive upnl at market price
         uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
@@ -748,8 +749,9 @@ library AccountLiquidation {
             quoteToken: quoteToken, 
             preserveMinThreshold: true
         });
-        if (insuranceFundCoverAvailable.toInt() + marginInfo.collateralInfo.marginBalance > 0) {
-            collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-marginInfo.collateralInfo.marginBalance).toUint());
+
+        if (insuranceFundCoverAvailable.toInt() + quoteMarginInfo.collateralInfo.marginBalance > 0) {
+            collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-quoteMarginInfo.collateralInfo.marginBalance).toUint());
             
             // adl maturities with negative upnl at market price
             for (uint256 i = 0; i < markets.length; i++) {
@@ -763,7 +765,7 @@ library AccountLiquidation {
                 });
             }
         } else {
-            int256 realBalanceAndIF = marginInfo.collateralInfo.realBalance;
+            int256 realBalanceAndIF = quoteMarginInfo.collateralInfo.realBalance;
 
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, insuranceFundCoverAvailable);
             realBalanceAndIF += insuranceFundCoverAvailable.toInt();
@@ -825,40 +827,38 @@ library AccountLiquidation {
         Account.Data storage self,
         uint128 marketId, 
         uint128 keeperAccountId, 
-        uint32 maturityTimestamp, 
-        bool isLong
+        bytes memory inputs
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         Market.Data storage market = Market.exists(marketId);
+        Account.Data storage keeperAccount = Account.exists(keeperAccountId);
+
+        Account.collateralPoolsCheck(collateralPool.id, keeperAccount);
 
         uint256 insuranceFundCoverAvailable = collateralPool.getAvailableInsuranceFundCover({
             quoteToken: market.quoteToken, 
             preserveMinThreshold: false
         });
 
-        if (insuranceFundCoverAvailable < collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee) {
+        CollateralConfiguration.Data storage collateralConfiguration = 
+            CollateralConfiguration.exists(collateralPool.id, market.quoteToken);
+        if (insuranceFundCoverAvailable < collateralConfiguration.baseConfig.adlPropagationKeeperFee) {
             revert InsufficientInsuranceFundToCoverADLPropagationReward(
                 self.id,
                 insuranceFundCoverAvailable, 
-                collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee
+                collateralConfiguration.baseConfig.adlPropagationKeeperFee
             );
         }
 
-        market.propagateADLOrder(
-            self.id,
-            maturityTimestamp, 
-            isLong
-        );
+        market.propagateADLOrder(self.id, inputs);
 
         collateralPool.updateInsuranceFundUnderwritings(
             market.quoteToken, 
-            collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee
+            collateralConfiguration.baseConfig.adlPropagationKeeperFee
         );
-
-        Account.Data storage keeperAccount = Account.exists(keeperAccountId);
         keeperAccount.updateNetCollateralDeposits(
             market.quoteToken,
-            collateralPool.riskConfig.liquidationConfiguration.adlPropagationKeeperFee.toInt()
+            collateralConfiguration.baseConfig.adlPropagationKeeperFee.toInt()
         );
     }
 }

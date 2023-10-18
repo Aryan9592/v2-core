@@ -359,15 +359,13 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function propagateADLOrder(
-        uint128 accountId,
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        bool isLong
-    )
-        external
-        override
-    {
+    function propagateADLOrder(uint128 accountId, uint128 marketId, bytes calldata inputs) external override {
+        // only Core can call this function
+        if (msg.sender != MarketManagerConfiguration.getCoreProxyAddress()) {
+            revert NotAuthorized(msg.sender, "propagateADLOrder");
+        }
+
+        (uint32 maturityTimestamp, bool isLong) = abi.decode(inputs, (uint32, bool));
         PropagateADLOrder.propagateADLOrder(accountId, marketId, maturityTimestamp, isLong);
     }
 
