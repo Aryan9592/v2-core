@@ -91,10 +91,9 @@ library Account {
 
 
     /**
-    * @dev Thrown when liquidator and liquidatee (also applies to auto-exchange) belong to different
-    * collateral pools
+    * @dev Thrown when account and counterparty belong to different collateral pools
     */
-    error CollateralPoolMismatch(uint128 liquidatorCollateralPoolId, uint128 liquidateeCollateralPoolId);
+    error CollateralPoolMismatch(uint128 accountCollateralPoolId, uint128 counterpartyCollateralPoolId);
 
     struct PnLComponents {
         int256 realizedPnL;
@@ -291,16 +290,6 @@ library Account {
         }
 
         return a;
-    }
-
-    /**
-     * @dev Returns false if the account does not exist with appropriate error. Otherwise, returns true.
-     */
-    function doesExist(uint128 id) internal view returns (bool) {
-        Data storage a = load(id);
-
-        // if the account id is zero, it means that the account has not been created yet
-        return a.id != 0;
     }
 
     /**
