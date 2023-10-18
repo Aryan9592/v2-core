@@ -72,6 +72,7 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 poolAddress: address(vammProxy),
                 twapLookbackWindow: twapLookbackWindow(marketId, maturityTimestamp), // 7 days
                 markPriceBand: ud(0.045e18), // 1%
+                protocolFeeConfig: Market.FeeConfiguration({ atomicMakerFee: ud(1e16), atomicTakerFee: ud(5e16) }),
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
@@ -188,8 +189,7 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
         // short FT - account 2
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 2,
@@ -200,15 +200,13 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, -1000 * 1e6, "executedBase1");
                 assertAlmostEq(executedQuote, int256(45_326_575), 1e6, "executedQuote1");
-                assertEq(annualizedNotional, -505_000_000, "annualizedNotional1");
             }
         }
 
         // long VT - account 3
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 3,
@@ -219,15 +217,13 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, 2000 * 1e6, "executedBase2");
                 assertAlmostEq(executedQuote, int256(-107_293_150), 1e6, "executedQuote2");
-                assertEq(annualizedNotional, 1_010_000_000, "annualizedNotional2");
             }
         }
 
         // long VT - account 4
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 4,
@@ -238,15 +234,13 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, 1000 * 1e6, "executedBase3");
                 assertAlmostEq(executedQuote, int256(-61_050_264), 1e6, "executedQuote3");
-                assertEq(annualizedNotional, 505_000_000, "annualizedNotional3");
             }
         }
 
         // short FT - account 4
         {
             // action
-            (int256 executedBase, int256 executedQuote, int256 annualizedNotional) =
-            executeDatedIrsTakerOrder_noPriceLimit({
+            (int256 executedBase, int256 executedQuote) = executeDatedIrsTakerOrder_noPriceLimit({
                 marketId: marketId,
                 maturityTimestamp: maturityTimestamp,
                 accountId: 4,
@@ -257,7 +251,6 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             {
                 assertEq(executedBase, -1000 * 1e6, "executedBase4");
                 assertAlmostEq(executedQuote, int256(54_998_289), 1e6, "executedQuote4");
-                assertEq(annualizedNotional, -505_000_000, "annualizedNotional4");
             }
         }
 

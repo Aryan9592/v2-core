@@ -206,6 +206,7 @@ contract SetupProtocol is BatchScript {
         bytes32 marketType,
         uint128 feeCollectorAccountId,
         uint256 cap,
+        // todo: remove atomicMakerFee, atomicTakerFee (since part of config)
         UD60x18 atomicMakerFee,
         UD60x18 atomicTakerFee,
         UD60x18 riskParameter,
@@ -225,6 +226,7 @@ contract SetupProtocol is BatchScript {
                 poolAddress: address(contracts.vammProxy),
                 twapLookbackWindow: config.twapLookbackWindow,
                 markPriceBand: config.markPriceBand,
+                protocolFeeConfig: config.protocolFeeConfig,
                 takerPositionsPerAccountLimit: config.takerPositionsPerAccountLimit,
                 positionSizeLowerLimit: config.positionSizeLowerLimit,
                 positionSizeUpperLimit: config.positionSizeUpperLimit,
@@ -239,17 +241,6 @@ contract SetupProtocol is BatchScript {
                 maturityIndexCachingWindowInSeconds: maturityIndexCachingWindowInSeconds
             })
         });
-
-        configureProtocolMarketFee(
-            marketId,
-            Market.FeeConfiguration({ atomicMakerFee: atomicMakerFee, atomicTakerFee: atomicTakerFee }),
-            feeCollectorAccountId
-        );
-
-        // todo: customise this configuration
-        configureCollateralPoolMarketFee(
-            marketId, Market.FeeConfiguration({ atomicMakerFee: UD60x18.wrap(0), atomicTakerFee: UD60x18.wrap(0) })
-        );
     }
 
     function configureMarketMaturity(
@@ -548,38 +539,6 @@ contract SetupProtocol is BatchScript {
             addToBatch(
                 address(contracts.coreProxy),
                 abi.encodeCall(contracts.coreProxy.createAccount, (requestedAccountId, accountOwner))
-            );
-        }
-    }
-
-    function configureProtocolMarketFee(
-        uint128 marketId,
-        Market.FeeConfiguration memory config,
-        uint128 feeCollectorAccountId
-    )
-        public
-    {
-        if (!settings.multisig) {
-            broadcastOrPrank();
-            contracts.coreProxy.configureProtocolMarketFee(marketId, config, feeCollectorAccountId);
-        } else {
-            addToBatch(
-                address(contracts.coreProxy),
-                abi.encodeCall(
-                    contracts.coreProxy.configureProtocolMarketFee, (marketId, config, feeCollectorAccountId)
-                )
-            );
-        }
-    }
-
-    function configureCollateralPoolMarketFee(uint128 marketId, Market.FeeConfiguration memory config) public {
-        if (!settings.multisig) {
-            broadcastOrPrank();
-            contracts.coreProxy.configureCollateralPoolMarketFee(marketId, config);
-        } else {
-            addToBatch(
-                address(contracts.coreProxy),
-                abi.encodeCall(contracts.coreProxy.configureCollateralPoolMarketFee, (marketId, config))
             );
         }
     }

@@ -9,7 +9,8 @@ pragma solidity >=0.8.19;
 
 import {Account} from "../storage/Account.sol";
 import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
-
+import {AccountAutoExchange} from "../libraries/account/AccountAutoExchange.sol";
+import {AutoExchange} from "../libraries/actions/AutoExchange.sol";
 
 /**
  * @title Module for auto-exchange, i.e. liquidations of collaterals to address exchange rate risk
@@ -18,23 +19,33 @@ import {IAutoExchangeModule} from "../interfaces/IAutoExchangeModule.sol";
 
 contract AutoExchangeModule is IAutoExchangeModule {
     using Account for Account.Data;
+    using AccountAutoExchange for Account.Data;
     /**
      * @inheritdoc IAutoExchangeModule
      */
-    function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view override returns (
+    function isEligibleForAutoExchange(uint128 accountId, address token) external view override returns (
         bool
     ) {
-        // todo: implement after freezing storages
+        Account.Data storage account = Account.exists(accountId);
+        return account.isEligibleForAutoExchange(token);
     }
     
     /**
      * @inheritdoc IAutoExchangeModule
      */
-    function getMaxAmountToExchangeQuote(
+    function triggerAutoExchange(
         uint128 accountId,
-        address coveringToken,
-        address autoExchangedToken
-    ) external view returns (uint256 /* coveringAmount */, uint256 /* autoExchangedAmount */ ) {
-        // todo: implement after freezing storages
+        uint128 liquidatorAccountId,
+        uint256 amountToAutoExchangeQuote,
+        address collateralType,
+        address quoteType
+    ) external {
+        AutoExchange.triggerAutoExchange(
+            accountId,
+            liquidatorAccountId,
+            amountToAutoExchangeQuote,
+            collateralType,
+            quoteType
+        );
     }
 }

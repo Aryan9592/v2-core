@@ -57,11 +57,6 @@ library CollateralPool {
     error InactiveCollateralPool(uint128 id);
 
     /**
-     * @dev Thrown when parent tries to accept non-existent or revoked merge proposal.
-     */
-    error UninitiatedMergeProposal(uint128 childId, uint128 actualProposedParentId, uint128 parentId);
-
-    /**
      * @dev Thrown when some address tries to act as the owner of the collateral pool.
      */
     error Unauthorized(address owner);
@@ -89,7 +84,6 @@ library CollateralPool {
         RiskConfiguration riskConfig,
         InsuranceFundConfig insuranceFundConfig,
         BackstopLPConfig backstopLPConfig,
-        uint128 feeCollectorAccountId,
         uint256 blockTimestamp
     );
     
@@ -265,10 +259,6 @@ library CollateralPool {
         mapping(uint256 => uint256) riskMatrixDims;
 
         /**
-         * @dev If proposed parent id is greater than 0, then the collateral pool awaits for approval from parent owner to merge. 
-         */
-        uint128 proposedParentId;
-        /**
          * @dev Collateral pool wide insurance fund configuration 
          */
         InsuranceFundConfig insuranceFundConfig;
@@ -283,10 +273,6 @@ library CollateralPool {
          * @dev Collateral pool wide backstop lp configuration
          */
         BackstopLPConfig backstopLPConfig;
-        /**
-         * @dev Account id for the collector of protocol fees
-         */
-        uint128 feeCollectorAccountId;
     }
 
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
@@ -320,7 +306,6 @@ library CollateralPool {
             collateralPool.riskConfig,
             collateralPool.insuranceFundConfig,
             collateralPool.backstopLPConfig,
-            collateralPool.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -339,28 +324,6 @@ library CollateralPool {
         if (collateralPool.id == 0) {
             revert CollateralPoolNotFound(id);
         }
-    }
-
-    function initiateMergeProposal(Data storage self, uint128 parentId) internal {
-        if (self.id == parentId) {
-            revert CannotMergePoolWithItself(self.id);
-        }
-
-        self.proposedParentId = parentId;
-    }
-
-    function acceptMergeProposal(Data storage self, uint128 childId) internal {
-        CollateralPool.Data storage child = exists(childId);
-
-        if (child.proposedParentId != self.id) {
-            revert UninitiatedMergeProposal(self.id, child.proposedParentId, childId);
-        }
-        
-        self.merge(child);
-    }
-
-    function revokeMergeProposal(Data storage self) internal {
-        self.proposedParentId = 0;
     }
 
     function merge(Data storage parent, Data storage child) internal {
@@ -382,7 +345,6 @@ library CollateralPool {
             child.riskConfig,
             child.insuranceFundConfig,
             child.backstopLPConfig,
-            child.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -548,7 +510,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -570,7 +531,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
@@ -594,26 +554,6 @@ library CollateralPool {
             self.riskConfig,
             self.insuranceFundConfig,
             self.backstopLPConfig,
-            self.feeCollectorAccountId,
-            block.timestamp
-        );
-    }
-
-    function setFeeCollectorAccountId(Data storage self, uint128 accountId) internal {
-        self.checkRoot();
-
-        // ensure the given account exists
-        Account.exists(accountId);
-
-        self.feeCollectorAccountId = accountId;
-
-        emit CollateralPoolUpdated(
-            self.id,
-            self.rootId,
-            self.riskConfig,
-            self.insuranceFundConfig,
-            self.backstopLPConfig,
-            self.feeCollectorAccountId,
             block.timestamp
         );
     }
