@@ -16,6 +16,7 @@ TODOs
 import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
+import {EditCollateral} from "../actions/EditCollateral.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {LiquidationBidPriorityQueue} from "../LiquidationBidPriorityQueue.sol";
@@ -239,7 +240,6 @@ library AccountLiquidation {
         Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
-
         Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
 
         if (!(marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0)) {
@@ -253,8 +253,22 @@ library AccountLiquidation {
         );
 
         validateLiquidationBid(self, liquidatorAccount, liquidationBid);
-        uint256 liquidationBidRank = computeLiquidationBidRank(self, liquidationBid);
+
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
+        CollateralConfiguration.Data storage collateralConfig = CollateralConfiguration.exists(
+            collateralPool.id, 
+            liquidationBid.quoteToken
+        );
+
+        EditCollateral.deposit({
+            accountId: self.id,
+            collateralType: liquidationBid.quoteToken,
+            tokenAmount: collateralConfig.baseConfig.bidSubmissionFee
+        });
+        collateralPool.updateInsuranceFundBalance(
+            liquidationBid.quoteToken, 
+            collateralConfig.baseConfig.bidSubmissionFee
+        );
 
         Account.LiquidationBidPriorityQueues storage liquidationBidPriorityQueues =
         self.liquidationBidPriorityQueuesPerBubble[liquidationBid.quoteToken];
@@ -271,6 +285,7 @@ library AccountLiquidation {
             liquidationBidPriorityQueues.latestQueueId += 1;
         }
 
+        uint256 liquidationBidRank = computeLiquidationBidRank(self, liquidationBid);
         liquidationBidPriorityQueues.priorityQueues[liquidationBidPriorityQueues.latestQueueId].enqueue(
             liquidationBidRank,
             liquidationBid
@@ -370,8 +385,6 @@ library AccountLiquidation {
         uint128 bidSubmissionKeeperId
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
-
-        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
         Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
 
         uint256 insuranceFundReward = mulUDxUint(
@@ -403,7 +416,7 @@ library AccountLiquidation {
         uint256 liquidatorReward = liquidationPenalty - insuranceFundReward - backstopLPReward - keeperReward;
 
         self.updateNetCollateralDeposits(token, -liquidationPenalty.toInt());
-        insuranceFundAccount.updateNetCollateralDeposits(token, insuranceFundReward.toInt());
+        collateralPool.updateInsuranceFundBalance(token, insuranceFundReward);
         backstopLpAccount.updateNetCollateralDeposits(token, backstopLPReward.toInt());
         liquidatorAccount.updateNetCollateralDeposits(token, liquidatorReward.toInt());
 

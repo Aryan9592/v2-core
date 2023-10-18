@@ -106,6 +106,11 @@ library CollateralConfiguration {
          * amount dust
          */
         uint256 autoExchangeDustThreshold;
+
+        /**
+         * @dev Flat fee transferred from liquidator to IF when a liquidation bid is submitted
+         */
+        uint256 bidSubmissionFee;
     }
 
     struct CachedConfiguration {

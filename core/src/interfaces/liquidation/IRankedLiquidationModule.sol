@@ -25,12 +25,5 @@ interface IRankedLiquidationModule {
         address queueQuoteToken,
         uint128 bidSubmissionKeeperId
     ) external;
-
-    // todo: add natspec
-    function executeLiquidationBid(
-        uint128 liquidatableAccountId,
-        uint128 bidSubmissionKeeperId,
-        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
-    ) external;
 }
 

@@ -7,13 +7,22 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import {LiquidationBidPriorityQueue} from "../../libraries/LiquidationBidPriorityQueue.sol";
+
 /**
- * @title Pre-Liquidation Engine interface
+ * @title Common Liquidation Engine interface
  */
-interface IPreLiquidationModule {
+interface ICommonLiquidationModule {
     // todo: add natspec
     function closeAllUnfilledOrders(
         uint128 liquidatableAccountId,
         uint128 liquidatorAccountId
+    ) external;
+
+    // todo: add natspec
+    function executeLiquidationBid(
+        uint128 liquidatableAccountId,
+        uint128 bidSubmissionKeeperId,
+        LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) external;
 }

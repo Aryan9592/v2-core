@@ -316,6 +316,11 @@ library CollateralPool {
         return insuranceFundBalance.toUint();
     }
 
+    function updateInsuranceFundBalance(Data storage self, address collateralType, uint256 amount) internal {
+        Account.Data storage insuranceFundAccount = Account.exists(self.insuranceFundConfig.accountId);
+        insuranceFundAccount.updateNetCollateralDeposits(collateralType, amount.toInt());
+    }
+
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {
         // todo: make sure doesn't overflow insurance fund balance (import account.sol)
         self.insuranceFundUnderwritings[collateralType] += amount;
