@@ -251,7 +251,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 52_851_278,
-                expectedAccruedInterest: 8_212_817
+                expectedRealizedPnL: 8_212_817,
+                expectedUnrealizedPnL: -683_077
             });
         }
 
@@ -267,7 +268,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 48_356_576,
-                expectedAccruedInterest: 7_089_144
+                expectedRealizedPnL: 7_089_144,
+                expectedUnrealizedPnL: -1_806_752
             });
         }
 
@@ -283,7 +285,8 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 positionInfo: positionInfo,
                 expectedBaseBalance: 2_000_000_000,
                 expectedQuoteBalance: -101_207_855,
-                expectedAccruedInterest: -15_301_963
+                expectedRealizedPnL: -15_301_963,
+                expectedUnrealizedPnL: 2_489_839
             });
         }
 

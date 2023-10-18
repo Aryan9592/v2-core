@@ -195,12 +195,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 187_198_505_034_284_815_184
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 999_999_999_999_999_999_999,
                 expectedQuoteBalance: -44_877_798_236_844_817_029,
-                expectedAccruedInterest: 0
+                expectedRealizedPnL: 0
             });
         }
 
@@ -211,12 +211,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000_000_000_000_000,
                 expectedQuoteBalance: 44_877_798_236_844_817_030,
-                expectedAccruedInterest: 0
+                expectedRealizedPnL: 0
             });
         }
 
@@ -266,12 +266,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 166_293_235_043_531_099_974
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_499_999_999_999_999_999_999,
                 expectedQuoteBalance: -65_821_583_797_244_629_529,
-                expectedAccruedInterest: 6_890_275_220_394_397_871
+                expectedRealizedPnL: 6_890_275_220_394_397_871
             });
         }
 
@@ -286,12 +286,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 166_293_235_043_531_099_974
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 499_999_999_999_999_999_999,
                 expectedQuoteBalance: -20_943_785_560_399_812_499,
-                expectedAccruedInterest: 0
+                expectedRealizedPnL: 0
             });
         }
 
@@ -302,12 +302,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -2_000_000_000_000_000_000_000,
                 expectedQuoteBalance: 86_765_369_357_644_442_030,
-                expectedAccruedInterest: -6_890_275_220_394_397_872
+                expectedRealizedPnL: -6_890_275_220_394_397_872
             });
         }
 
@@ -359,12 +359,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 346_312_759_044_455_638_696
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_166_666_666_666_666_666_666,
                 expectedQuoteBalance: -50_068_175_785_702_047_196,
-                expectedAccruedInterest: 17_412_577_245_738_819_180
+                expectedRealizedPnL: 17_412_577_245_738_819_180
             });
         }
 
@@ -379,12 +379,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 173_156_379_522_227_819_348
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 333_333_333_333_333_333_333,
                 expectedQuoteBalance: -13_067_081_554_628_521_333,
-                expectedAccruedInterest: 3_632_026_804_950_023_427
+                expectedRealizedPnL: 3_632_026_804_950_023_427
             });
         }
 
@@ -395,12 +395,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_500_000_000_000_000_000_000,
                 expectedQuoteBalance: 63_135_257_340_330_568_530,
-                expectedAccruedInterest: -21_044_604_050_688_842_619
+                expectedRealizedPnL: -21_044_604_050_688_842_619
             });
         }
 
@@ -452,12 +452,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 325_715_234_269_540_661_190
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_666_666_666_666_666_666_665,
                 expectedQuoteBalance: -70_621_767_473_830_022_195,
-                expectedAccruedInterest: 25_737_388_605_859_396_606
+                expectedRealizedPnL: 25_737_388_605_859_396_606
             });
         }
 
@@ -472,12 +472,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 325_715_234_269_540_661_190
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 833_333_333_333_333_333_332,
                 expectedQuoteBalance: -33_620_673_242_756_496_332,
-                expectedAccruedInterest: 6_165_308_277_288_124_927
+                expectedRealizedPnL: 6_165_308_277_288_124_927
             });
         }
 
@@ -488,12 +488,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -2_500_000_000_000_000_000_000,
                 expectedQuoteBalance: 104_242_440_716_586_518_530,
-                expectedAccruedInterest: -31_902_696_883_147_521_553
+                expectedRealizedPnL: -31_902_696_883_147_521_553
             });
         }
 
@@ -545,12 +545,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 616_251_809_283_383_736_452
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -1_333_333_333_333_333_333_334,
                 expectedQuoteBalance: 74_995_849_219_182_983_234,
-                expectedAccruedInterest: 37_743_001_004_963_977_167
+                expectedRealizedPnL: 37_743_001_004_963_977_167
             });
         }
 
@@ -565,12 +565,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 410_834_539_522_255_824_301
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -1_166_666_666_666_666_666_666,
                 expectedQuoteBalance: 63_457_737_885_918_840_619,
-                expectedAccruedInterest: 12_379_390_788_610_229_551
+                expectedRealizedPnL: 12_379_390_788_610_229_551
             });
         }
 
@@ -581,12 +581,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: 2_500_000_000_000_000_000_000,
                 expectedQuoteBalance: -138_453_587_105_101_823_852,
-                expectedAccruedInterest: -50_122_391_793_574_206_737
+                expectedRealizedPnL: -50_122_391_793_574_206_737
             });
         }
 
@@ -638,12 +638,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 627_379_027_960_363_951_941
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -1_583_333_333_333_333_333_334,
                 expectedQuoteBalance: 87_666_491_983_333_490_234,
-                expectedAccruedInterest: 30_450_815_490_695_183_404
+                expectedRealizedPnL: 30_450_815_490_695_183_404
             });
         }
 
@@ -658,12 +658,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 627_379_027_960_363_951_941
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -1_416_666_666_666_666_666_665,
                 expectedQuoteBalance: 76_128_380_650_069_347_618,
-                expectedAccruedInterest: 5_728_274_691_016_751_315
+                expectedRealizedPnL: 5_728_274_691_016_751_315
             });
         }
 
@@ -674,12 +674,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: 3_000_000_000_000_000_000_000,
                 expectedQuoteBalance: -163_794_872_633_402_837_852,
-                expectedAccruedInterest: -36_179_090_181_711_934_718
+                expectedRealizedPnL: -36_179_090_181_711_934_718
             });
         }
 
@@ -731,12 +731,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 810_991_606_015_627_279_689
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -1_011_904_761_904_761_904_763,
                 expectedQuoteBalance: 62_203_622_582_868_280_520,
-                expectedAccruedInterest: 21_617_460_321_945_203_017
+                expectedRealizedPnL: 21_617_460_321_945_203_017
             });
         }
 
@@ -751,12 +751,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 608_243_704_511_720_459_767
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: -988_095_238_095_238_095_238,
                 expectedQuoteBalance: 57_031_228_599_720_440_334,
-                expectedAccruedInterest: -2_464_011_061_057_913_564
+                expectedRealizedPnL: -2_464_011_061_057_913_564
             });
         }
 
@@ -767,12 +767,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: 2_000_000_000_000_000_000_000,
                 expectedQuoteBalance: -119_234_851_182_588_720_852,
-                expectedAccruedInterest: -19_153_449_260_887_289_449
+                expectedRealizedPnL: -19_153_449_260_887_289_449
             });
         }
 
@@ -824,12 +824,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 703_548_499_129_237_854_071
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_488_095_238_095_238_095_237,
                 expectedQuoteBalance: -45_357_949_899_185_548_369,
-                expectedAccruedInterest: 16_744_103_620_994_214_274
+                expectedRealizedPnL: 16_744_103_620_994_214_274
             });
         }
 
@@ -844,12 +844,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 703_548_499_129_237_854_071
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_511_904_761_904_761_904_761,
                 expectedQuoteBalance: -50_530_343_882_333_388_554,
-                expectedAccruedInterest: -7_686_297_962_283_334_730
+                expectedRealizedPnL: -7_686_297_962_283_334_730
             });
         }
 
@@ -860,12 +860,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -3_000_000_000_000_000_000_000,
                 expectedQuoteBalance: 95_888_293_781_518_936_926,
-                expectedAccruedInterest: -9_057_805_658_710_879_555
+                expectedRealizedPnL: -9_057_805_658_710_879_555
             });
         }
 
@@ -924,12 +924,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 703_548_499_129_237_854_071
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 1, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_488_095_238_095_238_095_227,
                 expectedQuoteBalance: -43_857_949_899_185_548_359,
-                expectedAccruedInterest: 23_209_826_990_390_355_596
+                expectedRealizedPnL: 23_209_826_990_390_355_596
             });
         }
 
@@ -944,12 +944,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 703_548_499_129_237_854_071
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: PositionInfo({ accountId: 2, marketId: marketId, maturityTimestamp: maturityTimestamp }),
                 expectedBaseBalance: 1_511_904_761_904_761_904_751,
                 expectedQuoteBalance: -49_030_343_882_333_388_544,
-                expectedAccruedInterest: -1_395_039_693_024_409_590
+                expectedRealizedPnL: -1_395_039_693_024_409_590
             });
         }
 
@@ -960,12 +960,12 @@ contract ScenarioH is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -3_000_000_000_000_000_000_000,
                 expectedQuoteBalance: 92_888_293_781_518_936_926,
-                expectedAccruedInterest: -21_814_787_297_365_945_998
+                expectedRealizedPnL: -21_814_787_297_365_945_998
             });
         }
 

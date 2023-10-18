@@ -12,7 +12,7 @@ import { amountsFromLiquidity } from "../libraries/vamm-utils/VammHelpers.sol";
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
 import { liquidityFromBase } from "../libraries/vamm-utils/VammHelpers.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
+import { UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
 import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
@@ -20,7 +20,6 @@ import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.s
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-import { SD59x18 } from "@prb/math/SD59x18.sol";
 
 contract PoolModule is IPoolModule {
     using DatedIrsVamm for DatedIrsVamm.Data;
@@ -137,7 +136,7 @@ contract PoolModule is IPoolModule {
     /**
      * @inheritdoc IPool
      */
-    function getAccountFilledBalances(
+    function getAccountPositionBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
@@ -145,10 +144,10 @@ contract PoolModule is IPoolModule {
         external
         view
         override
-        returns (FilledBalances memory)
+        returns (PositionBalances memory)
     {
         DatedIrsVamm.Data storage vamm = DatedIrsVamm.loadByMaturityAndMarket(marketId, maturityTimestamp);
-        return vamm.getAccountFilledBalances(accountId);
+        return vamm.getAccountPositionBalances(accountId);
     }
 
     /**

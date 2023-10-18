@@ -113,7 +113,21 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         override
         returns (Account.PnLComponents memory pnlComponents)
     {
-        return Portfolio.exists(accountId, marketId).getAccountPnLComponents();
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+        Market.Data storage market = Market.exists(portfolio.marketId);
+
+        address poolAddress = market.marketConfig.poolAddress;
+        uint256 activeMaturitiesCount = portfolio.activeMaturities.length();
+
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+            FilledBalances memory filledBalances =
+                portfolio.getAccountFilledBalances(portfolio.activeMaturities.valueAt(i).to32(), poolAddress);
+
+            pnlComponents.realizedPnL += filledBalances.pnl.realizedPnL;
+            pnlComponents.unrealizedPnL += filledBalances.pnl.unrealizedPnL;
+        }
+
+        return pnlComponents;
     }
 
     /**
