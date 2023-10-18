@@ -355,6 +355,7 @@ library ExposureHelpers {
         //        }
     }
 
+    // todo: @AB this check is not used anywhere
     function checkOpenInterestLimit(
         uint128 marketId,
         uint32 maturityTimestamp,
