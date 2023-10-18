@@ -22,12 +22,11 @@ import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import "../storage/MarketManagerConfiguration.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservation } from "../libraries/DataTypes.sol";
-import { TraderPosition } from "../libraries/TraderPosition.sol";
+import { UnfilledBalances } from "../libraries/DataTypes.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -183,7 +182,7 @@ library ExposureHelpers {
         uint256 timeToMaturityInSeconds
     )
         private
-        view
+        pure
         returns (int256 shortRateExposure, int256 swapRateExposure)
     {
         // todo: division by zero checks, etc

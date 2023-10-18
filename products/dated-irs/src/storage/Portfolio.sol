@@ -227,8 +227,7 @@ library Portfolio {
 
             uint256 riskMatrixRowId = market.marketMaturityConfigs[maturityTimestamp].riskMatrixRowId;
 
-            (int256 shortRateFilledExposureMaturity, int256 swapRateFilledExposureMaturity) = ExposureHelpers
-                .getFilledExposures(
+            (int256 shortRateFilledExposureMaturity, int256 swapRateFilledExposureMaturity) = ExposureHelpers.getFilledExposures(
                 filledBalances.base,
                 vars.exposureFactor,
                 maturityTimestamp,
