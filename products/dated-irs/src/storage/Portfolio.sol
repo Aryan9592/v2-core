@@ -185,12 +185,12 @@ library Portfolio {
 
         UD60x18 twap = ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base);
 
-        int256 unwindPnL = ExposureHelpers.computeUnwindPnL(self.marketId, maturityTimestamp, position, twap);
+        int256 unrealizedPnL = ExposureHelpers.computeUnrealizedPnL(self.marketId, maturityTimestamp, position.base, position.quote, twap);
 
         return FilledBalances({
             base: position.base,
             quote: position.quote,
-            pnl: Account.PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unwindPnL - realizedPnL })
+            pnl: Account.PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unrealizedPnL })
         });
     }
 

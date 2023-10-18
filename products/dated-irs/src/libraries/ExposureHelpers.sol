@@ -101,34 +101,27 @@ library ExposureHelpers {
         );
     }
 
-    function computeUnwindPnL(
+    function computeUnrealizedPnL(
         uint128 marketId,
         uint32 maturityTimestamp,
-        PositionBalances memory balances,
+        int256 base,
+        int256 quote,
         UD60x18 unwindPrice
     )
         internal
         view
-        returns (int256)
+        returns (int256 uPnL)
     {
-        PositionBalances memory unwindDeltas;
+        uint32 timestamp = Time.blockTimestampTruncated();
 
-        unwindDeltas.base = -balances.base;
-        unwindDeltas.quote = -mulUDxInt(unwindPrice, baseToExposure(unwindDeltas.base, marketId));
-        unwindDeltas.extraCashflow = TraderPosition.computeCashflow(
-            unwindDeltas.base, unwindDeltas.quote, Market.exists(marketId).getLatestRateIndex(maturityTimestamp)
-        );
+        if (maturityTimestamp <= timestamp) {
+            return 0;
+        }
 
-        int256 settlementPnL = TraderPosition.getAccruedInterest(
-            PositionBalances({
-                base: 0,
-                quote: balances.quote + unwindDeltas.quote,
-                extraCashflow: balances.extraCashflow + unwindDeltas.extraCashflow
-            }),
-            RateOracleObservation({ timestamp: maturityTimestamp, rateIndex: ZERO_ud })
-        );
+        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(timestamp, maturityTimestamp);
 
-        return settlementPnL;
+        int256 unwindQuote = mulUDxInt(unwindPrice, baseToExposure(base, marketId));
+        uPnL = mulUDxInt(timeDeltaAnnualized, quote + unwindQuote);
     }
 
     function computeUnwindPriceForGivenUPnL(
@@ -309,31 +302,25 @@ library ExposureHelpers {
         }
 
         if (unfilledBalances.baseShort != 0) {
-            // todo: replace
-            int256 unrealizedPnLShort = 0;
-
-            // int256 unrealizedPnLShort = computeUnrealizedPnL(
-            //     marketId,
-            //     maturityTimestamp,
-            //     -unfilledBalances.baseShort.toInt(),
-            //     unfilledBalances.quoteShort.toInt(),
-            //     computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
-            // );
+            int256 unrealizedPnLShort = computeUnrealizedPnL(
+                marketId,
+                maturityTimestamp,
+                -unfilledBalances.baseShort.toInt(),
+                unfilledBalances.quoteShort.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
+            );
 
             pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
         }
 
         if (unfilledBalances.baseLong != 0) {
-            // todo: replace
-            int256 unrealizedPnLLong = 0;
-
-            // int256 unrealizedPnLLong = computeUnrealizedPnL(
-            //     marketId,
-            //     maturityTimestamp,
-            //     unfilledBalances.baseLong.toInt(),
-            //     -unfilledBalances.quoteLong.toInt(),
-            //     computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
-            // );
+            int256 unrealizedPnLLong = computeUnrealizedPnL(
+                marketId,
+                maturityTimestamp,
+                unfilledBalances.baseLong.toInt(),
+                -unfilledBalances.quoteLong.toInt(),
+                computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
+            );
 
             pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
         }
