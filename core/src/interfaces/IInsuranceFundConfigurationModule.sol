@@ -10,12 +10,11 @@ pragma solidity >=0.8.19;
 import "../storage/Market.sol";
 
 
-// todo: consider pushing the insurance fund configuration logic into a separate module
 /**
  * @title Module for configuring (protocol and) market wide risk parameters
  * @notice Allows the owner to configure risk parameters at (protocol and) market wide level
  */
-interface IFeeConfigurationModule {
+interface IInsuranceFundConfigurationModule {
 
     /**
      * @notice Creates or updates the collateral pool insurance fund configuration for the given id

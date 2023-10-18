@@ -8,16 +8,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 pragma solidity >=0.8.19;
 
 import "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
-import "../interfaces/IFeeConfigurationModule.sol";
+import "../interfaces/IInsuranceFundConfigurationModule.sol";
 import "../storage/Market.sol";
 
-contract FeeConfigurationModule is IFeeConfigurationModule {
+contract InsuranceFundConfigurationModule is IInsuranceFundConfigurationModule {
     using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
 
     // consider introducing an insurance fund config module?
     /**
-     * @inheritdoc IFeeConfigurationModule
+     * @inheritdoc IInsuranceFundConfigurationModule
      */
     function configureCollateralPoolInsuranceFund(
         uint128 collateralPoolId,
@@ -29,7 +29,7 @@ contract FeeConfigurationModule is IFeeConfigurationModule {
     }
 
     /**
-     * @inheritdoc IFeeConfigurationModule
+     * @inheritdoc IInsuranceFundConfigurationModule
      */
     function getCollateralPoolInsuranceFundConfiguration(uint128 collateralPoolId)
         external
