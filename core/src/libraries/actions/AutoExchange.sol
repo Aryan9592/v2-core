@@ -71,8 +71,8 @@ library AutoExchange {
 
         (
             uint256 collateralAmountToLiquidator,
-            uint256 collateralAmountToIF,
-            uint256 quoteAmount
+            uint256 quoteAmountToIF,
+            uint256 quoteAmountToAccount
         ) = account.calculateAvailableCollateralToAutoExchange(
             collateralType,
             quoteType,
@@ -81,23 +81,23 @@ library AutoExchange {
 
         account.updateNetCollateralDeposits(
             quoteType,
-            quoteAmount.toInt()
+            quoteAmountToAccount.toInt()
         );
 
         account.updateNetCollateralDeposits(
             collateralType,
-            -(collateralAmountToLiquidator + collateralAmountToIF).toInt()
+            -collateralAmountToLiquidator.toInt()
         );
 
         liquidatorAccount.updateNetCollateralDeposits(
             quoteType,
-            -quoteAmount.toInt()
+            -(quoteAmountToAccount+quoteAmountToIF).toInt()
         );
 
 
         insuranceFundAccount.updateNetCollateralDeposits(
-            collateralType,
-            collateralAmountToIF.toInt()
+            quoteType,
+            quoteAmountToIF.toInt()
         );
 
         liquidatorAccount.updateNetCollateralDeposits(

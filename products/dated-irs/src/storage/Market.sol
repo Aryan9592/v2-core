@@ -108,13 +108,24 @@ library Market {
         uint256 blockTimestamp
     );
 
+    struct FeeConfiguration {
+        /**
+         * @dev Atomic Maker Fee is multiplied by the annualised notional liquidity provided via an on-chain exchange
+         * @dev to derive the maker fee charged by the protocol.
+         */
+        UD60x18 atomicMakerFee;
+        /**
+         * @dev Atomic Taker Fee is multiplied by the annualised notional traded
+         * @dev to derive the taker fee charged by the protocol.
+         */
+        UD60x18 atomicTakerFee;
+    }
+
     struct MarketConfiguration {
         /**
          * @dev Address of the pool address the market is linked to
          */
         address poolAddress;
-        // todo: will there be a single twap value used for marking to market and for computing dynamic price bands?
-        // or shall there be multiple values?
         /**
          * @dev Number of seconds in the past from which to calculate the time-weighted average fixed rate (average =
          * geometric mean)
@@ -124,6 +135,10 @@ library Market {
          * Mark price band used to compute dynamic price limits
          */
         UD60x18 markPriceBand;
+        /**
+         * @dev Market fee configurations for protocol
+         */
+        FeeConfiguration protocolFeeConfig;
         /**
          * @dev Maximum number of positions of an account in this market
          */

@@ -37,7 +37,7 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 /*
 TODOs
     - rename executeADLOrder to executeADLOrders
-    - pause maturity or the whole market if just a single maturity is getting adl'd? should market = maturity?
+    - pause maturity or the whole market if just a single maturity is getting adl'd?
 */
 
 /**
@@ -254,16 +254,19 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeTakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     )
         external
         override
-        returns (bytes memory output, int256 annualizedNotional)
+        returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee)
     {
         (uint32 maturityTimestamp, int256 baseDelta, uint160 priceLimit) = abi.decode(inputs, (uint32, int256, uint160));
         executionPreCheck(marketId, maturityTimestamp);
 
-        (PositionBalances memory tokenDeltas, int256 annualizedNotionalTraded) = InitiateTakerOrder.initiateTakerOrder(
+        PositionBalances memory tokenDeltas;
+
+        (tokenDeltas, exchangeFee, protocolFee) = InitiateTakerOrder.initiateTakerOrder(
             TakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,
@@ -273,7 +276,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             })
         );
         output = abi.encode(tokenDeltas);
-        annualizedNotional = annualizedNotionalTraded;
     }
 
     /**
@@ -282,17 +284,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     function executeMakerOrder(
         uint128 accountId,
         uint128 marketId,
+        uint128 exchangeId,
         bytes calldata inputs
     )
         external
         override
-        returns (bytes memory output, int256 annualizedNotional)
+        returns (bytes memory output, uint256 exchangeFee, uint256 protocolFee)
     {
         (uint32 maturityTimestamp, int24 tickLower, int24 tickUpper, int256 baseDelta) =
             abi.decode(inputs, (uint32, int24, int24, int256));
 
         output = abi.encode();
-        annualizedNotional = InitiateMakerOrder.initiateMakerOrder(
+        (exchangeFee, protocolFee) = InitiateMakerOrder.initiateMakerOrder(
             MakerOrderParams({
                 accountId: accountId,
                 marketId: marketId,
@@ -307,7 +310,22 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function completeOrder(
+    function executeBatchMatchOrder(
+        uint128 accountId,
+        uint128[] memory counterpartyAccountIds,
+        uint128 marketId,
+        bytes calldata inputs
+    )
+        external
+        returns (bytes memory output, uint256 accountProtocolFees, uint256[] memory counterpartyProtocolFees)
+    {
+        revert MissingBatchMatchOrderImplementation();
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function executePropagateCashflow(
         uint128 accountId,
         uint128 marketId,
         bytes calldata inputs

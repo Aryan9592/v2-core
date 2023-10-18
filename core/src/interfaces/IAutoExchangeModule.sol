@@ -16,27 +16,21 @@ interface IAutoExchangeModule {
     /**
      * @notice Checks if an account is eligble for auto-exchange
      * @param accountId The id of the account that is being checked for auto-exchange eligibility
-     * @param quoteType The quote token's address to be covered in the auto exchange
+     * @param token The quote token's address to be covered in the auto exchange
      * @return isEligibleForAutoExchange True if the account collateral is liquidatable for a given quote
      * token
      */
-    function isEligibleForAutoExchange(uint128 accountId, address quoteType) external view returns (
+    function isEligibleForAutoExchange(uint128 accountId, address token) external view returns (
         bool isEligibleForAutoExchange
     );
 
-    /** 
-     * @notice Returns the maximum amount that can be auto-exchanged, represented in quote token terms
-     * @param accountId The id of the account that is being auto-exchanged
-     * @param coveringToken The collateral that is supposed to be used for covering the deficit in a given quote token
-     * @param autoExchangedToken The quote token in deficit that will be compensated by the liquidator as part of
-     * an auto-exchange
-     * @return coveringAmount The amount of `coveringToken` used to cover the  `autoExchangedToken` deficit
-     * @return autoExchangedAmount The maximum amount of `autoExchangedToken` equivalent to the `coveringAmount`
-     * in terms of the `coveringToken`
-    */
-    function getMaxAmountToExchangeQuote(
+    // todo: add natspec & return more information
+    function triggerAutoExchange(
         uint128 accountId,
-        address coveringToken,
-        address autoExchangedToken
-    ) external view returns (uint256 coveringAmount, uint256 autoExchangedAmount);
+        uint128 liquidatorAccountId,
+        uint256 amountToAutoExchangeQuote,
+        address collateralType,
+        address quoteType
+    ) external;
+
 }
