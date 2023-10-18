@@ -174,7 +174,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         view
         override
     {
-        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) = 
+        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) =
             abi.decode(inputs, (uint32, int256, uint160));
 
         ExecuteLiquidationOrder.validateLiquidationOrder(

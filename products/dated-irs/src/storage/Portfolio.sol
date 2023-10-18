@@ -254,9 +254,8 @@ library Portfolio {
                     market.marketMaturityConfigs[0].riskMatrixRowId;
                 unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
 
-                unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents = ExposureHelpers.getPVMRComponents(
-                    unfilledBalances, market.id, maturityTimestamp, riskMatrixRowId
-                );
+                unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents =
+                    ExposureHelpers.getPVMRComponents(unfilledBalances, market.id, maturityTimestamp, riskMatrixRowId);
                 vars.unfilledExposuresCounter += 1;
             }
         }

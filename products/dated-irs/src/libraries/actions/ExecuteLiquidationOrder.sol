@@ -12,7 +12,7 @@ import { Market } from "../../storage/Market.sol";
 import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 import "../ExposureHelpers.sol";
-import { LiquidationOrderParams} from "../DataTypes.sol";
+import { LiquidationOrderParams } from "../DataTypes.sol";
 
 /*
 TODOs
@@ -64,10 +64,7 @@ library ExecuteLiquidationOrder {
         return false;
     }
 
-    function validateLiquidationOrder(LiquidationOrderParams memory params)
-        internal
-        view
-    {
+    function validateLiquidationOrder(LiquidationOrderParams memory params) internal view {
         // revert if liquidation order size is 0
         if (params.baseAmountToBeLiquidated == 0) {
             revert InvalidLiquidationOrder(params, "LiquidationOrderZero");
@@ -76,8 +73,9 @@ library ExecuteLiquidationOrder {
         address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
 
         // retrieve base amount filled by the liquidatable account
-        int256 accountBase = Portfolio.exists(params.liquidatableAccountId, params.marketId)
-            .getAccountFilledBalances(params.maturityTimestamp, poolAddress).base;
+        int256 accountBase = Portfolio.exists(params.liquidatableAccountId, params.marketId).getAccountFilledBalances(
+            params.maturityTimestamp, poolAddress
+        ).base;
 
         // revert if base amount filled is zero
         if (accountBase == 0) {
@@ -93,8 +91,7 @@ library ExecuteLiquidationOrder {
             if (accountBase + params.baseAmountToBeLiquidated < 0) {
                 revert InvalidLiquidationOrder(params, "LiquidationOrderTooBig");
             }
-        }
-        else {
+        } else {
             if (params.baseAmountToBeLiquidated < 0) {
                 revert InvalidLiquidationOrder(params, "WrongLiquidationDirection");
             }
