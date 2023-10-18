@@ -1,8 +1,8 @@
 pragma solidity >=0.8.19;
 
-import "forge-std/Test.sol";
+import { StdAssertions } from "forge-std/StdAssertions.sol";
 
-contract AssertionHelpers is Test {
+contract AssertionHelpers is StdAssertions {
     function assertAlmostEq(int256 a, int256 b, uint256 eps) public {
         assertGe(a, b - int256(eps));
         assertLe(a, b + int256(eps));

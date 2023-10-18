@@ -5,7 +5,7 @@ pragma solidity >=0.8.13;
 import { amountsFromLiquidity, calculatePrice, applySpread } from "./VammHelpers.sol";
 import { VammTicks } from "./VammTicks.sol";
 
-import { PositionBalances, FilledBalances, UnfilledBalances, RateOracleObservation } from "../DataTypes.sol";
+import { PositionBalances, UnfilledBalances, RateOracleObservation } from "../DataTypes.sol";
 
 import { Tick } from "../ticks/Tick.sol";
 
@@ -18,8 +18,6 @@ import { SafeCastU256, SafeCastI256, SafeCastU128 } from "@voltz-protocol/util-c
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-
-import { TraderPosition } from "@voltz-protocol/products-dated-irs/src/libraries/TraderPosition.sol";
 
 /**
  * @title Account balances library
@@ -106,13 +104,13 @@ library AccountBalances {
      * @param accountId The LP account. All positions within the account will be considered
      * @return balances The filled balances of the given account in the VAMM
      */
-    function getAccountFilledBalances(
+    function getAccountPositionBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
     )
         internal
         view
-        returns (FilledBalances memory balances)
+        returns (PositionBalances memory balances)
     {
         uint256[] memory positions = self.vars.accountPositions[accountId].values();
 
@@ -126,7 +124,7 @@ library AccountBalances {
 
             balances.base += it.base;
             balances.quote += it.quote;
-            balances.accruedInterest += TraderPosition.getAccruedInterest(it, rateOracleObservation);
+            balances.extraCashflow += it.extraCashflow;
         }
     }
 

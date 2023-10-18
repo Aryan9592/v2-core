@@ -13,7 +13,7 @@ import { LP } from "../libraries/vamm-utils/LP.sol";
 import { VammConfiguration } from "../libraries/vamm-utils/VammConfiguration.sol";
 import { VammCustomErrors } from "../libraries/vamm-utils/VammCustomErrors.sol";
 
-import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservation } from "../libraries/DataTypes.sol";
+import { UnfilledBalances, PositionBalances, RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
@@ -230,17 +230,17 @@ library DatedIrsVamm {
     }
 
     /**
-     * @dev Calls the AccountBalances.getAccountFilledBalances() function with the given parameters
+     * @dev Calls the AccountBalances.getAccountPositionBalances() function with the given parameters
      */
-    function getAccountFilledBalances(
+    function getAccountPositionBalances(
         DatedIrsVamm.Data storage self,
         uint128 accountId
     )
         internal
         view
-        returns (FilledBalances memory)
+        returns (PositionBalances memory)
     {
-        return AccountBalances.getAccountFilledBalances(self, accountId);
+        return AccountBalances.getAccountPositionBalances(self, accountId);
     }
 
     /**
