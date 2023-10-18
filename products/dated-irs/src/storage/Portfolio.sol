@@ -147,28 +147,25 @@ library Portfolio {
         }
     }
 
-    function getAccountPnLComponents(Data storage self)
+    function getAccountPositionBalances(
+        Data storage self,
+        uint32 maturityTimestamp,
+        address poolAddress
+    )
         internal
         view
-        returns (Account.PnLComponents memory pnlComponents)
+        returns (PositionBalances memory)
     {
-        Market.Data storage market = Market.exists(self.marketId);
-        address poolAddress = market.marketConfig.poolAddress;
-        uint256 activeMaturitiesCount = self.activeMaturities.length();
+        PositionBalances memory poolBalances =
+            IPool(poolAddress).getAccountPositionBalances(self.marketId, maturityTimestamp, self.accountId);
 
-        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
-            FilledBalances memory filledBalances =
-                getAccountFilledBalances(self, self.activeMaturities.valueAt(i).to32(), poolAddress);
+        PositionBalances memory marketBalances = self.positions[maturityTimestamp];
 
-            Account.PnLComponents memory maturityPnLComponents = ExposureHelpers.getPnLComponents(
-                market.id, self.activeMaturities.valueAt(i).to32(), filledBalances, poolAddress
-            );
-
-            pnlComponents.realizedPnL += maturityPnLComponents.realizedPnL;
-            pnlComponents.unrealizedPnL += maturityPnLComponents.unrealizedPnL;
-        }
-
-        return pnlComponents;
+        return PositionBalances({
+            base: poolBalances.base + marketBalances.base,
+            quote: poolBalances.quote + marketBalances.quote,
+            extraCashflow: poolBalances.extraCashflow + marketBalances.extraCashflow
+        });
     }
 
     function getAccountFilledBalances(
@@ -180,18 +177,20 @@ library Portfolio {
         view
         returns (FilledBalances memory)
     {
-        FilledBalances memory poolBalances =
-            IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
+        PositionBalances memory position = self.getAccountPositionBalances(maturityTimestamp, poolAddress);
 
-        PositionBalances storage position = self.positions[maturityTimestamp];
-        int256 accruedInterest = TraderPosition.getAccruedInterest(
+        int256 realizedPnL = TraderPosition.getAccruedInterest(
             position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
+        UD60x18 twap = ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base);
+
+        int256 unwindPnL = ExposureHelpers.computeUnwindPnL(self.marketId, maturityTimestamp, position, twap);
+
         return FilledBalances({
-            base: poolBalances.base + position.base,
-            quote: poolBalances.quote + position.quote,
-            accruedInterest: poolBalances.accruedInterest + accruedInterest
+            base: position.base,
+            quote: position.quote,
+            pnl: Account.PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unwindPnL - realizedPnL })
         });
     }
 
@@ -327,20 +326,10 @@ library Portfolio {
             revert SettlementBeforeMaturity(self.marketId, maturityTimestamp, self.accountId);
         }
 
-        PositionBalances storage position = self.positions[maturityTimestamp];
-        int256 accruedInterest = TraderPosition.getAccruedInterest(
-            position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
-        );
+        settlementCashflow = self.getAccountFilledBalances(maturityTimestamp, poolAddress).pnl.realizedPnL;
 
         /// @dev reverts if not active
         deactivateMarketMaturity(self, maturityTimestamp);
-
-        FilledBalances memory filledBalances =
-            IPool(poolAddress).getAccountFilledBalances(self.marketId, maturityTimestamp, self.accountId);
-
-        settlementCashflow = filledBalances.accruedInterest + accruedInterest;
-
-        emit PositionUpdated(self.accountId, self.marketId, maturityTimestamp, position, block.timestamp);
     }
 
     /**
@@ -421,14 +410,11 @@ library Portfolio {
         for (uint256 i = 0; i < activeMaturities.length; i++) {
             uint32 maturityTimestamp = activeMaturities[i].to32();
 
-            FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, poolAddress);
-
-            Account.PnLComponents memory pnlComponents =
-                ExposureHelpers.getPnLComponents(market.id, maturityTimestamp, filledBalances, poolAddress);
+            int256 unrealizedPnL = getAccountFilledBalances(self, maturityTimestamp, poolAddress).pnl.unrealizedPnL;
 
             // lower and upper exposures are the same, since no unfilled orders should be present at this poin
-            bool executeADL = (adlNegativeUpnl && pnlComponents.unrealizedPnL < 0)
-                || (adlPositiveUpnl && pnlComponents.unrealizedPnL > 0);
+            bool executeADL = (adlNegativeUpnl && unrealizedPnL < 0) || (adlPositiveUpnl && unrealizedPnL > 0);
+
             if (executeADL) {
                 ExecuteADLOrder.executeADLOrder(self, maturityTimestamp, totalUnrealizedLossQuote, realBalanceAndIF);
             }

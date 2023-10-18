@@ -22,11 +22,12 @@ import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
-import { UD60x18, UNIT as UNIT_ud, ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, ud } from "@prb/math/UD60x18.sol";
 import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
 import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 import "../storage/MarketManagerConfiguration.sol";
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+import { FilledBalances, UnfilledBalances, PositionBalances, RateOracleObservation } from "../libraries/DataTypes.sol";
+import { TraderPosition } from "../libraries/TraderPosition.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -100,23 +101,34 @@ library ExposureHelpers {
         );
     }
 
-    function computeUnrealizedPnL(
+    function computeUnwindPnL(
         uint128 marketId,
         uint32 maturityTimestamp,
-        int256 baseBalance,
-        int256 quoteBalance,
+        PositionBalances memory balances,
         UD60x18 unwindPrice
     )
         internal
         view
-        returns (int256 unrealizedPnL)
+        returns (int256)
     {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
+        PositionBalances memory unwindDeltas;
 
-        int256 exposure = baseToExposure(baseBalance, marketId);
-        int256 unwindQuote = mulUDxInt(unwindPrice.mul(timeDeltaAnnualized).add(UNIT_ud), exposure);
+        unwindDeltas.base = -balances.base;
+        unwindDeltas.quote = -mulUDxInt(unwindPrice, baseToExposure(unwindDeltas.base, marketId));
+        unwindDeltas.extraCashflow = TraderPosition.computeCashflow(
+            unwindDeltas.base, unwindDeltas.quote, Market.exists(marketId).getLatestRateIndex(maturityTimestamp)
+        );
 
-        return quoteBalance + unwindQuote;
+        int256 settlementPnL = TraderPosition.getAccruedInterest(
+            PositionBalances({
+                base: 0,
+                quote: balances.quote + unwindDeltas.quote,
+                extraCashflow: balances.extraCashflow + unwindDeltas.extraCashflow
+            }),
+            RateOracleObservation({ timestamp: maturityTimestamp, rateIndex: ZERO_ud })
+        );
+
+        return settlementPnL;
     }
 
     function computeUnwindPriceForGivenUPnL(
@@ -170,26 +182,6 @@ library ExposureHelpers {
     function baseToExposure(int256 baseAmount, uint128 marketId) internal view returns (int256 exposure) {
         UD60x18 factor = Market.exists(marketId).exposureFactor();
         exposure = mulUDxInt(factor, baseAmount);
-    }
-
-    function getPnLComponents(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        FilledBalances memory filledBalances,
-        address poolAddress
-    )
-        internal
-        view
-        returns (Account.PnLComponents memory pnlComponents)
-    {
-        UD60x18 twap = computeTwap(marketId, maturityTimestamp, poolAddress, filledBalances.base);
-
-        pnlComponents.unrealizedPnL =
-            computeUnrealizedPnL(marketId, maturityTimestamp, filledBalances.base, filledBalances.quote, twap);
-
-        pnlComponents.realizedPnL = filledBalances.accruedInterest;
-
-        return pnlComponents;
     }
 
     function decoupleExposures(
@@ -317,25 +309,31 @@ library ExposureHelpers {
         }
 
         if (unfilledBalances.baseShort != 0) {
-            int256 unrealizedPnLShort = computeUnrealizedPnL(
-                marketId,
-                maturityTimestamp,
-                -unfilledBalances.baseShort.toInt(),
-                unfilledBalances.quoteShort.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
-            );
+            // todo: replace
+            int256 unrealizedPnLShort = 0;
+
+            // int256 unrealizedPnLShort = computeUnrealizedPnL(
+            //     marketId,
+            //     maturityTimestamp,
+            //     -unfilledBalances.baseShort.toInt(),
+            //     unfilledBalances.quoteShort.toInt(),
+            //     computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
+            // );
 
             pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
         }
 
         if (unfilledBalances.baseLong != 0) {
-            int256 unrealizedPnLLong = computeUnrealizedPnL(
-                marketId,
-                maturityTimestamp,
-                unfilledBalances.baseLong.toInt(),
-                -unfilledBalances.quoteLong.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
-            );
+            // todo: replace
+            int256 unrealizedPnLLong = 0;
+
+            // int256 unrealizedPnLLong = computeUnrealizedPnL(
+            //     marketId,
+            //     maturityTimestamp,
+            //     unfilledBalances.baseLong.toInt(),
+            //     -unfilledBalances.quoteLong.toInt(),
+            //     computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
+            // );
 
             pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
         }

@@ -20,7 +20,11 @@ import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfi
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
+import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+
 import { ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
+
+import "forge-std/console2.sol";
 
 contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
@@ -183,8 +187,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
         }
 
-        checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
-
         vm.warp(start + 86_400 * 365 / 2);
         // liquidity index 1.010
 
@@ -231,9 +233,6 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
         invariantCheck();
 
-        checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
-        checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
-
         currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         assertEq(currentTick, -17_005, "current tick");
 
@@ -254,15 +253,22 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedUnfilledQuoteShort: 308_410_032
             });
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 52_851_278,
-                expectedAccruedInterest: 8_212_817
+                expectedRealizedPnL: 8_212_817
             });
 
-            checkPnLComponents(datedIrsProxy, marketId, 1, 0, 0);
+            uint256 twap = getAdjustedTwap(
+                marketId,
+                maturityTimestamp,
+                IPool.OrderDirection.Zero,
+                datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
+            );
+
+            console2.log("twap", twap);
         }
 
         // check account 2
@@ -272,15 +278,13 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: -1_000_000_000,
                 expectedQuoteBalance: 48_356_576,
-                expectedAccruedInterest: 7_089_144
+                expectedRealizedPnL: 7_089_144
             });
-
-            checkPnLComponents(datedIrsProxy, marketId, 2, 0, 0);
         }
 
         // check account 3
@@ -290,15 +294,13 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
 
             checkZeroUnfilledBalances(datedIrsProxy, positionInfo);
 
-            checkFilledBalances({
+            checkFilledBalancesWithoutUPnL({
                 datedIrsProxy: datedIrsProxy,
                 positionInfo: positionInfo,
                 expectedBaseBalance: 2_000_000_000,
                 expectedQuoteBalance: -101_207_855,
-                expectedAccruedInterest: -15_301_963
+                expectedRealizedPnL: -15_301_963
             });
-
-            checkPnLComponents(datedIrsProxy, marketId, 3, 0, 0);
         }
 
         invariantCheck();

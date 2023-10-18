@@ -229,7 +229,6 @@ library AccountExposure {
     ) private view returns (int256 realizedPnL, int256 unrealizedPnL) {
 
         for (uint256 i = 0; i < markets.length; i++) {
-
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
@@ -237,7 +236,6 @@ library AccountExposure {
 
             realizedPnL += pnlComponents.realizedPnL;
             unrealizedPnL += pnlComponents.unrealizedPnL;
-
         }
 
         return (realizedPnL, unrealizedPnL);

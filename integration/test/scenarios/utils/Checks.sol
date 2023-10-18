@@ -3,7 +3,6 @@ pragma solidity >=0.8.19;
 import { AssertionHelpers } from "./AssertionHelpers.sol";
 import { VammProxy } from "../../../src/proxies/Vamm.sol";
 import { DatedIrsProxy } from "../../../src/proxies/DatedIrs.sol";
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
 import { unwrap } from "@prb/math/UD60x18.sol";
 
@@ -33,7 +32,7 @@ abstract contract Checks is AssertionHelpers {
     {
         int256 sumFilledBase = 0;
         int256 sumFilledQuote = 0;
-        int256 sumAccruedInterest = 0;
+        int256 sumRealizedPnL = 0;
 
         for (uint256 i = 0; i < accountIds.length; i++) {
             FilledBalances memory filledBalances =
@@ -42,20 +41,20 @@ abstract contract Checks is AssertionHelpers {
             sumFilledBase += filledBalances.base;
             sumFilledQuote += filledBalances.quote;
 
-            sumAccruedInterest += filledBalances.accruedInterest;
+            sumRealizedPnL += filledBalances.pnl.realizedPnL;
         }
 
         assertAlmostEq(sumFilledBase, int256(0), EPSILON, "sumFilledBase");
         assertAlmostEq(sumFilledQuote, int256(0), EPSILON, "sumFilledQuote");
-        assertAlmostEq(sumAccruedInterest, int256(0), EPSILON, "sumAccruedInterest");
+        assertAlmostEq(sumRealizedPnL, int256(0), EPSILON, "sumRealizedPnL");
     }
 
-    function checkFilledBalances(
+    function checkFilledBalancesWithoutUPnL(
         DatedIrsProxy datedIrsProxy,
         PositionInfo memory positionInfo,
         int256 expectedBaseBalance,
         int256 expectedQuoteBalance,
-        int256 expectedAccruedInterest
+        int256 expectedRealizedPnL
     )
         internal
     {
@@ -65,7 +64,27 @@ abstract contract Checks is AssertionHelpers {
 
         assertAlmostEq(expectedBaseBalance, filledBalances.base, EPSILON, "filledBase");
         assertAlmostEq(expectedQuoteBalance, filledBalances.quote, EPSILON, "filledQuote");
-        assertAlmostEq(expectedAccruedInterest, filledBalances.accruedInterest, EPSILON, "accruedInterest");
+        assertAlmostEq(expectedRealizedPnL, filledBalances.pnl.realizedPnL, EPSILON, "realizedPnL");
+    }
+
+    function checkFilledBalances(
+        DatedIrsProxy datedIrsProxy,
+        PositionInfo memory positionInfo,
+        int256 expectedBaseBalance,
+        int256 expectedQuoteBalance,
+        int256 expectedRealizedPnL,
+        int256 expectedUnrealizedPnL
+    )
+        internal
+    {
+        FilledBalances memory filledBalances = datedIrsProxy.getAccountFilledBalances(
+            positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId
+        );
+
+        assertAlmostEq(expectedBaseBalance, filledBalances.base, EPSILON, "filledBase");
+        assertAlmostEq(expectedQuoteBalance, filledBalances.quote, EPSILON, "filledQuote");
+        assertAlmostEq(expectedRealizedPnL, filledBalances.pnl.realizedPnL, EPSILON, "realizedPnL");
+        assertAlmostEq(expectedUnrealizedPnL, filledBalances.pnl.unrealizedPnL, EPSILON, "unrealizedPnL");
     }
 
     function checkZeroFilledBalances(DatedIrsProxy datedIrsProxy, PositionInfo memory positionInfo) internal {
@@ -74,7 +93,8 @@ abstract contract Checks is AssertionHelpers {
             positionInfo: positionInfo,
             expectedBaseBalance: 0,
             expectedQuoteBalance: 0,
-            expectedAccruedInterest: 0
+            expectedRealizedPnL: 0,
+            expectedUnrealizedPnL: 0
         });
     }
 
@@ -131,22 +151,6 @@ abstract contract Checks is AssertionHelpers {
                 marketId, maturityTimestamp, orderDirection, twapLookbackWindow(marketId, maturityTimestamp), pSlippage
             )
         );
-    }
-
-    function checkPnLComponents(
-        DatedIrsProxy datedIrsProxy,
-        uint128 marketId,
-        uint128 accountId,
-        int256 expectedRealizedPnL,
-        int256 expectedUnrealizedPnL
-    )
-        internal
-    {
-        Account.PnLComponents memory pnlComponents = 
-            datedIrsProxy.getAccountPnLComponents(marketId, accountId);
-
-        assertAlmostEq(expectedRealizedPnL, pnlComponents.realizedPnL, EPSILON, "realizedPnL");
-        assertAlmostEq(expectedUnrealizedPnL, pnlComponents.unrealizedPnL, EPSILON, "unrealizedPnL");
     }
 
     function getVammProxy() internal view virtual returns (VammProxy);
