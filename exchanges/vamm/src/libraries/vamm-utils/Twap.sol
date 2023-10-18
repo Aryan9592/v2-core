@@ -15,7 +15,7 @@ import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
 
-import { UD60x18, UNIT as UNIT_ud, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
+import { UD60x18, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Twap library

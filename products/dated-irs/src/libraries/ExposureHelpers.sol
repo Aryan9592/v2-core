@@ -284,7 +284,6 @@ library ExposureHelpers {
         UnfilledBalances memory unfilledBalances,
         uint128 marketId,
         uint32 maturityTimestamp,
-        address poolAddress,
         uint256 riskMatrixRowId
     )
         internal

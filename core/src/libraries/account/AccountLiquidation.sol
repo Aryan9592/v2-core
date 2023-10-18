@@ -197,6 +197,7 @@ library AccountLiquidation {
             }
             market.validateLiquidationOrder(
                 self.id,
+                liquidatorAccount.id,
                 liquidationBid.inputs[i]
             );
         }
