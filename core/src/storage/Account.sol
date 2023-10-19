@@ -89,7 +89,6 @@ library Account {
      */
     error AccountNotFound(uint128 accountId);
 
-
     /**
     * @dev Thrown when account and counterparty belong to different collateral pools
     */
@@ -106,18 +105,18 @@ library Account {
     }
 
     struct PVMRComponents {
-        uint256 pvmrLong;
-        uint256 pvmrShort;
+        uint256 long;
+        uint256 short;
     }
 
     struct UnfilledExposureComponents {
-        uint256 unfilledExposureLong;
-        uint256 unfilledExposureShort;
+        int256[] long;
+        int256[] short;
     }
 
     struct UnfilledExposure {
         uint256[] riskMatrixRowIds;
-        UnfilledExposureComponents[] exposureComponentsArr;
+        UnfilledExposureComponents exposureComponents;
         PVMRComponents pvmrComponents;
     }
 
