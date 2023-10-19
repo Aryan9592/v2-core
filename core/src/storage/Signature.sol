@@ -43,12 +43,28 @@ library Signature {
 
 
     /**
+     * @dev Returns the data object with sigNonces
+     */
+    function load() private pure returns (Data storage signatureObject) {
+        bytes32 s = keccak256(abi.encode("xyz.voltz.Signature"));
+        assembly {
+            signatureObject.slot := s
+        }
+    }
+
+    function incrementSigNonce(address accountOwner) internal returns (uint256) {
+        Data storage signatureObject = load();
+        signatureObject.sigNonces[accountOwner] += 1;
+        return signatureObject.sigNonces[accountOwner];
+    }
+
+    /**
      * @dev Wrapper for ecrecover to reduce code size, used in meta-tx specific functions.
      */
     function validateRecoveredAddress(
         bytes32 digest,
         address expectedAddress,
-        EIP712Signature calldata sig
+        EIP712Signature memory sig
     ) internal view {
         if (sig.deadline < block.timestamp) revert SignatureExpired();
         address recoveredAddress = ecrecover(digest, sig.v, sig.r, sig.s);
@@ -63,7 +79,7 @@ library Signature {
      *
      * @return bytes32 A 32-byte output representing the EIP712 digest.
      */
-    function calculateDigest(bytes32 hashedMessage) private view returns (bytes32) {
+    function calculateDigest(bytes32 hashedMessage) internal view returns (bytes32) {
         bytes32 digest;
         unchecked {
             digest = keccak256(

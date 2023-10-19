@@ -28,6 +28,9 @@ contract AccountModule is IAccountModule {
     using SetUtil for SetUtil.Bytes32Set;
     using Account for Account.Data;
 
+    bytes32 internal constant GRANT_PERMISSION_TYPEHASH =
+    keccak256('GrantPermissionBySig(uin128 accountId, bytes32 permission, address user, uint256 nonce,uint256 deadline)');
+
     bytes32 private constant _ACCOUNT_SYSTEM = "accountNFT";
     /**
      * @inheritdoc IAccountModule
@@ -121,9 +124,31 @@ contract AccountModule is IAccountModule {
         uint128 accountId,
         bytes32 permission,
         address user,
-        Signature.EIP712Signature memory sig
+        Signature.EIP712Signature calldata sig
     ) external override {
         FeatureFlagSupport.ensureGlobalAccess();
+        Account.Data storage account = Account.exists(accountId);
+        address accountOwner = account.rbac.owner;
+        uint256 incrementedNonce = Signature.incrementSigNonce(accountOwner);
+        unchecked {
+            Signature.validateRecoveredAddress(
+                Signature.calculateDigest(
+                    keccak256(
+                        abi.encode(
+                            GRANT_PERMISSION_TYPEHASH,
+                            accountId,
+                            permission,
+                            user,
+                            incrementedNonce,
+                            sig.deadline
+                        )
+                    )
+                ),
+                accountOwner,
+                sig
+            );
+        }
+        account.grantPermission(permission, user);
     }
 
     /**
