@@ -100,10 +100,6 @@ library AutoExchange {
             collateralAmountToLiquidator.toInt()
         );
 
-        if (account.isEligibleForAutoExchange(collateralType)) {
-            revert AccountNotEligibleForAutoExchange(accountId, collateralType);
-        }
-
         liquidatorAccount.imCheck();
 
     }
