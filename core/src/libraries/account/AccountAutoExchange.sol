@@ -94,12 +94,6 @@ library AccountAutoExchange {
                 return false;
             }
 
-            UD60x18 price = 
-                CollateralConfiguration.getExchangeInfo(collateralPoolId, collateralType, address(0)).price;
-
-            int256 marginBalanceOfCollateralInUSD =
-                mulUDxInt(price, marginInfo.collateralInfo.marginBalance);
-
             if (
                 (-marginInfo.collateralInfo.marginBalance).toUint() >
                 CollateralConfiguration.load(
@@ -117,13 +111,12 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            Account.MarginInfo memory deltas =
-                self.getMarginInfoByCollateralType(
-                    quoteTokens[i],
-                    collateralPool.riskConfig.riskMultipliers
+            Account.CollateralInfo memory collateralInfo =
+                self.getCollateralInfoByCollateralType(
+                    quoteTokens[i]
                 );
             
-            if (deltas.collateralInfo.marginBalance < 0) {
+            if (collateralInfo.marginBalance < 0) {
 
                 CollateralConfiguration.ExchangeInfo memory exchangeInfo =
                 CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteTokens[i], address(0));
@@ -131,7 +124,7 @@ library AccountAutoExchange {
                 UD60x18 haircutPrice = exchangeInfo.price.mul(UNIT.add(exchangeInfo.priceHaircut));
 
                 sumOfNegativeAccountValuesInUSD += 
-                    mulUDxUint(haircutPrice, (-deltas.collateralInfo.marginBalance).toUint());
+                    mulUDxUint(haircutPrice, (-collateralInfo.marginBalance).toUint());
             }
         }
         
