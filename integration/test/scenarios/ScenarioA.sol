@@ -13,6 +13,8 @@ import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
+
 import { Market } from "@voltz-protocol/products-dated-irs/src/storage/Market.sol";
 
 import { DatedIrsVamm } from "@voltz-protocol/v2-vamm/src/storage/DatedIrsVamm.sol";
@@ -21,6 +23,7 @@ import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.s
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
 import { ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
+import { ZERO } from "@prb/math/SD59x18.sol";
 
 contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
     uint128 public marketId;
@@ -100,7 +103,7 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         datedIrsProxy.setMarketMaturityConfiguration(
             marketId,
             maturityTimestamp,
-            Market.MarketMaturityConfiguration({ riskMatrixRowId: 0, tenorInSeconds: 0, phi: ud(0), beta: ud(0.5e18) })
+            Market.MarketMaturityConfiguration({ riskMatrixRowId: 1, tenorInSeconds: 86400 * 365, phi: ud(0), beta: ud(0.5e18) })
         );
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({
@@ -153,6 +156,10 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
         uint256 start = block.timestamp;
 
         vm.mockCall(mockUsdc, abi.encodeWithSelector(IERC20.decimals.selector), abi.encode(6));
+        vm.mockCall(mockCoreProxy, abi.encodeWithSelector(
+            IRiskConfigurationModule.getRiskMatrixParameterFromMM.selector,
+            marketId, 1, 1
+        ), abi.encode(ZERO));
 
         int24 currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
         assertEq(currentTick, -16_096, "current tick");
@@ -182,6 +189,18 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
             });
 
             checkZeroFilledBalances(datedIrsProxy, positionInfo);
+
+            checkMakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 1,
+                expectedUnfilledExposureLong_short: 0,
+                expectedUnfilledExposureShort_short: 0,
+                expectedUnfilledExposureLong_swap: 3_523_858_284,
+                expectedUnfilledExposureShort_swap: 6_476_141_715,
+                expectedPvmrLong: 0,
+                expectedPvmrShort: 0
+            });
         }
 
         vm.warp(start + 86_400 * 365 / 2);
@@ -202,6 +221,14 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 assertEq(executedBase, -1000 * 1e6, "executedBase");
                 assertEq(executedQuote, int256(48_356_576), "executedQuote");
             }
+
+            checkTakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 2,
+                expectedSwapFilledExposure: -503_612_637,
+                expectedShortFilledExposure: -1_387_362
+            });
         }
 
         currentTick = vammProxy.getVammTick(marketId, maturityTimestamp);
@@ -222,6 +249,14 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 assertEq(executedBase, 2000 * 1e6, "executedBase");
                 assertEq(executedQuote, int256(-101_207_855), "executedQuote");
             }
+
+            checkTakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 3,
+                expectedSwapFilledExposure: 1007225274,
+                expectedShortFilledExposure: 2774725
+            });
         }
 
         invariantCheck();
@@ -254,6 +289,26 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedRealizedPnL: 8_212_817,
                 expectedUnrealizedPnL: -683_077
             });
+
+            checkTakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 1,
+                expectedSwapFilledExposure: -251658653,
+                expectedShortFilledExposure: -2091346
+            });
+
+            checkMakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 1,
+                expectedUnfilledExposureLong_short: 5277327,
+                expectedUnfilledExposureShort_short: 15636134,
+                expectedUnfilledExposureLong_swap: 635038400,
+                expectedUnfilledExposureShort_swap: 1881548137,
+                expectedPvmrLong: 0,
+                expectedPvmrShort: 0
+            });
         }
 
         // check account 2
@@ -271,6 +326,14 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedRealizedPnL: 7_089_144,
                 expectedUnrealizedPnL: -1_806_752
             });
+
+            checkTakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 2,
+                expectedSwapFilledExposure: -251658653,
+                expectedShortFilledExposure: -2091346
+            });
         }
 
         // check account 3
@@ -287,6 +350,14 @@ contract ScenarioA is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 expectedQuoteBalance: -101_207_855,
                 expectedRealizedPnL: -15_301_963,
                 expectedUnrealizedPnL: 2_489_839
+            });
+
+            checkTakerExposures_SingleMaturity({
+                datedIrsProxy: datedIrsProxy,
+                marketId: marketId,
+                accountId: 3,
+                expectedSwapFilledExposure: 503317307,
+                expectedShortFilledExposure: 4182692
             });
         }
 

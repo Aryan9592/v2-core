@@ -11,6 +11,7 @@ import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+import { Account }  from "@voltz-protocol/core/src/storage/Account.sol";
 
 /// @title Storage checks
 abstract contract Checks is AssertionHelpers {
@@ -168,6 +169,94 @@ abstract contract Checks is AssertionHelpers {
             assertFalse(expectedIsValid, "checkValidLiquidationOrder-fails");
         }
     }
+
+    function checkTakerExposures_SingleMaturity(
+        DatedIrsProxy datedIrsProxy,
+        uint128 marketId,
+        uint128 accountId,
+        int256 expectedSwapFilledExposure,
+        int256 expectedShortFilledExposure
+    ) internal {
+        int256[] memory filledExposures = 
+            datedIrsProxy.getAccountTakerExposures(marketId, accountId, 2);
+
+        assertEq(
+            expectedSwapFilledExposure,
+            filledExposures[1],
+            "filledExposureSwap"
+        );
+
+        assertEq(
+            expectedShortFilledExposure,
+            filledExposures[0],
+            "filledExposureShort"
+        );
+        
+    }  
+
+    function checkMakerExposures_SingleMaturity(
+        DatedIrsProxy datedIrsProxy,
+        uint128 marketId,
+        uint128 accountId,
+        int256 expectedUnfilledExposureLong_short,
+        int256 expectedUnfilledExposureShort_short,
+        int256 expectedUnfilledExposureLong_swap,
+        int256 expectedUnfilledExposureShort_swap,
+        uint256 expectedPvmrLong,
+        uint256 expectedPvmrShort
+    ) internal {
+        Account.UnfilledExposure[] memory unfilledExposures = 
+            datedIrsProxy.getAccountMakerExposures(marketId, accountId);
+
+        assertEq(
+            expectedUnfilledExposureLong_short,
+            unfilledExposures[0].exposureComponents.long[0],
+            "unfilledExposureLong_Short"
+        );
+
+        assertEq(
+            expectedUnfilledExposureShort_short,
+            unfilledExposures[0].exposureComponents.short[0],
+            "unfilledExposureShort_Short"
+        );
+
+        assertEq(
+            expectedUnfilledExposureLong_swap,
+            unfilledExposures[0].exposureComponents.long[1],
+            "unfilledExposureLong_Swap"
+        );
+
+        assertEq(
+            expectedUnfilledExposureShort_swap,
+            unfilledExposures[0].exposureComponents.short[1],
+            "unfilledExposureShort_Swap"
+        );
+
+        assertEq(
+            expectedPvmrLong,
+            unfilledExposures[0].pvmrComponents.long,
+            "pvmrLong"
+        );
+
+        assertEq(
+            expectedPvmrShort,
+            unfilledExposures[0].pvmrComponents.short,
+            "pvmrShort"
+        );
+
+        assertEq(
+            0,
+            unfilledExposures[0].riskMatrixRowIds[0],
+            "riskMatrixRowIds[0]"
+        );
+
+        assertEq(
+            1,
+            unfilledExposures[0].riskMatrixRowIds[1],
+            "riskMatrixRowIds[1]"
+        );
+        
+    }  
 
     function getVammProxy() internal view virtual returns (VammProxy);
 

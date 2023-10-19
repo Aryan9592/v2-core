@@ -250,7 +250,7 @@ library Portfolio {
                     maturityTimestamp
                     )
             });
-
+            unfilledExposures[size].riskMatrixRowIds = new uint256[](2);
             unfilledExposures[size].riskMatrixRowIds[0] = riskMatrixZeroRowId;
             unfilledExposures[size].riskMatrixRowIds[1] = marketMaturityConfig.riskMatrixRowId;
 
@@ -289,7 +289,9 @@ library Portfolio {
                 filledBalances.base, exposureFactor, marketMaturityConfig.tenorInSeconds, maturityTimestamp
             );
 
+            // short rate exposure
             filledExposures[riskMatrixZeroRowId] += exposureComponents[0];
+            // swap rate exposure
             filledExposures[marketMaturityConfig.riskMatrixRowId] += exposureComponents[1];
         }
     }
