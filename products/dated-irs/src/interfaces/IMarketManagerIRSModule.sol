@@ -48,9 +48,6 @@ interface IMarketManagerIRSModule is IMarketManager {
         view
         returns (UnfilledBalances memory);
 
-    // todo: add natspec
-    function propagateADLOrder(uint128 accountId, uint128 marketId, uint32 maturityTimestamp, bool isLong) external;
-
     function getPercentualSlippage(
         uint128 marketId,
         uint32 maturityTimestamp,

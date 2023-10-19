@@ -16,8 +16,16 @@ interface IBackstopLiquidationModule {
     // todo: add natspec
     function executeBackstopLiquidation(
         uint128 liquidatableAccountId,
-        uint128 liquidatorAccountId,
+        uint128 keeperAccountId,
         address quoteToken,
         AccountLiquidation.LiquidationOrder[] memory backstopLPLiquidationOrders
+    ) external;
+
+    // todo: add natspec
+    function propagateADLOrder(
+        uint128 marketId,
+        uint128 accountId, 
+        uint128 keeperAccountId,
+        bytes calldata inputs
     ) external;
 }

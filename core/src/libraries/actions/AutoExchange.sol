@@ -21,7 +21,7 @@ TODOs
  * @title Library to trigger auto-exchange
  */
 library AutoExchange {
-
+    using CollateralPool for CollateralPool.Data;
     using AccountAutoExchange for Account.Data;
     using Account for Account.Data;
     using SafeCastU256 for uint256;
@@ -67,7 +67,6 @@ library AutoExchange {
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         Account.collateralPoolsCheck(collateralPool.id, liquidatorAccount);
-        Account.Data storage insuranceFundAccount = Account.exists(collateralPool.insuranceFundConfig.accountId);
 
         (
             uint256 collateralAmountToLiquidator,
@@ -94,11 +93,7 @@ library AutoExchange {
             -(quoteAmountToAccount+quoteAmountToIF).toInt()
         );
 
-
-        insuranceFundAccount.updateNetCollateralDeposits(
-            quoteType,
-            quoteAmountToIF.toInt()
-        );
+        collateralPool.updateInsuranceFundBalance(quoteType, quoteAmountToIF);
 
         liquidatorAccount.updateNetCollateralDeposits(
             collateralType,

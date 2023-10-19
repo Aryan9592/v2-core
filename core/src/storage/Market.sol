@@ -245,6 +245,18 @@ library Market {
         );
     }
 
+    function propagateADLOrder(
+        Data storage self,
+        uint128 accountId,
+        bytes memory inputs
+    ) internal {
+        IMarketManager(self.marketManagerAddress).propagateADLOrder(
+            accountId,
+            self.id,
+            inputs
+        );
+    }
+
     function executeTakerOrder(
         Data storage self,
         uint128 accountId,
@@ -313,7 +325,4 @@ library Market {
         );
 
     }
-
-
-
 }
