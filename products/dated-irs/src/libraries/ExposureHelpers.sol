@@ -175,9 +175,6 @@ library ExposureHelpers {
     {
         exposureComponents = new int256[](2);
 
-        // todo: understand how tenorInSeconds compares to SECONDS_IN_DAY
-        // to avoid zero denominator
-
         if (base == 0 || maturityTimestamp <= block.timestamp) {
             return exposureComponents;
         }
