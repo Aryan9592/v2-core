@@ -163,7 +163,7 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function decoupleExposures(
+    function getExposureComponents(
         int256 base,
         UD60x18 exposureFactor,
         uint256 tenorInSeconds,

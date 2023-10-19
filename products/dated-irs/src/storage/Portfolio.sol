@@ -236,13 +236,13 @@ library Portfolio {
             }
 
             unfilledExposures[size].exposureComponents = Account.UnfilledExposureComponents({
-                long: ExposureHelpers.decoupleExposures(
+                long: ExposureHelpers.getExposureComponents(
                     cachedUnfilledBalances[i-1].baseLong.toInt(), 
                     exposureFactor,
                     marketMaturityConfig.tenorInSeconds,
                     maturityTimestamp
                 ),
-                short: ExposureHelpers.decoupleExposures(
+                short: ExposureHelpers.getExposureComponents(
                     cachedUnfilledBalances[i-1].baseShort.toInt(), 
                     exposureFactor,
                     marketMaturityConfig.tenorInSeconds,
@@ -286,7 +286,7 @@ library Portfolio {
 
             FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, poolAddress);
 
-            int256[] memory exposureComponents = ExposureHelpers.decoupleExposures(
+            int256[] memory exposureComponents = ExposureHelpers.getExposureComponents(
                 filledBalances.base,
                 exposureFactor,
                 marketMaturityConfig.tenorInSeconds,
