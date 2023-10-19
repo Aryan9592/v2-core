@@ -616,7 +616,6 @@ library AccountLiquidation {
     struct SolventBackstopLiquidationVars {
         uint256 rawLMRBeforeBackstop;
         uint256 rawLMRAfterBackstop;
-        uint256 rawLMRAfterAdl;
     }
 
     function executeSolventBackstopLiquidation(
@@ -692,17 +691,11 @@ library AccountLiquidation {
                 });
             }
 
-            vars.rawLMRAfterAdl = self.getMarginInfoByBubble(
-                quoteToken
-            ).rawInfo.rawLiquidationMarginRequirement;
-            if (vars.rawLMRAfterAdl > vars.rawLMRAfterBackstop) {
-                revert LiquidationCausedNegativeLMDeltaChange(self.id, vars.rawLMRAfterBackstop, vars.rawLMRAfterAdl);
-            }
-
+            // all exposure will be ADL-ed, so LMR will be 0 afterwards
             self.distributeBackstopAdlRewards({
                 keeperAccount: Account.exists(keeperAccountId),
                 token: quoteToken,
-                deltaLMR: vars.rawLMRAfterBackstop - vars.rawLMRAfterAdl,
+                deltaLMR: vars.rawLMRAfterBackstop,
                 backstopRewardFee: ZERO,
                 keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
             });
@@ -717,7 +710,7 @@ library AccountLiquidation {
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        // Account is insolvent, so LMR after ADL will be 0
+        // all exposure will be ADL-ed, so LMR will be 0 afterwards
         self.distributeBackstopAdlRewards({
             keeperAccount: Account.exists(keeperAccountId),
             token: quoteToken,
