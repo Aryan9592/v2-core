@@ -10,10 +10,7 @@ pragma solidity >=0.8.19;
 import { UnfilledBalances, OrderDirection, PVMRComponents } from "./DataTypes.sol";
 import { Portfolio } from "../storage/Portfolio.sol";
 import { Market } from "../storage/Market.sol";
-import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
 import { IPool } from "../interfaces/IPool.sol";
-
-import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -67,7 +64,8 @@ library ExposureHelpers {
         uint128 marketId,
         uint32 maturityTimestamp,
         address poolAddress,
-        int256 baseBalance
+        int256 baseBalance,
+        UD60x18 exposureFactor
     )
         internal
         view
@@ -78,7 +76,7 @@ library ExposureHelpers {
         Market.Data storage market = Market.exists(marketId);
 
         int256 annualizedExposureWad = DecimalMath.changeDecimals(
-            baseToAnnualizedExposure(-baseBalance, marketId, maturityTimestamp),
+            baseToAnnualizedExposure(-baseBalance, maturityTimestamp, exposureFactor),
             IERC20(market.quoteToken).decimals(),
             DecimalMath.WAD_DECIMALS
         );
@@ -102,11 +100,11 @@ library ExposureHelpers {
     }
 
     function computeUnrealizedPnL(
-        uint128 marketId,
         uint32 maturityTimestamp,
         int256 base,
         int256 quote,
-        UD60x18 unwindPrice
+        UD60x18 unwindPrice,
+        UD60x18 exposureFactor
     )
         internal
         view
@@ -120,16 +118,16 @@ library ExposureHelpers {
 
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(timestamp, maturityTimestamp);
 
-        int256 unwindQuote = computeQuoteDelta(-base, unwindPrice, marketId);
+        int256 unwindQuote = computeQuoteDelta(-base, unwindPrice, exposureFactor);
         uPnL = mulUDxInt(timeDeltaAnnualized, quote + unwindQuote);
     }
 
     function computeUnwindPriceForGivenUPnL(
-        uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseBalance,
         int256 quoteBalance,
-        int256 uPnL
+        int256 uPnL,
+        UD60x18 exposureFactor
     )
         internal
         view
@@ -137,7 +135,7 @@ library ExposureHelpers {
     {
         SD59x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp).intoSD59x18();
 
-        int256 exposure = baseToExposure(baseBalance, marketId);
+        int256 exposure = mulUDxInt(exposureFactor, baseBalance);
         SD59x18 price = sd(uPnL - quoteBalance).div(sd(exposure)).sub(UNIT).div(timeDeltaAnnualized);
 
         return price;
@@ -145,23 +143,15 @@ library ExposureHelpers {
 
     function baseToAnnualizedExposure(
         int256 baseAmount,
-        uint128 marketId,
-        uint32 maturityTimestamp
+        uint32 maturityTimestamp,
+        UD60x18 exposureFactor
     )
         internal
         view
         returns (int256 annualizedExposure)
     {
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        UD60x18 factor = Market.exists(marketId).exposureFactor();
-        UD60x18 annualizedFactor = timeDeltaAnnualized.mul(factor);
-
-        annualizedExposure = mulUDxInt(annualizedFactor, baseAmount);
-    }
-
-    function baseToExposure(int256 baseAmount, uint128 marketId) internal view returns (int256 exposure) {
-        UD60x18 factor = Market.exists(marketId).exposureFactor();
-        exposure = mulUDxInt(factor, baseAmount);
+        annualizedExposure = mulUDxInt(timeDeltaAnnualized.mul(exposureFactor), baseAmount);
     }
 
     function getExposureComponents(
@@ -204,35 +194,30 @@ library ExposureHelpers {
 
     function getPVMRComponents(
         UnfilledBalances memory unfilledBalances,
-        uint128 marketId,
         uint32 maturityTimestamp,
-        uint256 riskMatrixRowId
+        UD60x18 exposureFactor,
+        UD60x18 diagonalRiskParameter
     )
         internal
         view
         returns (PVMRComponents memory pvmrComponents)
     {
-        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-        UD60x18 diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
-            marketId, riskMatrixRowId, riskMatrixRowId
-        ).intoUD60x18();
-
         int256 unrealizedPnLShort = computeUnrealizedPnL(
-            marketId,
             maturityTimestamp,
             -unfilledBalances.baseShort.toInt(),
             unfilledBalances.quoteShort.toInt(),
-            unfilledBalances.averagePriceShort.sub(diagonalRiskParameter)
+            unfilledBalances.averagePriceShort.sub(diagonalRiskParameter),
+            exposureFactor
         );
 
         pvmrComponents.short = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
 
         int256 unrealizedPnLLong = computeUnrealizedPnL(
-            marketId,
             maturityTimestamp,
             unfilledBalances.baseLong.toInt(),
             -unfilledBalances.quoteLong.toInt(),
-            unfilledBalances.averagePriceLong.add(diagonalRiskParameter)
+            unfilledBalances.averagePriceLong.add(diagonalRiskParameter),
+            exposureFactor
         );
 
         pvmrComponents.long = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
@@ -300,9 +285,8 @@ library ExposureHelpers {
         }
     }
 
-    function computeQuoteDelta(int256 baseDelta, UD60x18 markPrice, uint128 marketId) internal view returns (int256) {
-        int256 exposure = baseToExposure(baseDelta, marketId);
-
+    function computeQuoteDelta(int256 baseDelta, UD60x18 markPrice, UD60x18 exposureFactor) internal pure returns (int256) {
+        int256 exposure = mulUDxInt(exposureFactor, baseDelta);
         return mulUDxInt(markPrice, -exposure);
     }
 }

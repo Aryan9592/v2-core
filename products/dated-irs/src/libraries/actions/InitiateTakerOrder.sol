@@ -55,9 +55,10 @@ library InitiateTakerOrder {
     {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
+        UD60x18 exposureFactor = market.exposureFactor();
 
         UD60x18 markPrice = ExposureHelpers.computeTwap(
-            params.marketId, params.maturityTimestamp, market.marketConfig.poolAddress, params.baseDelta
+            params.marketId, params.maturityTimestamp, market.marketConfig.poolAddress, params.baseDelta, exposureFactor
         );
 
         tokenDeltas = pool.executeDatedTakerOrder(
@@ -73,7 +74,7 @@ library InitiateTakerOrder {
         portfolio.updatePosition(params.maturityTimestamp, tokenDeltas);
 
         int256 annualizedNotionalAmount =
-            ExposureHelpers.baseToAnnualizedExposure(tokenDeltas.base, params.marketId, params.maturityTimestamp);
+            ExposureHelpers.baseToAnnualizedExposure(tokenDeltas.base, params.maturityTimestamp, exposureFactor);
 
         ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 

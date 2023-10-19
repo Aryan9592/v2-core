@@ -227,10 +227,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     {
         (uint32 maturityTimestamp, int256 baseToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
-        int256 annualizedExposure =
-            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, marketId, maturityTimestamp);
-
         Market.Data storage market = Market.exists(marketId);
+        UD60x18 exposureFactor = market.exposureFactor();
+
+        int256 annualizedExposure =
+            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, maturityTimestamp, exposureFactor);
+
         annualizedExposureWad = DecimalMath.changeDecimals(
             annualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
