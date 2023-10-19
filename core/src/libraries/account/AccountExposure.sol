@@ -31,11 +31,7 @@ library AccountExposure {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.UintSet;
 
-    // todo: @avniculae @0xZenus think about why/whether we still need the 
-    // token parameter here, since single account mode was removed. However,
-    // parts of code (such as liquidations and withdrawable balance) currently
-    // pass the collateralType in the token parameter. 
-    function getMarginInfoByBubble(Account.Data storage account, address token) 
+    function getMarginInfoByBubble(Account.Data storage account, address token)
         internal 
         view
         returns (Account.MarginInfo memory) 
@@ -59,10 +55,6 @@ library AccountExposure {
         CollateralConfiguration.ExchangeInfo memory exchange = 
             CollateralConfiguration.getExchangeInfo(collateralPoolId, quoteToken, token);
 
-        // todo: note, in here we divide by the exchange rate that also has the haircut applied to it
-        // to make sure the deltas are in the units of the base token
-        // however, the haircut is originally only applied if the delta is positive, that same logic
-        // doesn't seem to be present here, is that intentional?
         return Account.MarginInfo({
             collateralType: token,
             collateralInfo: Account.CollateralInfo({
@@ -106,9 +98,6 @@ library AccountExposure {
         );
 
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteToken).childTokens.values();
-
-        // todo: why do we need to loop through the margin requirements of child tokens when only base tokens
-        // can have margin requirements attached to them given only base tokens can be quite tokens for a given market?
 
         for (uint256 i = 0; i < tokens.length; i++) {
             Account.MarginInfo memory subMarginInfo  = 
@@ -238,6 +227,25 @@ library AccountExposure {
         }
 
         return (realizedPnL, unrealizedPnL);
+
+    }
+
+    /**
+     * @dev Returns the collateral info for a given account
+     * @dev The amounts are in collateral type.
+     */
+    function getCollateralInfoByCollateralType(
+        Account.Data storage self,
+        address collateralType
+    ) internal view returns (Account.CollateralInfo memory collateralInfo) {
+        uint256[] memory markets = self.activeMarketsPerQuoteToken[collateralType].values();
+        (int256 realizedPnL, int256 unrealizedPnL) = getAggregatePnLComponents(self, markets);
+
+        collateralInfo.netDeposits = self.getAccountNetCollateralDeposits(collateralType);
+        collateralInfo.marginBalance = collateralInfo.netDeposits + realizedPnL + unrealizedPnL;
+        collateralInfo.realBalance = collateralInfo.netDeposits + realizedPnL;
+
+        return collateralInfo;
 
     }
 
