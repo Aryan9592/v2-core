@@ -49,6 +49,8 @@ contract MarketManagerModule is IMarketManagerModule {
 
         InstrumentRegistrar.exists(marketManager);
 
+        // todo: force registration to go through the instrument
+
         marketId = Market.create(marketManager, quoteToken, name, msg.sender).id;
 
         emit MarketRegistered(marketManager, marketId, quoteToken, name, msg.sender, block.timestamp);
