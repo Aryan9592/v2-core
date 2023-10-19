@@ -134,8 +134,10 @@ contract AccountModule is IAccountModule {
         FeatureFlagSupport.ensureGlobalAccess();
         Account.Data storage account = Account.exists(accountId);
         address accountOwner = account.rbac.owner;
-        uint256 incrementedNonce = Signature.incrementSigNonce(accountOwner);
         unchecked {
+
+            uint256 incrementedNonce = Signature.incrementSigNonce(accountOwner);
+
             Signature.validateRecoveredAddress(
                 Signature.calculateDigest(
                     keccak256(

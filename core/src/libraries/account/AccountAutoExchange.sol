@@ -203,16 +203,23 @@ library AccountAutoExchange {
     function calculateAvailableCollateral(
         Account.Data storage self,
         address collateralToken
-    ) private view returns (uint256) {
+    ) private view returns (uint256 availableCollateral) {
 
-        Account.CollateralInfo memory collateralInfo = self.getCollateralInfoByCollateralType(
+        int256 realBalanceCollateralToken = self.getCollateralInfoByCollateralType(
             collateralToken
-        );
+        ).realBalance;
 
-        // todo: add a/e min(rbal, lmr - bbal) & explicitely revert if negative
+        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralToken);
+        int256 bbalLMRDelta =
+            marginInfo.rawInfo.rawMarginBalance - marginInfo.rawInfo.rawLiquidationMarginRequirement.toInt();
 
-        return collateralInfo.realBalance.toUint();
+        if (realBalanceCollateralToken > bbalLMRDelta) {
+            availableCollateral = realBalanceCollateralToken > 0 ? realBalanceCollateralToken.toUint() : 0;
+        } else {
+            availableCollateral = bbalLMRDelta > 0 ? bbalLMRDelta.toUint() : 0;
+        }
 
+        return availableCollateral;
     }
 
     struct CalculateAvailableCollateralToAutoExchangeVars {
