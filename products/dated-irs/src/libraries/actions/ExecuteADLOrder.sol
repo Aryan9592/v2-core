@@ -50,6 +50,8 @@ library ExecuteADLOrder {
      */
     error CannotBlendADLDuringPropagation(uint128 marketId, uint128 accountId, int256 baseDelta);
 
+    error PositiveUPnLDuringBakruptcyADL(uint128 marketId, uint32 maturityTimestamp, uint128 accountId, uint256 upnl);
+
     function computeBankruptcyPrice(
         uint128 marketId,
         uint32 maturityTimestamp,
@@ -107,9 +109,16 @@ library ExecuteADLOrder {
             accountPortfolio.getAccountFilledBalances(maturityTimestamp, vars.poolAddress);
 
         if (totalUnrealizedLossQuote > 0) {
-            // todo: (AB) link this to uPnL functions
-            uint256 positionUnrealizedLoss = 0;
+            if (filledBalances.pnl.unrealizedPnL > 0) {
+                revert PositiveUPnLDuringBakruptcyADL(
+                    accountPortfolio.marketId,
+                    maturityTimestamp,
+                    accountPortfolio.accountId,
+                    filledBalances.pnl.unrealizedPnL.toUint()
+                );
+            }
 
+            uint256 positionUnrealizedLoss = (-filledBalances.pnl.unrealizedPnL).toUint();
             vars.markPrice = computeBankruptcyPrice({
                 marketId: accountPortfolio.marketId,
                 maturityTimestamp: maturityTimestamp,

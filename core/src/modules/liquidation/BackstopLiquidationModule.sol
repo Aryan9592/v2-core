@@ -7,6 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 import {Account} from "../../storage/Account.sol";
+import {Market} from "../../storage/Market.sol";
 import {AccountLiquidation} from "../../libraries/account/AccountLiquidation.sol";
 import {IBackstopLiquidationModule} from "../../interfaces/liquidation/IBackstopLiquidationModule.sol";
 
@@ -19,6 +20,7 @@ import {IBackstopLiquidationModule} from "../../interfaces/liquidation/IBackstop
 
 contract BackstopLiquidationModule is IBackstopLiquidationModule {
     using Account for Account.Data;
+    using Market for Market.Data;
     using AccountLiquidation for Account.Data;
 
     /**
@@ -26,12 +28,25 @@ contract BackstopLiquidationModule is IBackstopLiquidationModule {
      */
     function executeBackstopLiquidation(
         uint128 liquidatableAccountId,
-        uint128 liquidatorAccountId,
+        uint128 keeperAccountId,
         address quoteToken,
         AccountLiquidation.LiquidationOrder[] memory backstopLPLiquidationOrders
     ) external override {
         // grab the liquidatable account and check its existance
         Account.Data storage account = Account.exists(liquidatableAccountId);
-        account.executeBackstopLiquidation(liquidatorAccountId, quoteToken, backstopLPLiquidationOrders);
+        account.executeBackstopLiquidation(keeperAccountId, quoteToken, backstopLPLiquidationOrders);
+    }
+
+    /**
+     * @inheritdoc IBackstopLiquidationModule
+     */
+    function propagateADLOrder(
+        uint128 marketId, 
+        uint128 accountId,
+        uint128 keeperAccountId, 
+        bytes calldata inputs
+    ) external override {
+        Account.Data storage account = Account.exists(accountId);
+        account.propagateADLOrder(marketId, keeperAccountId, inputs);
     }
 }

@@ -106,6 +106,22 @@ library CollateralConfiguration {
          * amount dust
          */
         uint256 autoExchangeDustThreshold;
+
+        /**
+         * @dev Flat fee transferred from liquidator to IF when a liquidation bid is submitted
+         */
+        uint256 bidSubmissionFee;
+
+        /**
+         * @dev Flat fee that is awarded to the keeper for adl propagations, taken from IF
+         */
+        uint256 adlPropagationKeeperFee;
+
+        /**
+         * @dev Minimum funds threshold that must be left in insurance fund
+         * for covering keeper rewards for adl propagation.
+         */
+        uint256 minInsuranceFundThreshold;
     }
 
     struct CachedConfiguration {

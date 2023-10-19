@@ -146,6 +146,13 @@ interface IMarketManager is IERC165 {
         int256 realBalanceAndIF
     ) external;
 
+    // todo: add natspec
+    function propagateADLOrder(
+        uint128 accountId, 
+        uint128 marketId,
+        bytes calldata inputs
+    ) external;
+
     /**
      * @notice Decoded inputs and propagates position cashflows
      * @param accountId Id of the account that wants to complete a position

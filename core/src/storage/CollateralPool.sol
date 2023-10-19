@@ -23,6 +23,7 @@ import {FeatureFlag} from "@voltz-protocol/util-modules/src/storage/FeatureFlag.
  * @title Object for tracking aggregate collateral pool balances
  */
 library CollateralPool {
+    using Account for Account.Data;
     using CollateralPool for CollateralPool.Data;
     using FeatureFlag for FeatureFlag.Data;
     using SafeCastU256 for uint256;
@@ -161,6 +162,17 @@ library CollateralPool {
          * @dev Weight Parameter used in the liquidation scoring/rank function
          */
         UD60x18 wRank;
+
+        /**
+         * @dev Proportion of LMR delta that is awarded to the keeper for backstop LP liquidations. 
+         * The rest is awarded to the backstop LP.
+         */
+        UD60x18 backstopKeeperFee;
+
+        /**
+         * @dev Proportion of LMR delta that is awarded to the keeper for adl liquidations
+         */
+        UD60x18 adlExecutionKeeperFee;
     }
 
     struct DutchConfiguration {
@@ -273,6 +285,32 @@ library CollateralPool {
          * @dev Collateral pool wide backstop lp configuration
          */
         BackstopLPConfig backstopLPConfig;
+    }
+
+    function getAvailableInsuranceFundCover(
+        Data storage self, 
+        address quoteToken,
+        bool preserveMinThreshold
+    ) internal view returns (uint256) {
+        CollateralConfiguration.Data storage collateralConfig = CollateralConfiguration.exists(self.id, quoteToken);
+
+        Account.Data storage insuranceFundAccount = Account.exists(self.insuranceFundConfig.accountId);
+        int256 insuranceFundBalance = insuranceFundAccount.getAccountNetCollateralDeposits(quoteToken);
+
+        insuranceFundBalance -= self.insuranceFundUnderwritings[quoteToken].toInt();
+        if (preserveMinThreshold) {
+            insuranceFundBalance -= collateralConfig.baseConfig.minInsuranceFundThreshold.toInt();
+        }
+
+        if (insuranceFundBalance < 0) {
+            return 0;
+        }
+        return insuranceFundBalance.toUint();
+    }
+
+    function updateInsuranceFundBalance(Data storage self, address collateralType, uint256 amount) internal {
+        Account.Data storage insuranceFundAccount = Account.exists(self.insuranceFundConfig.accountId);
+        insuranceFundAccount.updateNetCollateralDeposits(collateralType, amount.toInt());
     }
 
     function updateInsuranceFundUnderwritings(Data storage self, address collateralType, uint256 amount) internal {

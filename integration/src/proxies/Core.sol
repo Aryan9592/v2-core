@@ -8,7 +8,7 @@ import "@voltz-protocol/core/src/modules/CollateralConfigurationModule.sol";
 import "@voltz-protocol/core/src/modules/CollateralModule.sol";
 import "@voltz-protocol/core/src/modules/FeatureFlagModule.sol";
 import "@voltz-protocol/core/src/modules/InsuranceFundConfigurationModule.sol";
-import "@voltz-protocol/core/src/modules/liquidation/PreLiquidationModule.sol";
+import "@voltz-protocol/core/src/modules/liquidation/CommonLiquidationModule.sol";
 import "@voltz-protocol/core/src/modules/liquidation/RankedLiquidationModule.sol";
 import "@voltz-protocol/core/src/modules/liquidation/DutchLiquidationModule.sol";
 import "@voltz-protocol/core/src/modules/liquidation/BackstopLiquidationModule.sol";
@@ -27,7 +27,7 @@ contract CoreRouter is
     CollateralModule,
     FeatureFlagModule,
     InsuranceFundConfigurationModule,
-    PreLiquidationModule,
+    CommonLiquidationModule,
     RankedLiquidationModule,
     DutchLiquidationModule,
     BackstopLiquidationModule,
