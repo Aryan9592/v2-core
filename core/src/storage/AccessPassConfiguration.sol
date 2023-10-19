@@ -9,7 +9,7 @@ pragma solidity >=0.8.19;
 
 
 /**
- * @title Tracks V2 Access Pass NFT and providers helpers to interact with it
+ * @title Tracks Reya Access Pass NFT and provides helpers to interact with it
  */
 library AccessPassConfiguration {
 
