@@ -113,13 +113,13 @@ library ExposureHelpers {
     {
         uint32 timestamp = Time.blockTimestampTruncated();
 
-        if (maturityTimestamp <= timestamp) {
+        if ((base == 0 && quote == 0) || maturityTimestamp <= timestamp) {
             return 0;
         }
 
         UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(timestamp, maturityTimestamp);
 
-        int256 unwindQuote = mulUDxInt(unwindPrice, baseToExposure(base, marketId));
+        int256 unwindQuote = computeQuoteDelta(-base, unwindPrice, marketId);
         uPnL = mulUDxInt(timeDeltaAnnualized, quote + unwindQuote);
     }
 
@@ -140,19 +140,6 @@ library ExposureHelpers {
         SD59x18 price = sd(uPnL - quoteBalance).div(sd(exposure)).sub(UNIT_sd).div(timeDeltaAnnualized);
 
         return price;
-    }
-
-    /**
-     * @dev in context of interest rate swaps, base refers to scaled variable tokens (e.g. scaled virtual aUSDC)
-     * @dev in order to derive the annualized exposure of base tokens in quote terms (i.e. USDC), we need to
-     * first calculate the (non-annualized) exposure by multiplying the baseAmount by the current liquidity index of the
-     * underlying rate oracle (e.g. aUSDC lend rate oracle)
-     */
-    function annualizedExposureFactor(uint128 marketId, uint32 maturityTimestamp) internal view returns (UD60x18) {
-        UD60x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp);
-        UD60x18 factor = Market.exists(marketId).exposureFactor();
-
-        return timeDeltaAnnualized.mul(factor);
     }
 
     function baseToAnnualizedExposure(
@@ -176,108 +163,42 @@ library ExposureHelpers {
         exposure = mulUDxInt(factor, baseAmount);
     }
 
-    function decoupleExposures(
-        int256 notional,
+    function getExposureComponents(
+        int256 base,
+        UD60x18 exposureFactor,
         uint256 tenorInSeconds,
-        uint256 timeToMaturityInSeconds
+        uint256 maturityTimestamp
     )
-        private
-        pure
-        returns (int256 shortRateExposure, int256 swapRateExposure)
+        internal
+        view
+        returns (int256[] memory exposureComponents)
     {
-        // todo: division by zero checks, etc
+        exposureComponents = new int256[](2);
+
+        if (base == 0 || maturityTimestamp <= block.timestamp) {
+            return exposureComponents;
+        }
+
+        int256 notional = mulUDxInt(exposureFactor, base);
+        uint256 timeToMaturityInSeconds = maturityTimestamp - block.timestamp;
 
         // short rate exposure
-        int256 numSR = (tenorInSeconds - timeToMaturityInSeconds).toInt();
-        int256 denSR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
-        SD59x18 notionalToExposureFactorSR = sd(numSR).div(sd(denSR)).mul(Time.annualize(SECONDS_IN_DAY).intoSD59x18());
-        shortRateExposure = mulSDxInt(notionalToExposureFactorSR, notional);
+        {
+            int256 num = tenorInSeconds.toInt() - timeToMaturityInSeconds.toInt();
+            int256 den = tenorInSeconds.toInt() - SECONDS_IN_DAY.toInt();
+            SD59x18 factor = sd(num).div(sd(den)).mul(Time.annualize(SECONDS_IN_DAY).intoSD59x18());
+
+            exposureComponents[0] = mulSDxInt(factor, notional);
+        }
 
         // swap rate exposure
-        int256 numSWR = (timeToMaturityInSeconds - SECONDS_IN_DAY).toInt();
-        int256 denSWR = (tenorInSeconds - SECONDS_IN_DAY).toInt();
-        SD59x18 notionalToExposureFactorSWR =
-            sd(numSWR).div(sd(denSWR)).mul(Time.annualize(tenorInSeconds).intoSD59x18());
-        swapRateExposure = mulSDxInt(notionalToExposureFactorSWR, notional);
+        {
+            int256 num = timeToMaturityInSeconds.toInt() - SECONDS_IN_DAY.toInt();
+            int256 den = tenorInSeconds.toInt() - SECONDS_IN_DAY.toInt();
+            SD59x18 factor = sd(num).div(sd(den)).mul(Time.annualize(tenorInSeconds).intoSD59x18());
 
-        return (shortRateExposure, swapRateExposure);
-    }
-
-    function getFilledExposures(
-        int256 filledBase,
-        UD60x18 exposureFactor,
-        uint32 maturityTimestamp,
-        uint256 tenorInSeconds
-    )
-        internal
-        view
-        returns (int256 shortRateFilledExposure, int256 swapRateFilledExposure)
-    {
-        int256 filledNotional = mulUDxInt(exposureFactor, filledBase);
-
-        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
-
-        (shortRateFilledExposure, swapRateFilledExposure) =
-            decoupleExposures(filledNotional, tenorInSeconds, timeToMaturityInSeconds);
-
-        return (shortRateFilledExposure, swapRateFilledExposure);
-    }
-
-    function getUnfilledExposureComponents(
-        uint256 unfilledBaseLong,
-        uint256 unfilledBaseShort,
-        UD60x18 exposureFactor,
-        uint32 maturityTimestamp,
-        uint256 tenorInSeconds
-    )
-        internal
-        view
-        returns (Account.UnfilledExposureComponents[] memory unfilledExposureComponents)
-    {
-        // first entry is for short rate and second is for swap rate
-        unfilledExposureComponents = new Account.UnfilledExposureComponents[](2);
-        uint256 timeToMaturityInSeconds = uint256(maturityTimestamp) - block.timestamp;
-
-        if (unfilledBaseLong != 0) {
-            uint256 unfilledNotionalLong = mulUDxUint(exposureFactor, unfilledBaseLong);
-
-            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) =
-                decoupleExposures(unfilledNotionalLong.toInt(), tenorInSeconds, timeToMaturityInSeconds);
-
-            (unfilledExposureComponents[0].unfilledExposureLong, unfilledExposureComponents[1].unfilledExposureLong) =
-                (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
+            exposureComponents[1] = mulSDxInt(factor, notional);
         }
-
-        if (unfilledBaseShort != 0) {
-            uint256 unfilledNotionalShort = mulUDxUint(exposureFactor, unfilledBaseShort);
-
-            (int256 unfilledExposureShortRate, int256 unfilledExposureSwapRate) =
-                decoupleExposures(unfilledNotionalShort.toInt(), tenorInSeconds, timeToMaturityInSeconds);
-
-            (unfilledExposureComponents[0].unfilledExposureShort, unfilledExposureComponents[1].unfilledExposureShort) =
-                (unfilledExposureShortRate.toUint(), unfilledExposureSwapRate.toUint());
-        }
-
-        return unfilledExposureComponents;
-    }
-
-    function computePVMRUnwindPrice(
-        UD60x18 avgPrice,
-        UD60x18 diagonalRiskParameter,
-        bool isLong
-    )
-        private
-        view
-        returns (UD60x18 pvmrUnwindPrice)
-    {
-        // todo: note this doesn't take into account slippage & spread
-        if (isLong) {
-            avgPrice.add(diagonalRiskParameter);
-        } else {
-            avgPrice.sub(diagonalRiskParameter);
-        }
-
-        return pvmrUnwindPrice;
     }
 
     function getPVMRComponents(
@@ -290,38 +211,30 @@ library ExposureHelpers {
         view
         returns (Account.PVMRComponents memory pvmrComponents)
     {
-        UD60x18 diagonalRiskParameter;
+        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
+        UD60x18 diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
+            marketId, riskMatrixRowId, riskMatrixRowId
+        ).intoUD60x18();
 
-        if ((unfilledBalances.baseShort != 0) || (unfilledBalances.baseLong != 0)) {
-            address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
-            diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
-                marketId, riskMatrixRowId, riskMatrixRowId
-            ).intoUD60x18();
-        }
+        int256 unrealizedPnLShort = computeUnrealizedPnL(
+            marketId,
+            maturityTimestamp,
+            -unfilledBalances.baseShort.toInt(),
+            unfilledBalances.quoteShort.toInt(),
+            unfilledBalances.averagePriceShort.sub(diagonalRiskParameter)
+        );
 
-        if (unfilledBalances.baseShort != 0) {
-            int256 unrealizedPnLShort = computeUnrealizedPnL(
-                marketId,
-                maturityTimestamp,
-                -unfilledBalances.baseShort.toInt(),
-                unfilledBalances.quoteShort.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.averagePriceShort, diagonalRiskParameter, false)
-            );
+        pvmrComponents.short = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
 
-            pvmrComponents.pvmrShort = unrealizedPnLShort > 0 ? 0 : (-unrealizedPnLShort).toUint();
-        }
+        int256 unrealizedPnLLong = computeUnrealizedPnL(
+            marketId,
+            maturityTimestamp,
+            unfilledBalances.baseLong.toInt(),
+            -unfilledBalances.quoteLong.toInt(),
+            unfilledBalances.averagePriceLong.add(diagonalRiskParameter)
+        );
 
-        if (unfilledBalances.baseLong != 0) {
-            int256 unrealizedPnLLong = computeUnrealizedPnL(
-                marketId,
-                maturityTimestamp,
-                unfilledBalances.baseLong.toInt(),
-                -unfilledBalances.quoteLong.toInt(),
-                computePVMRUnwindPrice(unfilledBalances.averagePriceLong, diagonalRiskParameter, true)
-            );
-
-            pvmrComponents.pvmrLong = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
-        }
+        pvmrComponents.long = unrealizedPnLLong > 0 ? 0 : (-unrealizedPnLLong).toUint();
 
         return pvmrComponents;
     }

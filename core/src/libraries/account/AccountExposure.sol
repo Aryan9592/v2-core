@@ -199,10 +199,9 @@ library AccountExposure {
                 continue;
             }
 
-            (
-                int256[] memory marketFilledExposures,
-                Account.UnfilledExposure[] memory marketUnfilledExposures
-            ) = market.getAccountTakerAndMakerExposures(self.id, riskMatrixDim);
+            int256[] memory marketFilledExposures = market.getAccountTakerExposures(self.id, riskMatrixDim);
+
+            Account.UnfilledExposure[] memory marketUnfilledExposures = market.getAccountMakerExposures(self.id);
 
             // todo: revert if marketFilledExposures.length doesn't match the riskMatrixDim
 
@@ -360,41 +359,30 @@ library AccountExposure {
 
 
     function hasUnfilledExposure(
-        Account.UnfilledExposureComponents[] memory unfilledExposureComponents,
+        Account.UnfilledExposureComponents memory unfilledExposureComponents,
         bool isLong
-    ) private view returns (bool hasUnfilled) {
+    ) private pure returns (bool) {
+        int256[] memory target = (isLong) ? unfilledExposureComponents.long : unfilledExposureComponents.short;
 
-        for (uint256 i = 0; i < unfilledExposureComponents.length; i++) {
-
-            if (isLong && unfilledExposureComponents[i].unfilledExposureLong != 0) {
+        for (uint256 i = 0; i < target.length; i++) {
+            if (target[i] != 0) {
                 return true;
             }
-
-            if (!isLong && unfilledExposureComponents[i].unfilledExposureShort != 0) {
-                return true;
-            }
-
         }
 
-
-        return hasUnfilled;
+        return false;
     }
 
     function getCFExposures(
         uint256[] memory riskMatrixRowIds,
-        Account.UnfilledExposureComponents[] memory unfilledExposureComponents,
+        Account.UnfilledExposureComponents memory unfilledExposureComponents,
         int256[] memory filledExposures,
         bool isLong
-    ) private view returns (int256[] memory) {
+    ) private pure returns (int256[] memory) {
+        int256[] memory target = (isLong) ? unfilledExposureComponents.long : unfilledExposureComponents.short;
 
         for (uint256 i = 0; i < riskMatrixRowIds.length; i++) {
-
-            if (isLong) {
-                filledExposures[i] += unfilledExposureComponents[i].unfilledExposureLong.toInt();
-            } else {
-                filledExposures[i] += unfilledExposureComponents[i].unfilledExposureShort.toInt();
-            }
-
+            filledExposures[i] += target[i];
         }
 
         return filledExposures;
@@ -416,11 +404,11 @@ library AccountExposure {
 
             Account.UnfilledExposure memory unfilledExposure = unfilledExposures[i];
 
-            if (hasUnfilledExposure(unfilledExposure.exposureComponentsArr, true)) {
+            if (hasUnfilledExposure(unfilledExposure.exposureComponents, true)) {
 
                 int256[] memory cfExposuresLong = getCFExposures(
                     unfilledExposure.riskMatrixRowIds,
-                    unfilledExposure.exposureComponentsArr,
+                    unfilledExposure.exposureComponents,
                     filledExposures,
                     true
                 );
@@ -428,15 +416,15 @@ library AccountExposure {
                 uint256 lmrLongCf = computeLMRFilled(collateralPool, riskBlockId, cfExposuresLong);
 
                 lmrLong = lmrLongCf > lmrFilled ? lmrLongCf - lmrFilled : 0;
-                lmrLong += unfilledExposure.pvmrComponents.pvmrLong;
+                lmrLong += unfilledExposure.pvmrComponents.long;
 
             }
 
-            if (hasUnfilledExposure(unfilledExposure.exposureComponentsArr, false)) {
+            if (hasUnfilledExposure(unfilledExposure.exposureComponents, false)) {
 
                 int256[] memory cfExposuresShort = getCFExposures(
                     unfilledExposure.riskMatrixRowIds,
-                    unfilledExposure.exposureComponentsArr,
+                    unfilledExposure.exposureComponents,
                     filledExposures,
                     false
                 );
@@ -444,7 +432,7 @@ library AccountExposure {
                 uint256 lmrShortCf = computeLMRFilled(collateralPool, riskBlockId, cfExposuresShort);
 
                 lmrShort = lmrShortCf > lmrFilled ? lmrShortCf - lmrFilled : 0;
-                lmrShort += unfilledExposure.pvmrComponents.pvmrShort;
+                lmrShort += unfilledExposure.pvmrComponents.short;
 
             }
 
