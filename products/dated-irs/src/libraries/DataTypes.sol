@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 
 pragma solidity >=0.8.19;
 
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+import "@voltz-protocol/core/src/libraries/DataTypes.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
@@ -32,7 +32,7 @@ struct PositionBalances {
 struct FilledBalances {
     int256 base;
     int256 quote;
-    Account.PnLComponents pnl;
+    PnLComponents pnl;
 }
 
 struct UnfilledBalances {

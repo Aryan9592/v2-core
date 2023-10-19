@@ -11,6 +11,7 @@ import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/hel
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
 
+import { MarginInfo } from "../../libraries/DataTypes.sol";
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {GlobalCollateralConfiguration} from  "../../storage/GlobalCollateralConfiguration.sol";
@@ -105,7 +106,7 @@ library AccountCollateral {
         view
         returns (uint256 /* withdrawableCollateralBalance */)
     {
-        Account.MarginInfo memory marginInfoBubble = self.getMarginInfoByBubble(collateralType);
+        MarginInfo memory marginInfoBubble = self.getMarginInfoByBubble(collateralType);
         int256 withdrawableBalanceBubble = SignedMath.max(
             0,
             SignedMath.min(
@@ -118,7 +119,7 @@ library AccountCollateral {
             return 0;
         }
 
-        Account.MarginInfo memory marginInfoCollateral = 
+        MarginInfo memory marginInfoCollateral = 
             self.getMarginInfoByCollateralType(
                 collateralType, 
                 self.getCollateralPool().riskConfig.riskMultipliers

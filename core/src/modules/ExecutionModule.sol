@@ -7,11 +7,10 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { MarginInfo } from "../libraries/DataTypes.sol";
 import {IExecutionModule} from "../interfaces/IExecutionModule.sol";
-// todo: consider abstracting Account.MarginInfo to a datatype lib
 import {Account} from "../storage/Account.sol";
 import {Exchange} from "../storage/Exchange.sol";
-import {CreateAccount} from "../libraries/actions/CreateAccount.sol";
 import {EditCollateral} from "../libraries/actions/EditCollateral.sol";
 import {Market} from "../storage/Market.sol";
 import {FeeCollectorConfiguration} from "../storage/FeeCollectorConfiguration.sol";
@@ -30,7 +29,7 @@ contract ExecutionModule is IExecutionModule {
     function execute(
         uint128 accountId,
         Command[] calldata commands
-    ) external override returns (bytes[] memory outputs, Account.MarginInfo memory marginInfo) {
+    ) external override returns (bytes[] memory outputs, MarginInfo memory marginInfo) {
 
         preExecuteCheck(accountId);
 

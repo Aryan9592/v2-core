@@ -7,8 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
-import "../../storage/Account.sol";
+import { PnLComponents, UnfilledExposure } from "../../libraries/DataTypes.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface a Market Manager needs to adhere.
@@ -31,13 +31,13 @@ interface IMarketManager is IERC165 {
     function getAccountMakerExposures(uint128 marketId, uint128 accountId)
         external
         view
-        returns (Account.UnfilledExposure[] memory);
+        returns (UnfilledExposure[] memory);
 
     // todo: natspec
     function getAccountPnLComponents(uint128 marketId, uint128 accountId)
         external
         view
-        returns (Account.PnLComponents memory pnlComponents);
+        returns (PnLComponents memory pnlComponents);
 
     //// STATE CHANGING FUNCTIONS ////
 

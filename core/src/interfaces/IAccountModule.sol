@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {Account} from "../storage/Account.sol";
+import { AccountPermissions, MarginInfo } from "../libraries/DataTypes.sol";
 
 /**
  * @title Account Manager Interface.
@@ -24,20 +24,6 @@ interface IAccountModule {
      * @notice Thrown when an account attempts to renounce a permission that it didn't have.
      */
     error PermissionNotGranted(uint128 accountId, bytes32 permission, address user);
-
-    /**
-     * @dev Data structure for tracking each user's permissions.
-     */
-    struct AccountPermissions {
-        /**
-         * @dev The address for which all the permissions are granted.
-         */
-        address user;
-        /**
-         * @dev The array of permissions given to the associated address.
-         */
-        bytes32[] permissions;
-    }
 
     /**
      * @notice Returns an array of `AccountPermission` for the provided `accountId`.
@@ -158,5 +144,5 @@ interface IAccountModule {
     function getMarginInfoByBubble(uint128 accountId, address collateralType) 
         external 
         view 
-        returns (Account.MarginInfo memory);
+        returns (MarginInfo memory);
 }

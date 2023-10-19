@@ -7,13 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { UnfilledBalances, OrderDirection } from "./DataTypes.sol";
+import { UnfilledBalances, OrderDirection, PVMRComponents } from "./DataTypes.sol";
 import { Portfolio } from "../storage/Portfolio.sol";
 import { Market } from "../storage/Market.sol";
 import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
 import { IPool } from "../interfaces/IPool.sol";
 
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
@@ -211,7 +210,7 @@ library ExposureHelpers {
     )
         internal
         view
-        returns (Account.PVMRComponents memory pvmrComponents)
+        returns (PVMRComponents memory pvmrComponents)
     {
         address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
         UD60x18 diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
@@ -302,7 +301,7 @@ library ExposureHelpers {
     }
 
     function computeQuoteDelta(int256 baseDelta, UD60x18 markPrice, uint128 marketId) internal view returns (int256) {
-        int256 exposure = ExposureHelpers.baseToExposure(baseDelta, marketId);
+        int256 exposure = baseToExposure(baseDelta, marketId);
 
         return mulUDxInt(markPrice, -exposure);
     }

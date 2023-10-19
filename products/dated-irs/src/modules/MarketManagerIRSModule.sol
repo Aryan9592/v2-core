@@ -20,7 +20,9 @@ import {
     TakerOrderParams,
     MakerOrderParams,
     FilledBalances,
-    PositionBalances
+    PositionBalances,
+    UnfilledExposure,
+    PnLComponents
 } from "../libraries/DataTypes.sol";
 
 import { Settlement } from "../libraries/actions/Settlement.sol";
@@ -28,8 +30,6 @@ import { InitiateMakerOrder } from "../libraries/actions/InitiateMakerOrder.sol"
 import { InitiateTakerOrder } from "../libraries/actions/InitiateTakerOrder.sol";
 import { ExecuteLiquidationOrder } from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import { PropagateADLOrder } from "../libraries/actions/PropagateADLOrder.sol";
-
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
 import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -103,7 +103,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (Account.UnfilledExposure[] memory)
+        returns (UnfilledExposure[] memory)
     {
         return Portfolio.exists(accountId, marketId).getAccountMakerExposures();
     }
@@ -118,7 +118,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (Account.PnLComponents memory pnlComponents)
+        returns (PnLComponents memory pnlComponents)
     {
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         Market.Data storage market = Market.exists(portfolio.marketId);

@@ -12,10 +12,15 @@ import { IPool } from "../interfaces/IPool.sol";
 
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { ExecuteADLOrder } from "../libraries/actions/ExecuteADLOrder.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+import {
+    FilledBalances,
+    UnfilledBalances,
+    PositionBalances,
+    UnfilledExposureComponents,
+    UnfilledExposure,
+    PnLComponents
+} from "../libraries/DataTypes.sol";
 import { TraderPosition } from "../libraries/TraderPosition.sol";
-
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
@@ -192,14 +197,14 @@ library Portfolio {
         return FilledBalances({
             base: position.base,
             quote: position.quote,
-            pnl: Account.PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unrealizedPnL })
+            pnl: PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unrealizedPnL })
         });
     }
 
     function getAccountMakerExposures(Data storage self)
         internal
         view
-        returns (Account.UnfilledExposure[] memory unfilledExposures)
+        returns (UnfilledExposure[] memory unfilledExposures)
     {
         uint256 size = 0;
 
@@ -225,7 +230,7 @@ library Portfolio {
             size += 1;
         }
 
-        unfilledExposures = new Account.UnfilledExposure[](size);
+        unfilledExposures = new UnfilledExposure[](size);
         size = 0;
 
         for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
@@ -237,7 +242,7 @@ library Portfolio {
                 continue;
             }
 
-            unfilledExposures[size].exposureComponents = Account.UnfilledExposureComponents({
+            unfilledExposures[size].exposureComponents = UnfilledExposureComponents({
                 long: ExposureHelpers.getExposureComponents(
                     cachedUnfilledBalances[i - 1].baseLong.toInt(),
                     exposureFactor,
