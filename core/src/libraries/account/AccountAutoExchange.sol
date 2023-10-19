@@ -90,7 +90,12 @@ library AccountAutoExchange {
 
             // Single auto-exchange threshold check
 
+
+
             if (marginInfo.collateralInfo.marginBalance > 0) {
+                // We make sure to return false in this case to avoid the scenario where the
+                // second and third conditions below end up being true (stemming from deficits) in other
+                // tokens
                 return false;
             }
 
@@ -108,6 +113,10 @@ library AccountAutoExchange {
 
         // Get total negative account value in USD
         uint256 sumOfNegativeAccountValuesInUSD = 0;
+
+        // Note, in order to get the sum of negative balances, we don't need to loop through yield-bearing
+        // tokens since they will never have a negative balance
+
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
@@ -132,9 +141,12 @@ library AccountAutoExchange {
             return true;
         }
 
-
         // Get total account value in USD
-        int256 totalAccountValueInUSD = overallMarginInfo.collateralInfo.marginBalance;
+        int256 totalAccountValueInUSD = overallMarginInfo.rawInfo.rawMarginBalance;
+
+        if (totalAccountValueInUSD < 0) {
+            return true;
+        }
 
         if (
             sumOfNegativeAccountValuesInUSD > 

@@ -40,6 +40,8 @@ library AccountExposure {
         uint128 collateralPoolId = collateralPool.id;
 
         address quoteToken = address(0);
+
+        // todo: double check address(0) as default
         Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(
             account,
             collateralPoolId,
