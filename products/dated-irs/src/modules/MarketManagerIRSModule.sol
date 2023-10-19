@@ -82,7 +82,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function getAccountTakerAndMakerExposures(
+    function getAccountTakerExposures(
         uint128 marketId,
         uint128 accountId,
         uint256 riskMatrixDim
@@ -90,9 +90,24 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (int256[] memory filledExposures, Account.UnfilledExposure[] memory unfilledExposures)
+        returns (int256[] memory)
     {
-        return Portfolio.exists(accountId, marketId).getAccountTakerAndMakerExposures(riskMatrixDim);
+        return Portfolio.exists(accountId, marketId).getAccountTakerExposures(riskMatrixDim);
+    }
+
+    /**
+     * @inheritdoc IMarketManager
+     */
+    function getAccountMakerExposures(
+        uint128 marketId,
+        uint128 accountId
+    )
+        external
+        view
+        override
+        returns (Account.UnfilledExposure[] memory)
+    {
+        return Portfolio.exists(accountId, marketId).getAccountMakerExposures();
     }
 
     /**

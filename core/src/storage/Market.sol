@@ -133,21 +133,31 @@ library Market {
     }
 
     /**
-     * @dev Returns taker exposures alongside maker exposures for the lower and upper bounds of the maker's range
-     * for a given collateralType
+     * @dev Returns taker exposures for a given collateralType
      */
-    function getAccountTakerAndMakerExposures(Data storage self, uint128 accountId, uint256 riskMatrixDim)
+    function getAccountTakerExposures(Data storage self, uint128 accountId, uint256 riskMatrixDim)
         internal
         view
-        returns (
-        int256[] memory filledExposures,
-        Account.UnfilledExposure[] memory unfilledExposures
-    )
+        returns (int256[] memory)
     {
-        return IMarketManager(self.marketManagerAddress).getAccountTakerAndMakerExposures(
+        return IMarketManager(self.marketManagerAddress).getAccountTakerExposures(
             self.id,
             accountId,
             riskMatrixDim
+        );
+    }
+
+    /**
+     * @dev Returns maker exposures for the lower and upper bounds of the maker's range for a given collateralType
+     */
+    function getAccountMakerExposures(Data storage self, uint128 accountId)
+        internal
+        view
+        returns (Account.UnfilledExposure[] memory)
+    {
+        return IMarketManager(self.marketManagerAddress).getAccountMakerExposures(
+            self.id,
+            accountId
         );
     }
 

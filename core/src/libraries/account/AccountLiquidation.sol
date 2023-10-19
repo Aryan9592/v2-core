@@ -665,8 +665,8 @@ library AccountLiquidation {
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
-            (int256[] memory filledExposures,) =
-                market.getAccountTakerAndMakerExposures(self.id, collateralPool.riskMatrixDims[market.riskBlockId]);
+            int256[] memory filledExposures =
+                market.getAccountTakerExposures(self.id, collateralPool.riskMatrixDims[market.riskBlockId]);
 
             for (uint256 j = 0; j < filledExposures.length && !leftExposure; j++) {
                 // no unfilled exposure here, so lower and upper are the same
