@@ -153,6 +153,22 @@ abstract contract Checks is AssertionHelpers {
         );
     }
 
+    function checkValidLiquidationOrder(
+        DatedIrsProxy datedIrsProxy,
+        PositionInfo memory positionInfo,
+        int256 baseAmountToBeLiquidated,
+        uint160 priceLimit,
+        bool expectedIsValid
+    ) internal {
+        bytes memory inputs = abi.encode(positionInfo.maturityTimestamp, baseAmountToBeLiquidated, priceLimit);
+
+        try datedIrsProxy.validateLiquidationOrder(positionInfo.accountId, 0, positionInfo.marketId, inputs) {
+            assertTrue(expectedIsValid, "checkValidLiquidationOrder-passes");
+        } catch {
+            assertFalse(expectedIsValid, "checkValidLiquidationOrder-fails");
+        }
+    }
+
     function getVammProxy() internal view virtual returns (VammProxy);
 
     function twapLookbackWindow(uint128 marketId, uint32 maturityTimestamp) internal view virtual returns (uint32);

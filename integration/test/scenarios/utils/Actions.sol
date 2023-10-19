@@ -105,6 +105,24 @@ abstract contract Actions is Test {
         return settlementCashflowInQuote;
     }
 
+    function executeLiquidation(
+        uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
+        uint128 marketId,
+        uint32 maturityTimestamp,
+        int256 baseAmountToBeLiquidated,
+        uint256 priceLimit
+    ) internal {
+        vm.startPrank(getCoreProxyAddress());
+
+        bytes memory inputs = abi.encode(maturityTimestamp, baseAmountToBeLiquidated, priceLimit);
+        getDatedIrsProxy().executeLiquidationOrder(
+            liquidatableAccountId, liquidatorAccountId, marketId, inputs
+        );
+
+        vm.stopPrank();
+    }
+
     function closeAllUnfilledOrders(uint128 marketId, uint128 accountId) internal returns (uint256) {
         vm.startPrank(getCoreProxyAddress());
 
