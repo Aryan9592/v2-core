@@ -358,7 +358,7 @@ library AccountLiquidation {
 
     function hasUnfilledOrders(
         Account.Data storage self
-    ) internal view {
+    ) internal view returns (bool) {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
@@ -369,12 +369,12 @@ library AccountLiquidation {
                 bool hasUnfilledOrdersInMarket = Market.exists(marketId).hasUnfilledOrders(self.id);
 
                 if (hasUnfilledOrdersInMarket) {
-                    revert AccountHasUnfilledOrders(self.id);
+                    return true;
                 }
-
             }
         }
 
+        return false;
     }
 
     function distributeLiquidationPenalty(
@@ -483,8 +483,12 @@ library AccountLiquidation {
         address queueQuoteToken,
         uint128 bidSubmissionKeeperId
     ) internal {
-        // revert if the account has any unfilled orders
-        self.hasUnfilledOrders();
+        // Close any unfilled orders first
+        if (self.hasUnfilledOrders()) {
+            self.closeAllUnfilledOrders({
+                liquidatorAccountId: bidSubmissionKeeperId
+            });
+        }
 
         // revert if account is not between adl and liquidation margin requirement
         self.betweenAdlAndLmCheck();
@@ -529,8 +533,12 @@ library AccountLiquidation {
         uint128 marketId,
         bytes memory inputs
     ) internal {
-        // revert if account has unfilled orders that are not closed yet
-        self.hasUnfilledOrders();
+        // Close any unfilled orders first
+        if (self.hasUnfilledOrders()) {
+            self.closeAllUnfilledOrders({
+                liquidatorAccountId: liquidatorAccountId
+            });
+        }
 
         // revert if account is not between adl and liquidation margin requirement
         self.betweenAdlAndLmCheck();
@@ -594,7 +602,12 @@ library AccountLiquidation {
         address quoteToken,
         LiquidationOrder[] memory backstopLPLiquidationOrders
     ) internal {
-        self.hasUnfilledOrders();
+        // Close any unfilled orders first
+        if (self.hasUnfilledOrders()) {
+            self.closeAllUnfilledOrders({
+                liquidatorAccountId: keeperAccountId
+            });
+        }
 
         // revert if account is not below adl margin requirement
         MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
