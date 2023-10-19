@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { FilledBalances, UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
+import { UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
 
 import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -56,14 +56,14 @@ interface IPool is IERC165 {
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param accountId Id of the `Account` to look at
      */
-    function getAccountFilledBalances(
+    function getAccountPositionBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
     )
         external
         view
-        returns (FilledBalances memory);
+        returns (PositionBalances memory);
 
     /**
      * @notice Returns the base amount minted by an account but not used in a swap.

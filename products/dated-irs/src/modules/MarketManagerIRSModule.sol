@@ -14,13 +14,7 @@ import { Market } from "../storage/Market.sol";
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
 import { FeatureFlagSupport } from "../libraries/FeatureFlagSupport.sol";
-import {
-    FilledBalances,
-    UnfilledBalances,
-    PositionBalances,
-    MakerOrderParams,
-    TakerOrderParams
-} from "../libraries/DataTypes.sol";
+import "../libraries/DataTypes.sol";
 
 import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
@@ -113,7 +107,21 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         override
         returns (Account.PnLComponents memory pnlComponents)
     {
-        return Portfolio.exists(accountId, marketId).getAccountPnLComponents();
+        Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
+        Market.Data storage market = Market.exists(portfolio.marketId);
+
+        address poolAddress = market.marketConfig.poolAddress;
+        uint256 activeMaturitiesCount = portfolio.activeMaturities.length();
+
+        for (uint256 i = 1; i <= activeMaturitiesCount; i++) {
+            FilledBalances memory filledBalances =
+                portfolio.getAccountFilledBalances(portfolio.activeMaturities.valueAt(i).to32(), poolAddress);
+
+            pnlComponents.realizedPnL += filledBalances.pnl.realizedPnL;
+            pnlComponents.unrealizedPnL += filledBalances.pnl.unrealizedPnL;
+        }
+
+        return pnlComponents;
     }
 
     /**
@@ -156,7 +164,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         executionPreCheck(marketId, maturityTimestamp);
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
-            ExecuteLiquidationOrder.LiquidationOrderParams({
+            LiquidationOrderParams({
                 liquidatableAccountId: liquidatableAccountId,
                 liquidatorAccountId: liquidatorAccountId,
                 marketId: marketId,
@@ -172,6 +180,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
      */
     function validateLiquidationOrder(
         uint128 liquidatableAccountId,
+        uint128 liquidatorAccountId,
         uint128 marketId,
         bytes calldata inputs
     )
@@ -179,10 +188,18 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         view
         override
     {
-        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated) = abi.decode(inputs, (uint32, int256));
+        (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) =
+            abi.decode(inputs, (uint32, int256, uint160));
 
         ExecuteLiquidationOrder.validateLiquidationOrder(
-            liquidatableAccountId, marketId, maturityTimestamp, baseAmountToBeLiquidated
+            LiquidationOrderParams({
+                liquidatableAccountId: liquidatableAccountId,
+                liquidatorAccountId: liquidatorAccountId,
+                marketId: marketId,
+                maturityTimestamp: maturityTimestamp,
+                baseAmountToBeLiquidated: baseAmountToBeLiquidated,
+                priceLimit: priceLimit
+            })
         );
     }
 
