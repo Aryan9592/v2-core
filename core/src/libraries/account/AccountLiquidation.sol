@@ -432,25 +432,23 @@ library AccountLiquidation {
         uint256 deltaLMR,
         UD60x18 backstopRewardFee,
         UD60x18 keeperRewardFee
-    ) internal {
-        uint256 totalReward;
-
+    ) internal returns (uint256 totalRewards) {
         if (backstopRewardFee.gt(ZERO)) {
             CollateralPool.Data storage collateralPool = self.getCollateralPool();
             Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
 
             uint256 backstopReward = mulUDxUint(backstopRewardFee, deltaLMR);
             backstopLpAccount.updateNetCollateralDeposits(token, backstopReward.toInt());
-            totalReward += backstopReward;
+            totalRewards += backstopReward;
         }
 
         if (keeperRewardFee.gt(ZERO)) {
             uint256 keeperReward = mulUDxUint(keeperRewardFee, deltaLMR);
             keeperAccount.updateNetCollateralDeposits(token, keeperReward.toInt());
-            totalReward += keeperReward;
+            totalRewards += keeperReward;
         }
         
-        self.updateNetCollateralDeposits(token, -totalReward.toInt());
+        self.updateNetCollateralDeposits(token, -totalRewards.toInt());
     }
 
     function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
@@ -710,21 +708,23 @@ library AccountLiquidation {
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
+         Account.MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
+
         // all exposure will be ADL-ed, so LMR will be 0 afterwards
-        self.distributeBackstopAdlRewards({
+        uint256 totalRewards = self.distributeBackstopAdlRewards({
             keeperAccount: Account.exists(keeperAccountId),
             token: quoteToken,
-            deltaLMR: self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement,
+            deltaLMR: quoteMarginInfo.rawInfo.rawLiquidationMarginRequirement,
             backstopRewardFee: ZERO,
             keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
         });
 
-        // todo: I think this call can be avoided if we use the old marginInfo fetched for 
-        // distributeBackstopAdlRewards above and we subtract the fees awarded from real balance
-
-        // Need to fetch margin info after rewards distribution for correct
-        // insurance fund underwriting and bankruptcy price calculation
-        Account.MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
+        // update collateral info after rewards distribution
+        quoteMarginInfo.collateralInfo = Account.CollateralInfo({
+            netDeposits: quoteMarginInfo.collateralInfo.netDeposits -= totalRewards.toInt(),
+            realBalance: quoteMarginInfo.collateralInfo.realBalance -= totalRewards.toInt(),
+            marginBalance: quoteMarginInfo.collateralInfo.marginBalance -= totalRewards.toInt()
+        });
 
         // adl maturities with positive upnl at market price
         uint256[] memory markets = self.activeMarketsPerQuoteToken[quoteToken].values();
