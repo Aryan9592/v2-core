@@ -104,62 +104,62 @@ jobs:
           echo "## Tests result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
-  coverage:
-    needs: [test]
-    runs-on: ubuntu-latest
-    env:
-      CI_COMMIT_MESSAGE: Code Coverage Artifacts
-      CI_COMMIT_AUTHOR: ${{ github.event.repository.name }} Voltz Bot
-    steps:
-      # Checkout that works with "push" and "pull_request" trigger event
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
+  # coverage:
+  #   needs: [test]
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     CI_COMMIT_MESSAGE: Code Coverage Artifacts
+  #     CI_COMMIT_AUTHOR: ${{ github.event.repository.name }} Voltz Bot
+  #   steps:
+  #     # Checkout that works with "push" and "pull_request" trigger event
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         ref: ${{ github.event.pull_request.head.ref }}
 
-      # Set environment variables based on the last commit
-      - name: Set environment variable "commit-message"
-        run: echo "commit-message=$(git log -1 --pretty=format:'%s')" >> $GITHUB_ENV
-      - name: Display environment variable "commit-message"
-        run: echo "commit-message=${{ env.commit-message }}"
+  #     # Set environment variables based on the last commit
+  #     - name: Set environment variable "commit-message"
+  #       run: echo "commit-message=$(git log -1 --pretty=format:'%s')" >> $GITHUB_ENV
+  #     - name: Display environment variable "commit-message"
+  #       run: echo "commit-message=${{ env.commit-message }}"
 
-      - name: Set environment variable "commit-author"
-        run: echo "commit-author=$(git log -1 --pretty=format:'%an')" >> $GITHUB_ENV
-      - name: Display environment variable "commit-author"
-        run: echo "commit-author=${{ env.commit-author }}"
+  #     - name: Set environment variable "commit-author"
+  #       run: echo "commit-author=$(git log -1 --pretty=format:'%an')" >> $GITHUB_ENV
+  #     - name: Display environment variable "commit-author"
+  #       run: echo "commit-author=${{ env.commit-author }}"
 
-      - name: Set environment variable "is-auto-commit"
-        if: env.commit-message == env.CI_COMMIT_MESSAGE && env.commit-author == env.CI_COMMIT_AUTHOR
-        run: echo "is-auto-commit=true" >> $GITHUB_ENV
-      - name: Display environment variable "is-auto-commit"
-        run: echo "is-auto-commit=${{ env.is-auto-commit }}"
+  #     - name: Set environment variable "is-auto-commit"
+  #       if: env.commit-message == env.CI_COMMIT_MESSAGE && env.commit-author == env.CI_COMMIT_AUTHOR
+  #       run: echo "is-auto-commit=true" >> $GITHUB_ENV
+  #     - name: Display environment variable "is-auto-commit"
+  #       run: echo "is-auto-commit=${{ env.is-auto-commit }}"
 
-      # Test and add coverage
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
+  #     # Test and add coverage
+  #     - name: "Install Foundry"
+  #       uses: "foundry-rs/foundry-toolchain@v1"
       
-      - name: "Setup GitHub package registry"
-        run: yarn config set npmRegistries --json '{"https://npm.pkg.github.com/":{"npmAuthToken":"${{secrets.NPM_AUTH_TOKEN}}"}}'
+  #     - name: "Setup GitHub package registry"
+  #       run: yarn config set npmRegistries --json '{"https://npm.pkg.github.com/":{"npmAuthToken":"${{secrets.NPM_AUTH_TOKEN}}"}}'
 
-      - name: "Install Node.js"
-        uses: "actions/setup-node@v3"
-        with:
-          cache: "yarn"
-          node-version: "lts/*"
+  #     - name: "Install Node.js"
+  #       uses: "actions/setup-node@v3"
+  #       with:
+  #         cache: "yarn"
+  #         node-version: "lts/*"
 
-      - name: "Install the Node.js dependencies"
-        run: "yarn install --immutable"
+  #     - name: "Install the Node.js dependencies"
+  #       run: "yarn install --immutable"
 
-      - name: "Run the tests"
-        run: "yarn coverage"
+  #     - name: "Run the tests"
+  #       run: "yarn coverage"
 
-      # Commit generated and commit files
-      - name: Display event name
-        run: echo "github.event_name=${{ github.event_name }}"
-      - name: Commit build artifacts .coverage.svg
-        # Don't run again on already pushed auto commit. Don't run on pull request events.
-        if: env.is-auto-commit == false && github.event_name != 'pull_request'
-        run: |
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "devcold@voltz.xyz"
-          git add -A
-          git diff-index --quiet HEAD || (git commit -a -m "${{ env.CI_COMMIT_MESSAGE }}" && git push)
+  #     # Commit generated and commit files
+  #     - name: Display event name
+  #       run: echo "github.event_name=${{ github.event_name }}"
+  #     - name: Commit build artifacts .coverage.svg
+  #       # Don't run again on already pushed auto commit. Don't run on pull request events.
+  #       if: env.is-auto-commit == false && github.event_name != 'pull_request'
+  #       run: |
+  #         git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+  #         git config --global user.email "devcold@voltz.xyz"
+  #         git add -A
+  #         git diff-index --quiet HEAD || (git commit -a -m "${{ env.CI_COMMIT_MESSAGE }}" && git push)
