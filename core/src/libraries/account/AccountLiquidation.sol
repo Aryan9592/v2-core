@@ -433,7 +433,9 @@ library AccountLiquidation {
         uint256 deltaLMR,
         UD60x18 backstopRewardFee,
         UD60x18 keeperRewardFee
-    ) internal returns (uint256 totalRewards) {
+    ) internal {
+        uint256 totalRewards = 0;
+
         if (backstopRewardFee.gt(ZERO)) {
             CollateralPool.Data storage collateralPool = self.getCollateralPool();
             Account.Data storage backstopLpAccount = Account.exists(collateralPool.backstopLPConfig.accountId);
@@ -621,7 +623,7 @@ library AccountLiquidation {
         if (!_isInsolvent) {
             executeSolventBackstopLiquidation(self, keeperAccountId, quoteToken, backstopLPLiquidationOrders);
         } else {
-            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken, marginInfo);
+            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken);
         }
     }
 
@@ -718,27 +720,17 @@ library AccountLiquidation {
     function executeInsolventADLLiquidation(
         Account.Data storage self,
         uint128 keeperAccountId,
-        address quoteToken,
-        MarginInfo memory marginInfo
+        address quoteToken
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-        MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
-
         // all exposure will be ADL-ed, so LMR will be 0 afterwards
-        uint256 totalRewards = self.distributeBackstopAdlRewards({
+        self.distributeBackstopAdlRewards({
             keeperAccount: Account.exists(keeperAccountId),
             token: quoteToken,
-            deltaLMR: quoteMarginInfo.rawInfo.rawLiquidationMarginRequirement,
+            deltaLMR: self.getMarginInfoByBubble(quoteToken).rawInfo.rawLiquidationMarginRequirement,
             backstopRewardFee: ZERO,
             keeperRewardFee: collateralPool.riskConfig.liquidationConfiguration.adlExecutionKeeperFee
-        });
-
-        // update collateral info after rewards distribution
-        quoteMarginInfo.collateralInfo = CollateralInfo({
-            netDeposits: quoteMarginInfo.collateralInfo.netDeposits -= totalRewards.toInt(),
-            realBalance: quoteMarginInfo.collateralInfo.realBalance -= totalRewards.toInt(),
-            marginBalance: quoteMarginInfo.collateralInfo.marginBalance -= totalRewards.toInt()
         });
 
         // adl maturities with positive upnl at market price
@@ -758,6 +750,8 @@ library AccountLiquidation {
             quoteToken: quoteToken, 
             preserveMinThreshold: true
         });
+
+        MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
 
         if (insuranceFundCoverAvailable.toInt() + quoteMarginInfo.collateralInfo.marginBalance > 0) {
             collateralPool.updateInsuranceFundUnderwritings(quoteToken, (-quoteMarginInfo.collateralInfo.marginBalance).toUint());

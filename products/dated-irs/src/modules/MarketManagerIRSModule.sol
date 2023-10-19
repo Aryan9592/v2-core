@@ -218,6 +218,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     }
 
     struct AnnualizedExposureWadAndAdjustedPSlippageVars {
+        UD60x18 exposureFactor;
         int256 accountBase;
         int256 accountAnnualizedExposure;
         int256 accountAnnualizedExposureWad;
@@ -235,33 +236,34 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     {
         (uint32 maturityTimestamp, int256 baseToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
+        AnnualizedExposureWadAndAdjustedPSlippageVars memory vars;
+
         Market.Data storage market = Market.exists(marketId);
-        UD60x18 exposureFactor = market.exposureFactor();
+        vars.exposureFactor = market.exposureFactor();
 
         int256 annualizedExposure =
-            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, maturityTimestamp, exposureFactor);
+            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, maturityTimestamp, vars.exposureFactor);
 
         annualizedExposureWad = DecimalMath.changeDecimals(
             annualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
 
         // retrieve base amount filled by the liquidatable account
-        AnnualizedExposureWadAndAdjustedPSlippageVars memory vars;
         vars.accountBase = Portfolio.exists(accountId, marketId).getAccountFilledBalances(
             maturityTimestamp, market.marketConfig.poolAddress
         ).base;
         vars.accountAnnualizedExposure =
-            ExposureHelpers.baseToAnnualizedExposure(vars.accountBase, marketId, maturityTimestamp);
+            ExposureHelpers.baseToAnnualizedExposure(vars.accountBase, maturityTimestamp, vars.exposureFactor);
         vars.accountAnnualizedExposureWad = DecimalMath.changeDecimals(
             vars.accountAnnualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
 
         adjustedPSlippage = ExposureHelpers.getPercentualSlippage({
-            marketId: marketId, 
-            maturityTimestamp: maturityTimestamp, 
+            marketId: marketId,
+            maturityTimestamp: maturityTimestamp,
             annualizedExposureWad: sd(annualizedExposureWad).mul(
-                sd(vars.accountAnnualizedExposureWad-annualizedExposureWad)
-            ).sqrt().unwrap()
+                sd(vars.accountAnnualizedExposureWad - annualizedExposureWad)
+                ).sqrt().unwrap()
         });
     }
 
