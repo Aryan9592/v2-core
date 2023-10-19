@@ -25,6 +25,7 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import {UD60x18, UNIT, ud} from "@prb/math/UD60x18.sol";
 import {SignedMath} from "oz/utils/math/SignedMath.sol";
+import {AccountExposure} from "./AccountExposure.sol";
 
 import {IERC165} from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
@@ -35,6 +36,7 @@ library AccountLiquidation {
     using Account for Account.Data;
     using AccountLiquidation for Account.Data;
     using AccountAutoExchange for Account.Data;
+    using AccountExposure for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using CollateralPool for CollateralPool.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;

@@ -16,7 +16,7 @@ import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { mulUDxUint, mulUDxInt, divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { UD60x18, UNIT, unwrap } from "@prb/math/UD60x18.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-
+import {AccountExposure} from "./AccountExposure.sol";
 
 /**
  * @title Object for managing account auto-exchange utilities.
@@ -24,12 +24,12 @@ import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/h
 library AccountAutoExchange {
     using AccountAutoExchange for Account.Data;
     using Account for Account.Data;
+    using AccountExposure for Account.Data;
     using CollateralConfiguration for CollateralConfiguration.Data;
     using SafeCastU256 for uint256;
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
 
-    // todo: consider renaming
     function isWithinBubbleCoverageExhausted(
         Account.Data storage self,
         address quoteType,
@@ -207,17 +207,16 @@ library AccountAutoExchange {
 
     function calculateAvailableCollateral(
         Account.Data storage self,
-        CollateralPool.Data storage collateralPool,
         address collateralToken
     ) private view returns (uint256) {
 
-        // note, don't need risk multipliers to get real balance
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByCollateralType(
-            collateralToken,
-            collateralPool.riskConfig.riskMultipliers
+        Account.CollateralInfo memory collateralInfo = self.getCollateralInfoByCollateralType(
+            collateralToken
         );
 
-        return marginInfo.collateralInfo.realBalance.toUint();
+        // todo: add a/e min(rbal, lmr - bbal) & explicitely revert if negative
+
+        return collateralInfo.realBalance.toUint();
 
     }
 
@@ -280,7 +279,7 @@ library AccountAutoExchange {
             mulUDxUint(vars.priceQuoteToCollateral, vars.quoteToCover)
         );
 
-        vars.availableCollateral = calculateAvailableCollateral(self, collateralPool, collateralToken);
+        vars.availableCollateral = calculateAvailableCollateral(self, collateralToken);
 
         if (vars.collateralToLiquidate > vars.availableCollateral) {
 

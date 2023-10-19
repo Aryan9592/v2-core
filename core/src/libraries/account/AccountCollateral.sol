@@ -14,12 +14,14 @@ import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {Account} from "../../storage/Account.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
 import {GlobalCollateralConfiguration} from  "../../storage/GlobalCollateralConfiguration.sol";
+import {AccountExposure} from "./AccountExposure.sol";
 
 /**
  * @title Object for tracking account collaterals.
  */
 library AccountCollateral {
     using Account for Account.Data;
+    using AccountExposure for Account.Data;
     using CollateralPool for CollateralPool.Data;
     using GlobalCollateralConfiguration for GlobalCollateralConfiguration.Data;
     using SafeCastU256 for uint256;

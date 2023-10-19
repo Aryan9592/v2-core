@@ -12,7 +12,8 @@ import {IAccountModule} from "../interfaces/IAccountModule.sol";
 import {Account} from "../storage/Account.sol";
 import {AccessPassConfiguration} from "../storage/AccessPassConfiguration.sol";
 import {IAccessPassNFT} from "../interfaces/external/IAccessPassNFT.sol";
-import "../libraries/actions/CreateAccount.sol";
+import {CreateAccount} from "../libraries/actions/CreateAccount.sol";
+import {AccountExposure} from "../libraries/account/AccountExposure.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
 import {AssociatedSystem} from "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
@@ -27,6 +28,7 @@ contract AccountModule is IAccountModule {
     using SetUtil for SetUtil.AddressSet;
     using SetUtil for SetUtil.Bytes32Set;
     using Account for Account.Data;
+    using AccountExposure for Account.Data;
 
     bytes32 internal constant GRANT_PERMISSION_TYPEHASH =
     keccak256('GrantPermissionBySig(uin128 accountId, bytes32 permission, address user, uint256 nonce,uint256 deadline)');

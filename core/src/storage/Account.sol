@@ -35,6 +35,7 @@ TODOs
  */
 library Account {
     using Account for Account.Data;
+    using AccountExposure for Account.Data;
     using CollateralPool for CollateralPool.Data;
     using Market for Market.Data;
     using SafeCastU256 for uint256;
@@ -389,29 +390,6 @@ library Account {
         AccountActiveMarket.markActiveMarket(self, collateralType, marketId);
     }
 
-    function getMarginInfoByBubble(Account.Data storage self, address collateralType)
-        internal
-        view
-        returns (Account.MarginInfo memory)
-    {
-        return AccountExposure.getMarginInfoByBubble(self, collateralType);
-    }
-
-    function getMarginInfoByCollateralType(
-        Account.Data storage self, 
-        address collateralType, 
-        CollateralPool.RiskMultipliers memory riskMultipliers
-    )
-        internal
-        view
-        returns (Account.MarginInfo memory)
-    {
-        return AccountExposure.getMarginInfoByCollateralType(
-            self, 
-            collateralType, 
-            riskMultipliers
-        );
-    }
 
     /**
      * @dev Checks if the account is below initial margin requirement and reverts if so,

@@ -15,6 +15,8 @@ import {IRankedLiquidationModule} from "../../interfaces/liquidation/IRankedLiqu
 import {LiquidationBidPriorityQueue} from "../../libraries/LiquidationBidPriorityQueue.sol";
 import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import {AccountExposure} from "../../libraries/account/AccountExposure.sol";
+
 
 // todo: consider introducing explicit reetrancy guards across the protocol (e.g. twap - read only)
 
@@ -29,6 +31,7 @@ contract RankedLiquidationModule is IRankedLiquidationModule {
     using Market for Market.Data;
     using LiquidationBidPriorityQueue for LiquidationBidPriorityQueue.Heap;
     using SafeCastI256 for int256;
+    using AccountExposure for Account.Data;
 
     /**
      * Thrown when the pre liquidation hook returns an invalid response
