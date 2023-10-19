@@ -190,16 +190,16 @@ library ExposureHelpers {
             int256 num = tenorInSeconds.toInt() - timeToMaturityInSeconds.toInt();
             int256 den = tenorInSeconds.toInt() - SECONDS_IN_DAY.toInt();
             SD59x18 factor = sd(num).div(sd(den)).mul(Time.annualize(SECONDS_IN_DAY).intoSD59x18());
-            
+
             exposureComponents[0] = mulSDxInt(factor, notional);
         }
-        
+
         // swap rate exposure
         {
             int256 num = timeToMaturityInSeconds.toInt() - SECONDS_IN_DAY.toInt();
             int256 den = tenorInSeconds.toInt() - SECONDS_IN_DAY.toInt();
             SD59x18 factor = sd(num).div(sd(den)).mul(Time.annualize(tenorInSeconds).intoSD59x18());
-            
+
             exposureComponents[1] = mulSDxInt(factor, notional);
         }
     }

@@ -209,15 +209,15 @@ library Portfolio {
         uint256 riskMatrixZeroRowId = market.marketMaturityConfigs[0].riskMatrixRowId;
         uint256 activeMaturitiesLength = self.activeMaturities.length();
 
-        UnfilledBalances[] memory cachedUnfilledBalances = new UnfilledBalances[](activeMaturitiesLength); 
+        UnfilledBalances[] memory cachedUnfilledBalances = new UnfilledBalances[](activeMaturitiesLength);
 
         for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
-            cachedUnfilledBalances[i-1] =
+            cachedUnfilledBalances[i - 1] =
                 IPool(poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
 
-            if (cachedUnfilledBalances[i-1].baseLong == 0 && cachedUnfilledBalances[i-1].baseShort == 0) {
+            if (cachedUnfilledBalances[i - 1].baseLong == 0 && cachedUnfilledBalances[i - 1].baseShort == 0) {
                 continue;
             }
 
@@ -229,35 +229,33 @@ library Portfolio {
 
         for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-            Market.MarketMaturityConfiguration memory marketMaturityConfig = market.marketMaturityConfigs[maturityTimestamp];
+            Market.MarketMaturityConfiguration memory marketMaturityConfig =
+                market.marketMaturityConfigs[maturityTimestamp];
 
-            if (cachedUnfilledBalances[i-1].baseLong == 0 && cachedUnfilledBalances[i-1].baseShort == 0) {
+            if (cachedUnfilledBalances[i - 1].baseLong == 0 && cachedUnfilledBalances[i - 1].baseShort == 0) {
                 continue;
             }
 
             unfilledExposures[size].exposureComponents = Account.UnfilledExposureComponents({
                 long: ExposureHelpers.getExposureComponents(
-                    cachedUnfilledBalances[i-1].baseLong.toInt(), 
+                    cachedUnfilledBalances[i - 1].baseLong.toInt(),
                     exposureFactor,
                     marketMaturityConfig.tenorInSeconds,
                     maturityTimestamp
-                ),
+                    ),
                 short: ExposureHelpers.getExposureComponents(
-                    cachedUnfilledBalances[i-1].baseShort.toInt(), 
+                    cachedUnfilledBalances[i - 1].baseShort.toInt(),
                     exposureFactor,
                     marketMaturityConfig.tenorInSeconds,
                     maturityTimestamp
-                )
+                    )
             });
 
             unfilledExposures[size].riskMatrixRowIds[0] = riskMatrixZeroRowId;
             unfilledExposures[size].riskMatrixRowIds[1] = marketMaturityConfig.riskMatrixRowId;
 
             unfilledExposures[size].pvmrComponents = ExposureHelpers.getPVMRComponents(
-                cachedUnfilledBalances[i-1], 
-                market.id, 
-                maturityTimestamp, 
-                marketMaturityConfig.riskMatrixRowId
+                cachedUnfilledBalances[i - 1], market.id, maturityTimestamp, marketMaturityConfig.riskMatrixRowId
             );
 
             size += 1;
@@ -282,15 +280,13 @@ library Portfolio {
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
-            Market.MarketMaturityConfiguration memory marketMaturityConfig = market.marketMaturityConfigs[maturityTimestamp];
+            Market.MarketMaturityConfiguration memory marketMaturityConfig =
+                market.marketMaturityConfigs[maturityTimestamp];
 
             FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, poolAddress);
 
             int256[] memory exposureComponents = ExposureHelpers.getExposureComponents(
-                filledBalances.base,
-                exposureFactor,
-                marketMaturityConfig.tenorInSeconds,
-                maturityTimestamp
+                filledBalances.base, exposureFactor, marketMaturityConfig.tenorInSeconds, maturityTimestamp
             );
 
             filledExposures[riskMatrixZeroRowId] += exposureComponents[0];
