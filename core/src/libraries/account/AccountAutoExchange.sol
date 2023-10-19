@@ -154,30 +154,32 @@ library AccountAutoExchange {
         UD60x18 autoExchangeInsuranceFee
     ) private view returns (uint256 amountToAutoExchange) {
 
-        // todo: consider introducing getCollateralInfoByCollateral type and avoid the need for risk calculations
-        Account.MarginInfo memory marginInfo =
-        self.getMarginInfoByCollateralType(
-            quoteToken,
-            collateralPool.riskConfig.riskMultipliers
-        );
-
         Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
 
         if (overallMarginInfo.maintenanceDelta < 0 ) {
 
-            if (marginInfo.liquidationDelta > 0) {
+            int256 liquidationDelta = self.getMarginInfoByCollateralType(
+                quoteToken,
+                collateralPool.riskConfig.riskMultipliers
+            ).liquidationDelta;
+
+            if (liquidationDelta > 0) {
                 return 0;
             }
 
-            amountToAutoExchange = (-marginInfo.liquidationDelta).toUint();
+            amountToAutoExchange = (-liquidationDelta).toUint();
 
         } else {
 
-            if (marginInfo.collateralInfo.marginBalance > 0) {
+            int256 marginBalance = self.getCollateralInfoByCollateralType(
+                quoteToken
+            ).marginBalance;
+
+            if (marginBalance > 0) {
                 return 0;
             }
 
-            amountToAutoExchange = (-marginInfo.collateralInfo.marginBalance).toUint();
+            amountToAutoExchange = (-marginBalance).toUint();
 
         }
 

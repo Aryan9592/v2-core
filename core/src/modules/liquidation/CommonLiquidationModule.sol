@@ -10,6 +10,7 @@ pragma solidity >=0.8.19;
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
 import {AccountLiquidation} from "../../libraries/account/AccountLiquidation.sol";
+import {AccountExposure} from "../../libraries/account/AccountExposure.sol";
 import {LiquidationBidPriorityQueue} from "../../libraries/LiquidationBidPriorityQueue.sol";
 import {ICommonLiquidationModule} from "../../interfaces/liquidation/ICommonLiquidationModule.sol";
 import {ILiquidationHook} from "../../interfaces/external/ILiquidationHook.sol";
@@ -26,6 +27,7 @@ import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHe
 contract CommonLiquidationModule is ICommonLiquidationModule {
     using Account for Account.Data;
     using AccountLiquidation for Account.Data;
+    using AccountExposure for Account.Data;
     using Market for Market.Data;
 
     /**
