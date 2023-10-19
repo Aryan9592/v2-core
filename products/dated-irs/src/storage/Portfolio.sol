@@ -195,74 +195,107 @@ library Portfolio {
         });
     }
 
-    struct GetAccountTakerAndMakerExposuresVars {
-        address poolAddress;
-        int256 shortRateExposure;
-        uint256 unfilledExposuresCounter;
-        UD60x18 exposureFactor;
+    function getAccountMakerExposures(Data storage self)
+        internal
+        view
+        returns (Account.UnfilledExposure[] memory unfilledExposures)
+    {
+        uint256 size = 0;
+
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        UD60x18 exposureFactor = market.exposureFactor();
+
+        uint256 riskMatrixZeroRowId = market.marketMaturityConfigs[0].riskMatrixRowId;
+        uint256 activeMaturitiesLength = self.activeMaturities.length();
+
+        UnfilledBalances[] memory cachedUnfilledBalances = new UnfilledBalances[](activeMaturitiesLength); 
+
+        for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+
+            cachedUnfilledBalances[i-1] =
+                IPool(poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
+
+            if (cachedUnfilledBalances[i-1].baseLong == 0 && cachedUnfilledBalances[i-1].baseShort == 0) {
+                continue;
+            }
+
+            size += 1;
+        }
+
+        unfilledExposures = new Account.UnfilledExposure[](size);
+        size = 0;
+
+        for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
+            uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+            Market.MarketMaturityConfiguration memory marketMaturityConfig = market.marketMaturityConfigs[maturityTimestamp];
+
+            if (cachedUnfilledBalances[i-1].baseLong == 0 && cachedUnfilledBalances[i-1].baseShort == 0) {
+                continue;
+            }
+
+            unfilledExposures[size].exposureComponents = Account.UnfilledExposureComponents({
+                long: ExposureHelpers.decoupleExposures(
+                    cachedUnfilledBalances[i-1].baseLong.toInt(), 
+                    exposureFactor,
+                    marketMaturityConfig.tenorInSeconds,
+                    maturityTimestamp
+                ),
+                short: ExposureHelpers.decoupleExposures(
+                    cachedUnfilledBalances[i-1].baseShort.toInt(), 
+                    exposureFactor,
+                    marketMaturityConfig.tenorInSeconds,
+                    maturityTimestamp
+                )
+            });
+
+            unfilledExposures[size].riskMatrixRowIds[0] = riskMatrixZeroRowId;
+            unfilledExposures[size].riskMatrixRowIds[1] = marketMaturityConfig.riskMatrixRowId;
+
+            unfilledExposures[size].pvmrComponents = ExposureHelpers.getPVMRComponents(
+                cachedUnfilledBalances[i-1], 
+                market.id, 
+                maturityTimestamp, 
+                marketMaturityConfig.riskMatrixRowId
+            );
+
+            size += 1;
+        }
     }
 
-    function getAccountTakerAndMakerExposures(
+    function getAccountTakerExposures(
         Data storage self,
         uint256 riskMatrixDim
     )
         internal
         view
-        returns (int256[] memory filledExposures, Account.UnfilledExposure[] memory unfilledExposures)
+        returns (int256[] memory filledExposures)
     {
-        Market.Data storage market = Market.exists(self.marketId);
-        GetAccountTakerAndMakerExposuresVars memory vars;
-        vars.poolAddress = market.marketConfig.poolAddress;
         filledExposures = new int256[](riskMatrixDim);
-        vars.exposureFactor = market.exposureFactor();
+
+        Market.Data storage market = Market.exists(self.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        UD60x18 exposureFactor = market.exposureFactor();
+
+        uint256 riskMatrixZeroRowId = market.marketMaturityConfigs[0].riskMatrixRowId;
 
         for (uint256 i = 1; i <= self.activeMaturities.length(); i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
+            Market.MarketMaturityConfiguration memory marketMaturityConfig = market.marketMaturityConfigs[maturityTimestamp];
 
-            FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, vars.poolAddress);
+            FilledBalances memory filledBalances = getAccountFilledBalances(self, maturityTimestamp, poolAddress);
 
-            UnfilledBalances memory unfilledBalances =
-                IPool(vars.poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
-
-            // handle filled exposures
-
-            uint256 riskMatrixRowId = market.marketMaturityConfigs[maturityTimestamp].riskMatrixRowId;
-
-            (int256 shortRateFilledExposureMaturity, int256 swapRateFilledExposureMaturity) = ExposureHelpers
-                .getFilledExposures(
+            int256[] memory exposureComponents = ExposureHelpers.decoupleExposures(
                 filledBalances.base,
-                vars.exposureFactor,
-                maturityTimestamp,
-                market.marketMaturityConfigs[maturityTimestamp].tenorInSeconds
+                exposureFactor,
+                marketMaturityConfig.tenorInSeconds,
+                maturityTimestamp
             );
 
-            vars.shortRateExposure += shortRateFilledExposureMaturity;
-            filledExposures[riskMatrixRowId] += swapRateFilledExposureMaturity;
-
-            // handle unfilled exposures
-
-            if ((unfilledBalances.baseLong != 0) || (unfilledBalances.baseShort != 0)) {
-                unfilledExposures[vars.unfilledExposuresCounter].exposureComponentsArr = ExposureHelpers
-                    .getUnfilledExposureComponents(
-                    unfilledBalances.baseLong,
-                    unfilledBalances.baseShort,
-                    vars.exposureFactor,
-                    maturityTimestamp,
-                    market.marketMaturityConfigs[maturityTimestamp].tenorInSeconds
-                );
-                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[0] =
-                    market.marketMaturityConfigs[0].riskMatrixRowId;
-                unfilledExposures[vars.unfilledExposuresCounter].riskMatrixRowIds[1] = riskMatrixRowId;
-
-                unfilledExposures[vars.unfilledExposuresCounter].pvmrComponents =
-                    ExposureHelpers.getPVMRComponents(unfilledBalances, market.id, maturityTimestamp, riskMatrixRowId);
-                vars.unfilledExposuresCounter += 1;
-            }
+            filledExposures[riskMatrixZeroRowId] += exposureComponents[0];
+            filledExposures[marketMaturityConfig.riskMatrixRowId] += exposureComponents[1];
         }
-
-        filledExposures[market.marketMaturityConfigs[0].riskMatrixRowId] = vars.shortRateExposure;
-
-        return (filledExposures, unfilledExposures);
     }
 
     function propagateMatchedOrder(
