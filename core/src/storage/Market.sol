@@ -216,13 +216,15 @@ library Market {
         );
     }
 
-    function getAnnualizedExposureWadAndPSlippage(
+    function getAnnualizedExposureWadAndAdjustedPSlippage(
         Data storage self,
         uint128 marketId,
+        uint128 accountId,
         bytes memory inputs
-    ) internal view returns (int256 annualizedExposureWad, UD60x18 pSlippage) {
-        return IMarketManager(self.marketManagerAddress).getAnnualizedExposureWadAndPSlippage(
+    ) internal view returns (int256 annualizedExposureWad, UD60x18 adjustedPSlippage) {
+        return IMarketManager(self.marketManagerAddress).getAnnualizedExposureWadAndAdjustedPSlippage(
             marketId,
+            accountId,
             inputs
         );
     }

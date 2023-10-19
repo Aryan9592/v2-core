@@ -128,10 +128,11 @@ interface IMarketManager is IERC165 {
         bytes calldata inputs
     ) external view;
 
-    function getAnnualizedExposureWadAndPSlippage(
+    function getAnnualizedExposureWadAndAdjustedPSlippage(
         uint128 marketId,
+        uint128 accountId,
         bytes calldata inputs
-    ) external view returns (int256 annualizedExposureWad, UD60x18 pSlippage);
+    ) external view returns (int256 annualizedExposureWad, UD60x18 adjustedPSlippage);
 
     // todo: add natspec
     function executeADLOrder(

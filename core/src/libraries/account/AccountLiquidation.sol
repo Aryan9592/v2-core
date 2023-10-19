@@ -217,21 +217,21 @@ library AccountLiquidation {
             }
 
             Market.Data storage market = Market.exists(marketId);
-            (int256 annualizedExposureWad, UD60x18 pSlippage) 
-                = market.getAnnualizedExposureWadAndPSlippage(marketId, liquidationBid.inputs[i]);
+            (int256 annualizedExposureWad, UD60x18 adjustedPSlippage) 
+                = market.getAnnualizedExposureWadAndAdjustedPSlippage(marketId, self.id, liquidationBid.inputs[i]);
 
             UD60x18 absAnnualizedExposure = ud(SignedMath.abs(annualizedExposureWad));
-            accPSlippageNumerator = accPSlippageNumerator.add(absAnnualizedExposure.mul(pSlippage));
+            accPSlippageNumerator = accPSlippageNumerator.add(absAnnualizedExposure.mul(adjustedPSlippage));
             accPSlippageDenominator = accPSlippageDenominator.add(absAnnualizedExposure);
         }
 
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         UD60x18 wRank = collateralPool.riskConfig.liquidationConfiguration.wRank;
 
-        // rank = w * (1 - d) + (1 - w) * accPSlippageNumerator / accPSlippageDenominator;
+        // rank = 1/n * [w * (1 - d) + (1 - w) * accPSlippageNumerator / accPSlippageDenominator];
         UD60x18 rank = wRank.mul(UNIT.sub(liquidationBid.liquidatorRewardParameter)).add(
             UNIT.sub(wRank).mul(accPSlippageNumerator.div(accPSlippageDenominator))
-        );
+        ).div(ud(liquidationBid.marketIds.length));
 
         return rank.unwrap();
     }

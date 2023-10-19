@@ -39,6 +39,7 @@ import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.s
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { sd } from "@prb/math/SD59x18.sol";
 
 /*
 TODOs
@@ -216,14 +217,21 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         );
     }
 
-    function getAnnualizedExposureWadAndPSlippage(
+    struct AnnualizedExposureWadAndAdjustedPSlippageVars {
+        int256 accountBase;
+        int256 accountAnnualizedExposure;
+        int256 accountAnnualizedExposureWad;
+    }
+
+    function getAnnualizedExposureWadAndAdjustedPSlippage(
         uint128 marketId,
+        uint128 accountId,
         bytes calldata inputs
     )
         external
         view
         override
-        returns (int256 annualizedExposureWad, UD60x18 pSlippage)
+        returns (int256 annualizedExposureWad, UD60x18 adjustedPSlippage)
     {
         (uint32 maturityTimestamp, int256 baseToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
@@ -237,7 +245,24 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
             annualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
 
-        pSlippage = ExposureHelpers.getPercentualSlippage(marketId, maturityTimestamp, annualizedExposure);
+        // retrieve base amount filled by the liquidatable account
+        AnnualizedExposureWadAndAdjustedPSlippageVars memory vars;
+        vars.accountBase = Portfolio.exists(accountId, marketId).getAccountFilledBalances(
+            maturityTimestamp, market.marketConfig.poolAddress
+        ).base;
+        vars.accountAnnualizedExposure =
+            ExposureHelpers.baseToAnnualizedExposure(vars.accountBase, marketId, maturityTimestamp);
+        vars.accountAnnualizedExposureWad = DecimalMath.changeDecimals(
+            vars.accountAnnualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
+        );
+
+        adjustedPSlippage = ExposureHelpers.getPercentualSlippage({
+            marketId: marketId, 
+            maturityTimestamp: maturityTimestamp, 
+            annualizedExposureWad: sd(annualizedExposureWad).mul(
+                sd(vars.accountAnnualizedExposureWad-annualizedExposureWad)
+            ).sqrt().unwrap()
+        });
     }
 
     /**
