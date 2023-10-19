@@ -120,6 +120,9 @@ contract AccountModule is IAccountModule {
         account.grantPermission(permission, user);
     }
 
+    /**
+     * @inheritdoc IAccountModule
+     */
     function grantPermissionBySig(
         uint128 accountId,
         bytes32 permission,
