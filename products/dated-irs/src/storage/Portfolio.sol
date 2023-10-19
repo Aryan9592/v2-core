@@ -9,6 +9,7 @@ pragma solidity >=0.8.19;
 
 import { Market } from "./Market.sol";
 import { IPool } from "../interfaces/IPool.sol";
+
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { ExecuteADLOrder } from "../libraries/actions/ExecuteADLOrder.sol";
 import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
@@ -215,7 +216,7 @@ library Portfolio {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
             cachedUnfilledBalances[i - 1] =
-                IPool(poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
+                IPool(poolAddress).getAccountUnfilledBalances(market.id, maturityTimestamp, self.accountId);
 
             if (cachedUnfilledBalances[i - 1].baseLong == 0 && cachedUnfilledBalances[i - 1].baseShort == 0) {
                 continue;

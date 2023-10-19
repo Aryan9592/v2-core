@@ -7,7 +7,6 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
 

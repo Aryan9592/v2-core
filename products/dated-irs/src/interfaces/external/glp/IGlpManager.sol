@@ -7,7 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "./IVault.sol";
+import { IVault } from "./IVault.sol";
 
 interface IGlpManager {
     function getAum(bool maximise) external view returns (uint256);

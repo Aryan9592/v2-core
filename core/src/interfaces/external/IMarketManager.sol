@@ -21,9 +21,6 @@ interface IMarketManager is IERC165 {
     /// @notice returns a magic number proving the contract was built for the protocol
     function isMarketManager() external pure returns (bool);
 
-    /// @notice Returns the market's quote token address
-    function getMarketQuoteToken(uint128 marketId) external view returns (address);
-
     /// @notice returns account taker exposures for a given account and collateral type
     function getAccountTakerExposures(uint128 marketId, uint128 accountId, uint256 riskMatrixDim)
         external

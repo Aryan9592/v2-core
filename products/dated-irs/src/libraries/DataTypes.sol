@@ -12,6 +12,12 @@ import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
+enum OrderDirection {
+    Short,
+    Zero,
+    Long
+}
+
 struct RateOracleObservation {
     uint256 timestamp;
     UD60x18 rateIndex;

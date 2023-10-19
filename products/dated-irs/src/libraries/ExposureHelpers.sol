@@ -7,26 +7,28 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { UnfilledBalances, OrderDirection } from "./DataTypes.sol";
 import { Portfolio } from "../storage/Portfolio.sol";
 import { Market } from "../storage/Market.sol";
+import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
 import { IPool } from "../interfaces/IPool.sol";
 
 import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
+
+import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import {
     mulUDxInt, divIntUD, mulUDxUint, mulSDxInt
 } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
-import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { SignedMath } from "oz/utils/math/SignedMath.sol";
-import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
-import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
-import { sd, SD59x18, UNIT as UNIT_sd } from "@prb/math/SD59x18.sol";
-import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
-import "../storage/MarketManagerConfiguration.sol";
-import { UnfilledBalances } from "../libraries/DataTypes.sol";
+import { SD59x18, sd, UNIT } from "@prb/math/SD59x18.sol";
+
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 /**
  * @title Object for tracking a portfolio of dated interest rate swap positions
@@ -82,13 +84,13 @@ library ExposureHelpers {
             DecimalMath.WAD_DECIMALS
         );
 
-        IPool.OrderDirection orderDirection;
+        OrderDirection orderDirection;
         if (annualizedExposureWad > 0) {
-            orderDirection = IPool.OrderDirection.Long;
+            orderDirection = OrderDirection.Long;
         } else if (annualizedExposureWad < 0) {
-            orderDirection = IPool.OrderDirection.Short;
+            orderDirection = OrderDirection.Short;
         } else {
-            orderDirection = IPool.OrderDirection.Zero;
+            orderDirection = OrderDirection.Zero;
         }
 
         return IPool(poolAddress).getAdjustedTwap(
@@ -137,7 +139,7 @@ library ExposureHelpers {
         SD59x18 timeDeltaAnnualized = Time.timeDeltaAnnualized(maturityTimestamp).intoSD59x18();
 
         int256 exposure = baseToExposure(baseBalance, marketId);
-        SD59x18 price = sd(uPnL - quoteBalance).div(sd(exposure)).sub(UNIT_sd).div(timeDeltaAnnualized);
+        SD59x18 price = sd(uPnL - quoteBalance).div(sd(exposure)).sub(UNIT).div(timeDeltaAnnualized);
 
         return price;
     }

@@ -7,9 +7,11 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
-import "../storage/MarketManagerConfiguration.sol";
-import { FilledBalances, UnfilledBalances } from "../libraries/DataTypes.sol";
+import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
+import { FilledBalances } from "../libraries/DataTypes.sol";
+
+import { IMarketManager } from "@voltz-protocol/core/src/interfaces/external/IMarketManager.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface of a dated irs market
 interface IMarketManagerIRSModule is IMarketManager {
@@ -39,14 +41,8 @@ interface IMarketManagerIRSModule is IMarketManager {
         view
         returns (FilledBalances memory);
 
-    function getAccountUnfilledBaseAndQuote(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        uint128 accountId
-    )
-        external
-        view
-        returns (UnfilledBalances memory);
+    // todo: add natspec
+    function propagateADLOrder(uint128 accountId, uint128 marketId, uint32 maturityTimestamp, bool isLong) external;
 
     function getPercentualSlippage(
         uint128 marketId,

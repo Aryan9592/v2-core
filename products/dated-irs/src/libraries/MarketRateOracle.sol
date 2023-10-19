@@ -7,9 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { RateOracleObservation } from "./DataTypes.sol";
 import { Market } from "../storage/Market.sol";
 import { IRateOracle } from "../interfaces/IRateOracle.sol";
-import { RateOracleObservation } from "../libraries/DataTypes.sol";
 
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 import { UD60x18, ZERO, unwrap } from "@prb/math/UD60x18.sol";

@@ -7,8 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "../../src/interfaces/external/IAaveV3LendingPool.sol";
+import { IAaveV3LendingPool } from "../../src/interfaces/external/IAaveV3LendingPool.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 import { UD60x18, ud, unwrap, UNIT, ud60x18 } from "@prb/math/UD60x18.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";

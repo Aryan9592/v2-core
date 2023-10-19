@@ -7,13 +7,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { IRateOracle, IERC165 } from "../interfaces/IRateOracle.sol";
+import { IRateOracle } from "../interfaces/IRateOracle.sol";
 import { IRewardTracker } from "../interfaces/external/glp/IRewardTracker.sol";
 import { IVault } from "../interfaces/external/glp/IVault.sol";
 import { IRewardRouter } from "../interfaces/external/glp/IRewardRouter.sol";
 import { IGlpManager } from "../interfaces/external/glp/IGlpManager.sol";
 import { UD60x18, ud, mulDiv } from "@prb/math/UD60x18.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 
 /// @notice GP stands for GLP PRECISION (1e30)
 contract GlpRateOracle is IRateOracle {

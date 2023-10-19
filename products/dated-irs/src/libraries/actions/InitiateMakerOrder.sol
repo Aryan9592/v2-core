@@ -7,10 +7,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../../interfaces/IPool.sol";
-import "../../storage/Portfolio.sol";
-import "../ExposureHelpers.sol";
-import { MakerOrderParams } from "../DataTypes.sol";
+import { PositionBalances, MakerOrderParams } from "../DataTypes.sol";
+import { ExposureHelpers } from "../ExposureHelpers.sol";
+
+import { Market } from "../../storage/Market.sol";
+import { Portfolio } from "../../storage/Portfolio.sol";
+
+import { IPool } from "../../interfaces/IPool.sol";
+
+import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 /**
  * @title Library for maker orders logic.

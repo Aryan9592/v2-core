@@ -7,13 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-import "../../src/interfaces/external/IAaveV3LendingPool.sol";
-import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
-import { UD60x18, ud, unwrap, UNIT } from "@prb/math/UD60x18.sol";
+import { IAaveV3LendingPool } from "../../src/interfaces/external/IAaveV3LendingPool.sol";
+import { UD60x18, unwrap, UNIT } from "@prb/math/UD60x18.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-
-// import "forge-std/console2.sol";
 
 /// @notice This Mock Aave pool can be used in 3 ways
 /// - change the rate to a fixed value (`setReserveNormalizedIncome`)

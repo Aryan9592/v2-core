@@ -19,7 +19,7 @@ import { PoolConfiguration } from "@voltz-protocol/v2-vamm/src/storage/PoolConfi
 import { TickMath } from "@voltz-protocol/v2-vamm/src/libraries/ticks/TickMath.sol";
 import { VammTicks } from "@voltz-protocol/v2-vamm/src/libraries/vamm-utils/VammTicks.sol";
 
-import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
+import { OrderDirection } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
 import { UD60x18, ud, wrap, unwrap } from "@prb/math/UD60x18.sol";
 
@@ -193,7 +193,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
@@ -203,7 +203,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 100");
@@ -235,7 +235,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
@@ -245,7 +245,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 100");
@@ -277,7 +277,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
@@ -287,7 +287,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 100");
@@ -336,7 +336,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
@@ -346,7 +346,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 50_446_712_689_052_953, "twap after 10 days when order = 100");
@@ -356,7 +356,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 44_446_712_689_052_953, "twap after 10 days when order = -100");
@@ -388,7 +388,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
@@ -398,7 +398,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 51_279_467_813_104_117, "twap after 20 days with order = 100");
@@ -408,7 +408,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 45_279_467_813_104_117, "twap after 20 days with order = -100");
@@ -440,7 +440,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
@@ -450,7 +450,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 55_783_672_690_232_108, "twap after 30 days with order = 100");
@@ -460,7 +460,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 49_783_672_690_232_108, "twap after 30 days with order = -100");
@@ -509,7 +509,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 47_446_712_689_052_953, "twap after 10 days when order = 0");
@@ -519,7 +519,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 51_446_712_689_052_952, "twap after 10 days when order = 100");
@@ -529,7 +529,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 43_446_712_689_052_954, "twap after 10 days when order = -100");
@@ -561,7 +561,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 48_279_467_813_104_117, "twap after 20 days with order = 0");
@@ -571,7 +571,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 52_279_467_813_104_116, "twap after 20 days with order = 100");
@@ -581,7 +581,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 44_279_467_813_104_118, "twap after 20 days with order = -100");
@@ -613,7 +613,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Zero,
+                OrderDirection.Zero,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 0)
             );
             assertEq(twap, 52_783_672_690_232_108, "twap after 30 days with order = 0");
@@ -623,7 +623,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Long,
+                OrderDirection.Long,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, 100e18)
             );
             assertEq(twap, 56_783_672_690_232_107, "twap after 30 days with order = 100");
@@ -633,7 +633,7 @@ contract ScenarioD is ScenarioSetup, AssertionHelpers, Actions, Checks {
             uint256 twap = getAdjustedTwap(
                 marketId,
                 maturityTimestamp,
-                IPool.OrderDirection.Short,
+                OrderDirection.Short,
                 datedIrsProxy.getPercentualSlippage(marketId, maturityTimestamp, -100e18)
             );
             assertEq(twap, 48_783_672_690_232_109, "twap after 30 days with order = -100");

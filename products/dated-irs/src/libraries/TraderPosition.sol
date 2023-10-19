@@ -10,12 +10,11 @@ pragma solidity >=0.8.19;
 
 import { PositionBalances, RateOracleObservation } from "./DataTypes.sol";
 
-import { mulUDxInt, mulSDxInt, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { mulUDxInt, divIntUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
-import { convert as convert_ud } from "@prb/math/UD60x18.sol";
-import { convert as convert_sd } from "@prb/math/SD59x18.sol";
+import { convert } from "@prb/math/UD60x18.sol";
 
 library TraderPosition {
     using SafeCastU256 for uint256;
@@ -30,7 +29,7 @@ library TraderPosition {
         returns (int256)
     {
         return mulUDxInt(newObservation.rateIndex, base)
-            + divIntUD(mulSDxInt(convert_sd(newObservation.timestamp.toInt()), quote), convert_ud(Time.SECONDS_IN_YEAR));
+            + divIntUD(mulUDxInt(convert(newObservation.timestamp), quote), convert(Time.SECONDS_IN_YEAR));
     }
 
     function getAccruedInterest(

@@ -11,7 +11,7 @@ import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
 import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
-import "../ExposureHelpers.sol";
+import { ExposureHelpers } from "../ExposureHelpers.sol";
 import { LiquidationOrderParams } from "../DataTypes.sol";
 
 /*
