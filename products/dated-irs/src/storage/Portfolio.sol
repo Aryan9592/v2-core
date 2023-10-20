@@ -196,7 +196,8 @@ library Portfolio {
             position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
-        UD60x18 twap = ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base, exposureFactor);
+        UD60x18 twap =
+            ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base, exposureFactor);
 
         int256 unrealizedPnL =
             ExposureHelpers.computeUnrealizedPnL(maturityTimestamp, position.base, position.quote, twap, exposureFactor);
@@ -269,9 +270,7 @@ library Portfolio {
             unfilledExposures[size].riskMatrixRowIds[1] = marketMaturityConfig.riskMatrixRowId;
 
             UD60x18 diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
-                market.id, 
-                marketMaturityConfig.riskMatrixRowId, 
-                marketMaturityConfig.riskMatrixRowId
+                market.id, marketMaturityConfig.riskMatrixRowId, marketMaturityConfig.riskMatrixRowId
             ).intoUD60x18();
 
             unfilledExposures[size].pvmrComponents = ExposureHelpers.getPVMRComponents(

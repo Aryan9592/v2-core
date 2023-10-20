@@ -130,7 +130,8 @@ library ExecuteADLOrder {
                 exposureFactor: exposureFactor
             });
         } else {
-            vars.markPrice = ExposureHelpers.computeTwap(market.id, maturityTimestamp, vars.poolAddress, 0, exposureFactor);
+            vars.markPrice =
+                ExposureHelpers.computeTwap(market.id, maturityTimestamp, vars.poolAddress, 0, exposureFactor);
         }
 
         vars.baseDelta = filledBalances.base;

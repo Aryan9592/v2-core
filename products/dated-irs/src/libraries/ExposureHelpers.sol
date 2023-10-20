@@ -285,7 +285,15 @@ library ExposureHelpers {
         }
     }
 
-    function computeQuoteDelta(int256 baseDelta, UD60x18 markPrice, UD60x18 exposureFactor) internal pure returns (int256) {
+    function computeQuoteDelta(
+        int256 baseDelta,
+        UD60x18 markPrice,
+        UD60x18 exposureFactor
+    )
+        internal
+        pure
+        returns (int256)
+    {
         int256 exposure = mulUDxInt(exposureFactor, baseDelta);
         return mulUDxInt(markPrice, -exposure);
     }
