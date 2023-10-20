@@ -25,6 +25,7 @@ contract ExecutionModule is IExecutionModule {
 
     using Market for Market.Data;
     using Account for Account.Data;
+    using Exchange for Exchange.Data;
     using SafeCastU256 for uint256;
 
     function execute(
@@ -86,6 +87,8 @@ contract ExecutionModule is IExecutionModule {
         }
         Market.Data storage market = Market.exists(command.marketId);
         account.markActiveMarket(market.quoteToken, market.id);
+
+        Exchange.exists(command.exchangeId).passCheck();
 
         if (command.commandType == CommandType.OnChainTakerOrder) {
             (bytes memory result, uint256 exchangeFee, uint256 protocolFee) = market.executeTakerOrder(

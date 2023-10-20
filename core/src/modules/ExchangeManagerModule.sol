@@ -10,12 +10,12 @@ pragma solidity >=0.8.19;
 import {IExchangeManagerModule} from "../interfaces/IExchangeManagerModule.sol";
 import {Exchange} from "../storage/Exchange.sol";
 import {ExchangeStore} from "../storage/ExchangeStore.sol";
-import {ExchangePassConfiguration} from "../storage/ExchangePassConfiguration.sol";
-import {INFTPass} from "../interfaces/external/INFTPass.sol";
 import {Account} from "../storage/Account.sol";
 
 
 contract ExchangeManagerModule is IExchangeManagerModule {
+
+    using Exchange for Exchange.Data;
 
     /**
      * @inheritdoc IExchangeManagerModule
@@ -29,16 +29,9 @@ contract ExchangeManagerModule is IExchangeManagerModule {
      */
     function registerExchange(uint128 exchangeFeeCollectorAccountId) external returns (uint128 exchangeId) {
 
-        address accountOwner = Account.exists(exchangeFeeCollectorAccountId).rbac.owner;
-
-        address exchangePassNFTAddress = ExchangePassConfiguration.exists().exchangePassNFTAddress;
-
-        uint256 ownerExchangePassBalance = INFTPass(exchangePassNFTAddress).balanceOf(accountOwner);
-        if (ownerExchangePassBalance == 0) {
-            revert OnlyExchangePassOwner();
-        }
-
         exchangeId = Exchange.create(exchangeFeeCollectorAccountId).id;
+
+        Exchange.exists(exchangeId).passCheck();
 
         emit ExchangeRegistered(exchangeId, block.timestamp);
 

@@ -13,8 +13,6 @@ pragma solidity >=0.8.19;
  */
 interface IExchangeManagerModule {
 
-    error OnlyExchangePassOwner();
-
     /**
      * @notice Emitted when a new exchange is registered in the protocol.
      * @param exchangeId The id with which the market was registered in the system.

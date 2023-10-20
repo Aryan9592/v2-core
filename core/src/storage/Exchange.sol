@@ -10,6 +10,8 @@ pragma solidity >=0.8.19;
 import "./ExchangeStore.sol";
 import "./Account.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
+import {ExchangePassConfiguration} from "./ExchangePassConfiguration.sol";
+import {INFTPass} from "../interfaces/external/INFTPass.sol";
 
 library Exchange {
 
@@ -17,6 +19,11 @@ library Exchange {
      * @dev Thrown when an exchange cannot be found.
      */
     error ExchangeNotFound(uint128 exchangeId);
+
+    /**
+     * @dev Thrown when an exchange wants to register or perform an action but doesn't own the exchange pass
+     */
+    error OnlyExchangePassOwner();
 
     struct Data {
 
@@ -40,6 +47,8 @@ library Exchange {
         exchange = load(id);
         exchange.id = id;
         exchange.exchangeFeeCollectorAccountId = exchangeFeeCollectorAccountId;
+
+        // todo: make sure account exists
 
         // todo: add event
 
@@ -75,6 +84,21 @@ library Exchange {
         // todo: validation to make sure rebateParameter is between zero and 1
         self.feeRebatesPerInstrument[instrumentAddress] = rebateParameter;
         // todo: add event
+    }
+
+    function passCheck(
+        Data storage self
+    ) internal view {
+
+        address accountOwner = Account.exists(self.exchangeFeeCollectorAccountId).rbac.owner;
+
+        address exchangePassNFTAddress = ExchangePassConfiguration.exists().exchangePassNFTAddress;
+
+        uint256 ownerExchangePassBalance = INFTPass(exchangePassNFTAddress).balanceOf(accountOwner);
+        if (ownerExchangePassBalance == 0) {
+            revert OnlyExchangePassOwner();
+        }
+
     }
 
 
