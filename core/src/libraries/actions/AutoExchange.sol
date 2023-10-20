@@ -46,22 +46,23 @@ library AutoExchange {
         address quoteType
     ) internal {
 
-        Account.Data storage account = Account.exists(accountId);
-
-        if (!account.isEligibleForAutoExchange(quoteType)) {
-            revert AccountNotEligibleForAutoExchange(accountId, quoteType);
-        }
-
-        if (!account.isWithinBubbleCoverageExhausted(quoteType, collateralType)) {
-            revert WithinBubbleCoverageNotExhausted(accountId, quoteType, collateralType);
-        }
-
         if (quoteType == collateralType) {
             revert SameQuoteAndCollateralType(accountId, quoteType);
         }
 
         if (quoteType == address(0) || collateralType == address(0)) {
             revert ZeroAddressToken(accountId);
+        }
+
+        Account.Data storage account = Account.exists(accountId);
+
+        // todo: consider checking validity of amountToAutoExchangeQuote within the eligibility function
+        if (!account.isEligibleForAutoExchange(quoteType)) {
+            revert AccountNotEligibleForAutoExchange(accountId, quoteType);
+        }
+
+        if (!account.isWithinBubbleCoverageExhausted(quoteType, collateralType)) {
+            revert WithinBubbleCoverageNotExhausted(accountId, quoteType, collateralType);
         }
 
         Account.Data storage liquidatorAccount = Account.exists(liquidatorAccountId);

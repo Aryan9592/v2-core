@@ -13,7 +13,7 @@ import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import "../../storage/Account.sol";
 import "../../storage/AccessPassConfiguration.sol";
 import "../../interfaces/IAccountTokenModule.sol";
-import "../../interfaces/external/IAccessPassNFT.sol";
+import "../../interfaces/external/INFTPass.sol";
 
 /**
  * @title Library for account creation logic.
@@ -45,7 +45,7 @@ library CreateAccount {
 
         address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
 
-        uint256 ownerAccessPassBalance = IAccessPassNFT(accessPassNFTAddress).balanceOf(accountOwner);
+        uint256 ownerAccessPassBalance = INFTPass(accessPassNFTAddress).balanceOf(accountOwner);
         if (ownerAccessPassBalance == 0) {
             revert OnlyAccessPassOwner(requestedAccountId, accountOwner);
         }

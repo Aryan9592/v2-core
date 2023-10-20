@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 
 pragma solidity >=0.8.19;
 
-interface IAccessPassNFT {
+interface INFTPass {
     /**
      * @dev Returns the number of tokens in ``owner``'s account.
      */

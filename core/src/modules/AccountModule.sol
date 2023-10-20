@@ -11,7 +11,6 @@ import {IAccountTokenModule} from "../interfaces/IAccountTokenModule.sol";
 import {IAccountModule} from "../interfaces/IAccountModule.sol";
 import {Account} from "../storage/Account.sol";
 import {AccessPassConfiguration} from "../storage/AccessPassConfiguration.sol";
-import {IAccessPassNFT} from "../interfaces/external/IAccessPassNFT.sol";
 import {CreateAccount} from "../libraries/actions/CreateAccount.sol";
 import {AccountExposure} from "../libraries/account/AccountExposure.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";

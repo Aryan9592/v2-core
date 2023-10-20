@@ -30,6 +30,10 @@ library AccountAutoExchange {
     using SafeCastI256 for int256;
     using SetUtil for SetUtil.AddressSet;
 
+
+    // todo: consider breaking up this into two functions
+    // isChild
+    // isWithinBubbleCoverageExhausted
     function isWithinBubbleCoverageExhausted(
         Account.Data storage self,
         address quoteType,
@@ -41,6 +45,9 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
         address[] memory tokens = CollateralConfiguration.exists(collateralPoolId, quoteType).childTokens.values();
+
+        // todo: consider running two loops, one for checking for collateralType == tokens[i]
+        // and the other one for checking the dust threshold
 
         for (uint256 i = 0; i < tokens.length; i++) {
 
@@ -162,7 +169,7 @@ library AccountAutoExchange {
         Account.Data storage self,
         CollateralPool.Data storage collateralPool,
         address quoteToken,
-        uint256 amountToAutoExchangeQuote,
+        uint256 requestedQuoteAmount,
         UD60x18 autoExchangeInsuranceFee
     ) private view returns (uint256 amountToAutoExchange) {
 
@@ -204,8 +211,8 @@ library AccountAutoExchange {
         }
 
 
-        if (amountToAutoExchangeQuote < amountToAutoExchange) {
-            amountToAutoExchange = amountToAutoExchangeQuote;
+        if (requestedQuoteAmount > amountToAutoExchange) {
+            amountToAutoExchange = requestedQuoteAmount;
         }
 
 
@@ -245,6 +252,7 @@ library AccountAutoExchange {
 
     }
 
+    // todo: rename to calculateAutoExchangeAmounts
     function calculateAvailableCollateralToAutoExchange(
         Account.Data storage self,
         address collateralToken,
@@ -253,7 +261,7 @@ library AccountAutoExchange {
     ) internal view returns (
         uint256 /* collateralAmountToLiquidator */,
         uint256 /* quoteAmountToInsuranceFund */,
-        uint256 /* quoteAmountToAcc */
+        uint256 /* quoteAmountToAccount */
     ) {
 
         CalculateAvailableCollateralToAutoExchangeVars memory vars;

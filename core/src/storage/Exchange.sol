@@ -40,7 +40,6 @@ library Exchange {
         exchange = load(id);
         exchange.id = id;
         exchange.exchangeFeeCollectorAccountId = exchangeFeeCollectorAccountId;
-        // todo: check if account with id exchangeFeeCollectorAccountId exists?
 
         // todo: add event
 
