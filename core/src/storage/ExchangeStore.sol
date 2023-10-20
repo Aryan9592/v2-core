@@ -15,7 +15,7 @@ pragma solidity >=0.8.19;
 // todo: lots of similarities with MarketStore, can we simplify?
 library ExchangeStore {
     // todo: replace xyz.voltz with reya.voltz (in all storage pointers)?
-    bytes32 private constant _SLOT_EXCHANGE_STORE = keccak256(abi.encode("xyz.voltz.ExchangeStore"));
+    bytes32 private immutable _SLOT_EXCHANGE_STORE = keccak256(abi.encode("xyz.voltz.ExchangeStore"));
 
     /**
      * @notice Emitted when the exchange store is created or updated
