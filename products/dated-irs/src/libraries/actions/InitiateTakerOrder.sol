@@ -7,15 +7,16 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+import { PositionBalances, TakerOrderParams } from "../DataTypes.sol";
+
 import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
-import "../../interfaces/IPool.sol";
-import "../ExposureHelpers.sol";
-import { SignedMath } from "oz/utils/math/SignedMath.sol";
-import { mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 
-import { TakerOrderParams } from "../DataTypes.sol";
+import { IPool } from "../../interfaces/IPool.sol";
+import { ExposureHelpers } from "../ExposureHelpers.sol";
+
+import { UD60x18, mulUDxUint } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
 
 /**
  * @title Library for taker orders logic.
@@ -54,9 +55,10 @@ library InitiateTakerOrder {
     {
         Market.Data storage market = Market.exists(params.marketId);
         IPool pool = IPool(market.marketConfig.poolAddress);
+        UD60x18 exposureFactor = market.exposureFactor();
 
         UD60x18 markPrice = ExposureHelpers.computeTwap(
-            params.marketId, params.maturityTimestamp, market.marketConfig.poolAddress, params.baseDelta
+            params.marketId, params.maturityTimestamp, market.marketConfig.poolAddress, params.baseDelta, exposureFactor
         );
 
         tokenDeltas = pool.executeDatedTakerOrder(
@@ -72,7 +74,7 @@ library InitiateTakerOrder {
         portfolio.updatePosition(params.maturityTimestamp, tokenDeltas);
 
         int256 annualizedNotionalAmount =
-            ExposureHelpers.baseToAnnualizedExposure(tokenDeltas.base, params.marketId, params.maturityTimestamp);
+            ExposureHelpers.baseToAnnualizedExposure(tokenDeltas.base, params.maturityTimestamp, exposureFactor);
 
         ExposureHelpers.checkPositionSizeLimit(params.accountId, params.marketId, params.maturityTimestamp);
 

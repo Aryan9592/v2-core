@@ -7,19 +7,13 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import { UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
+import { UnfilledBalances, PositionBalances, MakerOrderParams, OrderDirection } from "../libraries/DataTypes.sol";
 
 import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /// @title Interface a Pool needs to adhere.
 interface IPool is IERC165 {
-    enum OrderDirection {
-        Short,
-        Zero,
-        Long
-    }
-
     /// @notice returns a human-readable name for a given pool
     function name() external view returns (string memory);
 
@@ -71,7 +65,7 @@ interface IPool is IERC165 {
      * @param maturityTimestamp Timestamp at which a given market matures
      * @param accountId Id of the `Account` to look at
      */
-    function getAccountUnfilledBaseAndQuote(
+    function getAccountUnfilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId

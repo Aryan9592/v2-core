@@ -12,7 +12,7 @@ TODOs
     - implement rank calculation
 */
 
-
+import { MarginInfo, PnLComponents, CollateralInfo } from "../DataTypes.sol";
 import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
@@ -47,17 +47,17 @@ library AccountLiquidation {
     /**
      * @dev Thrown when account is not between the maintenance margin requirement and the liquidation margin requirement
      */
-    error AccountNotBetweenMmrAndLm(uint128 accountId, Account.MarginInfo marginInfo);
+    error AccountNotBetweenMmrAndLm(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the adl margin requirement
      */
-    error AccountNotBelowADL(uint128 accountId, Account.MarginInfo marginInfo);
+    error AccountNotBelowADL(uint128 accountId, MarginInfo marginInfo);
 
     /**
      * @dev Thrown when account is not below the maintenance margin requirement
      */
-    error AccountNotBelowMMR(uint128 accountId, Account.MarginInfo marginInfo);
+    error AccountNotBelowMMR(uint128 accountId, MarginInfo marginInfo);
 
 
     /**
@@ -149,7 +149,7 @@ library AccountLiquidation {
             revert CannotComputeSolvencyAcrossBubbles();
         }
 
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
+        MarginInfo memory marginInfo = self.getMarginInfoByBubble(collateralType);
         return marginInfo.rawInfo.rawMarginBalance < 0;
     }
 
@@ -240,7 +240,8 @@ library AccountLiquidation {
         Account.Data storage self,
         LiquidationBidPriorityQueue.LiquidationBid memory liquidationBid
     ) internal {
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+
+        MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
 
         if (!(marginInfo.maintenanceDelta < 0 && marginInfo.liquidationDelta > 0)) {
             revert AccountNotBetweenMmrAndLm(self.id, marginInfo);
@@ -312,7 +313,7 @@ library AccountLiquidation {
         uint128 liquidatorAccountId
     ) internal {
 
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
 
         if (marginInfo.maintenanceDelta > 0) {
             revert AccountNotBelowMMR(self.id, marginInfo);
@@ -452,7 +453,7 @@ library AccountLiquidation {
     }
 
     function computeDutchHealth(Account.Data storage self) internal view returns (UD60x18) {
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
         // adl health info values are in USD (and therefore represented with 18 decimals)
         UD60x18 health = ud(marginInfo.rawInfo.rawMarginBalance.toUint()).div(
             ud(marginInfo.rawInfo.rawLiquidationMarginRequirement)
@@ -596,7 +597,7 @@ library AccountLiquidation {
         self.hasUnfilledOrders();
 
         // revert if account is not below adl margin requirement
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
+        MarginInfo memory marginInfo = self.getMarginInfoByBubble(address(0));
         if (marginInfo.adlDelta > 0) {
             revert AccountNotBelowADL(self.id, marginInfo);
         }
@@ -607,7 +608,7 @@ library AccountLiquidation {
         if (!_isInsolvent) {
             executeSolventBackstopLiquidation(self, keeperAccountId, quoteToken, backstopLPLiquidationOrders);
         } else {
-            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken);
+            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken, marginInfo);
         }
     }
 
@@ -704,11 +705,12 @@ library AccountLiquidation {
     function executeInsolventADLLiquidation(
         Account.Data storage self,
         uint128 keeperAccountId,
-        address quoteToken
+        address quoteToken,
+        MarginInfo memory marginInfo
     ) internal {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
 
-         Account.MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
+        MarginInfo memory quoteMarginInfo = self.getMarginInfoByBubble(quoteToken);
 
         // all exposure will be ADL-ed, so LMR will be 0 afterwards
         uint256 totalRewards = self.distributeBackstopAdlRewards({
@@ -720,7 +722,7 @@ library AccountLiquidation {
         });
 
         // update collateral info after rewards distribution
-        quoteMarginInfo.collateralInfo = Account.CollateralInfo({
+        quoteMarginInfo.collateralInfo = CollateralInfo({
             netDeposits: quoteMarginInfo.collateralInfo.netDeposits -= totalRewards.toInt(),
             realBalance: quoteMarginInfo.collateralInfo.realBalance -= totalRewards.toInt(),
             marginBalance: quoteMarginInfo.collateralInfo.marginBalance -= totalRewards.toInt()
@@ -773,7 +775,7 @@ library AccountLiquidation {
                 uint128 marketId = markets[i].to128();
                 Market.Data storage market = Market.exists(marketId);
 
-                Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
+                PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
                 // upnl here is negative since all positive upnl exposures were adl-ed at market price
                 totalUnrealizedLossQuote += (-pnlComponents.unrealizedPnL).toUint();
             }

@@ -7,13 +7,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "@voltz-protocol/util-contracts/src/errors/AccessError.sol";
-import { UD60x18 } from "@prb/math/UD60x18.sol";
+import { Account } from "./Account.sol";
+import { CollateralPool } from "./CollateralPool.sol";
+import { MarketStore } from "./MarketStore.sol";
+import { PnLComponents, UnfilledExposure } from "../libraries/DataTypes.sol";
+import { IMarketManager } from "../interfaces/external/IMarketManager.sol";
 
-import "./Account.sol";
-import "./CollateralPool.sol";
-import "./MarketStore.sol";
-import "../interfaces/external/IMarketManager.sol";
+import { AccessError } from "@voltz-protocol/util-contracts/src/errors/AccessError.sol";
+import { UD60x18 } from "@prb/math/UD60x18.sol";
 
 /**
  * @title Connects external contracts that implement the `IMarketManager` interface to the protocol.
@@ -153,7 +154,7 @@ library Market {
     function getAccountMakerExposures(Data storage self, uint128 accountId)
         internal
         view
-        returns (Account.UnfilledExposure[] memory)
+        returns (UnfilledExposure[] memory)
     {
         return IMarketManager(self.marketManagerAddress).getAccountMakerExposures(
             self.id,
@@ -163,7 +164,7 @@ library Market {
 
     function getAccountPnLComponents(Data storage self, uint128 accountId)
         internal
-        view returns (Account.PnLComponents memory pnlComponents)
+        view returns (PnLComponents memory pnlComponents)
     {
         return IMarketManager(self.marketManagerAddress).getAccountPnLComponents(self.id, accountId);
     }

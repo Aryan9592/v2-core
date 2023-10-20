@@ -6,11 +6,13 @@ import { DatedIrsProxy } from "../../../src/proxies/DatedIrs.sol";
 
 import { unwrap } from "@prb/math/UD60x18.sol";
 
-import { FilledBalances, UnfilledBalances } from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
+import {
+    FilledBalances,
+    UnfilledBalances,
+    OrderDirection
+} from "@voltz-protocol/products-dated-irs/src/libraries/DataTypes.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
-
-import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
 
 /// @title Storage checks
 abstract contract Checks is AssertionHelpers {
@@ -108,7 +110,7 @@ abstract contract Checks is AssertionHelpers {
     )
         internal
     {
-        UnfilledBalances memory unfilledBalances = datedIrsProxy.getAccountUnfilledBaseAndQuote(
+        UnfilledBalances memory unfilledBalances = getVammProxy().getAccountUnfilledBalances(
             positionInfo.marketId, positionInfo.maturityTimestamp, positionInfo.accountId
         );
 
@@ -139,7 +141,7 @@ abstract contract Checks is AssertionHelpers {
     function getAdjustedTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        IPool.OrderDirection orderDirection,
+        OrderDirection orderDirection,
         UD60x18 pSlippage
     )
         internal

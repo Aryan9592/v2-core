@@ -7,6 +7,8 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { MarginInfo } from "../DataTypes.sol";
+
 import {Account} from "../../storage/Account.sol";
 import {AutoExchangeConfiguration} from "../../storage/AutoExchangeConfiguration.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
@@ -73,10 +75,10 @@ library AccountAutoExchange {
         CollateralPool.Data storage collateralPool = self.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
 
-        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+        MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
 
         {
-            Account.MarginInfo memory marginInfo =
+            MarginInfo memory marginInfo =
                 self.getMarginInfoByCollateralType(
                     collateralType,
                     collateralPool.riskConfig.riskMultipliers
@@ -117,7 +119,7 @@ library AccountAutoExchange {
         address[] memory quoteTokens = self.activeQuoteTokens.values();
 
         for (uint256 i = 0; i < quoteTokens.length; i++) {
-            Account.MarginInfo memory deltas =
+            MarginInfo memory deltas =
                 self.getMarginInfoByCollateralType(
                     quoteTokens[i],
                     collateralPool.riskConfig.riskMultipliers
@@ -162,13 +164,13 @@ library AccountAutoExchange {
     ) private view returns (uint256 amountToAutoExchange) {
 
         // todo: consider introducing getCollateralInfoByCollateral type and avoid the need for risk calculations
-        Account.MarginInfo memory marginInfo =
+        MarginInfo memory marginInfo =
         self.getMarginInfoByCollateralType(
             quoteToken,
             collateralPool.riskConfig.riskMultipliers
         );
 
-        Account.MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
+        MarginInfo memory overallMarginInfo = self.getMarginInfoByBubble(address(0));
 
         if (overallMarginInfo.maintenanceDelta < 0 ) {
 
@@ -212,7 +214,7 @@ library AccountAutoExchange {
     ) private view returns (uint256) {
 
         // note, don't need risk multipliers to get real balance
-        Account.MarginInfo memory marginInfo = self.getMarginInfoByCollateralType(
+        MarginInfo memory marginInfo = self.getMarginInfoByCollateralType(
             collateralToken,
             collateralPool.riskConfig.riskMultipliers
         );

@@ -11,7 +11,7 @@ import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
 import { SignedMath } from "oz/utils/math/SignedMath.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
-import "../ExposureHelpers.sol";
+import { ExposureHelpers } from "../ExposureHelpers.sol";
 import { LiquidationOrderParams } from "../DataTypes.sol";
 
 /*
@@ -108,17 +108,19 @@ library ExecuteLiquidationOrder {
 
         validateLiquidationOrder(params);
 
-        address poolAddress = Market.exists(params.marketId).marketConfig.poolAddress;
+        Market.Data storage market = Market.exists(params.marketId);
+        address poolAddress = market.marketConfig.poolAddress;
+        UD60x18 exposureFactor = market.exposureFactor();
 
         UD60x18 liquidationPrice =
-            ExposureHelpers.computeTwap(params.marketId, params.maturityTimestamp, poolAddress, 0);
+            ExposureHelpers.computeTwap(params.marketId, params.maturityTimestamp, poolAddress, 0, exposureFactor);
 
         if (isPriceLimitBreached(params.baseAmountToBeLiquidated > 0, liquidationPrice, ud(params.priceLimit))) {
             revert PriceLimitBreached(params);
         }
 
         int256 quoteDeltaFromLiquidation =
-            ExposureHelpers.computeQuoteDelta(params.baseAmountToBeLiquidated, liquidationPrice, params.marketId);
+            ExposureHelpers.computeQuoteDelta(params.baseAmountToBeLiquidated, liquidationPrice, exposureFactor);
 
         Portfolio.propagateMatchedOrder(
             Portfolio.exists(params.liquidatableAccountId, params.marketId),

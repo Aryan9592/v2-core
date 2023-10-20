@@ -8,7 +8,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import { IRewardTracker } from "../../src/interfaces/external/glp/IRewardTracker.sol";
-import { UD60x18, ud, unwrap, UNIT } from "@prb/math/UD60x18.sol";
+import { UD60x18, unwrap } from "@prb/math/UD60x18.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
 
 contract MockGlpRewardTracker is IRewardTracker {

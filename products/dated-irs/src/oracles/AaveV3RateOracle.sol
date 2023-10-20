@@ -7,8 +7,9 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import "../interfaces/IRateOracle.sol";
-import "../interfaces/external/IAaveV3LendingPool.sol";
+import { IRateOracle } from "../interfaces/IRateOracle.sol";
+import { IAaveV3LendingPool } from "../interfaces/external/IAaveV3LendingPool.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { UD60x18, ud } from "@prb/math/UD60x18.sol";
 
 contract AaveV3RateOracle is IRateOracle {

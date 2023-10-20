@@ -8,13 +8,23 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import { Market } from "./Market.sol";
+import { MarketManagerConfiguration } from "./MarketManagerConfiguration.sol";
+
 import { IPool } from "../interfaces/IPool.sol";
+
 import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { ExecuteADLOrder } from "../libraries/actions/ExecuteADLOrder.sol";
-import { FilledBalances, UnfilledBalances, PositionBalances } from "../libraries/DataTypes.sol";
+import {
+    FilledBalances,
+    UnfilledBalances,
+    PositionBalances,
+    UnfilledExposureComponents,
+    UnfilledExposure,
+    PnLComponents
+} from "../libraries/DataTypes.sol";
 import { TraderPosition } from "../libraries/TraderPosition.sol";
 
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
+import { IRiskConfigurationModule } from "@voltz-protocol/core/src/interfaces/IRiskConfigurationModule.sol";
 
 import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
@@ -177,28 +187,32 @@ library Portfolio {
         view
         returns (FilledBalances memory)
     {
+        Market.Data storage market = Market.exists(self.marketId);
+        UD60x18 exposureFactor = market.exposureFactor();
+
         PositionBalances memory position = self.getAccountPositionBalances(maturityTimestamp, poolAddress);
 
         int256 realizedPnL = TraderPosition.getAccruedInterest(
             position, Market.exists(self.marketId).getLatestRateIndex(maturityTimestamp)
         );
 
-        UD60x18 twap = ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base);
+        UD60x18 twap =
+            ExposureHelpers.computeTwap(self.marketId, maturityTimestamp, poolAddress, position.base, exposureFactor);
 
         int256 unrealizedPnL =
-            ExposureHelpers.computeUnrealizedPnL(self.marketId, maturityTimestamp, position.base, position.quote, twap);
+            ExposureHelpers.computeUnrealizedPnL(maturityTimestamp, position.base, position.quote, twap, exposureFactor);
 
         return FilledBalances({
             base: position.base,
             quote: position.quote,
-            pnl: Account.PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unrealizedPnL })
+            pnl: PnLComponents({ realizedPnL: realizedPnL, unrealizedPnL: unrealizedPnL })
         });
     }
 
     function getAccountMakerExposures(Data storage self)
         internal
         view
-        returns (Account.UnfilledExposure[] memory unfilledExposures)
+        returns (UnfilledExposure[] memory unfilledExposures)
     {
         uint256 size = 0;
 
@@ -210,12 +224,13 @@ library Portfolio {
         uint256 activeMaturitiesLength = self.activeMaturities.length();
 
         UnfilledBalances[] memory cachedUnfilledBalances = new UnfilledBalances[](activeMaturitiesLength);
+        address coreProxy = MarketManagerConfiguration.getCoreProxyAddress();
 
         for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
             uint32 maturityTimestamp = self.activeMaturities.valueAt(i).to32();
 
             cachedUnfilledBalances[i - 1] =
-                IPool(poolAddress).getAccountUnfilledBaseAndQuote(market.id, maturityTimestamp, self.accountId);
+                IPool(poolAddress).getAccountUnfilledBalances(market.id, maturityTimestamp, self.accountId);
 
             if (cachedUnfilledBalances[i - 1].baseLong == 0 && cachedUnfilledBalances[i - 1].baseShort == 0) {
                 continue;
@@ -224,7 +239,7 @@ library Portfolio {
             size += 1;
         }
 
-        unfilledExposures = new Account.UnfilledExposure[](size);
+        unfilledExposures = new UnfilledExposure[](size);
         size = 0;
 
         for (uint256 i = 1; i <= activeMaturitiesLength; i++) {
@@ -236,7 +251,7 @@ library Portfolio {
                 continue;
             }
 
-            unfilledExposures[size].exposureComponents = Account.UnfilledExposureComponents({
+            unfilledExposures[size].exposureComponents = UnfilledExposureComponents({
                 long: ExposureHelpers.getExposureComponents(
                     cachedUnfilledBalances[i - 1].baseLong.toInt(),
                     exposureFactor,
@@ -254,8 +269,12 @@ library Portfolio {
             unfilledExposures[size].riskMatrixRowIds[0] = riskMatrixZeroRowId;
             unfilledExposures[size].riskMatrixRowIds[1] = marketMaturityConfig.riskMatrixRowId;
 
+            UD60x18 diagonalRiskParameter = IRiskConfigurationModule(coreProxy).getRiskMatrixParameterFromMM(
+                market.id, marketMaturityConfig.riskMatrixRowId, marketMaturityConfig.riskMatrixRowId
+            ).intoUD60x18();
+
             unfilledExposures[size].pvmrComponents = ExposureHelpers.getPVMRComponents(
-                cachedUnfilledBalances[i - 1], market.id, maturityTimestamp, marketMaturityConfig.riskMatrixRowId
+                cachedUnfilledBalances[i - 1], maturityTimestamp, exposureFactor, diagonalRiskParameter
             );
 
             size += 1;

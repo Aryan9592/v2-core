@@ -2,18 +2,17 @@
 
 pragma solidity >=0.8.13;
 
+import { Oracle } from "./Oracle.sol";
 import { VammTicks } from "./VammTicks.sol";
 import { VammCustomErrors } from "./VammCustomErrors.sol";
 
 import { Tick } from "../ticks/Tick.sol";
+import { OrderDirection } from "../DataTypes.sol";
 
-import { Oracle } from "./Oracle.sol";
 import { DatedIrsVamm } from "../../storage/DatedIrsVamm.sol";
 
 import { SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { Time } from "@voltz-protocol/util-contracts/src/helpers/Time.sol";
-
-import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
 
 import { UD60x18, ZERO as ZERO_ud, convert as convert_ud } from "@prb/math/UD60x18.sol";
 
@@ -38,7 +37,7 @@ library Twap {
     function twap(
         DatedIrsVamm.Data storage self,
         uint32 secondsAgo,
-        IPool.OrderDirection orderDirection,
+        OrderDirection orderDirection,
         UD60x18 pSlippage
     )
         internal
@@ -60,18 +59,18 @@ library Twap {
 
     function applySlippage(
         UD60x18 price,
-        IPool.OrderDirection orderDirection,
+        OrderDirection orderDirection,
         UD60x18 pSlippage
     )
         private
         pure
         returns (UD60x18 /* slippedPrice */ )
     {
-        if (orderDirection == IPool.OrderDirection.Zero) {
+        if (orderDirection == OrderDirection.Zero) {
             return price;
         }
 
-        if (orderDirection == IPool.OrderDirection.Long) {
+        if (orderDirection == OrderDirection.Long) {
             return price.add(pSlippage);
         }
 
@@ -85,18 +84,18 @@ library Twap {
 
     function applySpread(
         UD60x18 price,
-        IPool.OrderDirection orderDirection,
+        OrderDirection orderDirection,
         UD60x18 spread
     )
         private
         pure
         returns (UD60x18 /* spreadPrice */ )
     {
-        if (orderDirection == IPool.OrderDirection.Zero) {
+        if (orderDirection == OrderDirection.Zero) {
             return price;
         }
 
-        if (orderDirection == IPool.OrderDirection.Long) {
+        if (orderDirection == OrderDirection.Long) {
             return price.add(spread);
         }
 

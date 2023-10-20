@@ -7,8 +7,7 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-// todo: consider abstracting Account.MarginInfo to a datatype lib
-import {Account} from "../storage/Account.sol";
+import { MarginInfo } from "../libraries/DataTypes.sol";
 
 interface IExecutionModule {
 
@@ -57,6 +56,6 @@ interface IExecutionModule {
     function execute(
         uint128 accountId,
         Command[] calldata commands
-    ) external returns (bytes[] memory outputs, Account.MarginInfo memory marginInfo);
+    ) external returns (bytes[] memory outputs, MarginInfo memory marginInfo);
 
 }

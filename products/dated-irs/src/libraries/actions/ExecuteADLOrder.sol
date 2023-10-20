@@ -53,13 +53,13 @@ library ExecuteADLOrder {
     error PositiveUPnLDuringBakruptcyADL(uint128 marketId, uint32 maturityTimestamp, uint128 accountId, uint256 upnl);
 
     function computeBankruptcyPrice(
-        uint128 marketId,
         uint32 maturityTimestamp,
         int256 baseBalance,
         int256 quoteBalance,
         uint256 positionUnrealizedLoss,
         uint256 totalUnrealizedLoss,
-        int256 realBalanceAndIF
+        int256 realBalanceAndIF,
+        UD60x18 exposureFactor
     )
         private
         view
@@ -70,11 +70,11 @@ library ExecuteADLOrder {
         int256 cover = (realBalanceAndIF > 0) ? absCover.toInt() : -absCover.toInt();
 
         bankruptcyPrice = ExposureHelpers.computeUnwindPriceForGivenUPnL({
-            marketId: marketId,
             maturityTimestamp: maturityTimestamp,
             baseBalance: baseBalance,
             quoteBalance: quoteBalance,
-            uPnL: cover
+            uPnL: cover,
+            exposureFactor: exposureFactor
         }).intoUD60x18(); // todo: need to check this with @0xZenus @arturbeg, we do not want to revert adl
     }
 
@@ -104,6 +104,7 @@ library ExecuteADLOrder {
 
         Market.Data storage market = Market.exists(accountPortfolio.marketId);
         vars.poolAddress = market.marketConfig.poolAddress;
+        UD60x18 exposureFactor = market.exposureFactor();
 
         FilledBalances memory filledBalances =
             accountPortfolio.getAccountFilledBalances(maturityTimestamp, vars.poolAddress);
@@ -120,20 +121,21 @@ library ExecuteADLOrder {
 
             uint256 positionUnrealizedLoss = (-filledBalances.pnl.unrealizedPnL).toUint();
             vars.markPrice = computeBankruptcyPrice({
-                marketId: accountPortfolio.marketId,
                 maturityTimestamp: maturityTimestamp,
                 baseBalance: filledBalances.base,
                 quoteBalance: filledBalances.quote,
                 positionUnrealizedLoss: positionUnrealizedLoss,
                 totalUnrealizedLoss: totalUnrealizedLossQuote,
-                realBalanceAndIF: realBalanceAndIF
+                realBalanceAndIF: realBalanceAndIF,
+                exposureFactor: exposureFactor
             });
         } else {
-            vars.markPrice = ExposureHelpers.computeTwap(market.id, maturityTimestamp, vars.poolAddress, 0);
+            vars.markPrice =
+                ExposureHelpers.computeTwap(market.id, maturityTimestamp, vars.poolAddress, 0, exposureFactor);
         }
 
         vars.baseDelta = filledBalances.base;
-        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, accountPortfolio.marketId);
+        vars.quoteDelta = ExposureHelpers.computeQuoteDelta(vars.baseDelta, vars.markPrice, exposureFactor);
 
         vars.isLong = vars.baseDelta > 0;
 

@@ -8,28 +8,34 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/products/dated-irs/LICENSE
 pragma solidity >=0.8.19;
 
 import { IMarketManagerIRSModule, IMarketManager } from "../interfaces/IMarketManagerIRSModule.sol";
-import { IPool } from "../interfaces/IPool.sol";
+
 import { Portfolio } from "../storage/Portfolio.sol";
 import { Market } from "../storage/Market.sol";
-import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { MarketManagerConfiguration } from "../storage/MarketManagerConfiguration.sol";
+
+import { ExposureHelpers } from "../libraries/ExposureHelpers.sol";
 import { FeatureFlagSupport } from "../libraries/FeatureFlagSupport.sol";
-import "../libraries/DataTypes.sol";
-
-import { Account } from "@voltz-protocol/core/src/storage/Account.sol";
-
-import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
-import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
-import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
+import {
+    LiquidationOrderParams,
+    TakerOrderParams,
+    MakerOrderParams,
+    FilledBalances,
+    PositionBalances,
+    UnfilledExposure,
+    PnLComponents
+} from "../libraries/DataTypes.sol";
 
 import { Settlement } from "../libraries/actions/Settlement.sol";
 import { InitiateMakerOrder } from "../libraries/actions/InitiateMakerOrder.sol";
 import { InitiateTakerOrder } from "../libraries/actions/InitiateTakerOrder.sol";
 import { ExecuteLiquidationOrder } from "../libraries/actions/ExecuteLiquidationOrder.sol";
 import { PropagateADLOrder } from "../libraries/actions/PropagateADLOrder.sol";
-import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
+import { OwnableStorage } from "@voltz-protocol/util-contracts/src/storage/OwnableStorage.sol";
+import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
+import { SetUtil } from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 import { DecimalMath } from "@voltz-protocol/util-contracts/src/helpers/DecimalMath.sol";
+import { IERC165 } from "@voltz-protocol/util-contracts/src/interfaces/IERC165.sol";
 import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol";
 
 import { UD60x18 } from "@prb/math/UD60x18.sol";
@@ -67,14 +73,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     /**
      * @inheritdoc IMarketManager
      */
-    function getMarketQuoteToken(uint128 marketId) external view override returns (address) {
-        Market.Data storage market = Market.exists(marketId);
-        return market.quoteToken;
-    }
-
-    /**
-     * @inheritdoc IMarketManager
-     */
     function isMarketManager() external pure override returns (bool) {
         return true;
     }
@@ -105,7 +103,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (Account.UnfilledExposure[] memory)
+        returns (UnfilledExposure[] memory)
     {
         return Portfolio.exists(accountId, marketId).getAccountMakerExposures();
     }
@@ -120,7 +118,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         external
         view
         override
-        returns (Account.PnLComponents memory pnlComponents)
+        returns (PnLComponents memory pnlComponents)
     {
         Portfolio.Data storage portfolio = Portfolio.exists(accountId, marketId);
         Market.Data storage market = Market.exists(portfolio.marketId);
@@ -229,10 +227,12 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
     {
         (uint32 maturityTimestamp, int256 baseToBeLiquidated) = abi.decode(inputs, (uint32, int256));
 
-        int256 annualizedExposure =
-            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, marketId, maturityTimestamp);
-
         Market.Data storage market = Market.exists(marketId);
+        UD60x18 exposureFactor = market.exposureFactor();
+
+        int256 annualizedExposure =
+            ExposureHelpers.baseToAnnualizedExposure(baseToBeLiquidated, maturityTimestamp, exposureFactor);
+
         annualizedExposureWad = DecimalMath.changeDecimals(
             annualizedExposure, IERC20(market.quoteToken).decimals(), DecimalMath.WAD_DECIMALS
         );
@@ -415,21 +415,6 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         address poolAddress = market.marketConfig.poolAddress;
 
         return Portfolio.getAccountFilledBalances(position, maturityTimestamp, poolAddress);
-    }
-
-    function getAccountUnfilledBaseAndQuote(
-        uint128 marketId,
-        uint32 maturityTimestamp,
-        uint128 accountId
-    )
-        external
-        view
-        returns (UnfilledBalances memory)
-    {
-        Market.Data storage market = Market.exists(marketId);
-        address poolAddress = market.marketConfig.poolAddress;
-
-        return IPool(poolAddress).getAccountUnfilledBaseAndQuote(marketId, maturityTimestamp, accountId);
     }
 
     function getPercentualSlippage(

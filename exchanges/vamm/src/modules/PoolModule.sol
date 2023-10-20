@@ -12,7 +12,7 @@ import { amountsFromLiquidity } from "../libraries/vamm-utils/VammHelpers.sol";
 import { Twap } from "../libraries/vamm-utils/Twap.sol";
 import { VammTicks } from "../libraries/vamm-utils/VammTicks.sol";
 import { liquidityFromBase } from "../libraries/vamm-utils/VammHelpers.sol";
-import { UnfilledBalances, PositionBalances, MakerOrderParams } from "../libraries/DataTypes.sol";
+import { UnfilledBalances, PositionBalances, MakerOrderParams, OrderDirection } from "../libraries/DataTypes.sol";
 
 import { SafeCastU128, SafeCastU256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import { IPool } from "@voltz-protocol/products-dated-irs/src/interfaces/IPool.sol";
@@ -153,7 +153,7 @@ contract PoolModule is IPoolModule {
     /**
      * @inheritdoc IPool
      */
-    function getAccountUnfilledBaseAndQuote(
+    function getAccountUnfilledBalances(
         uint128 marketId,
         uint32 maturityTimestamp,
         uint128 accountId
@@ -173,7 +173,7 @@ contract PoolModule is IPoolModule {
     function getAdjustedTwap(
         uint128 marketId,
         uint32 maturityTimestamp,
-        IPool.OrderDirection orderDirection,
+        OrderDirection orderDirection,
         uint32 lookbackWindow,
         UD60x18 pSlippage
     )

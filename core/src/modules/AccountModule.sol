@@ -7,15 +7,12 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
-import {IAccountTokenModule} from "../interfaces/IAccountTokenModule.sol";
+import { AccountPermissions } from "../libraries/DataTypes.sol";
 import {IAccountModule} from "../interfaces/IAccountModule.sol";
 import {Account} from "../storage/Account.sol";
-import {AccessPassConfiguration} from "../storage/AccessPassConfiguration.sol";
-import {IAccessPassNFT} from "../interfaces/external/IAccessPassNFT.sol";
 import "../libraries/actions/CreateAccount.sol";
 import {FeatureFlagSupport} from "../libraries/FeatureFlagSupport.sol";
 
-import {AssociatedSystem} from "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
 
 /**
@@ -154,7 +151,7 @@ contract AccountModule is IAccountModule {
         external 
         view 
         override 
-        returns (Account.MarginInfo memory) 
+        returns (MarginInfo memory) 
     {
         return Account.exists(accountId).getMarginInfoByBubble(collateralType);
     }

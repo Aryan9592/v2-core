@@ -7,6 +7,14 @@ https://github.com/Voltz-Protocol/v2-core/blob/main/core/LICENSE
 */
 pragma solidity >=0.8.19;
 
+import { 
+    MarginInfo, 
+    PnLComponents, 
+    UnfilledExposure, 
+    UnfilledExposureComponents, 
+    CollateralInfo,
+    RawInformation
+} from "../../libraries/DataTypes.sol";
 import {Account} from "../../storage/Account.sol";
 import {CollateralConfiguration} from "../../storage/CollateralConfiguration.sol";
 import {CollateralPool} from "../../storage/CollateralPool.sol";
@@ -14,9 +22,8 @@ import {Market} from "../../storage/Market.sol";
 
 import {SafeCastU256, SafeCastI256} from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
 import {SetUtil} from "@voltz-protocol/util-contracts/src/helpers/SetUtil.sol";
-import {mulUDxUint, mulUDxInt, mulSDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+import {mulUDxUint, mulUDxInt, UD60x18} from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
 import { sd, unwrap, SD59x18 } from "@prb/math/SD59x18.sol";
-import {SignedMath} from "oz/utils/math/SignedMath.sol";
 import {UNIT, ZERO} from "@prb/math/UD60x18.sol";
 
 /**
@@ -38,13 +45,13 @@ library AccountExposure {
     function getMarginInfoByBubble(Account.Data storage account, address token) 
         internal 
         view
-        returns (Account.MarginInfo memory) 
+        returns (MarginInfo memory) 
     {
         CollateralPool.Data storage collateralPool = account.getCollateralPool();
         uint128 collateralPoolId = collateralPool.id;
 
         address quoteToken = address(0);
-        Account.MarginInfo memory marginInfo = computeMarginInfoByBubble(
+        MarginInfo memory marginInfo = computeMarginInfoByBubble(
             account,
             collateralPoolId,
             address(0),
@@ -63,9 +70,9 @@ library AccountExposure {
         // to make sure the deltas are in the units of the base token
         // however, the haircut is originally only applied if the delta is positive, that same logic
         // doesn't seem to be present here, is that intentional?
-        return Account.MarginInfo({
+        return MarginInfo({
             collateralType: token,
-            collateralInfo: Account.CollateralInfo({
+            collateralInfo: CollateralInfo({
                 netDeposits: getExchangedQuantity(marginInfo.collateralInfo.netDeposits, exchange.price, exchange.priceHaircut),
                 marginBalance: getExchangedQuantity(marginInfo.collateralInfo.marginBalance, exchange.price, exchange.priceHaircut),
                 realBalance: getExchangedQuantity(marginInfo.collateralInfo.realBalance, exchange.price, exchange.priceHaircut)
@@ -76,7 +83,7 @@ library AccountExposure {
             dutchDelta: getExchangedQuantity(marginInfo.dutchDelta, exchange.price, exchange.priceHaircut),
             adlDelta: getExchangedQuantity(marginInfo.adlDelta, exchange.price, exchange.priceHaircut),
             initialBufferDelta: getExchangedQuantity(marginInfo.initialBufferDelta, exchange.price, exchange.priceHaircut),
-            rawInfo: Account.RawInformation({
+            rawInfo: RawInformation({
                 rawMarginBalance: 
                     getExchangedQuantity(marginInfo.rawInfo.rawMarginBalance, exchange.priceHaircut, ZERO),
                 rawLiquidationMarginRequirement:
@@ -97,7 +104,7 @@ library AccountExposure {
     ) 
         private 
         view
-        returns(Account.MarginInfo memory marginInfo) 
+        returns(MarginInfo memory marginInfo) 
     {
         marginInfo = getMarginInfoByCollateralType(
             account,
@@ -111,7 +118,7 @@ library AccountExposure {
         // can have margin requirements attached to them given only base tokens can be quite tokens for a given market?
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            Account.MarginInfo memory subMarginInfo  = 
+            MarginInfo memory subMarginInfo  = 
                 computeMarginInfoByBubble(
                     account,
                     collateralPoolId,
@@ -123,9 +130,9 @@ library AccountExposure {
             UD60x18 price = collateral.getParentPrice();
             UD60x18 haircut = collateral.parentConfig.priceHaircut;
 
-            marginInfo = Account.MarginInfo({
+            marginInfo = MarginInfo({
                 collateralType: marginInfo.collateralType,
-                collateralInfo: Account.CollateralInfo({
+                collateralInfo: CollateralInfo({
                     netDeposits: marginInfo.collateralInfo.netDeposits,
                     marginBalance:  marginInfo.collateralInfo.marginBalance +
                     getExchangedQuantity(subMarginInfo.collateralInfo.marginBalance, price, haircut),
@@ -151,7 +158,7 @@ library AccountExposure {
                 initialBufferDelta:
                     marginInfo.initialBufferDelta + 
                     getExchangedQuantity(subMarginInfo.initialBufferDelta, price, haircut),
-                rawInfo: Account.RawInformation({
+                rawInfo: RawInformation({
                     rawMarginBalance: 
                         marginInfo.rawInfo.rawMarginBalance + 
                         getExchangedQuantity(subMarginInfo.rawInfo.rawMarginBalance, price, ZERO),
@@ -185,7 +192,7 @@ library AccountExposure {
         uint256[] memory markets
     ) private view returns (
         int256[] memory filledExposures,
-        Account.UnfilledExposure[] memory unfilledExposures
+        UnfilledExposure[] memory unfilledExposures
     ) {
 
         filledExposures = new int256[](riskMatrixDim);
@@ -201,7 +208,7 @@ library AccountExposure {
 
             int256[] memory marketFilledExposures = market.getAccountTakerExposures(self.id, riskMatrixDim);
 
-            Account.UnfilledExposure[] memory marketUnfilledExposures = market.getAccountMakerExposures(self.id);
+            UnfilledExposure[] memory marketUnfilledExposures = market.getAccountMakerExposures(self.id);
 
             // todo: revert if marketFilledExposures.length doesn't match the riskMatrixDim
 
@@ -231,7 +238,7 @@ library AccountExposure {
             uint128 marketId = markets[i].to128();
             Market.Data storage market = Market.exists(marketId);
 
-            Account.PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
+            PnLComponents memory pnlComponents = market.getAccountPnLComponents(self.id);
 
             realizedPnL += pnlComponents.realizedPnL;
             unrealizedPnL += pnlComponents.unrealizedPnL;
@@ -252,7 +259,7 @@ library AccountExposure {
     )
         internal
         view
-        returns (Account.MarginInfo memory marginInfo)
+        returns (MarginInfo memory marginInfo)
     {
         MarginInfoVars memory vars;
 
@@ -266,7 +273,7 @@ library AccountExposure {
 
             (
                 int256[] memory filledExposures,
-                Account.UnfilledExposure[] memory unfilledExposures
+                UnfilledExposure[] memory unfilledExposures
             ) = getBlockExposures(self, i, riskMatrixDim, markets);
 
             vars.liquidationMarginRequirement += computeLiquidationMarginRequirement(
@@ -297,9 +304,9 @@ library AccountExposure {
         int256 marginBalance = netDeposits + vars.realizedPnL + vars.unrealizedPnL;
         int256 realBalance = netDeposits + vars.realizedPnL;
 
-        return Account.MarginInfo({
+        return MarginInfo({
             collateralType: collateralType,
-            collateralInfo: Account.CollateralInfo({
+            collateralInfo: CollateralInfo({
                 netDeposits: netDeposits,
                 marginBalance: marginBalance,
                 realBalance: realBalance
@@ -310,7 +317,7 @@ library AccountExposure {
             dutchDelta: marginBalance - vars.dutchMarginRequirement.toInt(),
             adlDelta: marginBalance - vars.adlMarginRequirement.toInt(),
             initialBufferDelta: marginBalance - vars.initialBufferMarginRequirement.toInt(),
-            rawInfo: Account.RawInformation({
+            rawInfo: RawInformation({
                 rawMarginBalance: marginBalance,
                 rawLiquidationMarginRequirement: vars.liquidationMarginRequirement
             })
@@ -359,7 +366,7 @@ library AccountExposure {
 
 
     function hasUnfilledExposure(
-        Account.UnfilledExposureComponents memory unfilledExposureComponents,
+        UnfilledExposureComponents memory unfilledExposureComponents,
         bool isLong
     ) private pure returns (bool) {
         int256[] memory target = (isLong) ? unfilledExposureComponents.long : unfilledExposureComponents.short;
@@ -375,7 +382,7 @@ library AccountExposure {
 
     function getCFExposures(
         uint256[] memory riskMatrixRowIds,
-        Account.UnfilledExposureComponents memory unfilledExposureComponents,
+        UnfilledExposureComponents memory unfilledExposureComponents,
         int256[] memory filledExposures,
         bool isLong
     ) private pure returns (int256[] memory) {
@@ -393,7 +400,7 @@ library AccountExposure {
         CollateralPool.Data storage collateralPool,
         uint256 riskBlockId,
         int256[] memory filledExposures,
-        Account.UnfilledExposure[] memory unfilledExposures,
+        UnfilledExposure[] memory unfilledExposures,
         uint256 lmrFilled
     ) private view returns (uint256 lmrUnfilled) {
 
@@ -402,7 +409,7 @@ library AccountExposure {
             uint256 lmrLong;
             uint256 lmrShort;
 
-            Account.UnfilledExposure memory unfilledExposure = unfilledExposures[i];
+            UnfilledExposure memory unfilledExposure = unfilledExposures[i];
 
             if (hasUnfilledExposure(unfilledExposure.exposureComponents, true)) {
 
@@ -451,7 +458,7 @@ library AccountExposure {
         CollateralPool.Data storage collateralPool,
         uint256 riskBlockId,
         int256[] memory filledExposures,
-        Account.UnfilledExposure[] memory unfilledExposures
+        UnfilledExposure[] memory unfilledExposures
     )
     private
     view
