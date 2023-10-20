@@ -84,8 +84,9 @@ contract ConfigProtocol is SetupProtocol {
                 takerPositionsPerAccountLimit: 1,
                 positionSizeLowerLimit: 1e6,
                 positionSizeUpperLimit: 1e6 * 1e6,
-                openInterestUpperLimit: 1e6 * 1e9
-            })
+                openInterestUpperLimit: 1e6 * 1e9,
+                dutchLambda: ud(1) // todo
+             })
         });
         uint32[] memory times = new uint32[](2);
         times[0] = uint32(block.timestamp - 86_400);
@@ -96,6 +97,7 @@ contract ConfigProtocol is SetupProtocol {
         configureMarketMaturity({
             marketId: 1,
             maturityTimestamp: 1_688_990_400,
+            dutchMinBase: 0, // todo
             riskMatrixRowId: 0, // todo
             tenorInSeconds: 0, // todo
             phi: ud(0.1e18),

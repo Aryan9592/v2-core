@@ -41,6 +41,10 @@ import { IERC20 } from "@voltz-protocol/util-contracts/src/interfaces/IERC20.sol
 import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { sd } from "@prb/math/SD59x18.sol";
 
+import { SignedMath } from "oz/utils/math/SignedMath.sol";
+
+import { divUintUD } from "@voltz-protocol/util-contracts/src/helpers/PrbMathHelper.sol";
+
 /*
 TODOs
     - rename executeADLOrder to executeADLOrders
@@ -166,6 +170,7 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         uint128 liquidatableAccountId,
         uint128 liquidatorAccountId,
         uint128 marketId,
+        bool isDutch,
         bytes calldata inputs
     )
         external
@@ -176,6 +181,29 @@ contract MarketManagerIRSModule is IMarketManagerIRSModule {
         (uint32 maturityTimestamp, int256 baseAmountToBeLiquidated, uint160 priceLimit) =
             abi.decode(inputs, (uint32, int256, uint160));
         executionPreCheck(marketId, maturityTimestamp);
+
+        if (isDutch) {
+            Market.Data storage market = Market.exists(marketId);
+            UD60x18 lambda = market.marketConfig.dutchLambda;
+            uint256 minBase = market.marketMaturityConfigs[maturityTimestamp].dutchMinBase;
+
+            uint256 absBaseAmountToBeLiquidated = SignedMath.abs(baseAmountToBeLiquidated);
+
+            // maxVolume = min(max(abs(N)/lambda, N_min), abs(N))
+            uint256 maxVolume = divUintUD(absBaseAmountToBeLiquidated, lambda);
+            if (maxVolume < minBase) {
+                maxVolume = minBase;
+            }
+            if (absBaseAmountToBeLiquidated < maxVolume) {
+                maxVolume = absBaseAmountToBeLiquidated;
+            }
+
+            if (baseAmountToBeLiquidated > 0) {
+                baseAmountToBeLiquidated = maxVolume.toInt();
+            } else {
+                baseAmountToBeLiquidated = -maxVolume.toInt();
+            }
+        }
 
         ExecuteLiquidationOrder.executeLiquidationOrder(
             LiquidationOrderParams({

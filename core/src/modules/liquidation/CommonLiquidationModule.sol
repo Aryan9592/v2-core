@@ -81,11 +81,12 @@ contract CommonLiquidationModule is ICommonLiquidationModule {
 
         for (uint256 i = 0; i < liquidationBid.marketIds.length; i++) {
             uint128 marketId = liquidationBid.marketIds[i];
-            Market.exists(marketId).executeLiquidationOrder(
-                liquidatableAccountId,
-                liquidationBid.liquidatorAccountId,
-                liquidationBid.inputs[i]
-            );
+            Market.exists(marketId).executeLiquidationOrder({
+                liquidatableAccountId: liquidatableAccountId,
+                liquidatorAccountId: liquidationBid.liquidatorAccountId,
+                isDutch: false,
+                inputs: liquidationBid.inputs[i]
+            });
         }
 
         uint256 rawLMRAfter = account.getMarginInfoByBubble(liquidationBid.quoteToken).rawInfo.rawLiquidationMarginRequirement;

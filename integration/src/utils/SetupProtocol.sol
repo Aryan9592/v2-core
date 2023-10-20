@@ -230,7 +230,8 @@ contract SetupProtocol is BatchScript {
                 takerPositionsPerAccountLimit: config.takerPositionsPerAccountLimit,
                 positionSizeLowerLimit: config.positionSizeLowerLimit,
                 positionSizeUpperLimit: config.positionSizeUpperLimit,
-                openInterestUpperLimit: config.openInterestUpperLimit
+                openInterestUpperLimit: config.openInterestUpperLimit,
+                dutchLambda: config.dutchLambda
             })
         });
 
@@ -246,6 +247,7 @@ contract SetupProtocol is BatchScript {
     function configureMarketMaturity(
         uint128 marketId,
         uint32 maturityTimestamp,
+        uint256 dutchMinBase,
         uint256 riskMatrixRowId,
         uint256 tenorInSeconds,
         UD60x18 phi,
@@ -257,6 +259,7 @@ contract SetupProtocol is BatchScript {
             marketId,
             maturityTimestamp,
             DatedIrsMarket.MarketMaturityConfiguration({
+                dutchMinBase: dutchMinBase,
                 riskMatrixRowId: riskMatrixRowId,
                 tenorInSeconds: tenorInSeconds,
                 phi: phi,

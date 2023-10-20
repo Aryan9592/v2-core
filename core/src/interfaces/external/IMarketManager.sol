@@ -116,6 +116,7 @@ interface IMarketManager is IERC165 {
         uint128 liquidatableAccountId,
         uint128 liquidatorAccountId,
         uint128 marketId,
+        bool isDutch,
         bytes calldata inputs
     ) external returns (bytes memory output);
 

@@ -74,7 +74,8 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
-                openInterestUpperLimit: 1e27 // 1B
+                openInterestUpperLimit: 1e27, // 1B
+                dutchLambda: ud(1) // todo
              })
         );
 
@@ -98,7 +99,13 @@ contract ScenarioTLP is ScenarioSetup, AssertionHelpers, Actions, Checks {
         datedIrsProxy.setMarketMaturityConfiguration(
             marketId,
             maturityTimestamp,
-            Market.MarketMaturityConfiguration({ riskMatrixRowId: 0, tenorInSeconds: 0, phi: ud(0), beta: ud(0.5e18) })
+            Market.MarketMaturityConfiguration({
+                dutchMinBase: 0,
+                riskMatrixRowId: 0,
+                tenorInSeconds: 0,
+                phi: ud(0),
+                beta: ud(0.5e18)
+            })
         );
 
         DatedIrsVamm.Immutable memory immutableConfig = DatedIrsVamm.Immutable({

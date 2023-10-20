@@ -76,7 +76,8 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
                 takerPositionsPerAccountLimit: 100,
                 positionSizeUpperLimit: 1e27, // 1B
                 positionSizeLowerLimit: 0,
-                openInterestUpperLimit: 1e27 // 1B
+                openInterestUpperLimit: 1e27, // 1B
+                dutchLambda: ud(1) // todo
              })
         );
         datedIrsProxy.setRateOracleConfiguration(
@@ -100,6 +101,7 @@ contract ScenarioB is ScenarioSetup, AssertionHelpers, Actions, Checks {
             marketId,
             maturityTimestamp,
             Market.MarketMaturityConfiguration({
+                dutchMinBase: 0,
                 riskMatrixRowId: 0,
                 tenorInSeconds: 0,
                 phi: ud(0.0001e18), // vol / volume = 0.01

@@ -191,15 +191,17 @@ library Market {
         Data storage self,
         uint128 liquidatableAccountId,
         uint128 liquidatorAccountId,
+        bool isDutch,
         bytes memory inputs
     ) internal {
         Account.exists(liquidatorAccountId).markActiveMarket(self.quoteToken, self.id);
-        IMarketManager(self.marketManagerAddress).executeLiquidationOrder(
-            liquidatableAccountId,
-            liquidatorAccountId,
-            self.id,
-            inputs
-        );
+        IMarketManager(self.marketManagerAddress).executeLiquidationOrder({
+            liquidatableAccountId: liquidatableAccountId,
+            liquidatorAccountId: liquidatorAccountId,
+            marketId: self.id,
+            isDutch: isDutch,
+            inputs: inputs
+        });
     }
 
     function validateLiquidationOrder(

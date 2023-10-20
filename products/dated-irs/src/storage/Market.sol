@@ -155,6 +155,11 @@ library Market {
          * @dev Maximum amount of open interest allowed in this market
          */
         uint256 openInterestUpperLimit;
+        /**
+         * @dev Configurable parameter that determines what percentage of notional exposure
+         * should be available for duthc liquidation as long as we’re beyond the min threshold
+         */
+        UD60x18 dutchLambda;
     }
 
     struct RateOracleConfiguration {
@@ -169,6 +174,11 @@ library Market {
     }
 
     struct MarketMaturityConfiguration {
+        /**
+         * Threshold used in dutch liquidations beyond which partial liquidations are not possible
+         * resulting in a full liquidation of the exposure.
+         */
+        uint256 dutchMinBase;
         /**
          * @dev Risk matrix row id
          */

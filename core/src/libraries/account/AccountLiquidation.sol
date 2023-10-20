@@ -556,9 +556,7 @@ library AccountLiquidation {
         self.liquidationBidPriorityQueuesPerBubble[market.quoteToken];
 
         // revert if the account is above dutch margin requirement & the liquidation bid queue is not empty
-
         bool isAboveDutch = self.getMarginInfoByBubble(address(0)).dutchDelta > 0;
-
         if (
             liquidationBidPriorityQueues.priorityQueues
             [liquidationBidPriorityQueues.latestQueueId].ranks.length > 0 && isAboveDutch) {
@@ -571,11 +569,12 @@ library AccountLiquidation {
 
         uint256 rawLMRBefore = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
-        market.executeLiquidationOrder(
-            self.id,
-            liquidatorAccountId,
-            inputs
-        );
+        market.executeLiquidationOrder({
+            liquidatableAccountId: self.id,
+            liquidatorAccountId: liquidatorAccountId,
+            isDutch: true,
+            inputs: inputs
+        });
 
         uint256 rawLMRAfter = self.getMarginInfoByBubble(market.quoteToken).rawInfo.rawLiquidationMarginRequirement;
 
@@ -650,11 +649,12 @@ library AccountLiquidation {
         for (uint256 i = 0; i < backstopLPLiquidationOrders.length; i++) {
             LiquidationOrder memory liquidationOrder = backstopLPLiquidationOrders[i];
             Market.Data storage market = Market.exists(liquidationOrder.marketId);
-            market.executeLiquidationOrder(
-                self.id,
-                collateralPool.backstopLPConfig.accountId,
-                liquidationOrder.inputs
-            );
+            market.executeLiquidationOrder({
+                liquidatableAccountId: self.id,
+                liquidatorAccountId: collateralPool.backstopLPConfig.accountId,
+                isDutch: false,
+                inputs: liquidationOrder.inputs
+            });
         }
 
         vars.rawLMRAfterBackstop = self.getMarginInfoByBubble(
