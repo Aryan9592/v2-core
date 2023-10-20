@@ -12,7 +12,7 @@ TODOs
     - implement rank calculation
 */
 
-import { MarginInfo, PnLComponents } from "../DataTypes.sol";
+import { MarginInfo, PnLComponents, CollateralInfo } from "../DataTypes.sol";
 import {AccountAutoExchange} from "./AccountAutoExchange.sol";
 import {Account} from "../../storage/Account.sol";
 import {Market} from "../../storage/Market.sol";
@@ -608,7 +608,7 @@ library AccountLiquidation {
         if (!_isInsolvent) {
             executeSolventBackstopLiquidation(self, keeperAccountId, quoteToken, backstopLPLiquidationOrders);
         } else {
-            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken);
+            executeInsolventADLLiquidation(self, keeperAccountId, quoteToken, marginInfo);
         }
     }
 
@@ -722,7 +722,7 @@ library AccountLiquidation {
         });
 
         // update collateral info after rewards distribution
-        quoteMarginInfo.collateralInfo = Account.CollateralInfo({
+        quoteMarginInfo.collateralInfo = CollateralInfo({
             netDeposits: quoteMarginInfo.collateralInfo.netDeposits -= totalRewards.toInt(),
             realBalance: quoteMarginInfo.collateralInfo.realBalance -= totalRewards.toInt(),
             marginBalance: quoteMarginInfo.collateralInfo.marginBalance -= totalRewards.toInt()
