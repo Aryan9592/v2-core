@@ -16,6 +16,7 @@ import { FeatureFlagSupport } from "../FeatureFlagSupport.sol";
 import { Portfolio } from "../../storage/Portfolio.sol";
 import { Market } from "../../storage/Market.sol";
 
+import { BlendedADLLongId, BlendedADLShortId } from "@voltz-protocol/core/src/libraries/Constants.sol";
 import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import { Timer } from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
@@ -67,11 +68,8 @@ library PropagateADLOrder {
             revert WrongADLPropagationDirection();
         }
 
-        // todo: please highlight that these two portfolios are special (by using constants and also blocking their
-        // creation)
-        Portfolio.Data storage adlPortfolio = isLong
-            ? Portfolio.exists(type(uint128).max - 1, market.id)
-            : Portfolio.exists(type(uint128).max - 2, market.id);
+        Portfolio.Data storage adlPortfolio =
+            isLong ? Portfolio.exists(BlendedADLLongId, market.id) : Portfolio.exists(BlendedADLShortId, market.id);
 
         // todo: calculate the share of base and quote to propagate
         int256 baseToPropagate = 0;

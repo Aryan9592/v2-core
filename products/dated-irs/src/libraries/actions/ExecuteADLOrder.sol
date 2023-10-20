@@ -15,6 +15,7 @@ import { UD60x18 } from "@prb/math/UD60x18.sol";
 import { mulDiv } from "@prb/math/SD59x18.sol";
 import { Timer } from "@voltz-protocol/util-contracts/src/helpers/Timer.sol";
 
+import { BlendedADLLongId, BlendedADLShortId } from "@voltz-protocol/core/src/libraries/Constants.sol";
 import { FeatureFlag } from "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import { FeatureFlagSupport } from "../FeatureFlagSupport.sol";
 import { SafeCastU256, SafeCastI256 } from "@voltz-protocol/util-contracts/src/helpers/SafeCast.sol";
@@ -140,8 +141,8 @@ library ExecuteADLOrder {
         vars.isLong = vars.baseDelta > 0;
 
         Portfolio.Data storage adlPortfolio = vars.isLong
-            ? Portfolio.loadOrCreate(type(uint128).max - 1, market.id)
-            : Portfolio.loadOrCreate(type(uint128).max - 2, market.id);
+            ? Portfolio.loadOrCreate(BlendedADLLongId, market.id)
+            : Portfolio.loadOrCreate(BlendedADLShortId, market.id);
 
         Timer.Data storage adlPortfolioTimer = Timer.loadOrCreate(adlOrderTimerId(vars.isLong));
         /// todo: need to think how propagation can achieve exactly 0 in base & quote balances,

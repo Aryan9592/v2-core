@@ -10,6 +10,8 @@ pragma solidity >=0.8.19;
 import "@voltz-protocol/util-modules/src/storage/FeatureFlag.sol";
 import "@voltz-protocol/util-modules/src/storage/AssociatedSystem.sol";
 
+import { BlendedADLLongId, BlendedADLShortId } from "../Constants.sol";
+
 import "../../storage/Account.sol";
 import "../../storage/AccessPassConfiguration.sol";
 import "../../interfaces/IAccountTokenModule.sol";
@@ -24,9 +26,14 @@ library CreateAccount {
     bytes32 private constant _ACCOUNT_SYSTEM = "accountNFT";
 
     /**
-    * @notice Thrown when attempting to create account without owning an access pass
+     * @notice Thrown when attempting to create account without owning an access pass
      */
     error OnlyAccessPassOwner(uint128 requestedAccountId, address accountOwner);
+
+    /**
+    * @notice Thrown when attempting to create account with reserved account id
+     */
+    error ReservedAccountId(uint128 requestedAccountId);
 
     /**
      * @notice Emitted when an account token with id `accountId` is minted to `owner`.
@@ -45,6 +52,10 @@ library CreateAccount {
             This feature will only be available to the Executor Module which will need to make sure accountOwner == msg.sender
         */
         FeatureFlagSupport.ensureCreateAccountAccess();
+
+        if (requestedAccountId == BlendedADLLongId || requestedAccountId == BlendedADLShortId) {
+            revert ReservedAccountId(requestedAccountId);
+        }
 
         address accessPassNFTAddress = AccessPassConfiguration.exists().accessPassNFTAddress;
 
